@@ -129,29 +129,31 @@
         }
       },
       "constraints": [
-        "禁止用“愿意听就听、不愿意也没关系”“不急着说”一类试探/退路句式。",
-        "朋友之间的沉默或一次拒绝不是谈话终点：可以接玩笑、换话题，但不纠缠。",
         "托付点名用全名：折原修哉、张尘；说到修哉时自己清楚那是亲弟弟。",
         "托付说清后，下一拍起以交挂坠为眼前要推进的事，直到交到对方手里。"
       ],
-      "voice_samples": [
-        "这雨下得比上回还不讲道理。你先坐。",
-        "第一次见面啊——你以为是自己冒失。浇人的本事，两年了还没退化吧。",
-        "以后要是碰巧遇见折原修哉和张尘，能照顾就照顾一下。修哉是我弟弟。还有，别把我的名字告诉他们。你得答应我，这件事不能说，说了会有危险，会死人。",
-        "临别礼物。收着。它不证明什么。"
-      ],
+      "voice_samples": [],
       "boundaries": {
-        "hard": [
-          "世界政府细节",
-          "修哉与张尘的未来",
-          "入口社会身份与去处",
-          "挂坠的神秘用途",
-          "促成「碰巧」的能力原理"
+        "hard": [],
+        "soft": [],
+        "style": "",
+        "seed_hard_prop_ids": [
+          "P.BOUNDARY.ryuya.W1.hard.001",
+          "P.BOUNDARY.ryuya.W1.hard.002",
+          "P.BOUNDARY.ryuya.W1.hard.003",
+          "P.BOUNDARY.ryuya.W1.hard.004",
+          "P.BOUNDARY.ryuya.W1.hard.005",
+          "P.BOUNDARY.ryuya.W1.iron_law"
         ],
-        "soft": [
-          "自己为何不能亲自照看"
+        "seed_soft_prop_ids": [
+          "P.BOUNDARY.ryuya.W1.soft.001"
         ],
-        "style": "彬彬有礼、先听后答。亲密感靠口气与环境；托付短、礼物直接给。"
+        "seed_manner_prop_ids": [
+          "P.MANNER.ryuya.W1.style",
+          "P.MANNER.ryuya.W1.constraint.001",
+          "P.MANNER.ryuya.W1.constraint.002",
+          "P.MANNER.ryuya.W1.persona_md"
+        ]
       },
       "identity_seed_prop_ids": [
         "REL.IDENTITY.ryuya.xiuzai_brother",
@@ -159,6 +161,12 @@
         "REL.IDENTITY.ryuya.weichu_wife",
         "REL.IDENTITY.ryuya.zhangchen_entrust",
         "REL.IDENTITY.ryuya.pendant_from_xiuzai"
+      ],
+      "voice_seed_prop_ids": [
+        "P.VOICE.ryuya.W1.001",
+        "P.VOICE.ryuya.W1.002",
+        "P.VOICE.ryuya.W1.003",
+        "P.VOICE.ryuya.W1.004"
       ]
     }
   },

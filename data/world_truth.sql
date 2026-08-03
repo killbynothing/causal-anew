@@ -1,5 +1,5 @@
 -- world_truth.db canonical SQL dump
--- generated_at_utc: 2026-08-03T04:23:44Z
+-- generated_at_utc: 2026-08-03T04:36:56Z
 -- source: data/world_truth.db
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
@@ -52,6 +52,7 @@ INSERT INTO "archetypes" VALUES('minamoto','源晃');
 INSERT INTO "archetypes" VALUES('leonard','莱纳德');
 INSERT INTO "archetypes" VALUES('fein','费恩');
 INSERT INTO "archetypes" VALUES('zhouze','周泽');
+INSERT INTO "archetypes" VALUES('player','玩家（可扮演壳）');
 CREATE TABLE bleed_config(
   cons_id TEXT PRIMARY KEY, base_bleed REAL DEFAULT 0,
   growth_per_delta REAL DEFAULT 0, restart_immunity REAL DEFAULT 0);
@@ -97,6 +98,7 @@ INSERT INTO "bodies" VALUES('B.minamoto.WMAIN','W-MAIN','minamoto','human',NULL,
 INSERT INTO "bodies" VALUES('B.leonard.WMAIN','W-MAIN','leonard','human',NULL,'主世界莱纳德的身体');
 INSERT INTO "bodies" VALUES('B.fein.WMAIN','W-MAIN','fein','human',NULL,'主世界费恩的身体');
 INSERT INTO "bodies" VALUES('B.zhouze.WMAIN','W-MAIN','zhouze','human',NULL,'主世界周泽的身体');
+INSERT INTO "bodies" VALUES('B.player','W-MAIN','player','human',NULL,'玩家可扮演身体壳（Seed 基线；姓名等开档设定在 run.player_profile）');
 CREATE TABLE body_state(
   run INTEGER, body_id TEXT, asof_event INTEGER, wl_id TEXT,
   location_id TEXT, hp TEXT, holding TEXT, PRIMARY KEY(run,body_id));
@@ -6696,6 +6698,7 @@ INSERT INTO "consciousnesses" VALUES('C.minamoto.WMAIN','W-MAIN','minamoto',0,'�
 INSERT INTO "consciousnesses" VALUES('C.leonard.WMAIN','W-MAIN','leonard',0,'主世界莱纳德的意识');
 INSERT INTO "consciousnesses" VALUES('C.fein.WMAIN','W-MAIN','fein',0,'主世界费恩的意识');
 INSERT INTO "consciousnesses" VALUES('C.zhouze.WMAIN','W-MAIN','zhouze',0,'主世界周泽的意识');
+INSERT INTO "consciousnesses" VALUES('C.player','W-MAIN','player',0,'玩家意识（jump_capable=0；非正典跳线者）');
 CREATE TABLE delta_ledger(
   delta_id INTEGER PRIMARY KEY, run INTEGER NOT NULL, node_id TEXT,
   description TEXT, converged INTEGER DEFAULT 0, emo_tag TEXT, src_event INTEGER);
@@ -7589,6 +7592,24 @@ INSERT INTO "knowledge_schedule" VALUES('C.kakashi.WMAIN','REL.IDENTITY.kakashi.
 INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.maki_cousin_ref',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.xiuzai_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.kakashi_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.player','P.PLAYER.ORDINARY_SHELL',0,'docs/plans/初始库重建×全投影_详细计划_2026-08-01.md 批E；周目世界实例§6');
+INSERT INTO "knowledge_schedule" VALUES('C.player','P.PLAYER.RUN_PROFILE_NOT_SEED',0,'2026-08-02 Q3 人裁；周目世界实例§6 开档设定');
+INSERT INTO "knowledge_schedule" VALUES('C.player','P.PLAYER.BODY_CONS_PAIR',0,'docs/plans/初始库重建×全投影_详细计划_2026-08-01.md G3/批E');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.001',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[0]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.002',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[1]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.003',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[2]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.004',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[3]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.hard.001',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[0]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.hard.002',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[1]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.hard.003',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[2]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.hard.004',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[3]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.hard.005',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[4]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.soft.001',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.soft[0]');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.MANNER.ryuya.W1.style',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.style');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.MANNER.ryuya.W1.constraint.001',0,'runtime/free_stage_card_ryuya_prologue.json ...constraints (nature subset 1)');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.MANNER.ryuya.W1.constraint.002',0,'runtime/free_stage_card_ryuya_prologue.json ...constraints (nature subset 2)');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.BOUNDARY.ryuya.W1.iron_law',0,'runtime/persona_constraints.json C.ryuya.W1');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.MANNER.ryuya.W1.persona_md',0,'runtime/personas/C.ryuya.W1.md');
 CREATE TABLE node_contracts(node_id TEXT PRIMARY KEY, part INTEGER, contract TEXT);
 INSERT INTO "node_contracts" VALUES('NODE-013-SNIPER',1,'{"node_id": "NODE-013-SNIPER", "part": 1, "title": "露天咖啡厅街头狙击（暗杀主线开局·认识枢纽）", "tier": "canon_beat", "entry_conditions": ["E013-02", "E013-03"], "invariants": {"canon_locked": ["result|E013-02: 无辜少妇额头中弹身亡（死亡结果不可更改；呈现细节文本自由）", "result|E013-10: 卡卡西聚焦神威折弯大厦十层枪管，狙击手撤退（卡卡西不死、写轮眼/神威能力本次暴露）", "identity: 狙击手=世界政府本土武装（非郭家政本人）"], "player_freedom": "死局节点（政策B·完整干涉自由）：玩家是在场的普通人， 合法行动包括—— 帮修哉翻桌/撒面粉扩大粉尘迷雾遮蔽射线（make_cover）； 拉受惊旁观者（含柳絮等）到墙后减少暴露人头（pull_to_wall）； 目测或借秋人单反协助指认大厦十层射击窗口（spot_shooter）； 接手秋人相机拍摄狙击手轮廓留存证据（photo_evidence）； 红线——不可拥有超能力/写轮眼/神威； 不可替卡卡西完成折枪管（这是卡卡西的灵魂动作，抢戏=工具化，红线）； 超出普通人物理上限的行动→张尘式吐槽/现实物理收敛。\n"}, "exit_states": [{"id": "converged", "desc": "原著线（Worldline-0）—— 少妇死亡（E013-02）；卡卡西拉柳絮、独自跑开引杀手（E013-05~06）； 修哉抛洒面粉造迷雾（E013-07）；三人在墙后会合（E013-08）； 秋人探出相机拍照、修哉阻止报警（E013-09）； 卡卡西神威折弯枪管（E013-10）；危机解除、卡卡西搂柳絮安慰后撤离（E013-11）。 写轮眼/神威能力按原著烈度暴露，暗杀主线正式开局，后续追杀烈度基线建立。\n", "negates": []}, {"id": "branched_lowprofile", "branch_gate": "BG-SNIPER_COVERT", "desc": "玩家 make_cover + spot_shooter 叠加（combine_threshold=2）， 在卡卡西动用神威前即制造有效遮蔽并协助锁定射击窗口， 狙击手更早失去瞄准机会主动放弃 → 卡卡西少暴露一次完整写轮眼/神威范围。 δ种子 SNIPER_COVERT_SEED 写入δ账本 → 喂入后续追杀烈度参数（微降）。 结果大同（狙击手仍撤退），暴露程度有可量化差异。\n", "negates": []}], "convergence": ["玩家拉着众人乱跑/脱离掩护 → 修哉主动喝止并抛洒面粉制造迷雾（E013-07），把人逼回墙后（剧情内施压）\n", "玩家试图报警 → 修哉夺下秋人手机警告\"这会被查到的\"（E013-09）； 组织监听威胁浮现，外部压力中断报警链\n", "玩家试图冲向狙击手大楼 → E013-02/03 造成的街面恐慌人群+无掩护地带构成物理障碍； 修哉在墙后焦急呼喊（剧情内收敛，NPC主动事件驱动）\n"], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "make_cover", "desc": "帮修哉翻桌椅/传递面粉袋，扩大粉尘迷雾遮蔽狙击视线（E013-07 协力）", "type": "physical", "snr_cost": "low"}, {"id": "pull_to_wall", "desc": "拉受惊旁观者（柳絮等）到墙后，减少暴露人头", "type": "physical", "snr_cost": 0}, {"id": "spot_shooter", "desc": "协助目测+借秋人单反指引大厦十层射击窗口——凡人替代写轮眼的信息干涉； 与 make_cover 叠加可触发 branched_lowprofile\n", "type": "info", "snr_cost": "low"}, {"id": "photo_evidence", "desc": "接手秋人单反拍摄狙击手轮廓留证据（E013-09 侧线）； 社会层面信息积累，独立于收敛主线，不计入 combine_threshold\n", "type": "info", "snr_cost": "low"}], "combine_threshold": 2, "delta_hooks": ["SNIPER_COVERT_SEED"]}');
 INSERT INTO "node_contracts" VALUES('NODE-016-CRASH',1,'{"node_id": "NODE-016-CRASH", "part": 1, "title": "高速连环车祸与卡卡西救修哉", "tier": "canon_beat", "entry_conditions": ["E016-01", "E016-02", "E016-03"], "invariants": {"canon_locked": ["E016-03 卡卡西救出修哉、自身受伤（肋骨骨折）"], "player_freedom": "事前(B1抱走小狗)/事中(choiceA车内卸力)两个物理干预点；二者叠加=零伤害线"}, "exit_states": [{"id": "converged", "desc": "卡卡西重伤（Worldline-0）", "negates": []}, {"id": "branched_full", "branch_gate": "BG-CRASH_LIGHT", "negates": []}], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "B1_dog", "type": "physical", "snr_cost": "low"}, {"id": "choiceA_brace", "type": "physical", "snr_cost": 0}], "combine_threshold": 2}');
@@ -7633,6 +7654,7 @@ INSERT INTO "occupancy" VALUES(26,'B.minamoto.WMAIN','C.minamoto.WMAIN',NULL,NUL
 INSERT INTO "occupancy" VALUES(27,'B.leonard.WMAIN','C.leonard.WMAIN',NULL,NULL,'native','Ch.12-131');
 INSERT INTO "occupancy" VALUES(28,'B.fein.WMAIN','C.fein.WMAIN',NULL,NULL,'native','Ch.12-130');
 INSERT INTO "occupancy" VALUES(29,'B.zhouze.WMAIN','C.zhouze.WMAIN',NULL,NULL,'native','Ch.24-130');
+INSERT INTO "occupancy" VALUES(30,'B.player','C.player',NULL,NULL,'native','S2 batch E player shell registration 2026-08-03');
 CREATE TABLE propositions (
       prop_id      TEXT PRIMARY KEY,
       statement    TEXT NOT NULL,
@@ -7997,6 +8019,26 @@ INSERT INTO "propositions" VALUES('REL.IDENTITY.kakashi.maki_acquaintance','折�
 INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.maki_cousin_ref','折原真纪是修哉的表姐，我叫她表姐；过去追着拍升旗。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.xiuzai_friend','折原修哉是同学，爱摊开话题。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.kakashi_friend','坂本晴明是同学，很安静。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('P.PLAYER.ORDINARY_SHELL','玩家以普通人壳进入世界：无跳线能力，不是正典跳线者。',0,'docs/plans/初始库重建×全投影_详细计划_2026-08-01.md 批E；周目世界实例§6');
+INSERT INTO "propositions" VALUES('P.PLAYER.RUN_PROFILE_NOT_SEED','开档姓名/称呼/年龄/身份/软特长只存在于本周目 player_profile（run 域），不写入 Seed 命题。',0,'2026-08-02 Q3 人裁；周目世界实例§6 开档设定');
+INSERT INTO "propositions" VALUES('P.PLAYER.BODY_CONS_PAIR','Seed 注册对：body_id=B.player 与 cons_id=C.player；持有与身体帧在 run 账本演化。',0,'docs/plans/初始库重建×全投影_详细计划_2026-08-01.md G3/批E');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.001','这雨下得比上回还不讲道理。你先坐。',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[0]');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.002','第一次见面啊——你以为是自己冒失。浇人的本事，两年了还没退化吧。',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[1]');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.003','以后要是碰巧遇见折原修哉和张尘，能照顾就照顾一下。修哉是我弟弟。还有，别把我的名字告诉他们。你得答应我，这件事不能说，说了会有危险，会死人。',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[2]');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.004','临别礼物。收着。它不证明什么。',0,'runtime/free_stage_card_ryuya_prologue.json persona_cards.C.ryuya.W1.voice_samples[3]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.hard.001','世界政府细节',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[0]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.hard.002','修哉与张尘的未来',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[1]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.hard.003','入口社会身份与去处',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[2]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.hard.004','挂坠的神秘用途',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[3]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.hard.005','促成「碰巧」的能力原理',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.hard[4]');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.soft.001','自己为何不能亲自照看',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.soft[0]');
+INSERT INTO "propositions" VALUES('P.MANNER.ryuya.W1.style','彬彬有礼、先听后答。亲密感靠口气与环境；托付短、礼物直接给。',0,'runtime/free_stage_card_ryuya_prologue.json ...boundaries.style');
+INSERT INTO "propositions" VALUES('P.MANNER.ryuya.W1.constraint.001','禁止用“愿意听就听、不愿意也没关系”“不急着说”一类试探/退路句式。',0,'runtime/free_stage_card_ryuya_prologue.json ...constraints (nature subset 1)');
+INSERT INTO "propositions" VALUES('P.MANNER.ryuya.W1.constraint.002','朋友之间的沉默或一次拒绝不是谈话终点：可以接玩笑、换话题，但不纠缠。',0,'runtime/free_stage_card_ryuya_prologue.json ...constraints (nature subset 2)');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.ryuya.W1.iron_law','你（第一世界的折原龙也）在两年前的咖啡馆里先像往常闲聊：雨、旧桌、以及你刻意促成的那次泼袖（对方以为是自己冒失，你不解释能力）。临别托付须用全名：碰巧遇见折原修哉（你亲弟弟）或张尘就照顾一下，且不要把你的名字说给他们听；挂坠是第一世界的修哉交给你的，必须当面给到对方手上。不得把沉默视为承诺，不得泄露后续因果、入口社会身份、即将去处、挂坠神秘用途或碰巧能力原理。',0,'runtime/persona_constraints.json C.ryuya.W1');
+INSERT INTO "propositions" VALUES('P.MANNER.ryuya.W1.persona_md','两年前，他在熟悉的街角咖啡馆与玩家见面。先像平日闲聊：雨、旧桌、以及他刻意促成的那次泼袖（对方以为是自己冒失）。临别托付须用全名：碰巧遇见折原修哉（亲弟弟）或张尘则照顾一下，且不要把龙也的名字说给他们听；挂坠是第一世界的修哉交给他的，必须当面交到手上。
+
+赴死感掩藏。不得泄露后续因果、入口社会身份、挂坠神秘用途、碰巧能力原理或任何未到章节的事实。',0,'runtime/personas/C.ryuya.W1.md');
 CREATE TABLE run_bonds (
       run INTEGER,
       character_id TEXT,
@@ -8085,7 +8127,7 @@ CREATE INDEX idx_canon_locks_speaker_cons ON canon_locks(speaker_cons);
 CREATE INDEX idx_slow_memory_cons_id ON slow_memory(cons_id);
 CREATE INDEX idx_events_ch_anchor ON events(ch_anchor);
 DELETE FROM "sqlite_sequence";
-INSERT INTO "sqlite_sequence" VALUES('occupancy',29);
+INSERT INTO "sqlite_sequence" VALUES('occupancy',30);
 INSERT INTO "sqlite_sequence" VALUES('body_transfers',2);
 INSERT INTO "sqlite_sequence" VALUES('slow_memory',37);
 INSERT INTO "sqlite_sequence" VALUES('fronting_canon',6);

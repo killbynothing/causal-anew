@@ -947,6 +947,7 @@ def build_actor_context_packet(
         "voice_core_hash": persona_core["voice_core_hash"],
         "core_excerpt": persona_core["core_text"][:400],
         "constraint_text": persona_core["constraint_text"],
+        "origin": persona_core.get("origin", "file"),
     }
     raw_samples = persona.get("voice_samples") or []
     processed_samples = []
@@ -955,7 +956,14 @@ def build_actor_context_packet(
             processed_samples.append(sample["text"])
         else:
             processed_samples.append(str(sample))
+    # Seed facets win when card voice_samples cleared (S3 persona_core migration).
+    if not processed_samples and persona_core.get("voice_samples"):
+        processed_samples = list(persona_core.get("voice_samples") or [])
     self_core["voice_samples"] = processed_samples
+    if persona_core.get("boundaries") and not (persona.get("boundaries") or {}).get("hard"):
+        self_core["seed_boundaries"] = list(persona_core.get("boundaries") or [])
+    if persona_core.get("manners"):
+        self_core["seed_manners"] = list(persona_core.get("manners") or [])
     # A phase profile is authored scene material, rather than a generic style
     # label.  It tells the actor what the character is trying to sound like in
     # this specific appearance, and keeps the receipt inspectable by the player.

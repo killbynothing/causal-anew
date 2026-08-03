@@ -23,8 +23,8 @@ EVENT_UID_RE = re.compile(r"^E(\d{3})-(\d{2})$")
 CH_GAP_CHAPTERS = (22, 47)
 EXPECTED_COUNTS = {
     "events_run0": 565,
-    # S1 batch A (2026-08-03): +19 REL.IDENTITY opening props (339→358)
-    "propositions": 358,
+    # S1 +19 REL; S2 +3 P.PLAYER; S3 +15 ryuya persona facets → 358+3+15=376
+    "propositions": 376,
     "node_contracts": 5,
 }
 

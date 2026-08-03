@@ -90,12 +90,58 @@ def _strip_secret_blocks(text: str, relation_stage: str = "S0") -> str:
     return out.strip()
 
 
+def fetch_persona_facets(cons_id: str, ch_anchor: int = 0) -> dict[str, list[dict[str, Any]]]:
+    """Load P.VOICE / P.BOUNDARY / P.MANNER facets scheduled to this consciousness."""
+    out: dict[str, list[dict[str, Any]]] = {"voice": [], "boundary": [], "manner": []}
+    if not DB_PATH.exists():
+        return out
+    try:
+        conn = sqlite3.connect(str(DB_PATH))
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT ks.prop_id, p.statement, ks.learn_ch, COALESCE(ks.source_desc, '')
+            FROM knowledge_schedule ks
+            JOIN propositions p ON ks.prop_id = p.prop_id
+            WHERE ks.cons_id = ? AND ks.learn_ch <= ?
+              AND (
+                ks.prop_id LIKE 'P.VOICE.%'
+                OR ks.prop_id LIKE 'P.BOUNDARY.%'
+                OR ks.prop_id LIKE 'P.MANNER.%'
+              )
+            ORDER BY ks.prop_id
+            """,
+            (cons_id, int(ch_anchor or 0)),
+        )
+        for prop_id, statement, learn_ch, source_desc in cur.fetchall():
+            text = str(statement or "").strip()
+            if not text:
+                continue
+            row = {
+                "prop_id": str(prop_id),
+                "text": text,
+                "learn_ch": int(learn_ch),
+                "source": str(source_desc or ""),
+                "origin": "seed",
+            }
+            if prop_id.startswith("P.VOICE."):
+                out["voice"].append(row)
+            elif prop_id.startswith("P.BOUNDARY."):
+                out["boundary"].append(row)
+            else:
+                out["manner"].append(row)
+        conn.close()
+    except Exception:
+        return {"voice": [], "boundary": [], "manner": []}
+    return out
+
+
 def resolve_persona_core(
     cons_id: str,
     ch_anchor: int = 0,
     relation_stage: str = "S0",
 ) -> dict[str, Any]:
-    """Load shared persona markdown + constraints; card may only overlay phase hints."""
+    """Load shared persona markdown + constraints; prefer Seed facets when present."""
     persona_path = PERSONAS_DIR / f"{cons_id}.md"
     constraints = {}
     if PERSONA_CONSTRAINTS_PATH.exists():
@@ -110,17 +156,35 @@ def resolve_persona_core(
             relation_stage=relation_stage,
         )
     constraint_text = str(constraints.get(cons_id, "")).strip()
+    facets = fetch_persona_facets(cons_id, ch_anchor)
+    # Seed manner/persona_md overrides file core when present
+    for row in facets["manner"]:
+        if row["prop_id"].endswith(".persona_md") and row["text"].strip():
+            core_text = row["text"].strip()
+            break
+    for row in facets["boundary"]:
+        if row["prop_id"].endswith(".iron_law") and row["text"].strip():
+            constraint_text = row["text"].strip()
+            break
+    voice_texts = [r["text"] for r in facets["voice"]]
+    boundary_texts = [r["text"] for r in facets["boundary"]]
+    manner_texts = [r["text"] for r in facets["manner"]]
     core_hash = hashlib.sha256(
-        (core_text + "\n" + constraint_text).encode("utf-8")
+        (core_text + "\n" + constraint_text + "\n" + "\n".join(voice_texts)).encode("utf-8")
     ).hexdigest()[:16]
     return {
         "cons_id": cons_id,
         "core_text": core_text,
         "constraint_text": constraint_text,
         "persona_core_hash": core_hash,
-        "voice_core_hash": hashlib.sha256(core_text.encode("utf-8")).hexdigest()[:16],
+        "voice_core_hash": hashlib.sha256(("\n".join(voice_texts) or core_text).encode("utf-8")).hexdigest()[:16],
         "relation_stage": relation_stage,
         "ch_anchor": int(ch_anchor or 0),
+        "voice_samples": voice_texts,
+        "boundaries": boundary_texts,
+        "manners": manner_texts,
+        "facets": facets,
+        "origin": "seed" if (voice_texts or boundary_texts or manner_texts) else "file",
     }
 
 

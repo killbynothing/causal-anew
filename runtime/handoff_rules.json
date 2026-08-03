@@ -1,0 +1,45 @@
+{
+  "pending_human": false,
+  "rules": [
+    {
+      "when": {
+        "location": "天津",
+        "source_line": "line_ceremony",
+        "ch_window": [30, 36]
+      },
+      "lights": ["line_zhangchen"],
+      "method": "in_fiction_guided",
+      "_note": "升旗后回天津→在场引导进张尘团事件池，不弹框不旁白硬拽"
+    },
+    {
+      "when": {
+        "location": "天津",
+        "source_line": "line_weichu",
+        "ch_window": [18, 30]
+      },
+      "lights": ["line_zhangchen"],
+      "method": "incidental"
+    },
+    {
+      "when": {
+        "location": "天津",
+        "source_line": "line_16zhong",
+        "ch_window": [17, 30]
+      },
+      "lights": ["line_zhangchen"],
+      "method": "in_fiction_guided"
+    },
+    {
+      "when": {
+        "location": "天津",
+        "source_line": "line_zhangchen",
+        "ch_window": [30, 39]
+      },
+      "lights": ["E039_bar"],
+      "method": "in_fiction_guided",
+      "_note": "张尘团→酒吧砸店铁轨锚（全线必到汇流点）"
+    }
+  ],
+  "rail_anchor": "E039_bar",
+  "allowed_methods": ["in_fiction_guided", "incidental"]
+}

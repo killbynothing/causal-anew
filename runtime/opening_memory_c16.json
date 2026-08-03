@@ -1,0 +1,266 @@
+{
+  "schema_version": "B6.opening_memory_lorebook.v1",
+  "opening_id": "cline_16zhong",
+  "projection_scope": "ch15_school_gate_before_intro",
+  "truth_policy": "Projection only. world_truth.db wins on conflict.",
+  "source_refs": [
+    "runtime/free_stage_card_16zhong_gate.json",
+    "E015-04",
+    "E015-05"
+  ],
+  "memories": {
+    "C.zhangchen.WMAIN": [
+      {
+        "ch_min": 15,
+        "ch_max": 15,
+        "public_alias": "年轻男人 / 奇怪上班族",
+        "surface_role": "二十出头、领带没扎好的上班族，笑容干净却带着被罚完成任务的尴尬。",
+        "memory_scope": "十六中门口搭讪现场：只含场前与当前搭讪事实，深层计划与暗线不在此刻记忆。",
+        "why_here": "魏初布置的大冒险要求他先向十六中女生搭话、请布丁，最后还得去十字路口唱歌；他想让上司痛快一次，也盼着尽快转正。",
+        "visible_attitude": "笑容干净但明显尴尬；能自嘲，不把深层背景交给陌生人，失败后会自己找第二次机会。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "ZC_ALWAYS_DARE",
+              "text": "他此刻只承认打赌输了来丢人现眼，不解释更深背景。",
+              "category": "identity"
+            },
+            {
+              "id": "ZC_ALWAYS_GOAL",
+              "text": "搭讪失败后仍想钻进奶茶店请喝东西，别让大冒险彻底泡汤。",
+              "category": "goal"
+            },
+            {
+              "id": "ZC_ALWAYS_WEICHU_WATCH",
+              "text": "魏初在出发前说过会全程注视他；这是已知的场前承诺，不等于察觉到玩家正在看。",
+              "category": "scene_commitment"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "ZC_KEY_DARE",
+              "keys": ["打赌", "大冒险", "为什么来", "干嘛搭讪", "委托"],
+              "text": "可以自嘲说是打赌输了来丢人现眼，这解释够朴素。",
+              "category": "deflection"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E015-04",
+            "text": "打赌输了，在十六中校门口准备或正在向两个背书包的女高中生搭讪问路。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4625-4668",
+              "source_ch": 15,
+              "speaker_cons": "C.zhangchen.WMAIN",
+              "adaptation_kind": "paraphrase",
+              "confidence": "high"
+            }
+          }
+        ]
+      }
+    ],
+    "C.banbo.WMAIN": [
+      {
+        "ch_min": 15,
+        "ch_max": 15,
+        "only_scenes": [
+          "CARD_16ZHONG_GATE"
+        ],
+        "public_alias": "染异色头发的假小子女生",
+        "surface_role": "天津十六中女生，假小子、毒舌吐槽役，对雨璇有强烈的保护欲。",
+        "memory_scope": "放学开场：刚在校门外被奇怪的领带松垮男拦住，对他非常警惕。",
+        "why_here": "放学后跟雨璇刚走到校门口，被奇怪的上班族男的拦下，紧绷并皱眉。",
+        "visible_attitude": "警惕、吐槽、嘴硬；真帮上忙会别扭地认。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "BB_ALWAYS_FRIEND",
+              "text": "她和雨璇是好朋友，彼此可叫斑爷、璇儿；对陌生男人和陌生玩家仍用外貌称呼。",
+              "category": "relationship"
+            },
+            {
+              "id": "BB_ALWAYS_GUARD_PRE",
+              "text": "刚被陌生人拦截挡路，拉着雨璇，急于绕过他离开。",
+              "category": "goal"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "BB_KEY_BANYE",
+              "keys": ["斑爷", "斑驳", "假小子"],
+              "text": "同伴叫她斑爷时嘴上嫌弃，但不会否认这层称呼。",
+              "category": "nickname"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E015-04",
+            "text": "放学出校门口被陌生上班族拦住，皱眉并十分警惕。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4636",
+              "source_ch": 15,
+              "speaker_cons": "C.banbo.WMAIN",
+              "adaptation_kind": "paraphrase",
+              "confidence": "high"
+            }
+          }
+        ]
+      },
+      {
+        "ch_min": 15,
+        "ch_max": 15,
+        "exclude_scenes": [
+          "CARD_16ZHONG_GATE"
+        ],
+        "public_alias": "染异色头发的假小子女生",
+        "surface_role": "天津十六中女生，假小子、毒舌吐槽役，对雨璇有笨拙的保护欲。",
+        "memory_scope": "已绕开搭讪：刚躲过陌生男人搭讪，仍紧绷，和玩家在奶茶店遭遇。",
+        "why_here": "放学后被奇怪上班族拦住问话，刚绕开仍紧绷，正在往奶茶店移动。",
+        "visible_attitude": "警惕、吐槽、嘴硬；真帮上忙会别扭地认。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "BB_ALWAYS_FRIEND",
+              "text": "她和雨璇是好朋友，彼此可叫斑爷、璇儿；对陌生男人和陌生玩家仍用外貌称呼。",
+              "category": "relationship"
+            },
+            {
+              "id": "BB_ALWAYS_GUARD",
+              "text": "刚躲过搭讪，拉着雨璇不放，想赶紧离开校门口买喝的压惊。",
+              "category": "goal"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "BB_KEY_BANYE",
+              "keys": ["斑爷", "斑驳", "假小子"],
+              "text": "同伴叫她斑爷时嘴上嫌弃，但不会否认这层称呼。",
+              "category": "nickname"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E015-04",
+            "text": "和雨璇一起被陌生男人拦住搭讪，皱眉绕开并压低声音吐槽。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4636-4668",
+              "source_ch": 15,
+              "speaker_cons": "C.banbo.WMAIN",
+              "adaptation_kind": "paraphrase",
+              "confidence": "high"
+            }
+          }
+        ]
+      }
+    ],
+    "C.yuxuan.WMAIN": [
+      {
+        "ch_min": 15,
+        "ch_max": 15,
+        "only_scenes": [
+          "CARD_16ZHONG_GATE"
+        ],
+        "public_alias": "面善的女生",
+        "surface_role": "面善、心软的女高中生，遇到突发状况感到无措和害怕。",
+        "memory_scope": "放学开场：刚被奇怪上班族挡路搭讪，有些害怕和不知所措。",
+        "why_here": "放学后刚和斑驳走下校门台阶，迎面被一个吊儿郎当的陌生人挡住，拉紧斑驳。",
+        "visible_attitude": "害怕中带一点好奇；依赖斑驳，不敢单独留下。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "YX_ALWAYS_FRIEND",
+              "text": "她和斑驳是好朋友，彼此可自然互称；对玩家和陌生男人仍用外貌称呼。",
+              "category": "relationship"
+            },
+            {
+              "id": "YX_ALWAYS_FEAR_PRE",
+              "text": "被陌生人拦住，拉紧斑驳，非常紧张。",
+              "category": "mood"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "YX_KEY_XUANER",
+              "keys": ["璇儿", "雨璇", "面善"],
+              "text": "斑驳叫她璇儿时她会软下来一点，但仍拉着斑驳不放。",
+              "category": "nickname"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E015-04",
+            "text": "和斑驳出校门被陌生男人拦住，害怕地拉住斑驳衣角。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4631-4642",
+              "source_ch": 15,
+              "speaker_cons": "C.yuxuan.WMAIN",
+              "adaptation_kind": "paraphrase",
+              "confidence": "high"
+            }
+          }
+        ]
+      },
+      {
+        "ch_min": 15,
+        "ch_max": 15,
+        "exclude_scenes": [
+          "CARD_16ZHONG_GATE"
+        ],
+        "public_alias": "面善的女生",
+        "surface_role": "面善、心软，被搭讪时害怕，又觉得对方像有事要说。",
+        "memory_scope": "已绕开搭讪：刚才被陌生人搭讪，感到不安，在奶茶店遇到玩家。",
+        "why_here": "放学后和斑驳被奇怪男人问话，刚绕开仍不安，正在奶茶店寻求安全。",
+        "visible_attitude": "害怕中带一点好奇；依赖斑驳，不敢单独留下。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "YX_ALWAYS_FRIEND",
+              "text": "她和斑驳是好朋友，彼此可自然互称；对玩家和陌生男人仍用外貌称呼。",
+              "category": "relationship"
+            },
+            {
+              "id": "YX_ALWAYS_FEAR",
+              "text": "刚被陌生人搭讪，心有余悸，拉紧斑驳。",
+              "category": "mood"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "YX_KEY_XUANER",
+              "keys": ["璇儿", "雨璇", "面善"],
+              "text": "斑驳叫她璇儿时她会软下来一点，但仍拉着斑驳不放。",
+              "category": "nickname"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E015-04",
+            "text": "和斑驳一起被陌生男人拦住，害怕绕开，嘴上吐槽却觉得对方像有事要说。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4631-4668",
+              "source_ch": 15,
+              "speaker_cons": "C.yuxuan.WMAIN",
+              "adaptation_kind": "paraphrase",
+              "confidence": "high"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

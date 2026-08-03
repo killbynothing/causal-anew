@@ -1,0 +1,3134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>存在的意义 · 新引擎因果观测台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;600;800&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-hue: 220;
+  --night: hsl(var(--bg-hue), 35%, 6%);
+  --panel: hsl(var(--bg-hue), 28%, 10%);
+  --panel-light: hsl(var(--bg-hue), 24%, 14%);
+  --line: hsl(var(--bg-hue), 22%, 18%);
+  --paper: #e8e1d2;
+  --dim: #9b9584;
+  --red: #ff0055;
+  --cyan: #00f0ff;
+  --cyan-dim: #006b73;
+  --yellow: #ffe600;
+  --green: #2ecc71;
+  --font-title: "Outfit", -apple-system, "PingFang SC", sans-serif;
+  --font-serif: "Noto Serif SC", serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--night);
+  color: var(--paper);
+  font-family: var(--font-title);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+input,
+select {
+  background: rgba(9, 11, 16, 0.62);
+  border: 1px solid var(--line);
+  color: #fff;
+  border-radius: 10px;
+  outline: none;
+  transition: all 0.25s ease;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover:not(:disabled),
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+header {
+  border-bottom: 1px solid var(--line);
+  background: hsla(var(--bg-hue), 35%, 5%, 0.88);
+  backdrop-filter: blur(14px);
+  padding: 14px 18px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: center;
+}
+
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.logo {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #fff;
+}
+
+.logo span {
+  color: var(--cyan);
+}
+
+.subline {
+  color: var(--dim);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.control-stack {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.control-stack input,
+.control-stack select,
+.control-stack button {
+  min-height: 36px;
+  padding: 0 12px;
+}
+
+.control-stack input,
+.control-stack select {
+  min-width: 140px;
+}
+
+.control-stack button {
+  border-color: rgba(0, 240, 255, 0.26);
+  background: rgba(0, 240, 255, 0.06);
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.control-stack button.danger {
+  border-color: rgba(255, 0, 85, 0.3);
+  background: rgba(255, 0, 85, 0.05);
+  color: #ff7ea9;
+}
+
+.status-strip {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.status-chip {
+  min-height: 58px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-chip .label {
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.status-chip .value {
+  color: #fff;
+  font-size: 13px;
+  word-break: break-word;
+}
+
+.timeline-slider-container {
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeline-slider-container button {
+  min-height: 32px;
+  padding: 0 10px;
+}
+
+.timeline-slider {
+  flex: 1;
+  height: 6px;
+  background: var(--line);
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+
+.timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.timeline-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  min-width: 72px;
+  color: var(--paper);
+  text-align: center;
+}
+
+.main-container {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(360px, 1.08fr) minmax(420px, 1fr);
+  overflow: hidden;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.left-column {
+  border-right: 1px solid var(--line);
+  background: hsl(var(--bg-hue), 32%, 8%);
+}
+
+.right-column {
+  overflow-y: auto;
+  padding: 18px;
+  background: linear-gradient(180deg, rgba(17, 20, 29, 0.96), rgba(10, 12, 18, 1));
+}
+
+.panel-header {
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.panel-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+
+.badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.badge.green {
+  border-color: rgba(46, 204, 113, 0.4);
+  color: var(--green);
+  background: rgba(46, 204, 113, 0.08);
+}
+
+.badge.red {
+  border-color: rgba(255, 0, 85, 0.35);
+  color: #ff7ea9;
+  background: rgba(255, 0, 85, 0.06);
+}
+
+.badge.cyan {
+  border-color: rgba(0, 240, 255, 0.35);
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.06);
+}
+
+.knowable-strip {
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.04);
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.roster-strip {
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border: 1px solid rgba(0, 240, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.04);
+}
+
+.knowable-title,
+.roster-title {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.roster-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.roster-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.roster-chip .roster-status {
+  margin-left: 6px;
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.roster-chip.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+
+.roster-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--paper);
+}
+
+.human-view.compact {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--paper);
+  white-space: pre-wrap;
+}
+
+.chat-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bubble {
+  max-width: 88%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  position: relative;
+  word-break: break-word;
+}
+
+.bubble.player {
+  align-self: flex-end;
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom-right-radius: 3px;
+}
+
+.bubble.npc {
+  align-self: flex-start;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 3px;
+}
+
+.bubble.director {
+  align-self: center;
+  max-width: 92%;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  color: var(--dim);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 13.5px;
+}
+
+.bubble.director_note {
+  align-self: center;
+  max-width: 96%;
+  background: rgba(255, 230, 0, 0.03);
+  border: 1px solid rgba(255, 230, 0, 0.15);
+  color: #ffda66;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.bubble.error {
+  align-self: center;
+  max-width: 96%;
+  background: rgba(255, 0, 85, 0.06);
+  border: 1px solid rgba(255, 0, 85, 0.18);
+  color: #ff9bbb;
+}
+
+.bubble.player-thought {
+  align-self: flex-end;
+  background: rgba(0, 240, 255, 0.02);
+  border: 1px dashed rgba(0, 240, 255, 0.15);
+  color: var(--dim);
+  border-bottom-right-radius: 3px;
+  font-style: italic;
+}
+
+.bubble-meta {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.bubble-stage {
+  margin-top: 6px;
+  color: var(--dim);
+  font-size: 12px;
+  font-family: var(--font-serif);
+  white-space: pre-wrap;
+}
+
+.chat-footer {
+  border-top: 1px solid var(--line);
+  padding: 14px 18px;
+  background: rgba(0, 0, 0, 0.22);
+  display: grid;
+  gap: 10px;
+}
+
+.chat-footer textarea {
+  min-height: 92px;
+  resize: vertical;
+  background: rgba(0, 0, 0, 0.34);
+  border: 1px solid var(--line);
+  color: #fff;
+  border-radius: 12px;
+  padding: 12px 14px;
+  outline: none;
+}
+
+.chat-footer-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.chat-footer-actions .hint {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.debug-card {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.22);
+}
+
+.debug-card h3 {
+  font-size: 14px;
+  color: var(--cyan);
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.json-view {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 10px;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  white-space: pre-wrap;
+}
+
+.human-view {
+  font-size: 13px;
+  line-height: 1.65;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-wrap;
+  margin-bottom: 10px;
+}
+
+.actor-receipt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  white-space: normal;
+}
+
+.actor-receipt {
+  border: 1px solid rgba(116, 217, 159, 0.28);
+  border-radius: 8px;
+  background: rgba(116, 217, 159, 0.05);
+  padding: 10px 12px;
+}
+
+.actor-receipt-head {
+  font-weight: 600;
+  color: #bdf4cd;
+  margin-bottom: 4px;
+}
+
+.actor-receipt-id {
+  font-size: 11px;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  margin-bottom: 8px;
+}
+
+.actor-receipt-sec {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.12);
+}
+
+.actor-receipt-sec:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.actor-receipt-label {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+
+.actor-receipt-body {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: pre-wrap;
+}
+
+.actor-receipt-empty {
+  color: var(--dim);
+}
+
+.raw-toggle {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--dim);
+}
+
+.raw-toggle summary {
+  cursor: pointer;
+  user-select: none;
+  margin-bottom: 6px;
+}
+
+.raw-toggle[open] summary {
+  color: var(--cyan);
+}
+
+.human-summary {
+  font-size: 13px;
+  line-height: 1.65;
+  color: #d8d2c4;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  white-space: pre-wrap;
+}
+
+.human-summary .tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  margin-right: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--dim);
+}
+
+.narration-feed {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.narration-item {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.narration-item .kind {
+  font-size: 11px;
+  color: var(--dim);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.issues-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.issue-item {
+  padding: 8px 12px;
+  border-radius: 8px;
+  line-height: 1.45;
+  font-size: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.issue-item.danger {
+  color: #ff9bbb;
+  border-color: rgba(255, 0, 85, 0.2);
+  background: rgba(255, 0, 85, 0.05);
+}
+
+.typing-indicator {
+  align-self: flex-start;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px 16px;
+  border-radius: 10px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: var(--dim);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.dot:nth-child(3) {
+  animation-delay: -0.32s;
+}
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 13, 0.82);
+  backdrop-filter: blur(16px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 24px;
+}
+
+.overlay-shell {
+  width: min(920px, 100%);
+  max-height: 86vh;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(19, 23, 34, 0.98), rgba(11, 14, 22, 0.98));
+  box-shadow: 0 18px 60px rgba(0, 0, 0, 0.38);
+  padding: 22px;
+}
+
+.overlay-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.overlay-header h2 {
+  font-size: 20px;
+  color: var(--cyan);
+}
+
+.overlay-section {
+  margin-top: 16px;
+}
+
+.overlay-section h3 {
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 10px;
+}
+
+.slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.slot-actions input {
+  flex: 1;
+  min-width: 240px;
+  min-height: 40px;
+  padding: 0 12px;
+}
+
+.slot-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.slot-table th,
+.slot-table td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.slot-table th {
+  color: var(--dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.slot-table .actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.timeline-row {
+  padding: 14px;
+  border-left: 3px solid var(--cyan);
+  border-radius: 0 10px 10px 0;
+  background: rgba(255, 255, 255, 0.02);
+  margin-bottom: 10px;
+}
+
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(255, 0, 85, 0.92);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 999px;
+  opacity: 0;
+  transition: all 0.28s ease;
+  z-index: 300;
+  box-shadow: 0 10px 26px rgba(255, 0, 85, 0.28);
+  pointer-events: none;
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 1120px) {
+  .status-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .main-container {
+    grid-template-columns: 1fr;
+  }
+
+  .left-column {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (max-width: 760px) {
+  body {
+    overflow: auto;
+    height: auto;
+  }
+
+  header {
+    grid-template-columns: 1fr;
+  }
+
+  .control-stack {
+    justify-content: flex-start;
+  }
+
+  .status-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-two {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-footer-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* 折叠组细节样式 */
+details {
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: background 0.3s;
+}
+details[open] {
+  background: rgba(255, 255, 255, 0.03);
+}
+summary.group-title {
+  padding: 12px 16px;
+  font-family: var(--font-title);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--cyan);
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  list-style: none;
+  outline: none;
+  border-bottom: 1px solid transparent;
+}
+details[open] summary.group-title {
+  border-bottom: 1px solid var(--line);
+}
+summary.group-title::-webkit-details-marker {
+  display: none;
+}
+summary.group-title::before {
+  content: "▶";
+  font-size: 10px;
+  margin-right: 8px;
+  transition: transform 0.2s;
+  display: inline-block;
+}
+details[open] summary.group-title::before {
+  transform: rotate(90deg);
+}
+.group-content {
+  padding: 12px;
+}
+
+/* NPC Chips 样式 */
+.npc-chips-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.npc-chip {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.npc-chip.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.2);
+}
+.npc-chip:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--paper);
+}
+
+/* 复制按钮样式 */
+.btn-copy-json {
+  float: right;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--line);
+  color: var(--dim);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: -2px;
+}
+.btn-copy-json:hover {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+/* 长 JSON 滚动框 */
+.json-view {
+  word-break: break-all;
+}
+
+/* 伤势残血红闪 */
+@keyframes red-flash {
+  0% { opacity: 1; text-shadow: 0 0 5px var(--red); }
+  50% { opacity: 0.4; text-shadow: none; }
+  100% { opacity: 1; text-shadow: 0 0 5px var(--red); }
+}
+.red-flash {
+  animation: red-flash 1.5s infinite;
+  color: #ff4a4a !important;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">存在的意义<span>·因果观测台</span></div>
+    <div class="subline">观测优先：同一会话里，同时看玩家可见层与导演真相层。</div>
+  </div>
+  <div class="control-stack">
+    <input type="text" id="sessionInput" placeholder="Session ID">
+    <select id="apiSelector">
+      <option value="default">火山 Coding Plan · deepseek-v4-flash</option>
+    </select>
+    <button id="btnSlots">存档 / 新周目</button>
+    <button id="btnBondArchive">羁绊档案</button>
+    <button id="btnConnect">连接观测</button>
+    <button id="btnRefresh">刷新</button>
+    <button id="btnResetScene" class="danger">重开本场</button>
+  </div>
+</header>
+
+<div class="status-strip">
+  <div class="status-chip">
+    <div class="label">当前 Session</div>
+    <div class="value" id="statusSession">未连接</div>
+  </div>
+  <div class="status-chip">
+    <div class="label">当前场景</div>
+    <div class="value" id="statusScene">-</div>
+  </div>
+  <div class="status-chip">
+    <div class="label">Pacing</div>
+    <div class="value" id="statusPacing">-</div>
+  </div>
+  <div class="status-chip">
+    <div class="label">轨迹 / 拍数</div>
+    <div class="value" id="statusBeat">0 / 0</div>
+  </div>
+  <div class="status-chip">
+    <div class="label">状态</div>
+    <div class="value" id="statusEnded">未结束</div>
+  </div>
+</div>
+
+<div class="timeline-slider-container">
+  <span class="timeline-label">回放拍数</span>
+  <button id="btnPrevBeat">&lt; 前一拍</button>
+  <input type="range" id="beatSlider" class="timeline-slider" min="0" max="0" value="0">
+  <button id="btnNextBeat">后一拍 &gt;</button>
+  <span id="sliderValue" class="timeline-label">0 / 0</span>
+</div>
+
+<div class="main-container">
+  <div class="column left-column">
+    <div class="panel-header">
+      <div class="panel-title">场内对话（玩家与角色台词）</div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <span id="pacingLabel" class="badge cyan">-</span>
+        <span id="liveModeLabel" class="badge">主控未接入</span>
+        <span id="introDoneLabel" class="badge">称呼未解锁</span>
+      </div>
+    </div>
+    <div class="roster-strip" id="playerRosterStrip">
+      <div class="roster-title">当前在场</div>
+      <div class="roster-chips" id="playerRosterRead">（接入 session 后显示本场角色；点击可选中右栏详情。）</div>
+    </div>
+    <div class="chat-container" id="chatContainer">
+      <div style="color: var(--dim); text-align: center; margin-top: 40px;">输入或选择一个 Session，连接后即可直接在观测台推进会话。</div>
+    </div>
+    <div class="chat-footer" style="padding: 12px 18px; display: flex; flex-direction: column; gap: 8px;">
+      <div class="hint" id="inputHint" style="color: var(--dim); font-size: 12px; margin-bottom: 2px;">当前未连接 session。先选存档或输入 Session ID。</div>
+      <div style="display: flex; gap: 12px; align-items: flex-end;">
+        <div id="threeChannelInput" style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
+          <textarea id="chatInputSpeech" placeholder="💬 【你说】说出你的台词... 例：我把项链收好，问他接下来去哪。" style="height: 38px; min-height: 38px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 8px 12px; font-size: 13px; outline: none;" disabled></textarea>
+          <textarea id="chatInputAction" placeholder="🏃 【你做】输入你的动作或观察... 例：（向左侧避开）（仔细打量着对方的眼睛）" style="height: 38px; min-height: 38px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 8px 12px; font-size: 13px; outline: none;" disabled></textarea>
+          <textarea id="chatInputThought" placeholder="🧠 【你心想】输入你的心理活动（NPC听不见，仅用于触发因果与旁白低语）" style="height: 38px; min-height: 38px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 8px 12px; font-size: 13px; outline: none;" disabled></textarea>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px; min-width: 100px; height: 126px; justify-content: space-between;">
+          <button id="btnSend" disabled style="flex: 1; width: 100%; border-radius: 8px; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--line); color: var(--cyan); font-family: var(--font-title); font-size: 13px; cursor: pointer; transition: all 0.3s; padding: 0;">发送这一拍</button>
+          <button id="btnJumpLatest" style="height: 32px; width: 100%; font-size: 11px; border-radius: 6px; padding: 0; background: transparent; border: 1px solid var(--line); color: var(--paper); cursor: pointer;">跳到最新拍</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="right-column" id="debugContainer">
+    <div id="degradationBanner" class="debug-card" style="display: none; border-color: var(--yellow); background: rgba(255, 230, 0, 0.08); margin-bottom: 12px;">
+      <h3><span>🟨</span> 降级留痕</h3>
+      <div id="degradationList" class="issues-list"></div>
+    </div>
+
+    <!-- Group 1: ⚡ 本拍动态 (默认展开) -->
+    <details id="group-live" open>
+      <summary class="group-title">⚡ 本拍动态</summary>
+      <div class="group-content">
+        <div class="debug-card" style="border-color: var(--cyan);">
+          <h3><span>⌛</span> 本拍时空</h3>
+          <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
+            <div>当前钟点: <strong id="debugClock" style="color: var(--cyan);">-</strong></div>
+            <div>玩家伤势: <strong id="debugPlayerInjury" style="color: var(--red);">-</strong></div>
+          </div>
+          <div style="font-size: 12px; color: var(--dim);">当前场景: <strong id="debugScene" style="color: #fff;">-</strong> · <strong id="debugCardPath" style="color: #fff; font-family: var(--font-mono);"></strong></div>
+        </div>
+
+        <div class="debug-card">
+          <h3><span>👁️‍🗨️</span> 导演层本拍（发生了才写） <button class="btn-copy-json" onclick="copyJson('debugTruthTurns')">复制</button></h3>
+          <div class="human-view" id="debugNarrationRead" style="margin-bottom: 8px; opacity: 0.85;">（只显示本拍新写下的暗注/真相；开场梗概在左栏，不堆在这里。）</div>
+          <div class="human-view" id="debugTruthTurnsRead">（含「暗处注视」等导演-only真相；玩家左栏看不到。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugTruthTurns" style="color: #e0e0e0;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #74d99f;">
+          <h3><span>📨</span> 本拍演员投递回执 <button class="btn-copy-json" onclick="copyJson('debugActorPackets')">复制</button></h3>
+          <div class="human-view" id="debugActorPacketsRead">（第 0 拍显示预投递；发言后显示最终回执。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugActorPackets" style="color: #bdf4cd;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
+          <h3><span>📒</span> 玩家已确认（本拍账本）</h3>
+          <div class="human-view compact" id="playerKnowableRead">（只从已发生的可见台词与动作累计；不含演员私有记忆或门控推断。）</div>
+        </div>
+
+        <!-- Must-Happen 契约进度 -->
+        <div class="debug-card">
+          <h3><span>🎯</span> Must-Happen 契约进度</h3>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+            <div>已满足: <span id="completedMustHappen" class="badge green">-</span></div>
+            <div>允许列表: <span id="allowedMustHappen" class="badge">-</span></div>
+          </div>
+          <div style="font-size: 12px; color: var(--dim);">Stall Count: <strong id="debugStall" style="color: var(--yellow);">0</strong></div>
+        </div>
+
+        <!-- 退出与转场判定 -->
+        <div class="debug-card">
+          <h3><span>🧭</span> 退出与转场判定 <button class="btn-copy-json" onclick="copyJson('debugExit')">复制</button></h3>
+          <div class="human-view" id="debugExitRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugExit" class="json-view" style="color: var(--paper);"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+
+    <!-- Group 1b: 本场常驻（默认折叠） -->
+    <details id="group-scene-static">
+      <summary class="group-title">📌 本场常驻（场景帧 / 群演）</summary>
+      <div class="group-content">
+        <div class="debug-card">
+          <h3><span>🧩</span> 场景帧与基线不变量 <button class="btn-copy-json" onclick="copyJson('debugSceneFrame')">复制</button></h3>
+          <div class="human-view" id="debugSceneFrameRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugSceneFrame"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #66ccff;">
+          <h3><span>👥</span> 可调用群演池 (ambient_stage) <button class="btn-copy-json" onclick="copyJson('debugAmbient')">复制</button></h3>
+          <div class="human-view" id="debugAmbientRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugAmbient" class="json-view" style="color: #9dd7ff;"></div>
+          </details>
+        </div>
+
+      </div>
+    </details>
+
+    <!-- Group 2: 🧑 角色 (默认折叠) -->
+    <details id="group-character">
+      <summary class="group-title">🧑 角色 (NPC 私有数据)</summary>
+      <div class="group-content">
+        <!-- NPC Chip 过滤器 -->
+        <div class="npc-chips-container" id="npcChipsContainer">
+          <span style="color: var(--dim); font-size: 12px;">（接入 session 后显示本场角色）</span>
+        </div>
+
+        <!-- NPC 私有内心流 (V2) -->
+        <div class="debug-card" style="border-color: #9dffb5;">
+          <h3><span>👁️</span> NPC 私有内心流 (V2) <button class="btn-copy-json" onclick="copyJson('debugInnerStates')">复制</button></h3>
+          <div class="human-view" id="debugInnerStatesRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugInnerStates" style="color: #9dffb5;"></div>
+          </details>
+        </div>
+
+        <!-- NPC 拒绝权边界 (V1) -->
+        <div class="debug-card" style="border-color: #ff9bdf;">
+          <h3><span>🛡️</span> NPC 拒绝权边界 (V1) <button class="btn-copy-json" onclick="copyJson('debugBoundaries')">复制</button></h3>
+          <div class="human-view" id="debugBoundariesRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugBoundaries" style="color: #ff9bdf;"></div>
+          </details>
+        </div>
+
+        <!-- 角色私有开场/离屏记忆 -->
+        <div class="debug-card" style="border-color: #ffb066;">
+          <h3><span>🗂️</span> 角色私有记忆 (开场/离屏) <button class="btn-copy-json" onclick="copyJson('debugPerNpcMemory')">复制</button></h3>
+          <div class="human-view" id="debugPerNpcMemoryRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugPerNpcMemory" style="color: #ffcf99;"></div>
+          </details>
+        </div>
+
+        <!-- 知识门控监测 -->
+        <div class="debug-card">
+          <h3><span>🛡️</span> 知识门控与个人特权 <button class="btn-copy-json" onclick="copyJson('debugKnowledge')">复制</button></h3>
+          <div class="human-view" id="debugKnowledgeRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugKnowledge" style="color: #9dd7ff;"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+
+    <!-- Group 3: 🧠 记忆与因果 (默认折叠) -->
+    <details id="group-memory">
+      <summary class="group-title">🧠 记忆与因果</summary>
+      <div class="group-content">
+        <!-- 场级注入记忆 -->
+        <div class="debug-card">
+          <h3><span>🧠</span> 场级注入记忆 <button class="btn-copy-json" onclick="copyJson('debugMemory')">复制</button></h3>
+          <div class="human-view" id="debugMemoryRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugMemory" style="color: #ffda66;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #e6c27a;">
+          <h3><span>🧾</span> 场景固化：事实骨架 → 导演摘要 <button class="btn-copy-json" onclick="copyJson('debugSceneConsolidation')">复制</button></h3>
+          <div class="human-view" id="debugSceneConsolidationRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugSceneConsolidation" style="color: #f0d69a;"></div>
+          </details>
+        </div>
+
+        <!-- 结构化四字段总览 -->
+        <div class="debug-card" style="border-color: #ffb066;">
+          <h3><span>📊</span> 结构化四字段总览 <button class="btn-copy-json" onclick="copyJson('debugStructuredMem')">复制</button></h3>
+          <div class="human-view" id="debugStructuredMemRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugStructuredMem" style="color: #ffb066;"></div>
+          </details>
+        </div>
+
+        <!-- 分支进化轨迹 -->
+        <div class="debug-card">
+          <h3><span>🌿</span> 分支进化轨迹 <button class="btn-copy-json" onclick="copyJson('debugBranch')">复制</button></h3>
+          <div class="human-view" id="debugBranchRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugBranch" style="color: var(--cyan);"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: rgba(116, 217, 159, 0.5);">
+          <h3><span>🧾</span> 跨场事实收据</h3>
+          <div class="human-view compact" id="debugSceneReceiptsRead">（只显示场次、归属与来源类别；不展示玩家私密原文。）</div>
+        </div>
+      </div>
+    </details>
+
+    <!-- Group 4: 🌐 世界态势 (默认折叠) -->
+    <details id="group-world">
+      <summary class="group-title">🌐 世界态势（离屏线默认折叠）</summary>
+      <div class="group-content">
+        <div class="debug-card" style="border-color: #79b8ff;">
+          <h3><span>🌐</span> 当前世界态势 <button class="btn-copy-json" onclick="copyJson('debugWorldState')">复制</button></h3>
+          <div class="human-view" id="debugWorldStateRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugWorldState" class="json-view" style="color: #9dd7ff;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.5);">
+          <h3><span>📏</span> 本拍上下文与缓存收据 <button class="btn-copy-json" onclick="copyJson('debugContextReceipts')">复制</button></h3>
+          <div class="human-view compact" id="debugContextReceiptsRead">（仅显示体积、哈希、usage 与缓存证据；不保存 prompt 或私密正文。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugContextReceipts" style="color: #b9e8ff;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: rgba(255, 218, 102, 0.55);">
+          <h3><span>🧭</span> 上下文预算审计 <button class="btn-copy-json" onclick="copyJson('debugContextBudgetAudit')">复制</button></h3>
+          <div class="human-view compact" id="debugContextBudgetAuditRead">（纯观测：不截断、不限流、不改变模型输入。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugContextBudgetAudit" style="color: #ffe8a3;"></div>
+          </details>
+        </div>
+        <div class="debug-card" style="border-color: #9b8cff;">
+          <h3><span>⌁</span> 时间 × 地点 × 意图 <button class="btn-copy-json" onclick="copyJson('debugWorldCoordinates')">复制</button></h3>
+          <div class="human-view" id="debugWorldCoordinatesRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugWorldCoordinates" class="json-view" style="color: #c9beff;"></div>
+          </details>
+        </div>
+        <div class="debug-card" style="border-color: #74d99f;">
+          <h3><span>W1</span> 五内核运行时状态 <button class="btn-copy-json" onclick="copyJson('debugRuntimeKernels')">复制</button></h3>
+          <div class="human-view" id="debugRuntimeKernelsRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugRuntimeKernels" class="json-view" style="color: #bdf4cd;"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+
+    <!-- Group 5: 🎭 工程诊断 (默认折叠) -->
+    <details id="group-contract">
+      <summary class="group-title">🛠️ 工程诊断与契约</summary>
+      <div class="group-content">
+        <!-- 契约校验 / 防泄漏报告 -->
+        <div class="debug-card">
+          <h3><span>⚠️</span> 契约校验 / 防泄漏报告</h3>
+          <div id="debugIssues" class="issues-list"></div>
+        </div>
+
+        <!-- 竞价计划 -->
+        <div class="debug-card" style="border-color: #a8a8ff;">
+          <h3><span>📢</span> 竞价与发言计划 (speaker_plan) <button class="btn-copy-json" onclick="copyJson('debugSpeakerPlan')">复制</button></h3>
+          <div class="human-view" id="debugSpeakerPlanRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugSpeakerPlan" style="color: #b5b5ff;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #74d99f;">
+          <h3><span>🎬</span> 导演-only 接管闸 <button class="btn-copy-json" onclick="copyJson('debugDirectorOnlyGate')">复制</button></h3>
+          <div class="human-view" id="debugDirectorOnlyGateRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugDirectorOnlyGate" style="color: #bdf4cd;"></div>
+          </details>
+        </div>
+
+        <!-- 导演之眼声纹 (director_voice_profile) -->
+        <div class="debug-card" style="border-color: #ff9999;">
+          <h3><span>🎙️</span> 导演之眼声纹 (director_voice_profile) <button class="btn-copy-json" onclick="copyJson('debugDirectorVoice')">复制</button></h3>
+          <div class="human-view" id="debugDirectorVoiceRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugDirectorVoice" style="color: #ffb3b3;"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+  </div>
+</div>
+
+<section id="slotsOverlay" class="overlay">
+  <div class="overlay-shell">
+    <div class="overlay-header">
+      <h2>存档 / 开档</h2>
+      <button id="btnCloseSlots">关闭</button>
+    </div>
+    <div class="slot-actions">
+      <input id="newSlotId" type="text" placeholder="新建或另存的 Session ID，例如 o1-debug-main">
+      <button id="btnCreateFresh">新周目开档</button>
+      <button id="btnSaveAsCurrent">另存当前进度</button>
+    </div>
+    <table class="slot-table">
+      <thead>
+        <tr>
+          <th>存档名</th>
+          <th>当前场景</th>
+          <th>拍数</th>
+          <th>上次游玩</th>
+          <th style="text-align: right;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="slotsTableBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<section id="bondOverlay" class="overlay">
+  <div class="overlay-shell">
+    <div class="overlay-header">
+      <h2>羁绊与记忆档案</h2>
+      <button id="closeBondBtn">关闭</button>
+    </div>
+    <div style="margin-bottom: 20px; font-size: 14px;">
+      <span style="color: var(--dim);">经历足迹：</span>
+      <span id="bondFootprints" style="color: var(--cyan); font-weight: 700;"></span>
+    </div>
+    <div id="bondNpcCards" class="grid-two"></div>
+    <div class="overlay-section">
+      <h3>记忆固化时间线</h3>
+      <div id="bondTimeline"></div>
+    </div>
+  </div>
+</section>
+
+<section id="newRunOverlay" class="overlay">
+  <div class="overlay-shell" style="max-width: 720px;">
+    <div class="overlay-header">
+      <h2>新周目开档</h2>
+      <button id="btnCloseNewRun">关闭</button>
+    </div>
+    <div class="grid-two" style="align-items: start;">
+      <div class="debug-card">
+        <h3>Session ID</h3>
+        <input id="newRunSessionId" type="text" placeholder="例如 16zhong-test-01" style="width: 100%; box-sizing: border-box;">
+      </div>
+      <div class="debug-card">
+        <h3>从哪一场开</h3>
+        <select id="newRunOpening" style="width: 100%;"></select>
+      </div>
+      <div class="debug-card">
+        <h3>本周目玩家</h3>
+        <select id="newRunPlayer" style="width: 100%;"></select>
+      </div>
+      <div class="debug-card">
+        <h3>玩家创建（三项）</h3>
+        <div style="display: grid; gap: 8px;">
+          <input id="newRunCreatedName" type="text" placeholder="名字（可空则用入口模板名）" style="width: 100%; box-sizing: border-box;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <input id="newRunGender" type="text" placeholder="性别" style="width: 100%; box-sizing: border-box;">
+            <input id="newRunAgeBand" type="text" placeholder="年龄段，如 大学初年" style="width: 100%; box-sizing: border-box;">
+          </div>
+          <input id="newRunOccupation" type="text" placeholder="职业：大学生 / 上班族 / 自由职业 / 其他" style="width: 100%; box-sizing: border-box;">
+          <input id="newRunSkillHook" type="text" placeholder="擅长什么（无数值，叙事钩子）" style="width: 100%; box-sizing: border-box;">
+        </div>
+        <div style="color: var(--dim); font-size: 12px; margin-top: 8px; line-height: 1.5;">
+          不定性格与语气。序幕里龙也已知称呼/职业/擅长（认识约两年）；入口社会身份与即将去处仍不泄露。
+        </div>
+      </div>
+      <div class="debug-card">
+        <h3>入口说明</h3>
+        <div id="newRunDescription" style="color: var(--dim); line-height: 1.65;">正在读取批准入口……</div>
+      </div>
+    </div>
+    <div class="slot-actions" style="justify-content: flex-end; margin-top: 18px;">
+      <button id="btnConfirmNewRun">创建并接入</button>
+    </div>
+    <div style="color: var(--dim); font-size: 12px; margin-top: 10px;">
+      只列出已经接好运行卡和玩家口径的入口；未完成线路不会伪装成可选项。
+    </div>
+  </div>
+</section>
+
+<div id="toast"></div>
+
+<script>
+const state = {
+  sessionId: "",
+  history: [],
+  debugHistory: [],
+  currentBeat: 0,
+  ended: false,
+  pacing: "",
+  busy: false,
+  openingCatalog: [],
+  initialDebug: null,
+};
+
+const sessionInput = document.getElementById("sessionInput");
+const apiSelector = document.getElementById("apiSelector");
+const btnConnect = document.getElementById("btnConnect");
+const btnRefresh = document.getElementById("btnRefresh");
+const btnResetScene = document.getElementById("btnResetScene");
+const btnSlots = document.getElementById("btnSlots");
+const btnBondArchive = document.getElementById("btnBondArchive");
+const btnJumpLatest = document.getElementById("btnJumpLatest");
+const btnSend = document.getElementById("btnSend");
+const chatInputSpeech = document.getElementById('chatInputSpeech');
+const chatInputAction = document.getElementById('chatInputAction');
+const chatInputThought = document.getElementById('chatInputThought');
+
+const chatInput = {
+  get disabled() {
+    return chatInputSpeech.disabled;
+  },
+  set disabled(val) {
+    chatInputSpeech.disabled = val;
+    chatInputAction.disabled = val;
+    chatInputThought.disabled = val;
+  },
+  get value() {
+    return chatInputSpeech.value;
+  },
+  set value(val) {
+    chatInputSpeech.value = val;
+    chatInputAction.value = val;
+    chatInputThought.value = val;
+  },
+  classList: {
+    add(cls) {
+      chatInputSpeech.classList.add(cls);
+      chatInputAction.classList.add(cls);
+      chatInputThought.classList.add(cls);
+    },
+    remove(cls) {
+      chatInputSpeech.classList.remove(cls);
+      chatInputAction.classList.remove(cls);
+      chatInputThought.classList.remove(cls);
+    }
+  },
+  set placeholder(txt) {
+    if (txt.includes("思考中") || txt.includes("选择体验")) {
+      chatInputSpeech.placeholder = txt;
+      chatInputAction.placeholder = txt;
+      chatInputThought.placeholder = txt;
+    } else {
+      chatInputSpeech.placeholder = "💬 【你说】说出你的台词... 例：我把项链收好，问他接下来去哪。";
+      chatInputAction.placeholder = "🏃 【你做】输入你的动作或观察... 例：（向左侧避开）（仔细打量着对方的眼睛）";
+      chatInputThought.placeholder = "🧠 【你心想】输入你的心理活动（NPC听不见，仅用于触发因果与旁白低语）";
+    }
+  },
+  focus() {
+    chatInputSpeech.focus();
+  }
+};
+const chatContainer = document.getElementById("chatContainer");
+const beatSlider = document.getElementById("beatSlider");
+const btnPrevBeat = document.getElementById("btnPrevBeat");
+const btnNextBeat = document.getElementById("btnNextBeat");
+const sliderValue = document.getElementById("sliderValue");
+const pacingLabel = document.getElementById("pacingLabel");
+const liveModeLabel = document.getElementById("liveModeLabel");
+const inputHint = document.getElementById("inputHint");
+
+function showToast(msg, type = "error") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  if (type === "info" || type === "success") {
+    t.style.background = "rgba(0, 240, 255, 0.92)";
+    t.style.boxShadow = "0 10px 26px rgba(0, 240, 255, 0.24)";
+  } else {
+    t.style.background = "rgba(255, 0, 85, 0.92)";
+    t.style.boxShadow = "0 10px 26px rgba(255, 0, 85, 0.24)";
+  }
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 3000);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function setBusy(flag) {
+  state.busy = flag;
+  btnSend.disabled = flag || !state.sessionId || state.ended;
+  chatInput.disabled = flag || !state.sessionId || state.ended;
+  btnConnect.disabled = flag;
+  btnRefresh.disabled = flag || !state.sessionId;
+  btnResetScene.disabled = flag || !state.sessionId;
+  btnJumpLatest.disabled = flag || state.debugHistory.length === 0;
+}
+
+function currentRequestOverrides(bodyObj) {
+  // Live play is pinned to server config (Volc Coding Plan + thinking off).
+  // Do not let the browser swap model/provider.
+  return bodyObj;
+}
+
+async function fetchAPI(path, bodyObj) {
+  const res = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(currentRequestOverrides(bodyObj || {})),
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
+function showTypingIndicator(label = "本拍演算中") {
+  hideTypingIndicator();
+  const indicator = document.createElement("div");
+  indicator.className = "typing-indicator";
+  indicator.id = "typingIndicator";
+  indicator.innerHTML = `
+    <span id="typingIndicatorLabel">${escapeHtml(label)}</span>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  `;
+  chatContainer.appendChild(indicator);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function hideTypingIndicator() {
+  const indicator = document.getElementById("typingIndicator");
+  if (indicator) indicator.remove();
+}
+
+function setTypingIndicatorLabel(label) {
+  const target = document.getElementById("typingIndicatorLabel");
+  if (target) target.textContent = label;
+}
+
+function ensureSessionId() {
+  const sid = sessionInput.value.trim();
+  if (!sid) {
+    throw new Error("缺少 Session ID");
+  }
+  state.sessionId = sid;
+  localStorage.setItem("free_stage_session_id", sid);
+  return sid;
+}
+
+function appendBubble(role, speaker, text, stage = "") {
+  const item = document.createElement("div");
+  item.className = `bubble ${role}`;
+  const meta = document.createElement("div");
+  meta.className = "bubble-meta";
+  meta.innerHTML = `<span>${escapeHtml(speaker)}</span>`;
+  const content = document.createElement("div");
+  content.textContent = text || "";
+  item.appendChild(meta);
+  item.appendChild(content);
+  if (stage) {
+    const stageNode = document.createElement("div");
+    stageNode.className = "bubble-stage";
+    stageNode.textContent = `（${stage}）`;
+    item.appendChild(stageNode);
+  }
+  chatContainer.appendChild(item);
+}
+
+function appendLocalPlayerDraft(draft, stage = "发送中") {
+  const parts = [];
+  if (draft.speech) parts.push(draft.speech);
+  if (draft.action) parts.push(`（${draft.action}）`);
+  if (draft.thought) parts.push(`【心想】${draft.thought}`);
+  appendBubble("player", "玩家", parts.join("\n"), stage);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function buildVisibleFeedToBeat(beatIndex) {
+  const openingTurns = state.history.filter((item) => (item.turn || 0) === 0 && ["player", "npc", "bridge", "narrate", "marker", "error", "director_note"].includes(item.role));
+  const feed = openingTurns.map((item) => ({ ...item }));
+  for (let idx = 0; idx < beatIndex; idx++) {
+    const payload = state.debugHistory[idx] || {};
+    const projected = Array.isArray(payload.player_visible_turns) ? payload.player_visible_turns : [];
+    for (const item of projected) {
+      feed.push({ ...item });
+    }
+    const truth = Array.isArray(payload.truth_turns) ? payload.truth_turns : [];
+    for (const item of truth) {
+      if (item.role === "director_note") feed.push({ ...item });
+    }
+  }
+  if (feed.length > openingTurns.length || openingTurns.length > 0) return feed;
+  const debugPayload = beatIndex > 0 ? state.debugHistory[beatIndex - 1] : null;
+  const fallbackMaxTurn = debugPayload ? debugPayload.turn_no : 0;
+  const filteredHistory = state.history.filter((item) => (item.turn || 0) <= fallbackMaxTurn && (item.turn || 0) > 0);
+  return filteredHistory.filter((msg) => {
+    if (msg.role === "director_note") {
+      const text = msg.text || "";
+      if (text.includes("已记住") || text.includes("记上一笔") || text.includes("有人会记得")) {
+        return false;
+      }
+      return true;
+    }
+    return true;
+  });
+}
+
+function renderHistoryToBeat(beatIndex) {
+  chatContainer.innerHTML = "";
+  const payload = beatIndex > 0 ? state.debugHistory[beatIndex - 1] : state.initialDebug;
+  const nameMap = buildNameMap(payload);
+  const feed = buildVisibleFeedToBeat(beatIndex);
+  const liveFeed = feed.filter((msg) => !isNarrationLayer(msg));
+  if (liveFeed.length === 0) {
+    chatContainer.innerHTML = `<div style="color: var(--dim); text-align: center; margin-top: 24px;">本拍还没有场内对话。原著入场与导演层请看右侧「铺陈与导演层」。</div>`;
+    return;
+  }
+  liveFeed.forEach((msg) => {
+    const stage = msg.stage || "";
+    const speaker = resolveDisplayName(msg.speaker, nameMap);
+    if (msg.role === "player") {
+      appendBubble("player", speaker || "玩家", msg.text || "", stage);
+      return;
+    }
+    if (msg.role === "player_thought") {
+      appendBubble("player-thought", speaker || "玩家内心", `【心想】${msg.text || ""}`, stage);
+      return;
+    }
+    if (msg.role === "error") {
+      appendBubble("error", speaker || "运行错误", msg.text || "", stage);
+      return;
+    }
+    appendBubble("npc", speaker || "在场者", msg.text || "", stage);
+  });
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+let activeNpc = localStorage.getItem("observer_active_npc") || "";
+
+function rosterRowsFromPayload(payload) {
+  const roster = Array.isArray(payload?.player_roster) ? payload.player_roster : [];
+  if (roster.length) return roster;
+  return (Array.isArray(payload?.present_characters) ? payload.present_characters : []).map((item) => ({
+    cons: item.cons || "",
+    display_name: item.name || item.cons || "",
+    audience_label: item.name || item.cons || "",
+    debug_name: item.name || item.cons || "",
+    introduced: Boolean(payload?.intro_done),
+  }));
+}
+
+function syncActiveNpcSelection(chars) {
+  const availableNpcIds = new Set(chars.flatMap((item) => {
+    const cons = item.cons || "";
+    const key = cons.includes(".") ? cons.split(".")[1] : cons;
+    return [cons, key].filter(Boolean);
+  }));
+  if (!availableNpcIds.has(activeNpc)) {
+    const firstCons = chars[0]?.cons || "";
+    activeNpc = firstCons;
+    if (activeNpc) localStorage.setItem("observer_active_npc", activeNpc);
+  }
+}
+
+function selectActiveNpc(cons, key) {
+  activeNpc = cons || key || "";
+  if (activeNpc) localStorage.setItem("observer_active_npc", activeNpc);
+  document.querySelectorAll(".npc-chip, .roster-chip").forEach((el) => {
+    const match = el.dataset.cons === activeNpc || el.dataset.npc === activeNpc
+      || (key && (el.dataset.cons === key || el.dataset.npc === key));
+    el.classList.toggle("active", Boolean(match));
+  });
+  const characterGroup = document.getElementById("group-character");
+  if (characterGroup) characterGroup.open = true;
+  const clamped = Math.max(0, Math.min(state.currentBeat, state.debugHistory.length));
+  renderDebugDetails(clamped > 0 ? state.debugHistory[clamped - 1] : state.initialDebug);
+}
+
+function renderPlayerRoster(payload) {
+  const container = document.getElementById("playerRosterRead");
+  if (!container) return;
+  const chars = rosterRowsFromPayload(payload);
+  if (!chars.length) {
+    container.innerHTML = `<span style="color: var(--dim); font-size: 12px;">（本场暂无在场角色）</span>`;
+    return;
+  }
+  syncActiveNpcSelection(chars);
+  container.innerHTML = chars.map((item, index) => {
+    const cons = item.cons || "";
+    const name = item.display_name || item.audience_label || item.name || cons;
+    const key = cons.includes(".") ? cons.split(".")[1] : cons;
+    const active = (activeNpc === cons || activeNpc === key || (!activeNpc && index === 0)) ? " active" : "";
+    const status = item.introduced ? "已认识" : "描述中";
+    return `<button type="button" class="roster-chip${active}" data-npc="${escapeHtml(key)}" data-cons="${escapeHtml(cons)}">${escapeHtml(name)}<span class="roster-status">${escapeHtml(status)}</span></button>`;
+  }).join("");
+}
+
+function renderNpcChips(payload) {
+  const container = document.getElementById("npcChipsContainer");
+  if (!container) return;
+  const chars = rosterRowsFromPayload(payload);
+  if (!chars.length) {
+    container.innerHTML = `<span style="color: var(--dim); font-size: 12px;">（本场无可切换的 NPC 私有数据）</span>`;
+    return;
+  }
+  syncActiveNpcSelection(chars);
+  container.innerHTML = chars.map((item, index) => {
+    const cons = item.cons || "";
+    const name = item.display_name || item.audience_label || item.name || cons;
+    const key = cons.includes(".") ? cons.split(".")[1] : cons;
+    const active = (activeNpc === cons || activeNpc === key || (!activeNpc && index === 0)) ? " active" : "";
+    return `<button class="npc-chip${active}" data-npc="${escapeHtml(key)}" data-cons="${escapeHtml(cons)}">${escapeHtml(name)}</button>`;
+  }).join("");
+}
+
+function initNpcChips() {
+  const rightContainer = document.getElementById("npcChipsContainer");
+  const leftContainer = document.getElementById("playerRosterRead");
+  const onClick = (e) => {
+    const chip = e.target.closest(".npc-chip, .roster-chip");
+    if (!chip) return;
+    selectActiveNpc(chip.dataset.cons, chip.dataset.npc);
+  };
+  if (rightContainer) rightContainer.addEventListener("click", onClick);
+  if (leftContainer) leftContainer.addEventListener("click", onClick);
+}
+
+function copyJson(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const text = el.textContent || el.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast("📋 已复制到剪贴板");
+  }).catch(() => {
+    showToast("❌ 复制失败");
+  });
+}
+
+function buildNameMap(payload) {
+  const map = {};
+  rosterRowsFromPayload(payload).forEach((item) => {
+    const cons = item.cons || "";
+    const name = item.display_name || item.audience_label || item.name || cons;
+    if (cons) map[cons] = name;
+    const slug = cons.includes(".") ? cons.split(".")[1] : "";
+    if (slug) map[slug] = name;
+    if (item.debug_name) map[`debug:${cons}`] = item.debug_name;
+  });
+  return map;
+}
+
+function resolveDisplayName(speaker, nameMap) {
+  const raw = String(speaker || "").trim();
+  if (!raw) return "在场者";
+  if (nameMap[raw]) return nameMap[raw];
+  if (raw.startsWith("C.") && raw.includes(".")) {
+    const slug = raw.split(".")[1];
+    if (nameMap[slug]) return nameMap[slug];
+  }
+  return raw;
+}
+
+function isNarrationLayer(msg) {
+  const role = msg?.role || "";
+  if (msg?.player_visible === false) return true;
+  if (msg?.audience === "director_only") return true;
+  if (role === "marker" || role === "director_note") return true;
+  return false;
+}
+
+function decodeSceneFrame(frame) {
+  if (!frame || !Object.keys(frame).length) return "暂无场景帧。";
+  const lines = [];
+  if (frame.scene) lines.push(`地点：${frame.scene}`);
+  if (frame.scene_id) lines.push(`场卡 ID：${frame.scene_id}`);
+  const want = frame["此刻想要什么"] || frame.want_now;
+  if (want) lines.push(`本场戏剧意图：${want}`);
+  const locks = frame.locks || frame["不变量"];
+  if (Array.isArray(locks) && locks.length) {
+    lines.push("基线不变量：");
+    locks.forEach((item, i) => lines.push(`  ${i + 1}. ${item}`));
+  }
+  return lines.join("\n") || "场景帧已加载，但没有可读的描述字段。";
+}
+
+function decodeExitDecision(exit) {
+  if (!exit) return "尚未判定退出。";
+  if (typeof exit === "string") return exit;
+  const lines = [];
+  if (exit.decision) lines.push(`判定：${exit.decision}`);
+  if (exit.reason) lines.push(`原因：${exit.reason}`);
+  if (exit.next_card) lines.push(`下一卡：${exit.next_card}`);
+  return lines.join("\n") || JSON.stringify(exit);
+}
+
+function decodeAmbient(ambient) {
+  if (!ambient || !Object.keys(ambient).length) {
+    return "本场没有登记可拉入场的群演。人少、单场景时通常为空——不是坏了。";
+  }
+  const pool = ambient.callable || ambient.extras || ambient.pool || [];
+  if (!pool.length) {
+    return "群演池结构在，但当前没有可调用条目（可能本场不需要路人）。";
+  }
+  return `可调用群演 ${pool.length} 个：\n` + pool.map((item, i) => {
+    if (typeof item === "string") return `  ${i + 1}. ${item}`;
+    return `  ${i + 1}. ${item.name || item.id || JSON.stringify(item)}`;
+  }).join("\n");
+}
+
+function decodeRuntimeKernels(payload) {
+  const wc = payload?.world_cursor || {};
+  const lines = ["五内核 = 世界怎么记账、时间怎么走、角色心房开几阶。"];
+  if (wc.ch_anchor != null || wc.world_clock) {
+    lines.push(`世界游标：第 ${wc.ch_anchor ?? "?"} 章 · ${wc.world_clock || "时刻未定"}（周目 run=${wc.run ?? "?"}, 线 ${wc.worldline || "?"})`);
+  } else {
+    lines.push("世界游标：尚未写入。");
+  }
+  const folded = payload?.frame_folded_beats || [];
+  if (folded.length) lines.push(`跨视角已折叠、不再重演的 beat：${folded.map((b) => b.id || b).join("、")}`);
+  const off = payload?.offscreen_ledger || {};
+  const offKeys = Object.keys(off);
+  if (offKeys.length) lines.push(`离屏账本有 ${offKeys.length} 条线有记录（玩家不在场时后台推进）`);
+  else lines.push("离屏账本：空（或玩家一直跟线）。");
+  const hearts = payload?.heart_stages || {};
+  const heartEntries = Object.entries(hearts);
+  if (heartEntries.length) {
+    lines.push("心房阶（防嘴甜闸）：" + heartEntries.map(([k, v]) => `${k.split(".")[1] || k}→阶${v}`).join("；"));
+  }
+  return lines.join("\n");
+}
+
+function decodeInnerState(inner) {
+  if (!inner) return "（选中角色暂无内心流数据）";
+  const fields = [
+    ["want_now", "此刻想要什么"],
+    ["knot", "心结"],
+    ["unsaid", "憋着没说"],
+    ["stance_to_player", "对玩家的姿态"],
+  ];
+  const lines = fields.filter(([key]) => inner[key]).map(([key, label]) => `${label}：${inner[key]}`);
+  if (inner.observation) lines.push(`本拍观察：${JSON.stringify(inner.observation)}`);
+  if (inner.appraisal) lines.push(`主观判断：${inner.appraisal}`);
+  if (inner.active_goals) lines.push(`激活目标：${JSON.stringify(inner.active_goals)}`);
+  if (inner.response_intent) lines.push(`回应意图：${inner.response_intent}`);
+  if (inner.inhibition) lines.push(`抑制条件：${inner.inhibition}`);
+  if (inner.visible_decision) lines.push(`外显决定：${inner.visible_decision}`);
+  if (inner.decision_trace) lines.push(`决策链：${JSON.stringify(inner.decision_trace)}`);
+  return lines.join("\n") || "内心流字段为空。";
+}
+
+function decodeSceneConsolidation(value) {
+  const facts = value?.facts || [];
+  const summaries = value?.director_summaries || [];
+  const episodes = value?.episodes || [];
+  const lines = ["【丙式事实骨架】"];
+  if (facts.length) facts.forEach((item, i) => lines.push(`${i + 1}. ${item.fact || ""}（${item.source || "来源未标"}）`));
+  else lines.push("尚无跨场固化事实。");
+  lines.push("\n【乙偏丙导演摘要】");
+  if (summaries.length) summaries.forEach((item) => lines.push(`· ${item}`));
+  else lines.push("尚无导演摘要。");
+  if (episodes.length) {
+    lines.push("\n【逐角色场景记忆】");
+    episodes.forEach((ep) => {
+      lines.push(`【${ep.owner_key || ep.owner_cons || "角色"} · ${ep.scene_uid || "来源场未知"}】${ep.first_person_episode || "—"}`);
+      if (ep.unresolved_topics?.length) lines.push(`未决：${ep.unresolved_topics.join("；")}`);
+      if (ep.source_turn_ids?.length) lines.push(`来源拍：${ep.source_turn_ids.join("、")}`);
+    });
+  }
+  return lines.join("\n");
+}
+
+function decodeWorldState(value) {
+  if (!value || !Object.keys(value).length) return "暂无世界态势投影。";
+  const lines = [];
+  const renderScene = (scene) => {
+    const when = scene.natural_time_window || "时段待定";
+    const where = scene.location || scene.scene_uid || "未知地点";
+    const relation = scene.relation_to_current || "unknown";
+    const events = (scene.event_uids || []).join("、") || "（无事件）";
+    return `· [${relation}] ${when}｜${where}｜${events}`;
+  };
+  const live = value.live_scene || [];
+  const near = value.near_offscreen || [];
+  const past = value.past_same_chapter || [];
+  lines.push(`当前场：${value.current_bucket || "unknown"}`);
+  lines.push(`现场（overlapping）：${Array.isArray(live) ? live.length : 0}`);
+  (live || []).forEach((scene) => lines.push(renderScene(scene)));
+  lines.push(`近处/时段待定：${Array.isArray(near) ? near.length : 0}`);
+  (near || []).forEach((scene) => lines.push(renderScene(scene)));
+  lines.push(`同章过去场（不混入当前）：${Array.isArray(past) ? past.length : 0}`);
+  (past || []).slice(0, 4).forEach((scene) => lines.push(renderScene(scene)));
+  lines.push("时刻精度不足时只显示自然时段，不写「与此同时」。");
+  return lines.join("\n");
+}
+
+function decodeWorldCoordinates(value) {
+  if (!value || !Object.keys(value).length) return "暂无时间×地点投影。";
+  const cursor = value.cursor || {};
+  const lines = [`当前：${cursor.world_clock || "未知时刻"}｜${cursor.current_location || "未知地点"}｜${cursor.worldline || "WMAIN"} / run ${cursor.run ?? "?"}`];
+  const scenes = value.scene_points || [];
+  if (scenes.length) {
+    lines.push("【世界场】");
+    scenes.forEach((item) => lines.push(`· t${item.time_lane ?? "?"} ${item.natural_time_window || "时段待定"}｜${item.location || "未知地点"}｜${(item.event_uids || []).join("、") || "无事件"}`));
+  }
+  const intents = value.intent_points || [];
+  if (intents.length) {
+    lines.push("【意图链】");
+    intents.forEach((item) => lines.push(`· ${item.intent_id || "未命名"}：${item.event || "opened"}${item.target ? ` → ${item.target}` : ""}${item.outcome ? `（${item.outcome}）` : ""}`));
+  }
+  const ambient = value.ambient_points || [];
+  if (ambient.length) lines.push(`【已建立的环境角色】${ambient.map((item) => item.public_role || item.actor_id).join("、")}`);
+  lines.push("仅观测投影：不进入玩家页或演员上下文。");
+  return lines.join("\n");
+}
+
+function decodeBoundaries(b) {
+  if (!b) return "（选中角色暂无拒绝边界）";
+  const lines = [];
+  if (b.hard?.length) lines.push(`硬拒（绝不说）：${b.hard.join("、")}`);
+  if (b.soft?.length) lines.push(`软拒（可打太极）：${b.soft.join("、")}`);
+  if (b.style) lines.push(`拒绝风格：${b.style}`);
+  return lines.join("\n") || "边界未配置。";
+}
+
+function decodeMemoryList(mem) {
+  if (!mem || !mem.length) return "（空）本场还没有注入这条线的记忆。";
+  return mem.map((line, i) => `${i + 1}. ${line}`).join("\n");
+}
+
+function decodeKnowledgeGate(shared, perNpc, privileged) {
+  const lines = ["知识门控（右栏）= 不能说 / 特权 / 阻塞项；玩家可见在场条用 audience 称呼；「玩家已确认」账本只在 debug 区。"];
+  if (shared?.length) {
+    lines.push("\n【全场阻塞 / 不谈】");
+    shared.forEach((line, i) => lines.push(`  ${i + 1}. ${line}`));
+  }
+  const perEntries = Object.entries(perNpc || {});
+  if (perEntries.length) {
+    lines.push("\n【各角色私有阻塞】");
+    perEntries.forEach(([cons, gates]) => {
+      const label = cons.split(".")[1] || cons;
+      lines.push(`  · ${label}：`);
+      (gates || []).slice(0, 4).forEach((g) => lines.push(`      - ${g}`));
+      if ((gates || []).length > 4) lines.push(`      …共 ${gates.length} 条`);
+    });
+  }
+  const privEntries = Object.entries(privileged || {});
+  if (privEntries.length) {
+    lines.push("\n【仅该角色感知、别人不能代说】");
+    privEntries.forEach(([cons, facts]) => {
+      lines.push(`  · ${cons.split(".")[1] || cons}：${(facts || []).join("；") || "无"}`);
+    });
+  }
+  return lines.join("\n");
+}
+
+function decodePlayerObservationLedger(ledger) {
+  const items = Array.isArray(ledger) ? ledger : [];
+  if (!items.length) return "还没有从可见事件累计出任何确认项。";
+  return items.map((item) => {
+    const mark = item.status === "confirmed" ? "✓" : item.status === "unknown" ? "?" : "·";
+    const source = item.source ? `（${item.source}）` : "";
+    return `${mark} ${item.text || ""}${source}`;
+  }).join("\n");
+}
+
+function decodeContextReceipts(receipts, nameMap) {
+  const rows = Array.isArray(receipts) ? receipts : [];
+  if (!rows.length) return "本拍没有远程调用收据（第 0 拍、确定性演出或调用前失败时为空）。";
+  return rows.map((row) => {
+    const who = row.kind === "director" ? "导演" : (nameMap[row.actor_cons] || row.actor_cons || "角色");
+    const stable = row.stable_prefix?.chars ?? "?";
+    const dynamic = row.dynamic_context?.chars ?? "?";
+    const usage = row.usage || {};
+    const cache = row.cache || {};
+    const promptTokens = usage.prompt_tokens ?? "供应商未回传";
+    const cached = cache.cached_tokens ?? "不可观测";
+    const attempts = row.transport?.attempts ?? "-";
+    const repair = row.transport?.repair_count ?? 0;
+    return `· ${who}｜稳定 ${stable} 字｜动态 ${dynamic} 字｜输入 token ${promptTokens}｜缓存 ${cache.status || "unknown"} (${cached})｜尝试 ${attempts}｜修复 ${repair}`;
+  }).join("\n");
+}
+
+function decodeSceneReceipts(receipts) {
+  const rows = Array.isArray(receipts) ? receipts : [];
+  if (!rows.length) return "本周目还没有可回放的场景事实收据。";
+  return rows.map((row) => {
+    const fact = row.fact_id || "未命名事实";
+    const scene = row.scene_id || "未知场次";
+    const owner = row.owner || "未知归属";
+    const kind = row.source_kind || "未知来源";
+    const turn = Number.isFinite(Number(row.turn)) ? `第 ${row.turn} 拍` : "拍数未知";
+    return `• ${fact}｜${scene}｜${owner}｜${kind}｜${turn}`;
+  }).join("\n");
+}
+
+function decodeContextBudgetAudit(audit) {
+  if (!audit || !audit.call_count) return "本拍没有远程调用；没有把空值误写成缓存未命中。";
+  const cache = audit.provider_cache || {};
+  const lines = [
+    `调用 ${audit.call_count} 路｜动态上下文合计 ${audit.dynamic_chars_total || 0} 字｜最大 ${audit.dynamic_chars_max || 0} 字`,
+    `供应商缓存证据：命中 ${cache.hit || 0}｜未命中 ${cache.miss || 0}｜不可观测 ${cache.unknown || 0}`,
+    "本面板不知晓模型真实上下文上限，也不会截断或改变请求。",
+  ];
+  const reusable = audit.cache_eligible_prefixes || [];
+  lines.push(reusable.length
+    ? `同拍可复用稳定前缀：${reusable.map((item) => `${item.calls} 路`).join("、")}（只是可行性，不等于命中）`
+    : "同拍没有重复稳定前缀；不推断缓存结果。");
+  (audit.prefix_stability || []).forEach((item) => lines.push(`${item.kind} 前缀：${item.status === "stable" ? "稳定" : "漂移"}（${item.distinct_prefixes} 个版本）`));
+  (audit.warnings || []).forEach((warning) => lines.push(`⚠ ${warning}`));
+  return lines.join("\n");
+}
+
+function decodePlayerKnowableGate(knowable, nameMap, introDone) {
+  const lines = [];
+  lines.push(introDone ? "称呼已解锁：左栏 speaker 可显示真名。" : "称呼未解锁：左栏仍用外貌称呼；斑驳↔雨璇互称保留在台词里。");
+  const shared = knowable?.shared || [];
+  if (shared.length) {
+    lines.push("\n【全场此刻可知】");
+    shared.forEach((line, i) => lines.push(`  ${i + 1}. ${line}`));
+  }
+  const perEntries = Object.entries(knowable?.per_npc || {});
+  if (perEntries.length) {
+    lines.push("\n【选中角色此刻可知】");
+    perEntries.forEach(([cons, gates]) => {
+      const label = nameMap[cons] || cons.split(".")[1] || cons;
+      lines.push(`  · ${label}：`);
+      (gates || []).slice(0, 5).forEach((g) => lines.push(`      - ${g}`));
+    });
+  }
+  if (!shared.length && !perEntries.length) {
+    lines.push("（暂无门控条目）");
+  }
+  return lines.join("\n");
+}
+
+function decodeStructuredMem(structured, nameMap) {
+  const entries = Object.entries(structured || {});
+  if (!entries.length) return "还没有跨场固化出的结构化记忆。";
+  return entries.map(([key, val]) => {
+    const label = nameMap[key] || key;
+    const summary = val?.summary || val?.mood || "";
+    const unresolved = val?.unresolved ? `；未了：${val.unresolved}` : "";
+    return `【${label}】${summary}${unresolved}`;
+  }).join("\n");
+}
+
+function decodeSpeakerPlan(plan, nameMap) {
+  if (!plan) return "本拍没有发言计划数据。";
+  const maxSp = plan.max_speakers ?? 3;
+  const speakers = plan.speakers || [];
+  const bids = plan.bids || [];
+  const lines = [
+    `竞价机制：在场 NPC 先「竞标」谁更想说话，导演取前 ${maxSp} 名交给演员 LLM 演。不是轮流点名。`,
+    `本拍允许最多 ${maxSp} 人开口。`,
+  ];
+  if (!speakers.length) {
+    lines.push("结果：竞价后无人排上（可能玩家沉默、或全员分≤0）。");
+  } else {
+    lines.push(`结果：${speakers.length} 人胜出、会演台词：`);
+    speakers.forEach((s, i) => {
+      const name = s.name || nameMap[s.cons] || s.cons;
+      const score = typeof s.bid === "number" ? s.bid.toFixed(2) : s.bid;
+      lines.push(`  ${i + 1}. ${name}（分 ${score}，因：${s.reason || s.bid_reasons?.slice(-1)?.[0] || "—"}）`);
+    });
+  }
+  const spokenCons = new Set(speakers.map((s) => s.cons));
+  const waiting = bids.filter((b) => !spokenCons.has(b.cons));
+  if (waiting.length) {
+    lines.push(`未排上但想说话的：${waiting.map((b) => nameMap[b.cons] || b.cons?.split?.(".")?.[1] || b.cons).join("、")}`);
+  }
+  if (plan.allow_silence) lines.push("（玩家本拍无台词输入时，允许沉默或 NPC 互聊。）");
+  return lines.join("\n");
+}
+
+function formatReceiptValue(value) {
+  if (value == null || value === "") return "";
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (item == null) return "";
+        if (typeof item === "string") return item;
+        if (typeof item === "object") {
+          return item.text || item.name || item.label || JSON.stringify(item, null, 0);
+        }
+        return String(item);
+      })
+      .filter(Boolean)
+      .join("；");
+  }
+  if (typeof value === "object") {
+    return Object.entries(value)
+      .map(([k, v]) => `${k}=${typeof v === "string" ? v : JSON.stringify(v)}`)
+      .join("；");
+  }
+  return String(value);
+}
+
+function receiptSection(label, bodyText, { empty = false } = {}) {
+  const body = empty
+    ? `<div class="actor-receipt-body actor-receipt-empty">${escapeHtml(bodyText)}</div>`
+    : `<div class="actor-receipt-body">${escapeHtml(bodyText)}</div>`;
+  return `<div class="actor-receipt-sec"><div class="actor-receipt-label">${escapeHtml(label)}</div>${body}</div>`;
+}
+
+function formatMemoryReceiptItems(items, kind, reasonKey = "activation_reason") {
+  if (!items?.length) return "无";
+  return items.map((item, index) => {
+    const itemKind = item?.activation_memory_kind === "relationship_episode" ? "关系经历" : kind;
+    const id = item?.mem_id != null ? `#${item.mem_id}` : (item?.prop_id || item?.scene_uid || `#${index + 1}`);
+    const text = formatReceiptValue(item?.text || item?.statement || item?.first_person_episode || item);
+    const source = formatReceiptValue(item?.src_event || item?.source || item?.scene_uid || "—");
+    const reason = formatReceiptValue(item?.[reasonKey] || item?.reason || "—");
+    const cues = Array.isArray(item?.activation_cues) && item.activation_cues.length
+      ? `；线索：${item.activation_cues.join("、")}` : "";
+    return `· ${itemKind} ${id}：${text}\n  来源：${source}\n  ${reasonKey === "reason" ? "未投递" : "激活原因"}：${reason}${cues}`;
+  }).join("\n");
+}
+
+function decodeActorPackets(packets, nameMap) {
+  const entries = Object.entries(packets || {});
+  if (!entries.length) {
+    return `<div class="actor-receipt-empty">本拍还没有演员投递。若刚切入闪回，首拍常是作者段（authored），不经 LLM——下一拍才有龙也投递回执。</div>`;
+  }
+  const cards = entries.map(([cons, packet]) => {
+    const who = nameMap?.[cons] || packet?.self_core?.name || cons;
+    const scene = packet?.physical_scene || packet?.observable_scene || {};
+    const sceneFacts = Array.isArray(scene["玩家已确认的现场事实"]) ? scene["玩家已确认的现场事实"] : [];
+    const sceneBody = [
+      `在哪：${formatReceiptValue(scene.where) || "—"}`,
+      `何时：${formatReceiptValue(scene.when || scene.clock) || "—"}`,
+      sceneFacts.length ? `玩家已确认事实：${sceneFacts.map(formatReceiptValue).join("；")}` : "",
+      scene["刚刚发生的环境变化"] ? `环境变化：${formatReceiptValue(scene["刚刚发生的环境变化"])}` : "",
+    ].filter(Boolean).join("\n");
+
+    const inner = packet?.self_state?.inner_state || {};
+    const desireBody = [
+      `长期欲望：${formatReceiptValue(inner.long_term_desire) || "—"}`,
+      `当前意图：${formatReceiptValue(inner.active_intention || inner.want_now) || "—"}`,
+      `此刻想要（want_now）：${formatReceiptValue(inner.want_now) || "—"}`,
+      `心结（knot）：${formatReceiptValue(inner.knot) || "—"}`,
+      `未说出口（unsaid）：${formatReceiptValue(inner.unsaid) || "—"}`,
+    ].join("\n");
+
+    const player = packet?.observable_player || {};
+    const playerBits = [player.speech, player.action]
+      .map((x) => formatReceiptValue(x))
+      .filter(Boolean);
+    const playerBody = playerBits.length
+      ? playerBits.join("\n")
+      : "（本拍没有可听可见的玩家言行）";
+
+    const percepts = packet?.private_perceptions || [];
+    const perceptBody = percepts.length
+      ? percepts.map((p, i) => `${i + 1}. ${formatReceiptValue(p?.text ?? p) || ""}`).join("\n")
+      : "无";
+
+    const dialogue = packet?.observable_dialogue || [];
+    const dialogueBody = dialogue.length
+      ? dialogue
+          .slice(-8)
+          .map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}${d.same_turn ? "〔本拍刚说〕" : ""}`)
+          .join("\n")
+      : "（尚无公开对话）";
+
+    const sameTurn = packet?.same_turn_prior_speech || [];
+    const sameTurnBody = sameTurn.length
+      ? sameTurn.map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}`).join("\n")
+      : "（你是本拍第一个开口，或尚未轮到听同伴）";
+
+    const conversation = packet?.conversation_contract || {};
+    const conversationBody = [
+      `响应槽：${formatReceiptValue(conversation.response_slot) || "—"}`,
+      `会话义务：${formatReceiptValue(conversation.obligation_kind) || "unowned"}`,
+      `判定依据：${formatReceiptValue(conversation.obligation_evidence) || "—"}`,
+      `被指向者：${formatReceiptValue(conversation.direct_addressee) || "—"}`,
+      `社交指令：${formatReceiptValue(conversation.social_instruction) || "—"}`,
+      `本拍新问题上限：${formatReceiptValue(conversation.max_new_questions ?? "—")}`,
+      conversation.same_turn_hear ? `已听见同伴：${formatReceiptValue(conversation.same_turn_hear)}` : "",
+    ].filter(Boolean).join("\n");
+
+    const mem = packet?.self_memory || {};
+    const working = mem.scene_working_memory || {};
+    const workingBody = [
+      `目标：${formatReceiptValue(working.goals) || "—"}`,
+      `承诺：${formatReceiptValue(working.commitments) || "—"}`,
+      `未决：${formatReceiptValue(working.unresolved_topics) || "—"}`,
+      `身体：${formatReceiptValue(working.body_state) || "—"}`,
+      `来源：${formatReceiptValue(working?.source?.canon_src || working?.source?.event_uid) || "—"}`,
+    ].join("\n");
+
+    const episodic = mem.episodic_recent || [];
+    const relationshipMem = mem.relationship_memory || [];
+    const memoryBody = [
+      `情景记忆×${episodic.length}：${episodic.length ? episodic.slice(0, 4).map(formatReceiptValue).join(" / ") : "—"}`,
+      `关系记忆×${relationshipMem.length}：${relationshipMem.length ? relationshipMem.slice(0, 3).map(formatReceiptValue).join(" / ") : "—"}`,
+      `互动动态×${(packet?.interaction_dynamics || []).length}`,
+      `身份关系×${(packet?.identity_relations || []).length}`,
+    ].join("\n");
+
+    const phaseVoice = packet?.self_core?.phase_voice_profile || {};
+    const phaseVoiceBody = [
+      `阶段：${formatReceiptValue(phaseVoice.phase) || "—"}`,
+      `原著锚点：${formatReceiptValue(phaseVoice.source_event || phaseVoice.canon_src) || "—"}`,
+      `这一拍怎么说：${formatReceiptValue(phaseVoice.positive_patterns) || "—"}`,
+      `不该滑向：${formatReceiptValue(phaseVoice.avoid_phrases) || "—"}`,
+      `披露边界：${formatReceiptValue(phaseVoice.disclosure_limit) || "—"}`,
+    ].join("\n");
+
+    const activation = packet?.memory_activation || {};
+    const activatedBody = [
+      formatMemoryReceiptItems(activation.slow_memory_activated || [], "慢环"),
+      formatMemoryReceiptItems(activation.knowledge_activated || [], "知识"),
+      formatMemoryReceiptItems(activation.scene_episode_activated || [], "场景经历"),
+    ].filter((line) => line !== "无").join("\n") || "无：本拍没有长期记忆因现场线索而被激活。";
+    const withheldBody = [
+      formatMemoryReceiptItems(activation.slow_memory_withheld || [], "慢环", "reason"),
+      formatMemoryReceiptItems(activation.knowledge_withheld || [], "知识", "reason"),
+      formatMemoryReceiptItems(activation.scene_episode_withheld || [], "场景经历", "reason"),
+    ].filter((line) => line !== "无").join("\n") || "无";
+
+    const instr = packet?.director_instruction || [];
+    const instrBody = Array.isArray(instr)
+      ? (instr.length ? instr.map((x) => `· ${formatReceiptValue(x)}`).join("\n") : "（空）")
+      : formatReceiptValue(instr) || "（空）";
+
+    const policy = packet?.disclosure_policy || [];
+    const policySec = policy.length
+      ? receiptSection("披露策略", policy.slice(0, 3).map((x) => formatReceiptValue(x)).join("\n"))
+      : "";
+
+    return [
+      `<div class="actor-receipt">`,
+      `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
+      `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
+      receiptSection("投递场景（物理帧）", sceneBody),
+      receiptSection("本拍欲望 / 心结（真投递）", desireBody, { empty: !inner.want_now }),
+      Object.keys(phaseVoice).length ? receiptSection("阶段声纹", phaseVoiceBody) : "",
+      receiptSection("玩家言行（不含内心）", playerBody, { empty: !playerBits.length }),
+      receiptSection("私有感知", perceptBody, { empty: !percepts.length }),
+      receiptSection("公开对话窗口", dialogueBody, { empty: !dialogue.length }),
+      receiptSection("本拍已听见的同伴（串行）", sameTurnBody, { empty: !sameTurn.length }),
+      receiptSection("会话义务", conversationBody),
+      receiptSection("场内工作记忆（本拍必需）", workingBody),
+      receiptSection("记忆装载量（首包应厚）", memoryBody),
+      receiptSection("本拍实收：已激活记忆", activatedBody, { empty: activatedBody.startsWith("无：") }),
+      receiptSection("候选未激活（未进入本拍提示）", withheldBody, { empty: withheldBody === "无" }),
+      receiptSection("导演本拍临时指令（不是长期记忆）", instrBody, { empty: instrBody === "（空）" }),
+      policySec,
+      `</div>`,
+    ].join("");
+  });
+  return `<div class="actor-receipt-list">${cards.join("")}</div>`;
+}
+
+function decodeDirectorOnlyGate(gate) {
+  if (!gate?.active) return "未触发。玩家点名的角色都在本场可回应。";
+  const hits = (gate.hits || []).map((h) => `${h.name}（匹配到「${h.matched}」）`).join("、");
+  return `已触发：${hits}\n处理方式：不找演员演这些人，改由导演旁白转述「没有与你搭话」——因为他们不在你的对话圈里。`;
+}
+
+function decodeDirectorVoice(profile) {
+  if (!profile) return "未加载导演声纹。";
+  return [
+    "这是导演讲述的固定风格参考（从文档读取），不是「聊过什么就改什么」的动态档案。",
+    "本拍实际说了什么 → 看下方「导演暗注与真实对白」。",
+    "",
+    `讲述音：${profile.narrate || "—"}`,
+    `贴耳·引导：${profile.aside_guide || "—"}`,
+    `贴耳·记账：${profile.aside_ledger || "—"}`,
+    `贴耳·抉择：${profile.aside_choice || "—"}`,
+  ].join("\n");
+}
+
+function decodeTruthTurns(turns, nameMap) {
+  if (!turns?.length) return "本拍没有导演层记录。";
+  return turns.map((t, i) => {
+    const role = t.role || "?";
+    const who = resolveDisplayName(t.speaker, nameMap);
+    const targets = Array.isArray(t.actor_visible_to) ? t.actor_visible_to : [];
+    let kind = "其他";
+    if (role === "director_note" && targets.length && !targets.includes("*")) {
+      kind = `导演→指定演员（${targets.join("、")}）`;
+    } else if (role === "director_note" || t.audience === "director_only" || t.player_visible === false) {
+      kind = "导演真相·仅右栏";
+    } else if (role === "bridge" || role === "narrate") {
+      kind = "原著/导演铺陈（玩家可见）";
+    } else if (role === "npc") {
+      kind = "演员台词";
+    } else if (role === "marker") {
+      kind = "系统标记";
+    }
+    const text = (t.text || "").slice(0, 160);
+    return `${i + 1}. [${kind}] ${who}：${text}${(t.text || "").length > 160 ? "…" : ""}`;
+  }).join("\n");
+}
+
+function decodeNarrationFeed(narration, nameMap) {
+  if (!narration.length) return "本拍没有铺陈/导演层内容。";
+  return narration.map((msg, i) => {
+    const who = resolveDisplayName(msg.speaker, nameMap);
+    let tag = "铺陈";
+    if (msg.audience === "director_only" || msg.player_visible === false) {
+      tag = "导演真相·玩家不可见";
+    } else if (msg.role === "director_note") {
+      tag = "导演暗注";
+    } else if (msg.role === "bridge" || msg.role === "narrate") {
+      tag = msg.turn === 0 ? "原著入场" : "导演旁白";
+    } else if (msg.role === "marker") {
+      tag = "系统";
+    }
+    return `${i + 1}. [${tag}] ${who}：${msg.text || ""}`;
+  }).join("\n\n");
+}
+
+function renderRuntimeKernelPanel(payload) {
+  const target = document.getElementById("debugRuntimeKernels");
+  if (!target) return;
+  const kernelState = {
+    world_cursor: payload?.world_cursor || null,
+    completed_beats: payload?.completed_beats || {},
+    frame_folded_beats: payload?.frame_folded_beats || [],
+    offscreen_ledger: payload?.offscreen_ledger || {},
+    heart_stages: payload?.heart_stages || {},
+  };
+  target.textContent = JSON.stringify(kernelState, null, 2);
+  const read = document.getElementById("debugRuntimeKernelsRead");
+  if (read) read.textContent = decodeRuntimeKernels(payload);
+}
+
+function renderDebugDetails(payload) {
+  const nameMap = buildNameMap(payload);
+  const narrationEl = document.getElementById("debugNarrationRead");
+
+  document.getElementById("debugClock").textContent = payload?.clock || "-";
+  renderNpcChips(payload);
+  renderPlayerRoster(payload);
+  
+  const injuryEl = document.getElementById("debugPlayerInjury");
+  const injuryVal = payload?.player_state?.injury || "-";
+  injuryEl.textContent = injuryVal;
+  if (injuryVal.includes("重伤") || injuryVal.includes("骨折")) {
+    injuryEl.classList.add("red-flash");
+  } else {
+    injuryEl.classList.remove("red-flash");
+  }
+
+  const npcKeyMap = {
+    "akito": "C.akito.WMAIN",
+    "xiuzai": "C.xiuzai.WMAIN",
+    "kakashi": "C.kakashi.WMAIN",
+    "zhangchen": "C.zhangchen.WMAIN",
+    "banbo": "C.banbo.WMAIN",
+    "yuxuan": "C.yuxuan.WMAIN",
+  };
+  const activeCons = activeNpc.startsWith("C.") ? activeNpc : (npcKeyMap[activeNpc] || activeNpc);
+
+  const innerStateVal = payload?.inner_states?.[activeCons] || null;
+  document.getElementById("debugInnerStates").textContent = JSON.stringify(innerStateVal, null, 2);
+  const innerRead = document.getElementById("debugInnerStatesRead");
+  if (innerRead) innerRead.textContent = decodeInnerState(innerStateVal);
+
+  const boundaryVal = payload?.boundaries?.[activeCons] || null;
+  document.getElementById("debugBoundaries").textContent = JSON.stringify(boundaryVal, null, 2);
+  const boundRead = document.getElementById("debugBoundariesRead");
+  if (boundRead) boundRead.textContent = decodeBoundaries(boundaryVal);
+
+  const perNpcMemoryVal = payload?.per_npc_memory_context?.[activeCons] || null;
+  document.getElementById("debugPerNpcMemory").textContent = JSON.stringify(perNpcMemoryVal, null, 2);
+  const memRead = document.getElementById("debugPerNpcMemoryRead");
+  if (memRead) memRead.textContent = decodeMemoryList(perNpcMemoryVal);
+
+  const sceneFrame = payload?.scene_frame || {};
+  document.getElementById("debugScene").textContent = sceneFrame.scene || state.surfaceScene || "-";
+  document.getElementById("debugCardPath").textContent = sceneFrame.scene_id || "-";
+  document.getElementById("debugSceneFrame").textContent = JSON.stringify(sceneFrame, null, 2);
+  const sfRead = document.getElementById("debugSceneFrameRead");
+  if (sfRead) sfRead.textContent = decodeSceneFrame(sceneFrame);
+
+  const memInjected = payload?.memory_injected || [];
+  document.getElementById("debugMemory").textContent = JSON.stringify(memInjected, null, 2);
+  const memInjRead = document.getElementById("debugMemoryRead");
+  if (memInjRead) memInjRead.textContent = decodeMemoryList(memInjected);
+
+  const structured = payload?.structured_memories || {};
+  document.getElementById("debugStructuredMem").textContent = JSON.stringify(structured, null, 2);
+  const structRead = document.getElementById("debugStructuredMemRead");
+  if (structRead) structRead.textContent = decodeStructuredMem(structured, nameMap);
+
+  const consolidation = payload?.scene_consolidation || {};
+  document.getElementById("debugSceneConsolidation").textContent = JSON.stringify(consolidation, null, 2);
+  const consolidationRead = document.getElementById("debugSceneConsolidationRead");
+  if (consolidationRead) consolidationRead.textContent = decodeSceneConsolidation(consolidation);
+
+  const worldState = payload?.world_state || {};
+  document.getElementById("debugWorldState").textContent = JSON.stringify(worldState, null, 2);
+  const worldStateRead = document.getElementById("debugWorldStateRead");
+  if (worldStateRead) worldStateRead.textContent = decodeWorldState(worldState);
+
+  const worldCoordinates = payload?.world_coordinates || {};
+  document.getElementById("debugWorldCoordinates").textContent = JSON.stringify(worldCoordinates, null, 2);
+  const worldCoordinatesRead = document.getElementById("debugWorldCoordinatesRead");
+  if (worldCoordinatesRead) worldCoordinatesRead.textContent = decodeWorldCoordinates(worldCoordinates);
+
+  const blockedPayload = payload?.player_blocked_gate || {};
+  const kgPayload = {
+    shared: blockedPayload.shared || [],
+    per_npc: blockedPayload.per_npc || {},
+    privileged: blockedPayload.privileged || payload?.privileged_facts || {},
+  };
+  document.getElementById("debugKnowledge").textContent = JSON.stringify(kgPayload, null, 2);
+  const kgRead = document.getElementById("debugKnowledgeRead");
+  if (kgRead) kgRead.textContent = decodeKnowledgeGate(kgPayload.shared, kgPayload.per_npc, kgPayload.privileged);
+
+  const knowableRead = document.getElementById("playerKnowableRead");
+  const introLabel = document.getElementById("introDoneLabel");
+  if (knowableRead) {
+    const ledgerText = decodePlayerObservationLedger(payload?.player_observation_ledger);
+    knowableRead.textContent = ledgerText || decodePlayerKnowableGate(
+      payload?.player_knowable_gate,
+      nameMap,
+      Boolean(payload?.intro_done),
+    );
+  }
+  if (introLabel) {
+    introLabel.textContent = payload?.intro_done ? "称呼已解锁" : "称呼未解锁";
+    introLabel.className = payload?.intro_done ? "badge green" : "badge";
+  }
+
+  const speakerPlan = payload?.speaker_plan || {};
+  document.getElementById("debugSpeakerPlan").textContent = JSON.stringify(speakerPlan, null, 2);
+  const spRead = document.getElementById("debugSpeakerPlanRead");
+  if (spRead) spRead.textContent = decodeSpeakerPlan(speakerPlan, nameMap);
+
+  const actorPackets = payload?.actor_context_packets || {};
+  document.getElementById("debugActorPackets").textContent = JSON.stringify(actorPackets, null, 2);
+  const actorPacketsRead = document.getElementById("debugActorPacketsRead");
+  if (actorPacketsRead) actorPacketsRead.innerHTML = decodeActorPackets(actorPackets, nameMap);
+
+  const contextReceipts = payload?.context_receipts || [];
+  document.getElementById("debugContextReceipts").textContent = JSON.stringify(contextReceipts, null, 2);
+  const contextReceiptsRead = document.getElementById("debugContextReceiptsRead");
+  if (contextReceiptsRead) contextReceiptsRead.textContent = decodeContextReceipts(contextReceipts, nameMap);
+
+  const contextBudgetAudit = payload?.context_budget_audit || {};
+  document.getElementById("debugContextBudgetAudit").textContent = JSON.stringify(contextBudgetAudit, null, 2);
+  const contextBudgetAuditRead = document.getElementById("debugContextBudgetAuditRead");
+  if (contextBudgetAuditRead) contextBudgetAuditRead.textContent = decodeContextBudgetAudit(contextBudgetAudit);
+
+  const sceneReceiptsRead = document.getElementById("debugSceneReceiptsRead");
+  if (sceneReceiptsRead) sceneReceiptsRead.textContent = decodeSceneReceipts(payload?.scene_receipts || []);
+
+  const dog = payload?.director_only_gate || {};
+  document.getElementById("debugDirectorOnlyGate").textContent = JSON.stringify(dog, null, 2);
+  const dogRead = document.getElementById("debugDirectorOnlyGateRead");
+  if (dogRead) dogRead.textContent = decodeDirectorOnlyGate(dog);
+
+  const dvp = payload?.director_voice_profile || {};
+  document.getElementById("debugDirectorVoice").textContent = JSON.stringify(dvp, null, 2);
+  const dvpRead = document.getElementById("debugDirectorVoiceRead");
+  if (dvpRead) dvpRead.textContent = decodeDirectorVoice(dvp);
+
+  const ambient = payload?.ambient_stage || {};
+  document.getElementById("debugAmbient").textContent = JSON.stringify(ambient, null, 2);
+  const ambRead = document.getElementById("debugAmbientRead");
+  if (ambRead) ambRead.textContent = decodeAmbient(ambient);
+
+  renderRuntimeKernelPanel(payload);
+  const truthTurns = payload?.truth_turns || [];
+  document.getElementById("debugTruthTurns").textContent = JSON.stringify(truthTurns, null, 2);
+  const truthRead = document.getElementById("debugTruthTurnsRead");
+  if (truthRead) truthRead.textContent = decodeTruthTurns(truthTurns, nameMap);
+
+  // 本拍：只读当前 payload 的导演层，不做跨拍累加，也不把开场梗概当「本拍铺陈」。
+  const thisBeatDirector = (payload?.truth_turns || []).filter((item) => {
+    const role = item?.role || "";
+    return (
+      role === "director_note"
+      || item?.audience === "director_only"
+      || item?.player_visible === false
+      || role === "marker"
+    );
+  });
+  if (narrationEl) narrationEl.textContent = decodeNarrationFeed(thisBeatDirector, nameMap);
+
+  document.getElementById("completedMustHappen").textContent = (payload?.must_happen_progress?.completed || []).join(", ") || "无";
+  document.getElementById("allowedMustHappen").textContent = (payload?.must_happen_progress?.allowed || []).join(", ") || "无";
+  document.getElementById("debugStall").textContent = String(payload?.stall_count ?? 0);
+  document.getElementById("debugExit").textContent = typeof payload?.exit_decision === "string"
+    ? payload.exit_decision
+    : JSON.stringify(payload?.exit_decision || "-", null, 2);
+  const exitRead = document.getElementById("debugExitRead");
+  if (exitRead) exitRead.textContent = decodeExitDecision(payload?.exit_decision);
+  document.getElementById("debugBranch").textContent = (payload?.branch_progress || []).join(" -> ") || "无";
+  const branchRead = document.getElementById("debugBranchRead");
+  if (branchRead) {
+    const bp = payload?.branch_progress || [];
+    branchRead.textContent = bp.length
+      ? `已触发的分支点：${bp.join(" → ")}`
+      : "还没有分支点被触发。";
+  }
+
+  const degradationBanner = document.getElementById("degradationBanner");
+  const degradationList = document.getElementById("degradationList");
+  degradationList.innerHTML = "";
+  const degradations = payload?.degradations || [];
+  if (degradations.length > 0) {
+    degradationBanner.style.display = "block";
+    degradations.forEach((item) => {
+      const node = document.createElement("div");
+      node.className = "issue-item";
+      const detail = item?.detail ? `：${item.detail}` : "";
+      node.textContent = `🟨 ${item?.component || "unknown"} / ${item?.mode || "fallback"} - ${item?.reason || "发生了降级"}${detail}`;
+      degradationList.appendChild(node);
+    });
+  } else {
+    degradationBanner.style.display = "none";
+  }
+
+  const issuesDiv = document.getElementById("debugIssues");
+  issuesDiv.innerHTML = "";
+  const issues = payload?.issues || [];
+  if (issues.length === 0) {
+    issuesDiv.innerHTML = `<div class="issue-item" style="color: var(--green); border-color: rgba(46, 204, 113, 0.2); background: rgba(46, 204, 113, 0.06);">🟢 当前这一拍没有发现泄漏或契约偏离。</div>`;
+    return;
+  }
+  issues.forEach((issue) => {
+    const danger = /leaked|违规|continue token|real name|future/i.test(issue);
+    const node = document.createElement("div");
+    node.className = `issue-item${danger ? " danger" : ""}`;
+    node.textContent = `${danger ? "❌" : "⚠️"} ${issue}`;
+    issuesDiv.appendChild(node);
+  });
+}
+
+const renderDebugDetailsBase = renderDebugDetails;
+renderDebugDetails = function(payload) {
+  renderDebugDetailsBase(payload);
+  const mhItems = payload?.must_happen_progress?.items || [];
+  if (mhItems.length === 0) return;
+  document.getElementById("completedMustHappen").textContent = mhItems
+    .filter((item) => item.done)
+    .map((item) => `${item.id} ${item.desc}`.trim())
+    .join("；") || "无";
+  document.getElementById("allowedMustHappen").textContent = mhItems
+    .map((item) => `${item.done ? "✓" : "○"} ${item.id} ${item.desc}`.trim())
+    .join("；");
+};
+
+ function updateStatus() {
+  document.getElementById("statusSession").textContent = state.sessionId || "未连接";
+  document.getElementById("statusScene").textContent = state.surfaceScene || "-";
+  document.getElementById("statusPacing").textContent = state.pacing || "-";
+  document.getElementById("statusBeat").textContent = `${state.currentBeat} / ${state.debugHistory.length}`;
+  document.getElementById("statusEnded").textContent = state.ended ? "本场已结束" : "可继续推进";
+  pacingLabel.textContent = state.pacing || "-";
+  liveModeLabel.textContent = state.sessionId ? "观测主控已接入" : "主控未接入";
+  inputHint.textContent = state.ended
+    ? "本场已结束。可重开本场，或在「存档 / 新周目」里开新档。"
+    : state.sessionId
+      ? "当前就是主控输入口。你在这里说一句，就会直接推进同一 session。"
+      : "当前未连接 session。先选存档或输入 Session ID。";
+}
+
+function updateSlider() {
+  beatSlider.max = String(state.debugHistory.length);
+  beatSlider.value = String(state.currentBeat);
+  sliderValue.textContent = `${state.currentBeat} / ${state.debugHistory.length}`;
+  btnPrevBeat.disabled = state.currentBeat <= 0;
+  btnNextBeat.disabled = state.currentBeat >= state.debugHistory.length;
+  btnJumpLatest.disabled = state.debugHistory.length === 0 || state.currentBeat === state.debugHistory.length;
+}
+
+function selectBeat(beatIndex) {
+  const clamped = Math.max(0, Math.min(beatIndex, state.debugHistory.length));
+  state.currentBeat = clamped;
+  updateSlider();
+  renderHistoryToBeat(clamped);
+  renderDebugDetails(clamped > 0 ? state.debugHistory[clamped - 1] : state.initialDebug);
+  updateStatus();
+}
+
+async function hydrateSession() {
+  const sid = ensureSessionId();
+  setBusy(true);
+  try {
+    const data = await fetchAPI("/api/free_stage", {
+      op: "start",
+      session_id: sid,
+      debug: 1,
+    });
+    if (data.status !== "ok") {
+      throw new Error(data.error || "start failed");
+    }
+    state.history = data.history || [];
+    state.debugHistory = data.debug_history || [];
+    state.initialDebug = data.initial_debug_payload || null;
+    state.ended = Boolean(data.ended);
+    state.pacing = data.pacing || "";
+    state.surfaceScene = data.surface?.scene || "-";
+    selectBeat(state.debugHistory.length);
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function connectSession() {
+  try {
+    await hydrateSession();
+    try {
+      await refreshSessionSelect();
+    } catch (err) {}
+    showToast(`已接入 session: ${state.sessionId}`, "success");
+  } catch (err) {
+    chatContainer.innerHTML = `<div style="color: var(--red); text-align: center; margin-top: 40px;">连接失败：${escapeHtml(err.message)}</div>`;
+    renderDebugDetails(null);
+    showToast("连接 session 失败");
+  }
+}
+
+async function refreshSession() {
+  if (!state.sessionId) {
+    showToast("当前没有已连接 session");
+    return;
+  }
+  try {
+    await hydrateSession();
+    showToast("观测数据已刷新", "info");
+  } catch (err) {
+    showToast("刷新失败");
+  }
+}
+
+async function sendTurn() {
+  const speech = chatInputSpeech.value.trim();
+  const action = chatInputAction.value.trim();
+  const thought = chatInputThought.value.trim();
+  
+  if (!speech && !action && !thought) return;
+  if (!state.sessionId || state.busy || state.ended) return;
+  
+  const payload = { speech, action, thought };
+  setBusy(true);
+  appendLocalPlayerDraft(payload, "发送中");
+  showTypingIndicator();
+  // 服务端的 primary request 最长 30 秒；超过这个阈值就是 retry_1 已接手。
+  // 这不是失败提示：输入仍在本地草稿和服务端请求里，最终失败才走未送达分支。
+  const retryStatusTimer = window.setTimeout(() => {
+    setTypingIndicatorLabel("正在重试，输入已保留");
+  }, 31000);
+  try {
+    const data = await fetchAPI("/api/free_stage", {
+      op: "player_say",
+      session_id: ensureSessionId(),
+      player_input: payload,
+      debug: 1,
+    });
+    if (data.status !== "ok") {
+      throw new Error(data.error || "step failed");
+    }
+    chatInputSpeech.value = "";
+    chatInputAction.value = "";
+    chatInputThought.value = "";
+    state.history = data.history || state.history;
+    state.debugHistory = data.debug_history || state.debugHistory;
+    state.ended = Boolean(data.ended);
+    state.pacing = data.pacing || state.pacing;
+    state.surfaceScene = data.surface?.scene || state.surfaceScene;
+    selectBeat(state.debugHistory.length);
+    if (data.transition?.consolidation_hint) {
+      showToast(data.transition.consolidation_hint, "info");
+    } else {
+      showToast("这一拍已推进", "success");
+    }
+  } catch (err) {
+    hideTypingIndicator();
+    appendBubble("error", "未送达", "未送达，输入已保留。可以稍后重试，或刷新后继续。");
+    showToast("推进这一拍失败，输入已保留");
+  } finally {
+    window.clearTimeout(retryStatusTimer);
+    hideTypingIndicator();
+    setBusy(false);
+  }
+}
+
+async function resetCurrentScene() {
+  if (!state.sessionId || state.busy) return;
+  if (!confirm(`确定要重开当前 session [${state.sessionId}] 的本场吗？`)) return;
+  setBusy(true);
+  try {
+    const data = await fetchAPI("/api/free_stage", {
+      op: "reset",
+      session_id: ensureSessionId(),
+    });
+    if (data.status !== "ok") {
+      throw new Error(data.error || "reset failed");
+    }
+    await hydrateSession();
+    showToast("本场已重开", "success");
+  } catch (err) {
+    showToast("重开本场失败");
+  } finally {
+    setBusy(false);
+  }
+}
+
+async function startNewRun() {
+  if (state.busy) return;
+  const baseId = state.sessionId || sessionInput.value.trim() || `observer-${Date.now()}`;
+  const nextId = `${baseId.replace(/[^a-zA-Z0-9_.-]/g, "_")}-fresh-${Date.now().toString().slice(-6)}`;
+  await openNewRunModal(nextId);
+}
+
+const newRunOverlay = document.getElementById("newRunOverlay");
+const newRunSessionId = document.getElementById("newRunSessionId");
+const newRunOpening = document.getElementById("newRunOpening");
+const newRunPlayer = document.getElementById("newRunPlayer");
+const newRunDescription = document.getElementById("newRunDescription");
+const newRunCreatedName = document.getElementById("newRunCreatedName");
+const newRunGender = document.getElementById("newRunGender");
+const newRunAgeBand = document.getElementById("newRunAgeBand");
+const newRunOccupation = document.getElementById("newRunOccupation");
+const newRunSkillHook = document.getElementById("newRunSkillHook");
+
+async function loadOpeningCatalog(forceRefresh = false) {
+  if (!forceRefresh && state.openingCatalog.length) return state.openingCatalog;
+  const data = await fetchAPI("/api/free_stage", { op: "list_openings" });
+  if (data.status !== "ok") throw new Error(data.error || "opening catalog failed");
+  state.openingCatalog = data.openings || [];
+  return state.openingCatalog;
+}
+
+function renderNewRunPlayers() {
+  const opening = state.openingCatalog.find((item) => item.id === newRunOpening.value);
+  newRunPlayer.innerHTML = "";
+  (opening?.player_templates || []).forEach((profile) => {
+    const option = document.createElement("option");
+    option.value = profile.id;
+    option.textContent = profile.label || profile.name || profile.id;
+    newRunPlayer.appendChild(option);
+  });
+  newRunDescription.textContent = opening
+    ? `${opening.description || ""} 当前场景：${opening.scene || "-"}`
+    : "这个入口当前不可用。";
+}
+
+function collectThinPlayerProfile() {
+  return {
+    name: newRunCreatedName.value.trim(),
+    gender: newRunGender.value.trim(),
+    age_band: newRunAgeBand.value.trim(),
+    occupation: newRunOccupation.value.trim(),
+    skill_hook: newRunSkillHook.value.trim(),
+  };
+}
+
+async function openNewRunModal(suggestedId = "") {
+  try {
+    const openings = await loadOpeningCatalog(true);
+    newRunOpening.innerHTML = "";
+    openings.forEach((opening) => {
+      const option = document.createElement("option");
+      option.value = opening.id;
+      option.textContent = opening.label || opening.scene || opening.id;
+      newRunOpening.appendChild(option);
+    });
+    newRunSessionId.value = String(suggestedId || "observer-main").replace(/[^a-zA-Z0-9_.-]/g, "_");
+    newRunCreatedName.value = "";
+    newRunGender.value = "";
+    newRunAgeBand.value = "";
+    newRunOccupation.value = "";
+    newRunSkillHook.value = "";
+    renderNewRunPlayers();
+    newRunOverlay.style.display = "flex";
+  } catch (err) {
+    showToast("读取开场入口失败");
+  }
+}
+
+function closeNewRunModal() {
+  newRunOverlay.style.display = "none";
+}
+
+async function confirmNewRun() {
+  if (state.busy) return;
+  const targetId = newRunSessionId.value.trim().replace(/[^a-zA-Z0-9_.-]/g, "_");
+  if (!targetId || !newRunOpening.value || !newRunPlayer.value) {
+    showToast("请选择 Session ID、开场和玩家模板");
+    return;
+  }
+  setBusy(true);
+  try {
+    const data = await fetchAPI("/api/free_stage", {
+      op: "create_session",
+      session_id: targetId,
+      opening_id: newRunOpening.value,
+      player_template_id: newRunPlayer.value,
+      player_profile_overlay: collectThinPlayerProfile(),
+    });
+    if (data.status !== "ok") {
+      throw new Error(data.error || "new run failed");
+    }
+    sessionInput.value = targetId;
+    state.sessionId = targetId;
+    localStorage.setItem("free_stage_session_id", targetId);
+    closeNewRunModal();
+    closeSlotsModal();
+    newSlotId.value = "";
+    await connectSession();
+    showToast(`已创建：${data.player_profile?.name || "玩家"} · ${data.surface?.scene || targetId}`, "success");
+  } catch (err) {
+    showToast(err.message || "从头新开失败");
+  } finally {
+    setBusy(false);
+  }
+}
+
+const slotsOverlay = document.getElementById("slotsOverlay");
+const slotsTableBody = document.getElementById("slotsTableBody");
+const newSlotId = document.getElementById("newSlotId");
+
+async function refreshSlotsList() {
+  const res = await fetchAPI("/api/free_stage", { op: "list_sessions" });
+  slotsTableBody.innerHTML = "";
+  const sessions = res.sessions || [];
+  if (sessions.length === 0) {
+    const suggestedId = newSlotId.value.trim() || sessionInput.value.trim() || `observer-main`;
+    slotsTableBody.innerHTML = `
+      <tr>
+        <td colspan="5" style="padding: 22px; text-align: center;">
+          <div style="color: var(--dim); margin-bottom: 10px;">当前还没有任何存档。你可以直接在上面的输入框里起一个新的 Session ID。</div>
+          <div style="color: #fff; margin-bottom: 14px;">推荐先用：<span style="font-family: var(--font-mono); color: var(--cyan);">${escapeHtml(suggestedId)}</span></div>
+          <button onclick="createFreshSessionFromEmptyState()" style="padding: 8px 16px;">用这个 ID 从头新开</button>
+        </td>
+      </tr>
+    `;
+    return;
+  }
+  sessions.forEach((item) => {
+    const active = item.session_id === state.sessionId ? ' <span class="badge cyan">(当前)</span>' : "";
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${escapeHtml(item.session_id)}${active}</td>
+      <td>${escapeHtml(item.current_scene || "-")}</td>
+      <td style="font-family: var(--font-mono);">${item.turns || 0}</td>
+      <td style="font-family: var(--font-mono); color: var(--dim);">${escapeHtml(item.last_played_time || "-")}</td>
+      <td>
+        <div class="actions">
+          <button onclick="loadSlot('${escapeHtml(item.session_id)}')">接入</button>
+          <button onclick="deleteSlot('${escapeHtml(item.session_id)}')" class="danger">删除</button>
+        </div>
+      </td>
+    `;
+    slotsTableBody.appendChild(row);
+  });
+}
+
+async function refreshSessionSelect() {
+  const res = await fetchAPI("/api/free_stage", { op: "list_sessions" });
+  return res.sessions || [];
+}
+
+async function openSlotsModal() {
+  slotsOverlay.style.display = "flex";
+  try {
+    await refreshSlotsList();
+  } catch (err) {
+    showToast("读取存档列表失败");
+  }
+}
+
+function closeSlotsModal() {
+  slotsOverlay.style.display = "none";
+}
+
+async function loadSlot(sid) {
+  sessionInput.value = sid;
+  state.sessionId = sid;
+  closeSlotsModal();
+  await connectSession();
+}
+
+async function deleteSlot(sid) {
+  if (sid === state.sessionId) {
+    showToast("不能删除当前正在观测的 session");
+    return;
+  }
+  if (!confirm(`确定删除存档 [${sid}] 吗？`)) return;
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      op: "delete_session",
+      target_session_id: sid,
+    });
+    if (res.status !== "ok") throw new Error(res.error || "delete failed");
+    await refreshSlotsList();
+    await refreshSessionSelect();
+    showToast(`已删除存档：${sid}`, "success");
+  } catch (err) {
+    showToast("删除存档失败");
+  }
+}
+
+async function saveAsCurrentProgress() {
+  if (!state.sessionId) {
+    showToast("当前没有可另存的 session");
+    return;
+  }
+  const targetId = newSlotId.value.trim().replace(/[^a-zA-Z0-9_.-]/g, "_");
+  if (!targetId) {
+    showToast("请输入合法的目标 Session ID");
+    return;
+  }
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      op: "save_as",
+      session_id: state.sessionId,
+      target_session_id: targetId,
+    });
+    if (res.status !== "ok") throw new Error(res.error || "save_as failed");
+    newSlotId.value = "";
+    await refreshSlotsList();
+    await refreshSessionSelect();
+    showToast(`已另存为：${targetId}`, "success");
+  } catch (err) {
+    showToast("另存失败");
+  }
+}
+
+async function createFreshSession() {
+  const targetId = newSlotId.value.trim().replace(/[^a-zA-Z0-9_.-]/g, "_");
+  if (!targetId) {
+    showToast("请输入合法的新 Session ID");
+    return;
+  }
+  closeSlotsModal();
+  await openNewRunModal(targetId);
+}
+
+async function createFreshSessionFromEmptyState() {
+  if (!newSlotId.value.trim()) {
+    newSlotId.value = sessionInput.value.trim() || "observer-main";
+  }
+  await createFreshSession();
+}
+
+const bondOverlay = document.getElementById("bondOverlay");
+
+function closeBondModal() {
+  bondOverlay.style.display = "none";
+}
+
+async function showBondArchive() {
+  if (!state.sessionId) {
+    showToast("先接入一个 session 再看羁绊档案");
+    return;
+  }
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      op: "get_bond_archive",
+      session_id: state.sessionId,
+    });
+    if (res.status !== "ok") throw new Error(res.error || "bond failed");
+    document.getElementById("bondFootprints").textContent = (res.visited_scenes || []).join(" -> ") || "北京旅程起步";
+    const cards = document.getElementById("bondNpcCards");
+    cards.innerHTML = "";
+    ["akito", "xiuzai", "kakashi"].forEach((key) => {
+      const item = res.bonds?.[key];
+      if (!item) return;
+      const node = document.createElement("div");
+      node.className = "card";
+      node.innerHTML = `
+        <div style="display: flex; justify-content: space-between; gap: 10px; align-items: center; margin-bottom: 10px;">
+          <strong style="font-size: 16px; color: var(--cyan);">${escapeHtml(item.name)}</strong>
+          <span class="badge cyan">${escapeHtml(item.relation)}</span>
+        </div>
+        <div style="color: rgba(255,255,255,0.78); font-size: 13px; margin-bottom: 12px;">${escapeHtml(item.desc)}</div>
+        <div style="font-size: 12px; color: var(--dim);">情绪余温：<span style="color: #fff;">${escapeHtml(item.mood)}</span></div>
+      `;
+      cards.appendChild(node);
+    });
+    const timeline = document.getElementById("bondTimeline");
+    timeline.innerHTML = "";
+    if (!(res.timeline || []).length) {
+      timeline.innerHTML = `<div class="timeline-row" style="color: var(--dim);">暂无固化记录，继续推进后这里会逐渐留下痕迹。</div>`;
+    } else {
+      res.timeline.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "timeline-row";
+        const memories = item.memories || {};
+        const chunks = [];
+        [["akito", "川口秋人"], ["xiuzai", "折原修哉"], ["kakashi", "坂本晴明"]].forEach(([key, label]) => {
+          const mem = memories[key];
+          if (!mem || !mem.summary) return;
+          chunks.push(`
+            <div style="margin-top: 8px;">
+              <strong style="color: var(--cyan);">${label}</strong>：${escapeHtml(mem.summary)}
+              ${mem.mood ? `<div style="font-size: 12px; color: #ffda66;">余温：${escapeHtml(mem.mood)}</div>` : ""}
+              ${mem.unresolved ? `<div style="font-size: 12px; color: #fff;">未了话头：${escapeHtml(mem.unresolved)}</div>` : ""}
+            </div>
+          `);
+        });
+        row.innerHTML = `
+          <div style="font-weight: 700; margin-bottom: 8px;">${escapeHtml(item.scene)} 固化点</div>
+          ${chunks.join("") || `<div style="color: var(--dim);">未留下显性条目。</div>`}
+        `;
+        timeline.appendChild(row);
+      });
+    }
+    bondOverlay.style.display = "flex";
+  } catch (err) {
+    showToast("加载羁绊档案失败");
+  }
+}
+
+window.loadSlot = loadSlot;
+window.deleteSlot = deleteSlot;
+window.createFreshSessionFromEmptyState = createFreshSessionFromEmptyState;
+
+btnConnect.addEventListener("click", connectSession);
+btnRefresh.addEventListener("click", refreshSession);
+btnResetScene.addEventListener("click", resetCurrentScene);
+btnSlots.addEventListener("click", openSlotsModal);
+btnBondArchive.addEventListener("click", showBondArchive);
+btnJumpLatest.addEventListener("click", () => selectBeat(state.debugHistory.length));
+btnSend.addEventListener("click", sendTurn);
+beatSlider.addEventListener("input", (e) => selectBeat(parseInt(e.target.value, 10)));
+btnPrevBeat.addEventListener("click", () => selectBeat(state.currentBeat - 1));
+btnNextBeat.addEventListener("click", () => selectBeat(state.currentBeat + 1));
+[chatInputSpeech, chatInputAction, chatInputThought].forEach(el => {
+  el.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendTurn();
+    }
+  });
+});
+
+document.getElementById("btnCloseSlots").addEventListener("click", closeSlotsModal);
+document.getElementById("btnSaveAsCurrent").addEventListener("click", saveAsCurrentProgress);
+document.getElementById("btnCreateFresh").addEventListener("click", createFreshSession);
+document.getElementById("closeBondBtn").addEventListener("click", closeBondModal);
+document.getElementById("btnCloseNewRun").addEventListener("click", closeNewRunModal);
+document.getElementById("btnConfirmNewRun").addEventListener("click", confirmNewRun);
+newRunOpening.addEventListener("change", renderNewRunPlayers);
+
+window.addEventListener("DOMContentLoaded", () => {
+  // 恢复并监听折叠状态
+  ["group-live", "group-scene-static", "group-character", "group-memory", "group-contract"].forEach(id => {
+    const details = document.getElementById(id);
+    if (details) {
+      const saved = localStorage.getItem(`details_${id}`);
+      if (saved === "open") {
+        details.setAttribute("open", "");
+      } else if (saved === "closed") {
+        details.removeAttribute("open");
+      }
+      
+      details.addEventListener("toggle", () => {
+        localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
+      });
+    }
+  });
+
+  // 初始化 NPC Chips 切换过滤
+  initNpcChips();
+
+  apiSelector.value = localStorage.getItem("observer_api_selection") || "default";
+  apiSelector.addEventListener("change", (e) => {
+    localStorage.setItem("observer_api_selection", e.target.value);
+  });
+  const savedSession = localStorage.getItem("free_stage_session_id");
+  if (savedSession) {
+    sessionInput.value = savedSession;
+    state.sessionId = savedSession;
+  } else {
+    sessionInput.value = "observer-main";
+  }
+  if (!newSlotId.value.trim()) {
+    newSlotId.value = sessionInput.value.trim() || "observer-main";
+  }
+  renderDebugDetails(null);
+  updateStatus();
+  updateSlider();
+  setBusy(false);
+  refreshSessionSelect()
+    .then(async (sessions) => {
+      await refreshSlotsList();
+      let target = state.sessionId;
+      const known = new Set(sessions.map((item) => item.session_id));
+      if (!target || !known.has(target)) {
+        target = sessions[0]?.session_id || "";
+      }
+      if (!target) {
+        return;
+      }
+      sessionInput.value = target;
+      state.sessionId = target;
+      localStorage.setItem("free_stage_session_id", target);
+      await connectSession();
+    })
+    .catch(async () => {
+      try {
+        await refreshSlotsList();
+      } catch (err) {}
+    });
+});
+</script>
+</body>
+</html>

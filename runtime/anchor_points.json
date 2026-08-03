@@ -1,0 +1,56 @@
+{
+  "schema_version": "free_stage.anchor_points.v1",
+  "openings": [
+    {
+      "id": "aline_tiananmen",
+      "line": "line_ceremony",
+      "label": "A 线｜天安门初遇",
+      "scene": "天安门广场",
+      "description": "从北京升旗后的初遇开场，接入秋人、修哉与晴明三人组。",
+      "card_path": "runtime/free_stage_card_tiananmen_v2.json",
+      "player_templates": [
+        {
+          "id": "aqi",
+          "name": "阿七",
+          "label": "阿七｜天津青年",
+          "identity": "现居天津，此次到北京短暂停留；与主角团均为初次照面。",
+          "knowledge_anchor": "只知道自己眼前的行程，不知道主角团的姓名和后续。"
+        }
+      ]
+    },
+    {
+      "id": "cline_16zhong",
+      "line": "line_16zhong",
+      "label": "C 线｜十六中门口",
+      "scene": "十六中门口",
+      "description": "从十六中放学后的搭讪现场开场，接入张尘、斑驳与雨璇。",
+      "card_path": "runtime/free_stage_card_16zhong_gate.json",
+      "player_templates": [
+        {
+          "id": "atang",
+          "name": "阿棠",
+          "label": "阿棠｜十六中旧校友",
+          "identity": "十六中旧校友，放学后顺路回母校看看；与张尘、斑驳、雨璇均为初次照面。",
+          "knowledge_anchor": "只知道眼前的放学人流与笨拙搭讪，不知道三人的姓名和后续。"
+        }
+      ]
+    },
+    {
+      "id": "wline_weichu",
+      "line": "line_weichu",
+      "label": "魏初线｜公司入职",
+      "scene": "周泽公司",
+      "description": "从魏初部门日常开场，接入张尘第一次出场与后续情绪线压力用例。",
+      "card_path": "runtime/free_stage_card_weichu_hire.json",
+      "player_templates": [
+        {
+          "id": "azhao",
+          "name": "阿昭",
+          "label": "阿昭｜魏初部门同事",
+          "identity": "魏初部门同事，已在公司做事；与魏初、张尘均非陌生人式初见。",
+          "knowledge_anchor": "知道部门日常与张尘来应聘，不知道亡夫线与龙也托付全文。"
+        }
+      ]
+    }
+  ]
+}

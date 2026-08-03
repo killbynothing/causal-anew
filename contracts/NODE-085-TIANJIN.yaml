@@ -1,0 +1,65 @@
+node_id: NODE-085-TIANJIN
+part: 2
+title: 天津·零时熄灯（P1b 微切片 / puzzle 频道 + f(Δ) 世界变软）
+tier: canon_beat
+# 革命一号灭城。单点干涉必被改道（断电→踩踏/活人成实验品）；破局需组合。
+# 城被置换是 canon_locked——即便救下人，城仍被时空罩抽离隔离（"好像救了，但还是置换了"）。
+entry_conditions: []          # Ch.85d event_uid 待 ID 归并后补
+invariants:
+  canon_locked:
+    - 城被时空罩抽离/隔离、整城置换（canon_beat，**永不软化**；救人不改此结果）
+    - 张尘当夜濒临崩溃成立
+  player_freedom: >
+    四条攻击面（武器/透镜/人员/罩）可组合；单点必被收敛改道；
+    组合达阈→零死亡支路。零死亡≠救下城——城仍被置换。
+exit_states:
+  - id: converged
+    desc: 单点干涉被改道（断电→踩踏/活人成实验品 等），Worldline-0 量级灾难
+    negates: []
+  - id: branched_zero_death
+    branch_gate: BG-TIANJIN_ZERO_DEATH
+    desc: 组合达阈→全城零死亡；但城仍被置换（locked 不被 negate）
+    negates: []
+crossline_comm: false
+channel: null
+coherence:
+  lateral_jumper_present: false
+  player_present: true
+  phase: null
+const_refs: []
+path_set:
+  - id: alpha_blackout      # 拆透镜/零时熄灯：断电烧中继矩阵
+    type: hack
+    snr_cost: high
+  - id: gamma_shelter       # 蔽护工程：黑广播/地铁改避难所、分流疏散
+    type: social
+    snr_cost: mid
+  - id: epsilon_delay       # 源头延迟：黑发射控制推迟 N 分钟（组合件）
+    type: info
+    snr_cost: low
+combine_threshold: 2        # 基础阈：需 2 条独立路；f(Δ) 会随累积 δ 下降，但有下限
+
+# ===== f(Δ) 软化参数（多周目累积/重置 §三）。d1_compiler 忽略此块，由 p1b_tianjin 消费 =====
+softening:
+  floor: 1                  # 阈值下限：永远 ≥1（善良≠免费，绝不白送）
+  per_delta: 3              # 每累积 3 条该节点 δ，有效阈值 -1
+  never_soften: [城被置换]   # 固定底：不随任何 δ 软化
+
+# ===== v0.2 频道扩展 =====
+channels:
+  puzzle:
+    path_set_ref: [alpha_blackout, gamma_shelter, epsilon_delay]
+    combine_threshold: 2
+    convergence_per_path:
+      alpha_blackout: 断电改道→人群涌入地下→踩踏/活人被置换成实验品
+      gamma_shelter:  只疏散不断电→γ 束仍清场，边缘暴露者死、余下被置换
+      epsilon_delay:  只延迟→总部重排时序，纯组合件单走无效
+  dread:
+    meta_cues: [倒计时的钝响, 重开时对天津街景的既视感, "赢了但不对劲——城没了"]
+    restart_cost_ref: 本场重开→读条姐姐坠落 1.000 秒
+    tone: 苦涩的胜利
+  clue:
+    seeds:
+      - { id: CLUE-1SEC-TJ, where: 战果校验, payload: "坐标包在被发出前 1.000 秒已抵达", discover_cost: 低 }
+    supports_reveal: REVEAL-ANCHOR-IS-YOU
+    redundancy: 2

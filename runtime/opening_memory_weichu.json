@@ -1,0 +1,131 @@
+{
+  "schema_version": "B6.opening_memory_lorebook.v1",
+  "opening_id": "wline_weichu",
+  "projection_scope": "weichu_office_before_16zhong",
+  "truth_policy": "Projection only. world_truth.db wins on conflict.",
+  "source_refs": [
+    "analysis/干涉与门控/手写草案_魏初门全卡组_化用定稿向_v1.1_2026-07-10.md",
+    "E009-01",
+    "E012-04"
+  ],
+  "memories": {
+    "C.weichu.WMAIN": [
+      {
+        "ch_min": 9,
+        "ch_max": 17,
+        "surface_role": "人力主管，工作时异常严肃，对张尘这堵墙迟迟推不动。",
+        "memory_scope": "公司日常：你是她部门同事，接机你没去，只知道她请过假接朋友家人。",
+        "why_here": "月初例会催宣传稿，锁定过道里吊儿郎当来应聘的张尘。",
+        "visible_attitude": "气势压人、公事公办；被张尘玩笑时会阴沉，但内心有未说出口的旧事。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "WC_ALWAYS_COLLEAGUE",
+              "text": "你和魏初在同一部门做事有一段时间，她是你的主管，彼此不是陌生人。",
+              "category": "relationship"
+            },
+            {
+              "id": "WC_ALWAYS_STANCE",
+              "text": "她对工作极认真，对张尘的吊儿郎当既烦又拿他没办法。",
+              "category": "stance"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "WC_KEY_HUSBAND",
+              "keys": ["丈夫", "老公", "阿龙", "亡夫", "死了"],
+              "text": "若被信任的同事问起旧事，她可能低声说那个人死了好几年了——情绪会突然绷紧。",
+              "category": "unsaid"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E009-01",
+            "text": "今天在过道锁定来应聘网络维护的张尘，拽他去办公室考核宣传稿。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E009-01",
+              "canon_src": "source/novel_1-69.md:L2738-2779",
+              "source_ch": 9,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ]
+      }
+    ],
+    "C.zhangchen.WMAIN": [
+      {
+        "ch_min": 9,
+        "ch_max": 9,
+        "only_scenes": [
+          "CARD_WEICHU_ZHANGCHEN_HIRE"
+        ],
+        "surface_role": "来公司应聘网络维护的青年，笑容干净、吊儿郎当。",
+        "memory_scope": "应聘开场前：只承认来应聘，不解释深层秘密，还没有自报姓名。",
+        "why_here": "来应聘网络维护，刚在过道里被魏初锁定。",
+        "visible_attitude": "标准微笑、话里有话；互报名后可直接称呼同事；被撬深处只打太极。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "WC_ZC_HIRE_PRE",
+              "text": "他来公司应聘，刚在过道被魏初锁定，正被拽着往办公室走。",
+              "category": "identity"
+            }
+          ],
+          "keyed": []
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E009-01",
+            "text": "今天来周泽公司应聘，在过道被魏初锁定抓壮丁。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E009-01",
+              "canon_src": "source/novel_1-69.md:L2738-2779",
+              "source_ch": 9,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ]
+      },
+      {
+        "ch_min": 9,
+        "ch_max": 17,
+        "exclude_scenes": [
+          "CARD_WEICHU_ZHANGCHEN_HIRE"
+        ],
+        "surface_role": "刚被魏初拽进公司考核的应聘者，笑容干净、吊儿郎当。",
+        "memory_scope": "入职日：只承认来应聘和写东西，不解释更深背景。",
+        "why_here": "来应聘网络维护，被魏初抓来写公司项目宣传。",
+        "visible_attitude": "标准微笑、话里有话；互报名后可直接称呼同事，想拉近时更热络；被撬深处只打太极。",
+        "lorebook": {
+          "always": [
+            {
+              "id": "WC_ZC_HIRE",
+              "text": "他刚自报张尘，被魏初拽进办公室，还不知道部门全貌。",
+              "category": "identity"
+            }
+          ],
+          "keyed": []
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E009-01",
+            "text": "在过道被魏初锁定，改口说会写东西，跟着去办公室。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E009-01",
+              "canon_src": "source/novel_1-69.md:L2738-2779",
+              "source_ch": 9,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

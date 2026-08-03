@@ -1,0 +1,47 @@
+{
+  "S": [
+    "reveal_gate",
+    "导演=反派",
+    "导演就是反派",
+    "导演是反派",
+    "终幕揭示",
+    "终幕揭露",
+    "系统在把你拉回正典",
+    "把你拉回正典",
+    "讲故事的声音",
+    "有个系统在",
+    "有个系统把",
+    "操控剧情的存在",
+    "未账本",
+    "终幕清单"
+  ],
+  "A": [
+    "must_happen",
+    "must-happen",
+    "director_intents",
+    "speaker_plan",
+    "storylet",
+    "canon_locked",
+    "收敛压力",
+    "未账本",
+    "竞价",
+    "bid",
+    "fallback",
+    "prompt",
+    "system prompt",
+    "system_prompt",
+    "persona_core",
+    "inner_state",
+    "debug_payload",
+    "schema_version",
+    "entry_conditions",
+    "exit_states",
+    "json",
+    "字段名"
+  ],
+  "fallbacks": {
+    "actor": "风从广场那头吹过来，把那句怪话吹散在喧闹里，谁也没有接。",
+    "bridge": "人群把那句没头没尾的话卷走了。你们没有继续追问，只顺着眼前的路往前走。",
+    "brief_skip": "过了几天。你只记得风声、脚步声，还有一些没说出口的话。剩下的，全被日常推着往前走了。"
+  }
+}

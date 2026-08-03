@@ -1,0 +1,37 @@
+{
+  "pending_human": false,
+  "lines": {
+    "line_weichu": {
+      "schedule": [
+        {
+          "event_uid": "E007-01",
+          "ch_anchor": 7,
+          "learn_ch": 7,
+          "channel": "met_in_person",
+          "desc": "魏初与刘云天接机并安置真纪一行入住"
+        },
+        {
+          "event_uid": "E012-04",
+          "ch_anchor": 12,
+          "learn_ch": 12,
+          "channel": "met_in_person",
+          "desc": "魏初与张尘签试用期合同"
+        },
+        {
+          "event_uid": "E015-03",
+          "ch_anchor": 15,
+          "learn_ch": 15,
+          "channel": "met_in_person",
+          "desc": "魏初安排张尘录入文件并隐瞒周董约饭"
+        },
+        {
+          "event_uid": "E046-01",
+          "ch_anchor": 46,
+          "learn_ch": 46,
+          "channel": "met_in_person",
+          "desc": "魏初端粥查看张尘恢复情况"
+        }
+      ]
+    }
+  }
+}

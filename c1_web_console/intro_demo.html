@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>因果之外 · 开场取景器演示 (Intro Demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;600;800&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-hue: 220;
+  --night: #05070a;
+  --paper: #e8e1d2;
+  --dim: #a09a8c;
+  --red: #ff0055;
+  --cyan: #00f0ff;
+  --yellow: #ffe600;
+  --font-title: 'Outfit', -apple-system, sans-serif;
+  --font-serif: "Noto Serif SC", serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--night);
+  color: var(--paper);
+  font-family: var(--font-title);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  user-select: none;
+}
+
+/* 顶部 HUD 导航栏 */
+header {
+  height: 52px;
+  background: rgba(5, 7, 10, 0.4);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 30;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  color: #fff;
+}
+
+.logo span {
+  color: var(--red);
+  text-shadow: 0 0 12px rgba(255, 0, 85, 0.6);
+}
+
+.hud-tag {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: 14px;
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hud-tag .dot {
+  width: 6px;
+  height: 6px;
+  background: var(--cyan);
+  border-radius: 50%;
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+/* 控制按钮 */
+#controlPanel {
+  display: flex;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.btn-ctrl {
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+.btn-ctrl:hover {
+  background: var(--cyan);
+  color: #000;
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.5);
+}
+
+/* 主视图区域 */
+#appContainer {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+/* 高清 AI 视觉背景图像 */
+.bg-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 1.2s ease, transform 12s ease;
+  transform: scale(1.05);
+}
+
+.bg-image.active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 第一人称摄像机取景器 Viewfinder Overlay */
+#viewfinderOverlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1s ease;
+}
+
+#viewfinderOverlay.active {
+  opacity: 1;
+}
+
+#viewfinderOverlay.shake {
+  animation: cameraBump 0.45s ease forwards;
+}
+
+@keyframes cameraBump {
+  0% { transform: scale(1) translate(0, 0) rotate(0deg); filter: blur(0px); }
+  20% { transform: scale(1.05) translate(-16px, 12px) rotate(-1.8deg); filter: blur(6px); }
+  40% { transform: scale(0.97) translate(14px, -10px) rotate(1.2deg); filter: blur(2px); }
+  60% { transform: scale(1.02) translate(-6px, 4px) rotate(-0.6deg); filter: blur(1px); }
+  100% { transform: scale(1) translate(0, 0) rotate(0deg); filter: blur(0px); }
+}
+
+.vf-vignette {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, transparent 50%, rgba(0, 0, 0, 0.75) 100%);
+}
+
+.vf-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+}
+.vf-tl { top: 68px; left: 28px; border-right: none; border-bottom: none; }
+.vf-tr { top: 68px; right: 28px; border-left: none; border-bottom: none; }
+.vf-bl { bottom: 140px; left: 28px; border-right: none; border-top: none; }
+.vf-br { bottom: 140px; right: 28px; border-left: none; border-top: none; }
+
+.vf-rec-bar {
+  position: absolute;
+  top: 68px;
+  left: 68px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--red);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 0 8px rgba(255, 0, 85, 0.8), 0 0 2px #000;
+}
+.vf-rec-dot {
+  width: 10px;
+  height: 10px;
+  background: var(--red);
+  border-radius: 50%;
+  animation: recBlink 1s infinite alternate;
+}
+@keyframes recBlink {
+  from { opacity: 1; }
+  to { opacity: 0.2; }
+}
+
+.vf-specs {
+  position: absolute;
+  top: 68px;
+  right: 68px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9);
+  text-align: right;
+  line-height: 1.4;
+}
+
+.vf-grid {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  width: 100%;
+  height: calc(100% - 180px);
+  border-collapse: collapse;
+  opacity: 0.15;
+}
+.vf-grid td {
+  border: 1px dashed #fff;
+}
+
+/* 高对比度自动对焦框：精准死死框住左上侧飘扬的红旗杆 (top: 36%, left: 31%) */
+.vf-autofocus {
+  position: absolute;
+  top: 36%;
+  left: 31%;
+  width: 90px;
+  height: 90px;
+  border: 2px dashed var(--yellow);
+  outline: 1.5px solid rgba(0, 0, 0, 0.95);
+  transform: translate(-50%, -50%);
+  transition: all 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.9), inset 0 0 8px rgba(255, 230, 0, 0.4);
+}
+.vf-autofocus::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: var(--yellow);
+  border: 1.5px solid #000;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+}
+
+/* 抽象有趣 16-bit 像素小人舞台 (Pixel Stage) */
+#pixelStage {
+  position: absolute;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 85%;
+  max-width: 820px;
+  height: 150px;
+  background: rgba(10, 14, 22, 0.85);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 8px;
+  z-index: 15;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 16px;
+  gap: 36px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  backdrop-filter: blur(12px);
+}
+#pixelStage.visible {
+  opacity: 1;
+}
+
+/* 像素小人容器与绘制 */
+.pixel-char {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.5s ease;
+  position: relative;
+}
+
+.pixel-sprite {
+  width: 32px;
+  height: 42px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+  position: relative;
+}
+
+.pixel-name {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 真纪像素小人欢快一蹦一蹦追着离场的动画 */
+.pixel-char.maki-hopping {
+  animation: makiHopBounce 2.5s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+@keyframes makiHopBounce {
+  0% { transform: translateX(0) translateY(0); opacity: 1; }
+  15% { transform: translateX(40px) translateY(-18px); }
+  30% { transform: translateX(90px) translateY(0); }
+  45% { transform: translateX(140px) translateY(-22px); }
+  60% { transform: translateX(190px) translateY(0); }
+  75% { transform: translateX(250px) translateY(-18px); }
+  100% { transform: translateX(320px) translateY(0); opacity: 0; }
+}
+
+/* 单框字幕叙事舱 */
+#subtitleContainer {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 85%;
+  max-width: 820px;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.subtitle-box {
+  background: rgba(6, 9, 15, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-left: 3px solid var(--cyan);
+  border-radius: 8px;
+  padding: 22px 30px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85);
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.subtitle-box.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.subtitle-text {
+  font-family: var(--font-serif);
+  font-size: 17.5px;
+  color: #fff;
+  line-height: 1.8;
+  letter-spacing: 0.02em;
+}
+
+.subtitle-stage {
+  font-family: var(--font-title);
+  font-size: 13.5px;
+  color: var(--dim);
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.click-hint {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.35);
+  text-align: right;
+  margin-top: 6px;
+}
+
+/* 碰撞后解锁：三通道输入舱 */
+#inputDeck {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  z-index: 25;
+  padding: 16px 10% 24px 10%;
+  background: rgba(6, 8, 12, 0.94);
+  border-top: 1px solid rgba(0, 240, 255, 0.2);
+  backdrop-filter: blur(16px);
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+  animation: deckSlideUp 0.6s ease forwards;
+}
+
+@keyframes deckSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.deck-tabs {
+  display: flex;
+  gap: 12px;
+}
+
+.deck-tab {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: var(--dim);
+  cursor: pointer;
+}
+.deck-tab.active {
+  background: rgba(0, 240, 255, 0.15);
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+
+.deck-input-row {
+  display: flex;
+  gap: 12px;
+}
+
+.deck-input {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  border-radius: 6px;
+  padding: 12px 16px;
+  color: #fff;
+  font-family: var(--font-title);
+  font-size: 15px;
+  outline: none;
+}
+
+.btn-send {
+  background: var(--cyan);
+  color: #000;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border: none;
+  padding: 0 20px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">存在的意义 <span>· 因果之外</span></div>
+  </div>
+  <div class="hud-tag">
+    <div class="dot"></div>
+    <span id="hudState">CH.8 天安门开场 · 视听演出中</span>
+  </div>
+  <div id="controlPanel">
+    <button class="btn-ctrl" id="btnRestart">↺ 重新播放</button>
+    <button class="btn-ctrl" id="btnFastForward">⏩ 快进跳过</button>
+  </div>
+</header>
+
+<div id="appContainer">
+  <!-- 高清 AI 真实视觉大图背景 -->
+  <img src="assets/rainy_night_tianjin.jpg" id="bgRain" class="bg-image active" alt="Tianjin Rainy Night">
+  <img src="assets/high_speed_train_pendant.jpg" id="bgTrain" class="bg-image" alt="Train & Pendant">
+  <img src="assets/tiananmen_dawn_red.jpg" id="bgDawn" class="bg-image" alt="Tiananmen Dawn Red Side Angle">
+
+  <!-- 取景器 Overlay -->
+  <div id="viewfinderOverlay">
+    <div class="vf-vignette"></div>
+    <div class="vf-corner vf-tl"></div>
+    <div class="vf-corner vf-tr"></div>
+    <div class="vf-corner vf-bl"></div>
+    <div class="vf-corner vf-br"></div>
+    <div class="vf-rec-bar">
+      <div class="vf-rec-dot"></div>
+      <span id="recTimer">● REC 00:00:00</span>
+    </div>
+    <div class="vf-specs">
+      4K 60FPS H.264<br>
+      ISO 800 · F/2.8 · 1/125s
+    </div>
+    <table class="vf-grid">
+      <tr><td></td><td></td><td></td></tr>
+      <tr><td></td><td></td><td></td></tr>
+      <tr><td></td><td></td><td></td></tr>
+    </table>
+    <!-- 高对比度自动对焦框，精准死死框住国旗 (top: 36%, left: 31%) -->
+    <div class="vf-autofocus" id="autofocusBox"></div>
+  </div>
+
+  <!-- 抽象有趣 16-bit 像素小人舞台 (Pixel Stage) -->
+  <div id="pixelStage">
+    <!-- 像素真纪 (短发红衣) -->
+    <div class="pixel-char" id="charMaki">
+      <canvas class="pixel-canvas" id="canvasMaki" width="32" height="42"></canvas>
+      <div class="pixel-name">真纪</div>
+    </div>
+    <!-- 像素修哉 (黑发懒散) -->
+    <div class="pixel-char" id="charXiuzai">
+      <canvas class="pixel-canvas" id="canvasXiuzai" width="32" height="42"></canvas>
+      <div class="pixel-name">折原修哉</div>
+    </div>
+    <!-- 像素秋人 (圆脸单反) -->
+    <div class="pixel-char" id="charAkito">
+      <canvas class="pixel-canvas" id="canvasAkito" width="32" height="42"></canvas>
+      <div class="pixel-name">川口秋人</div>
+    </div>
+    <!-- 像素晴明 (银发高挑) -->
+    <div class="pixel-char" id="charKakashi">
+      <canvas class="pixel-canvas" id="canvasKakashi" width="32" height="42"></canvas>
+      <div class="pixel-name">坂本晴明</div>
+    </div>
+  </div>
+
+  <!-- 单框字幕叙事舱 -->
+  <div id="subtitleContainer">
+    <div class="subtitle-box" id="subtitleBox">
+      <div class="subtitle-text" id="subText"></div>
+      <div class="subtitle-stage" id="subStage"></div>
+      <div class="click-hint">[ 点击屏幕：完全显示 / 进入下一拍 ]</div>
+    </div>
+  </div>
+
+  <!-- 三通道输入舱 (碰撞后解锁) -->
+  <div id="inputDeck">
+    <div class="deck-tabs">
+      <div class="deck-tab active">💬 【你说】</div>
+      <div class="deck-tab">🏃 【你做】</div>
+      <div class="deck-tab">🧠 【你心想】</div>
+    </div>
+    <div class="deck-input-row">
+      <input type="text" class="deck-input" placeholder="回应对面的道歉，或者询问借视频的事情..." id="playerInput">
+      <button class="btn-send">发送</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 1. Canvas 绘制程序化 16-bit 像素小人 (真纪、修哉、秋人、晴明)
+function drawPixelSprite(canvasId, colorBody, colorHair, hasCamera = false) {
+  const c = document.getElementById(canvasId);
+  if (!c) return;
+  const ctx = c.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.clearRect(0, 0, 32, 42);
+
+  // 头发
+  ctx.fillStyle = colorHair;
+  ctx.fillRect(8, 6, 16, 10);
+
+  // 脸部
+  ctx.fillStyle = '#ffdbac';
+  ctx.fillRect(10, 14, 12, 10);
+
+  // 眼睛
+  ctx.fillStyle = '#111';
+  ctx.fillRect(12, 18, 2, 3);
+  ctx.fillRect(18, 18, 2, 3);
+
+  // 身体衣服
+  ctx.fillStyle = colorBody;
+  ctx.fillRect(8, 24, 16, 12);
+
+  // 腿
+  ctx.fillStyle = '#222';
+  ctx.fillRect(10, 36, 4, 6);
+  ctx.fillRect(18, 36, 4, 6);
+
+  // 如果是秋人，画一台黑色单反相机
+  if (hasCamera) {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(14, 28, 8, 6);
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(17, 30, 2, 2);
+  }
+}
+
+drawPixelSprite('canvasMaki', '#d94f38', '#4a2e1d'); // 真纪：红衣棕发
+drawPixelSprite('canvasXiuzai', '#2d3748', '#1a202c'); // 修哉：深灰黑发
+drawPixelSprite('canvasAkito', '#3182ce', '#718096', true); // 秋人：蓝衣单反
+drawPixelSprite('canvasKakashi', '#e2e8f0', '#edf2f7'); // 晴明：浅灰银发
+
+// 背景图像切换
+const bgRain = document.getElementById('bgRain');
+const bgTrain = document.getElementById('bgTrain');
+const bgDawn = document.getElementById('bgDawn');
+
+function switchBackground(sceneName) {
+  bgRain.classList.remove('active');
+  bgTrain.classList.remove('active');
+  bgDawn.classList.remove('active');
+
+  if (sceneName === 'rain') {
+    bgRain.classList.add('active');
+  } else if (sceneName === 'train') {
+    bgTrain.classList.add('active');
+  } else if (sceneName === 'tiananmen_dawn') {
+    bgDawn.classList.add('active');
+  }
+}
+
+// 脚本与视听引擎
+const subtitleBox = document.getElementById('subtitleBox');
+const subText = document.getElementById('subText');
+const subStage = document.getElementById('subStage');
+
+const viewfinder = document.getElementById('viewfinderOverlay');
+const recTimer = document.getElementById('recTimer');
+const autofocusBox = document.getElementById('autofocusBox');
+const pixelStage = document.getElementById('pixelStage');
+const charMaki = document.getElementById('charMaki');
+const inputDeck = document.getElementById('inputDeck');
+const hudState = document.getElementById('hudState');
+
+let recSeconds = 0;
+let timerInterval;
+
+function startRecTimer() {
+  recSeconds = 0;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    recSeconds++;
+    const m = String(Math.floor(recSeconds / 60)).padStart(2, '0');
+    const s = String(recSeconds % 60).padStart(2, '0');
+    recTimer.textContent = `● REC 00:${m}:${s}`;
+  }, 1000);
+}
+
+// 开场脚本数据 (死死锁定红旗处，配合像素小人入场与一蹦一蹦跳走)
+const introScript = [
+  {
+    type: 'director',
+    scene: 'rain',
+    text: '“天津好久没下过这么大的雨了。”\n\n日子照旧。三月里的一个周末，天还没亮，阴沉沉的像是在晚上。你忽然想去一趟北京。刚好临时看到有票，便坐高铁过来；路上才后知后觉地想，升旗是不是还得提前约。不过既然来了，就先去看看。实在进不去，在地铁口附近站着看一眼也行。',
+    duration: 6500
+  },
+  {
+    type: 'director',
+    scene: 'train',
+    text: '胸前的古铜色挂坠随着车厢轻轻晃荡。这是你的朋友龙也留给你的，当时你好像还顺口答应了他什么事情——也不是什么大不了的重托。他这个人总是神神秘秘的，那之后就再也没出现过。',
+    duration: 6500
+  },
+  {
+    type: 'director',
+    scene: 'tiananmen_dawn',
+    text: '天还没有完全亮，风从长安街直灌过来。你顺着人群从天安门西站走出来，广场上黑压压全是人，呼出的白气一层层浮在灯下；国歌刚刚压着寒风走完，冷意先落在脸上，再慢慢往手指上爬。\n\n升旗结束后，人群开始松动散开。红旗仍在旗杆顶端舒展。\n\n你好不容易早起一回，想着没拍到亏大了，便情不自禁地举起手机，打开了录像……',
+    duration: 7500,
+    action: () => {
+      viewfinder.classList.add('active');
+      // 精准死死锁定在左上侧飘扬的红旗杆顶端 (top: 36%, left: 31%)
+      autofocusBox.style.top = '36%';
+      autofocusBox.style.left = '31%';
+      startRecTimer();
+    }
+  },
+  {
+    type: 'director',
+    scene: 'tiananmen_dawn',
+    text: '散场的人声刚起又落，不远处忽然飘来几句听不太分明的争论，语气不像真吵，更像是用一种你不太熟的语言在互相嫌弃——',
+    duration: 4800,
+    action: () => {
+      // 像素舞台升起，展现四位像素小人！
+      pixelStage.classList.add('visible');
+    }
+  },
+  // 场卡正典四人台词
+  {
+    type: 'npc',
+    text: '（日语）笨，谁叫你偏偏拿着单反，提前说过了我不会帮你举着的。',
+    stage: '声音先从人群后面飘过来，像是嫌弃，却并不真的生气。',
+    duration: 4200
+  },
+  {
+    type: 'npc',
+    text: '（日语）不然要拿数码相机么？太掉价了吧！',
+    stage: '另一个声音立刻顶回去，认真得像是在为一件很要紧的事辩护。',
+    duration: 4000
+  },
+  {
+    type: 'npc',
+    text: '（日语）那个，我觉得现在是不是还处于录音模式？',
+    stage: '另一个声音轻飘飘地插进来，带着一点不确定——像是认真在听现场，又像是故意泼冷水。',
+    duration: 4200
+  },
+  {
+    type: 'npc',
+    text: '（日语）你们三个真是够了，还要发展成舞台剧才甘心么！为什么都要长得这么高？长得高会有奖励不成？为什么要这么挡住我的视线！',
+    stage: '语气里全是被挡住镜头的恼火。',
+    duration: 5200
+  },
+  {
+    type: 'npc',
+    text: '（日语）老姐，你让晴明背你就好了。',
+    stage: '他随口一扔，像是给另外那位找了个差事。',
+    duration: 3800
+  },
+  {
+    type: 'npc',
+    text: '（日语）嘛，我不在意哟，表姐看起来也不很重呢，这样的身高的话……',
+    stage: '那个轻飘飘的声音偏过头接了一句，像是认真，又像是故意添乱。',
+    duration: 4200
+  },
+  {
+    type: 'npc',
+    text: '（日语）请不要变相取笑我的身高问题好么？',
+    stage: '',
+    duration: 3500
+  },
+  // 导演旁白：真纪欢快地一蹦一蹦追着升旗手离场！
+  {
+    type: 'director',
+    scene: 'tiananmen_dawn',
+    text: '你看到了一个女人离去，绕开人群追着升旗手离开的方向去了，大概是刚才说话的那个日本女性。剩下两人还围着那台单反嘀咕。\n\n你正走神间——',
+    duration: 5200,
+    action: () => {
+      // 触发真纪像素小人欢快一蹦一蹦离场动画！
+      charMaki.classList.add('maki-hopping');
+    }
+  },
+  // 碰撞触发
+  {
+    type: 'bump',
+    action: () => {
+      // 画面剧烈摇晃失焦
+      viewfinder.classList.add('shake');
+      setTimeout(() => viewfinder.classList.remove('shake'), 450);
+    }
+  },
+  {
+    type: 'npc',
+    text: '（日语）すみません！啊……抱歉抱歉！没事吧？',
+    stage: '退半步的那个圆脸青年单反带子蹭到了你的手臂，他吓了一跳，赶紧双手合十连声道歉。',
+    duration: 4800
+  },
+  {
+    type: 'unlock',
+    action: () => {
+      subtitleBox.classList.remove('show');
+      viewfinder.classList.remove('active');
+      inputDeck.style.display = 'flex';
+      hudState.textContent = 'CH.8 天安门广场 · 【你的回合】自由打字模式已解锁';
+    }
+  }
+];
+
+let scriptIndex = 0;
+let isPlaying = false;
+let stepTimeout;
+let typeInterval;
+
+let isTyping = false;
+let currentFullText = '';
+
+function showSubtitle(text, stage) {
+  subtitleBox.classList.remove('show');
+  clearInterval(typeInterval);
+
+  currentFullText = text;
+
+  setTimeout(() => {
+    if (stage) {
+      subStage.style.display = 'block';
+      subStage.textContent = stage;
+    } else {
+      subStage.style.display = 'none';
+    }
+
+    subText.textContent = '';
+    subtitleBox.classList.add('show');
+    isTyping = true;
+
+    // 逐字打字机效果
+    let charIdx = 0;
+    typeInterval = setInterval(() => {
+      if (charIdx < currentFullText.length) {
+        subText.textContent += currentFullText[charIdx];
+        charIdx++;
+      } else {
+        clearInterval(typeInterval);
+        isTyping = false;
+      }
+    }, 45);
+
+  }, 200);
+}
+
+function playStep() {
+  if (scriptIndex >= introScript.length) {
+    isPlaying = false;
+    return;
+  }
+
+  const step = introScript[scriptIndex];
+
+  if (step.scene) {
+    switchBackground(step.scene);
+  }
+
+  if (step.action) {
+    step.action();
+  }
+
+  if (step.text) {
+    showSubtitle(
+      step.text,
+      step.stage || ''
+    );
+  }
+
+  scriptIndex++;
+
+  if (isPlaying && step.duration) {
+    stepTimeout = setTimeout(playStep, step.duration);
+  }
+}
+
+// 点击屏幕交互：打字中则一键全显，已全显则进下一拍
+document.getElementById('appContainer').addEventListener('click', (e) => {
+  if (e.target.closest('#controlPanel') || e.target.closest('#inputDeck')) return;
+
+  if (isTyping) {
+    clearInterval(typeInterval);
+    subText.textContent = currentFullText;
+    isTyping = false;
+  } else if (isPlaying) {
+    clearTimeout(stepTimeout);
+    playStep();
+  }
+});
+
+function startIntro() {
+  clearTimeout(stepTimeout);
+  clearInterval(typeInterval);
+  subtitleBox.classList.remove('show');
+  scriptIndex = 0;
+  isPlaying = true;
+  isTyping = false;
+  switchBackground('rain');
+  viewfinder.classList.remove('active');
+  pixelStage.classList.remove('visible');
+  charMaki.classList.remove('maki-hopping');
+  inputDeck.style.display = 'none';
+  hudState.textContent = 'CH.8 天安门开场 · 视听演出中';
+  playStep();
+}
+
+document.getElementById('btnRestart').addEventListener('click', (e) => {
+  e.stopPropagation();
+  startIntro();
+});
+
+document.getElementById('btnFastForward').addEventListener('click', (e) => {
+  e.stopPropagation();
+  clearTimeout(stepTimeout);
+  clearInterval(typeInterval);
+  subtitleBox.classList.remove('show');
+  scriptIndex = introScript.findIndex(s => s.type === 'bump');
+  if (scriptIndex !== -1) {
+    isPlaying = true;
+    playStep();
+  }
+});
+
+// 自动开启
+startIntro();
+</script>
+</body>
+</html>

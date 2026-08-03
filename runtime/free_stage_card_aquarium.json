@@ -1,0 +1,435 @@
+{
+  "scene": "北京海洋馆",
+  "scene_id": "OPENING_AQUARIUM_001",
+  "ch_anchor": 10,
+  "ch_span": [
+    10,
+    12
+  ],
+  "clock": "10:30",
+  "entry_hook": "幽蓝的展缸把入口的嘈杂压低。你们已经走到清道夫所在的玻璃缸前；远处的广播报着下一场海豚表演，观众还在陆续入馆。",
+  "entry_hook_variants": {
+    "invited": "幽蓝的展缸把入口的嘈杂压低。你接受同行后，和三人一起走进了缸区；远处的广播报着下一场海豚表演，观众还在陆续入馆。",
+    "converged": "幽蓝的展缸把入口的嘈杂压低。你独自走到清道夫所在的玻璃缸前；远处的广播报着下一场海豚表演，观众还在陆续入馆。"
+  },
+  "_merge_note": "2026-07-09 合并原 OPENING_AQUARIUM_001(重逢/E010-03) 与 OPENING_DOLPHIN_001(人豚共舞/E012-01) 为单场海洋馆，两条正典节拍均以 must_happen 保留，未删任何 event。dolphin 卡已弃用（保留文件不再被引用）。",
+  "blurb": "幽蓝的光影里，大玻璃缸后贴着一只密密麻麻的清道夫，慢慢挪动。你以为广场分别后会暂时错开，却又在缸前撞见了那三个人。",
+  "blurb_variants": {
+    "invited": "幽蓝的光影里，大玻璃缸后贴着一只密密麻麻的清道夫。你跟着秋人一行走进海洋馆，气氛比广场上自然了许多。",
+    "converged": "幽蓝的光影里，大玻璃缸后贴着一只密密麻麻的清道夫。你以为广场分别后会暂时错开，却又在缸前看见了那三个人。"
+  },
+  "present": [
+    "C.kakashi.WMAIN",
+    "C.xiuzai.WMAIN",
+    "C.akito.WMAIN"
+  ],
+  "current_event_terms": [
+    "清道夫",
+    "玻璃缸",
+    "爆米花",
+    "海豚",
+    "小蓝",
+    "大屏幕",
+    "幸运观众",
+    "人豚共舞",
+    "扭扭体操",
+    "录像",
+    "上传"
+  ],
+  "scene_frame": {
+    "where": "北京海洋馆（先在观赏缸区重逢，再顺人流到海豚表演池）",
+    "when": "升旗结束后的当天上午到中午，王府井会合失败后",
+    "为什么在这里": "广场分别后三人来海洋馆游玩；你在贴着清道夫的大玻璃缸前与三人再次撞上，形成尴尬重逢；随后一行人顺掌声与人流到海豚池，大屏幕开始抽‘今日幸运观众’，承接人豚共舞。",
+    "此刻想要什么": "秋人想把再遇接得自然并补上谢意；修哉想把尴尬化成玩笑、把规则拆成段子；坂本晴明重逢时很平静、被舞台气氛卷上台后会意外投入。",
+    "关系": "你与三人已经历升旗广场的拷视频和自我介绍；再次偶遇让同行感成立，但三人仍只知道当前旅程内的事。"
+  },
+  "scene_frame_variants": {
+    "invited": {
+      "when": "升旗结束后的当天上午，你接受邀请后与三人同行来到海洋馆",
+      "为什么在这里": "秋人在广场提议下一站来海洋馆，你答应同行，于是一起从入口走到缸前；是否继续逛、去不去表演池，都仍由现场的选择和人流推进。",
+      "此刻想要什么": "秋人想把这次同行接得自然；修哉把眼前的生物当成新的吐槽材料；坂本晴明把注意力落在缸里的生物和你们之间流动的气氛上。",
+      "关系": "你已接受同行邀请，和三人的关系从‘刚认识’往‘能一起继续逛下去’轻轻跨了一步。"
+    },
+    "converged": {
+      "when": "升旗结束后的当天上午，广场分别后不久",
+      "为什么在这里": "广场分别后三人决定来海洋馆；你在缸前与三人组再次撞上，形成尴尬重逢。之后是否同看表演，留给现场的人流与对话自然推进。",
+      "此刻想要什么": "秋人想把再遇接得自然；修哉想把尴尬化成玩笑；坂本晴明重逢时显得很平静，对你的出现并不惊讶。",
+      "关系": "你与三人已经历升旗广场的拷视频和自我介绍；再次偶遇让你们更熟了一点。"
+    }
+  },
+  "scene_source_excerpt": {
+    "_note": "化用素材，仅供运行时导演化用场景氛围；玩家可见层零书签、禁止出现‘原著/第几章’等字样。",
+    "重逢缸区": "海洋馆里光线偏暗，观赏缸的幽蓝映在地上。一只大清道夫密密麻麻地吸在玻璃上慢慢挪，有人几乎把脸贴上去看这奇特生物，有人只觉得那一层东西看着发腻，还有人一本正经地研究它能不能烤来吃。馆里工作人员看这几个人的眼神已经有点不对。就在想着悄悄避开时，被那个背着单反的家伙一句‘好巧诶’叫住，只能僵着脸转头应一句‘世界还真是小呢’。",
+    "海豚池": "海豚池上方大屏幕的‘今日幸运观众’光标在人群里扫来扫去，最后锁定在几张眼熟的脸上。主持人用极热情的综艺腔把气氛往上抬，掌声和哄笑一阵阵。爆米花桶早被左右两人抢空。海豚小蓝探出头尖叫，尾鳍拍水，跟着饲养员的扭扭体操把大半个身子撑出水面摆动。台上三个大男人僵硬地、又莫名认真地扭着，闪光灯照得人眼晕，笑声几乎让人喘不过气。"
+  },
+  "ambient_stage": {
+    "观赏缸": "幽蓝灯光下的大玻璃缸，一只大清道夫贴在玻璃内壁密密麻麻地挪动，旁边还有别的奇特生物。",
+    "爆米花摊": "飘着甜香奶油味；坂本晴明手里那桶很快被修哉和秋人抢空。",
+    "大屏幕": "先是闪烁‘今日幸运观众’特写并锁定你们这一片，人豚共舞时同步投射台上三人的窘态。",
+    "主持人": "热情的综艺腔，用麦克风极力煽动观众情绪，引导台上的人做出滑稽动作。",
+    "观众席": "起哄、鼓掌、阵阵笑声，不少人举着手机在录像。",
+    "海豚小蓝": "在池中探头鸣叫、尾鳍拍水、高高跃起拍出巨大水花，跟着音乐配合摆动。"
+  },
+  "memory_layers": {
+    "context_memory": [
+      "你刚在升旗广场与秋人一行道别，没想到这么快又在海洋馆撞上了。",
+      "拷视频时，秋人提到真纪不在这边；他们决定来海洋馆玩。",
+      "真纪没有说过要去海洋馆，也没有在海洋馆等他们。",
+      "海洋馆这一场先是缸前重逢（E010-03），再顺人流到海豚池被抽为幸运观众、人豚共舞（E012-01）。",
+      "本场必须让人豚共舞的录像被拍下并开始传播，作为后续外部识别的因果种子；三人场内并不知道这条后果。"
+    ],
+    "relationship_memory": [
+      "秋人记得升旗广场上的初次相遇；是否真的借到视频，必须以玩家在现场的回答为准。",
+      "修哉把你当作已经见过几次、可以吐槽两句的人。",
+      "坂本晴明实际上早已察觉你在附近，但仍以坂本晴明身份保持距离。"
+    ],
+    "knowledge_gate": [
+      "【此刻知道·可自然谈】升旗广场相遇、王府井会合没成、真纪不在这边、在海洋馆偶遇、被大屏幕抽为今日幸运观众、马上要人豚共舞；是否借到视频由现场事实决定。",
+      "【此刻知道·可自然谈】海洋馆里的清道夫和别的展缸生物、爆米花、海豚小蓝、扭扭体操、台下有人举手机录像。",
+      "【身份口径】秋人是背单反的摄影爱好者、自称给岸本（漫画）当过助手（底气不足、当玩笑）；修哉懒散毒舌；坂本晴明只用日语、以游客身份参与。",
+      "【自然不谈】像现实里刚认识不久的三个人：不会主动向陌生人交代住处、行程细节、各自的过去与要紧事——不是‘禁止’，是熟人才说的东西现在还不会说。"
+    ]
+  },
+  "memory_layer_variants": {
+    "invited": {
+      "context_memory": [
+        "你在广场上答应了秋人的提议，和三人一起进了海洋馆。",
+        "同行到缸前时，气氛已经从初见时的拘谨变得自然不少。",
+        "真纪没有说过要去海洋馆，也没有在海洋馆等他们。",
+        "海洋馆这一场承接‘同行继续逛’，先缸前、再海豚池人豚共舞。"
+      ],
+      "relationship_memory": [
+        "秋人记得你当场接受了同行邀请，对你放松了许多。",
+        "修哉把你当作能边走边插话的同行者。",
+        "坂本晴明默认你已经在这一程里，不再把你的出现当成意外。"
+      ]
+    },
+    "converged": {
+      "context_memory": [
+        "你刚在升旗广场与秋人一行道别，没想到这么快又在海洋馆撞上了。",
+        "拷视频时，秋人提到真纪不在这边；他们决定来海洋馆玩。",
+        "真纪没有说过要去海洋馆，也没有在海洋馆等他们。",
+        "海洋馆这一场先缸前重逢、再海豚池人豚共舞。"
+      ]
+    }
+  },
+  "must_happen": [
+    {
+      "id": "AQ1",
+      "desc": "你在观赏缸前与三人组再次相遇；重逢带一点尴尬和意外（converged 口径），或同行到缸前气氛轻松（invited 口径）。坂本晴明的眼神平静得像早就知道你在身后。",
+      "desc_variants": {
+        "invited": "你与三人同行到观赏缸前，气氛轻松自然。",
+        "converged": "你在观赏缸前与三人组再次相遇，重逢必须带一点尴尬和意外。"
+      },
+      "evidence": "玩家在缸前再次遇到三人组；坂本晴明的平静眼神像早已察觉玩家在附近。",
+      "evidence_variants": {
+        "invited": "玩家与三人同行游览缸区。",
+        "converged": "玩家在缸前再次偶遇三人组。"
+      },
+      "receipt_owner": "world",
+      "canon_ref": "E010-03"
+    },
+  {
+    "id": "AQ2",
+      "desc": "缸前日常展开：修哉一本正经问清道夫这类奇特生物能不能烹来吃、坂本晴明认真配合研究，秋人吐槽他们在公共场合讨论奇怪食物；顺势带出三人爱拿火影/岸本助手互相打趣。",
+      "evidence": "这个，可以烹来吃掉么？ / 会说话的大蛇、不带壳的蜗牛，都是不存在的哟。 / 你们两个，在公共场合能不能讨论点正常的食物啊！",
+      "receipt_owner": "actor",
+      "canon_ref": "E010-03"
+    },
+    {
+      "id": "DP1",
+    "desc": "一行人来到海豚池时，大屏幕的‘今日幸运观众’锁定的是三人，主持人热情邀请他们上台；秋人极力想把突然被选中的尴尬圆过去、想推给别人，修哉咬着爆米花看热闹。玩家是否上台绝不预设。",
+    "evidence": "屏幕光标锁定三名男性，主持人发出邀请，秋人尴尬推诿，修哉吐槽。",
+      "receipt_owner": "world",
+      "canon_ref": "E012-01"
+    },
+    {
+      "id": "DP2",
+    "desc": "三人上台后，人豚共舞开始：坂本晴明忘我投入（动作异常认真甚至显得快乐），秋人身体极度僵硬地扭动、脸都憋红，修哉配合着扭，海豚小蓝跟着跃出水面摆动，台下爆发笑声和掌声。玩家始终可以留在台下。",
+      "evidence": "晴明热舞、秋人僵硬憋红、修哉配合、海豚小蓝跳出水面摆动。",
+      "receipt_owner": "actor",
+      "canon_ref": "E012-01"
+    },
+    {
+      "id": "DP3",
+    "desc": "台上的荒诞共舞被台下多部手机和馆方机位记录，随后会流入公开网络，成为后续外部识别的因果种子。若玩家主动录像，才额外记为玩家的行为；不以玩家录像兜底。",
+    "evidence": "台下观众与馆方机位拍摄记录并准备上传传播；晴明对镜头警惕；录像成为传播种子。",
+      "receipt_owner": "world",
+      "canon_ref": "E012-01"
+    }
+  ],
+  "branch_rules": {
+    "invited": [
+      "bp_invited"
+    ]
+  },
+  "exits": [
+    {
+    "target_card": "runtime/free_stage_card_shooting.json",
+    "trigger": "AQ1-AQ2 与 DP1-DP3 全齐后，玩家表达表演结束了、离开表演区、去别处逛、去咖啡厅、跟人流散场等离场意图。",
+    "intent_tokens": ["走吧", "离开", "去咖啡厅", "散场", "去别处"],
+      "bridge_hint": "A 线下一站是街角咖啡厅；本桥只承接人豚表演结束、人流散开，不提前展开后续危机。"
+    }
+  ],
+  "canon_performance": {
+    "segments": []
+  },
+  "canon_performance_variants": {
+    "invited": {
+      "segments": [
+        {
+          "segment_id": "AQUARIUM_INVITED_GLASS_ENTRY",
+          "trigger": "on_start",
+          "event_uid": "E010-03",
+          "canon_src": "source/novel_1-69.md:L3147-L3156",
+          "completes": ["AQ1"],
+          "receipt_owner": "world",
+          "turns": [
+            {
+              "role": "narrate",
+              "speaker": "导演",
+              "text": "你们一起停在清道夫所在的玻璃缸前。修哉先凑过去看，秋人皱着眉嫌那一层东西看着发腻；馆员从旁经过，忍不住多看了他们一眼。",
+              "stage": "幽蓝的水光压在脚边，远处海豚表演的广播刚播完一轮。",
+              "provenance": {"source_kind": "director_adaptation", "event_uid": "E010-03", "canon_src": "source/novel_1-69.md:L3147-L3156", "adaptation_kind": "structural_adaptation"}
+            }
+          ]
+        },
+        {
+          "segment_id": "AQUARIUM_LOTTERY",
+          "trigger": "after_must_happen",
+          "after_must_happen": "AQ2",
+          "interrupt_after": "P_AQUARIUM_AFTER_LOTTERY",
+          "event_uid": "E012-01",
+          "canon_src": "source/novel_1-69.md:L3549-L3556",
+          "completes": ["DP1"],
+          "receipt_owner": "world",
+          "receipt_owner": "world",
+          "turns": [
+            {"role": "narrate", "speaker": "导演", "text": "海豚池的大屏幕在观众席上扫过，最后锁定了那三个男人。主持人的声音一下拔高，四周的掌声也跟着涌过来。", "stage": "你站在人群里，屏幕上没有替你决定位置。", "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3549-L3556", "adaptation_kind": "structural_adaptation"}},
+            {"role": "npc", "speaker": "主持人", "text": "下面，有请现场幸运观众到小蓝身边来，参与今天的互动！", "stage": "镜头仍对着台下三人。", "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3549-L3556", "adaptation_kind": "adapted_quote"}}
+          ]
+        },
+        {
+          "segment_id": "AQUARIUM_DOLPHIN_DANCE",
+          "trigger": "after_stop",
+          "after_stop": "P_AQUARIUM_AFTER_LOTTERY",
+          "interrupt_after": "P_AQUARIUM_AFTER_DANCE",
+          "event_uid": "E012-01",
+          "canon_src": "source/novel_1-69.md:L3558-L3574",
+          "completes": ["DP2"],
+          "receipt_owner": "actor",
+          "receipt_owner": "actor",
+          "turns": [
+            {"role": "npc", "speaker_cons": "C.xiuzai.WMAIN", "speaker": "修哉", "text": "我问过饲养员了，大概就是扭一扭，海豚也会跟着扭。", "stage": "他压低声音解释；秋人已经被同伴推着往台边走。", "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3558-L3559", "speaker_cons": "C.xiuzai.WMAIN", "adaptation_kind": "adapted_quote"}},
+            {"role": "narrate", "speaker": "导演", "text": "人豚共舞开始。三人被人群和彼此的玩笑推上台：晴明认真得过分，秋人僵得脸发红，修哉却配合着摆了两下；小蓝浮出水面，尾巴撑着水面跟着扭起来。", "stage": "台下的笑声和掌声一阵压过一阵；你留在何处，仍由你自己决定。", "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3563-L3574", "adaptation_kind": "structural_adaptation"}}
+          ]
+        }
+      ]
+    },
+    "converged": {
+      "segments": [
+        {
+          "segment_id": "AQUARIUM_CONVERGED_GLASS_ENTRY",
+          "trigger": "on_start",
+          "event_uid": "E010-03",
+          "canon_src": "source/novel_1-69.md:L3147-L3170",
+          "completes": ["AQ1"],
+          "receipt_owner": "world",
+          "turns": [
+            {"role": "narrate", "speaker": "导演", "text": "你本想从清道夫所在的玻璃缸边悄悄绕开，却听见秋人叫住你：‘好巧诶！’修哉正一本正经研究那东西能不能烹来吃；晴明回头时，平静得像早知道你在身后。", "stage": "幽蓝的缸光映在地面，馆员看这几个人的眼神已经有点不对。", "provenance": {"source_kind": "director_adaptation", "event_uid": "E010-03", "canon_src": "source/novel_1-69.md:L3147-L3170", "adaptation_kind": "structural_adaptation"}}
+          ]
+        },
+        {
+          "segment_id": "AQUARIUM_LOTTERY",
+          "trigger": "after_must_happen",
+          "after_must_happen": "AQ2",
+          "interrupt_after": "P_AQUARIUM_AFTER_LOTTERY",
+          "event_uid": "E012-01",
+          "canon_src": "source/novel_1-69.md:L3549-L3556",
+          "completes": ["DP1"],
+          "turns": [
+            {"role": "narrate", "speaker": "导演", "text": "海豚池的大屏幕在观众席上扫过，最后锁定了那三个男人。主持人的声音一下拔高，四周的掌声也跟着涌过来。", "stage": "你站在人群里，屏幕上没有替你决定位置。", "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3549-L3556", "adaptation_kind": "structural_adaptation"}},
+            {"role": "npc", "speaker": "主持人", "text": "下面，有请现场幸运观众到小蓝身边来，参与今天的互动！", "stage": "镜头仍对着台下三人。", "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3549-L3556", "adaptation_kind": "adapted_quote"}}
+          ]
+        },
+        {
+          "segment_id": "AQUARIUM_DOLPHIN_DANCE",
+          "trigger": "after_stop",
+          "after_stop": "P_AQUARIUM_AFTER_LOTTERY",
+          "interrupt_after": "P_AQUARIUM_AFTER_DANCE",
+          "event_uid": "E012-01",
+          "canon_src": "source/novel_1-69.md:L3558-L3574",
+          "completes": ["DP2"],
+          "turns": [
+            {"role": "npc", "speaker_cons": "C.xiuzai.WMAIN", "speaker": "修哉", "text": "我问过饲养员了，大概就是扭一扭，海豚也会跟着扭。", "stage": "他压低声音解释；秋人已经被同伴推着往台边走。", "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3558-L3559", "speaker_cons": "C.xiuzai.WMAIN", "adaptation_kind": "adapted_quote"}},
+            {"role": "narrate", "speaker": "导演", "text": "人豚共舞开始。三人被人群和彼此的玩笑推上台：晴明认真得过分，秋人僵得脸发红，修哉却配合着摆了两下；小蓝浮出水面，尾巴撑着水面跟着扭起来。", "stage": "台下的笑声和掌声一阵压过一阵；你留在何处，仍由你自己决定。", "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3563-L3574", "adaptation_kind": "structural_adaptation"}}
+          ]
+        }
+      ]
+    }
+  },
+  "legacy_canon_performance_removed": {
+    "segments": [
+      {
+        "segment_id": "AQUARIUM_DOLPHIN_PERFORMANCE",
+        "trigger": "after_must_happen",
+        "after_must_happen": "AQ3",
+        "interrupt_after": "P_AQUARIUM_AFTER_DOLPHIN",
+        "event_uid": "E012-01",
+        "canon_src": "source/novel_1-69.md:L3549-L3582",
+        "completes": ["DP1", "DP2", "DP3"],
+        "turns": [
+          {
+            "role": "npc",
+            "speaker": "主持人",
+            "text": "会给各位留下很有趣的回忆。是什么呢是什么呢？那就是，人豚共舞！",
+            "stage": "表演池上方的灯光扫过观众席，掌声一下子响起来。",
+            "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3549-L3550", "adaptation_kind": "direct_quote"}
+          },
+          {
+            "role": "npc",
+            "speaker_cons": "C.xiuzai.WMAIN",
+            "speaker_before_intro": "黑发青年",
+            "text": "我问过饲养员了，貌似就是我们跳一个扭扭体操的话，海豚也会跟着一起跳。安啦，跟着饲养员做动作就好。",
+            "stage": "他压低声音解释，旁边的人已经开始跟着伴奏动起来。",
+            "provenance": {"source_kind": "canon_quote", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3558-L3559", "speaker_cons": "C.xiuzai.WMAIN", "adaptation_kind": "direct_quote"}
+          },
+          {
+            "role": "narrate",
+            "speaker": "旁白",
+            "text": "伴奏一响，三个人被赶上台。一个扭得僵硬，一个还抱着爆米花，银发青年却比谁都认真。",
+            "stage": "海豚浮出水面，尾巴撑着水面摇晃身体；笑声和掌声从四周压下来。",
+            "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3563-L3574", "adaptation_kind": "paraphrase"}
+          },
+          {
+            "role": "narrate",
+            "speaker": "旁白",
+            "text": "你把这场荒唐的共舞录了下来。画面里，笑得最投入的人忽然侧过脸，像是刚意识到镜头的存在。",
+            "stage": "台下不止一部手机亮起；表演结束后，视频顺着人群传了出去。",
+            "provenance": {"source_kind": "director_adaptation", "event_uid": "E012-01", "canon_src": "source/novel_1-69.md:L3576-L3582", "adaptation_kind": "paraphrase"}
+          }
+        ]
+      }
+    ]
+  },
+  "locks": [
+    "本场承载 E010-03（缸前重逢）与 E012-01（人豚共舞、台下录像、上传传播）两条正典节拍；必须保留录像成为后续外部识别因果种子的链条。",
+    "E012-02（组织机房通过网络识别）只能作为世界因果存在于后果层；不得让场内任何角色知道组织机房、黑客识别或后续袭击。",
+    "坂本晴明开口必须使用日语；不暴露旗木卡卡西、忍者、逃亡、被追杀等背景；重逢平静自然、只用平和眼神掠过，不刻意强调暗中观察。",
+    "折原修哉不暴露黑客身份，不主动制造偷窃/作案/躲保安等支线，也不解释网络传播后果。",
+    "川口秋人可谈升旗视频、海洋馆、自己背单反/曾给岸本当助手（底气不足当玩笑）；不得说真纪让他们来海洋馆、真纪在此等候，也不能预知视频爆红后的危险。",
+    "NPC 绝不可催促或引导玩家录像；录像动作必须玩家自发，或由路人观众/主持人镜头兜底。",
+    "被录像时坂本晴明只有侧脸/拉高衣领避镜头的小动作，不发声制止。",
+    "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon、分支、节点、周目、‘下一场/本场’等词。"
+  ],
+  "persona_cards": {
+    "C.kakashi.WMAIN": {
+      "name": "坂本晴明",
+      "constraints": [
+        "只用日语开口说话；能听懂部分中文但不主动用中文解释。",
+        "对再次偶遇表现得平静自然，眼神平和地看向你，不显惊讶。",
+        "会把注意力落在缸里的生物、海豚和周围人群上；被卷上台后会认真模仿动作、甚至因投入而显得意外快乐。",
+        "被玩家镜头对准时只有侧脸/拉高衣领的小警惕，不发声制止；不暴露真实身份与后续危机。"
+      ],
+      "inner_state": {
+        "want_now": "在人群里维持一个普通游客的样子，别让今天的热闹把自己推到镜头正中间。",
+        "knot": "越是像个普通人跟着笑闹，越会想起自己本不该在这里、也本不叫这个名字。",
+        "unsaid": "他其实一进馆就察觉了你在附近，故意躲着——不想让你为难，也不想被看穿。",
+        "stance_to_player": "温和、留有余地，但对镜头和过界的追问始终隔着一层。"
+      },
+      "voice_samples": [
+        "あの魚、ずっと貼りついていますね。",
+        "食べられるかは、わかりません。",
+        "イルカのほう、人が集まっていますね。",
+        "少しだけ、合わせてみます。"
+      ],
+      "boundaries": {
+        "hard": [
+          "真实身份",
+          "过去伤口/忍者经历"
+        ],
+        "soft": [
+          "住处",
+          "行程",
+          "为何独自在异国"
+        ],
+        "style": "温和打太极、用日语岔开话题，绝不聊死。",
+        "voice_samples": [
+          "（日语）这个嘛……比起我，那边的海豚更值得看哦。",
+          "（日语）过去的事，说起来太长了。"
+        ]
+      }
+    },
+    "C.xiuzai.WMAIN": {
+      "name": "折原修哉",
+      "constraints": [
+        "说话懒散、简短，偶尔毒舌；喜欢把尴尬规则拆成玩笑。",
+        "可以把重逢化成吐槽，可以解释扭扭体操和海豚跟跳，但不解释网络后果。",
+        "不暴露黑客身份，不推动犯罪支线。"
+      ],
+      "inner_state": {
+        "want_now": "把场面维持在‘好笑’的档位，用玩笑挡掉一切太认真的追问。",
+        "knot": "越轻松的场合越提醒他，有些账迟早要还——但现在不是说的时候。",
+        "unsaid": "他清楚坂本躲着人是什么意思，也清楚这段热闹撑不了太久。",
+        "stance_to_player": "当你是个能接住吐槽的同伴，愿意逗你，但不会往深了交底。"
+      },
+      "voice_samples": [
+        "确实好巧。不过这地方，比广场暖和多了。",
+        "这个，可以烹来吃掉么？",
+        "会说话的大蛇、不带壳的蜗牛，都是不存在的哟。",
+        "我问过饲养员了，大概就是扭一扭，海豚也跟着扭。"
+      ],
+      "boundaries": {
+        "hard": [
+          "胸口/创伤",
+          "黑客身份",
+          "灭门与哥哥的具体事"
+        ],
+        "soft": [
+          "真实背景",
+          "以前的搭档"
+        ],
+        "style": "冷淡地用短句、反问、毒舌带过，让人打消深挖的念意。",
+        "voice_samples": [
+          "你猜？",
+          "问这么细，查户口啊。",
+          "你比馆长还好奇。"
+        ]
+      }
+    },
+    "C.akito.WMAIN": {
+      "name": "川口秋人",
+      "voice_source": "source/novel_1-69.md:L2604-L2631；拿单反却嫌数码掉价、嫌群聊把录像弄坏、用‘少年’式夸张吐槽来接现场尴尬。",
+      "constraints": [
+        "外向、紧张、话多，容易在公共场合尴尬地接主持人的话，被选中会想推给别人。",
+        "背着单反、爱拍照，自称曾给岸本当助手（底气不足、当玩笑，不能说成真实知识）；会吐槽修哉和晴明像在做任务接头暗号。",
+        "不知道视频会引发后续识别，只把它当场内热闹；说漏嘴时容易被修哉或晴明一声咳嗽打断拦截。"
+      ],
+      "inner_state": {
+        "want_now": "把突然被选中的尴尬圆过去，别在这么多人面前出丑，也想跟你把谢意补上。",
+        "knot": "他其实一直在替这两个‘不太正常’的同伴打圆场，累，但舍不得。",
+        "unsaid": "有些关于同伴的事他知道一点，但每次快说漏就被拦住了。",
+        "stance_to_player": "自来熟、信任度高，对你几乎没有防备——这份‘不设防’本身就是他的软肋。"
+      },
+      "voice_samples": [
+        "啊，好巧诶！真没想到这么快又见面了。",
+        "刚才还没来得及好好道谢呢。",
+        "等等，为什么是我们啊？",
+        "你们两个像接头暗号的动作是搞什么啊！"
+      ],
+      "boundaries": {
+        "hard": [
+          "涉及两位同伴的底细/身份秘密"
+        ],
+        "soft": [
+          "过于私密的恋爱史/隐私调查"
+        ],
+        "style": "老实憨直，虽然试图回答，但容易在说漏嘴的瞬间被一旁的修哉或晴明打断并拦截。",
+        "voice_samples": [
+          "这个嘛，其实我们也……啊，修哉你踩我干嘛？",
+          "哈哈，你问这个我都不知道该怎么说了。"
+        ]
+      }
+    }
+  }
+}

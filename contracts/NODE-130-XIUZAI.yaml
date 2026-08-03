@@ -1,0 +1,37 @@
+node_id: NODE-130-XIUZAI
+part: 3
+title: 斯德哥尔摩·修哉必救（唯一必达死亡节点）
+tier: canon_beat
+optional: false
+entry_conditions: []          # 第三部 event_uid 待 ID 归并后补；容器节点 NODE-130-STOCKHOLM 管共享
+invariants:
+  canon_locked: []
+  player_freedom: 多路线保底，任两条 δ 组合即稳
+exit_states:
+  - id: converged
+    desc: 修哉被聋哑小孩误杀（Worldline-0）
+    negates: []
+  - id: branched_xiuzai_alive
+    branch_gate: BG-XIUZAI_ALIVE
+    negates: []
+crossline_comm: true
+channel: LT_ANCHOR
+coherence:
+  lateral_jumper_present: true     # 张尘(横向跳者) × 玩家(纵向跳者) 同框
+  player_present: true
+  phase: opposed
+const_refs: [CC.SELF_REF_CHAIN]
+path_set:
+  - id: d13a_bone_conduction
+    type: item
+    snr_cost: mid
+  - id: d13b_same_car
+    type: social
+    snr_cost: mid
+  - id: d13c_reroute
+    type: info
+    snr_cost: mid
+  - id: d13d_translation_card
+    type: item
+    snr_cost: low
+combine_threshold: 2

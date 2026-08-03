@@ -1,0 +1,24 @@
+# secrets / local runtime
+**/config.json
+.env
+*.key
+
+# python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# runtime state / logs
+**/sessions/
+**/*.jsonl
+data/runtime_state.db
+c1_web_console/states/
+scratch/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# runtime play artifacts
+artifacts/
+

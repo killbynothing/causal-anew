@@ -1,0 +1,1119 @@
+{
+  "schema": "free_stage.frame_card.v1",
+  "_note": "十六中校门共享物理帧；视角入口身份在 views.*.entry_projection，投影卡勿手改。",
+  "scene": "十六中门口",
+  "scene_id": "FRAME_16ZHONG_GATE_CH15",
+  "scene_frame": {
+    "where": "天津十六中正门外的人行道与街对面可观察范围",
+    "when": "放学后，人流正在散去"
+  },
+  "frame": {
+    "frame_id": "16zhong_gate_shared_ch15",
+    "clock_window": {
+      "start": "16:50",
+      "end": "17:10"
+    },
+    "roster": [
+      {
+        "name": "张尘",
+        "cons": "C.zhangchen.WMAIN"
+      },
+      {
+        "name": "敖斑驳",
+        "cons": "C.banbo.WMAIN"
+      },
+      {
+        "name": "潘雨璇",
+        "cons": "C.yuxuan.WMAIN"
+      },
+      {
+        "name": "魏初",
+        "cons": "C.weichu.WMAIN"
+      },
+      {
+        "name": "玩家",
+        "cons": "C.player.WMAIN"
+      }
+    ],
+    "physical_beats": [
+      {
+        "id": "GATE1",
+        "desc": "放学后的人流经过十六中正门，张尘在门口执行被罚的大冒险。",
+        "evidence": "两张原校门卡 ZG1/WZG1"
+      },
+      {
+        "id": "GATE2",
+        "desc": "张尘笨拙地向两名女生搭话，女生绕开，搭讪失败。",
+        "evidence": "两张原校门卡 ZG2/WZG2；E015-04"
+      },
+      {
+        "id": "GATE3",
+        "desc": "失败后张尘退开并往旁边奶茶店去，女生是否同去取决于各自选择。",
+        "evidence": "两张原校门卡 ZG4/WZG3"
+      }
+    ],
+    "branch_vars": {
+      "observer_entry": {
+        "values": [
+          "cline_16zhong",
+          "wline_weichu",
+          "pending_cross_line"
+        ],
+        "desc": "观察者的身份与站位由入口上下文决定，不属于物理帧。"
+      }
+    },
+    "open_questions": [
+      "★★★ 跨线到此帧的具体到场理由、同行者和初始站位仍待人裁；未裁定入口保持 pending。"
+    ]
+  },
+  "default_view": "cline_16zhong",
+  "views": {
+    "cline_16zhong": {
+      "_target": "runtime/free_stage_card_16zhong_gate.json",
+      "entry_projection": {
+        "context_memory": [
+          "你是这里的旧校友，顺路回到母校门口看看。一个陌生年轻男人拦住两个女生问话，场面看起来不太对劲。"
+        ],
+        "relationship_memory": [
+          "你还不认识张尘、斑驳和雨璇；这一眼决定你是上前干预，还是先在旁边看下去。"
+        ]
+      },
+      "scene_id": "CARD_16ZHONG_GATE",
+      "ch_anchor": 15,
+      "clock": "16:55",
+      "intro_complete_must_happen": "",
+      "intro_include_blurb": false,
+      "intro_excerpt_order": [
+        "暗处的注视"
+      ],
+      "intro_excerpt_audience": {
+        "暗处的注视": {
+          "player_visible": false,
+          "director_text": "魏初在场前明说会全程注视张尘；这份承诺由张尘作为场前工作记忆持有。街对面是否真的有人观看仍未在此刻坐实，不向演员伪造一条新的现场感知。"
+        }
+      },
+      "entry_hook": "放学铃早就散在风里。你顺路拐到母校门口，铁栏杆还是旧样子，穿校服的人流一茬一茬往外涌。一名领带没扎好的年轻男人正朝两个背书包的女生快步走去。",
+      "blurb": "十六中门口的人流渐渐稀了。一个二十出头、领带没扎好的年轻男人，正带着干净得过头的笑，拦住两个背书包的女生说话。",
+      "present": [
+        "C.zhangchen.WMAIN",
+        "C.banbo.WMAIN",
+        "C.yuxuan.WMAIN"
+      ],
+      "current_event_terms": [
+        "十六中",
+        "搭讪",
+        "校友",
+        "干预",
+        "旁观",
+        "奶茶店"
+      ],
+      "canon_performance": {
+        "schema_version": "canon.performance.v1",
+        "segments": [
+          {
+            "segment_id": "C16_GATE_OPENING",
+            "scene_uid": "C16_GATE_CONTACT",
+            "trigger": "on_start",
+            "event_uid": "E015-04",
+            "canon_src": "source/novel_1-69.md:L4625-L4634",
+            "completes": [
+              "ZG1",
+              "ZG2"
+            ],
+            "interrupt_after": "P1_GATE_INTERVENE",
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "那个，不好意思请问，请问你们是高中生么？",
+                "stage": "他一个箭步迎上去，脸上堆起笑容。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4625-L4628",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "啊嗯，是高中。",
+                "stage": "她朝这个陌生人笑了笑，替身旁的同伴答了话。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4631",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "这样啊，那……你们知道你们平时几点放学么？",
+                "stage": "问题刚出口，他脸上的笑就僵了一瞬。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4633-L4634",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              }
+            ]
+          },
+          {
+            "segment_id": "C16_GATE_WATCH_CONTINUATION",
+            "scene_uid": "C16_GATE_CONTACT",
+            "trigger": "after_stop",
+            "after_stop": "P1_GATE_INTERVENE",
+            "requires_branch": [
+              "watch"
+            ],
+            "requires_autonomous_decisions": [
+              "c16_zhangchen_after_rebuff",
+              "c16_banbo_after_rebuff",
+              "c16_yuxuan_after_rebuff"
+            ],
+            "requires_autonomous_outcomes": {
+              "c16_zhangchen_after_rebuff": "leave",
+              "c16_banbo_after_rebuff": "leave",
+              "c16_yuxuan_after_rebuff": "leave"
+            },
+            "event_uid": "E015-04",
+            "canon_src": "source/novel_1-69.md:L4636-L4661",
+            "completes": [
+              "ZG3",
+              "ZG4"
+            ],
+            "interrupt_after": "P2_SHOP_FOLLOW",
+            "player_position_after": "school_gate",
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "该不会是头脑故障吧，这大哥想要干什么？",
+                "stage": "她拽着同伴快走两步，压低了声音。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4636-L4637",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "不知道啊，不过感觉他好像有什么事要说，该不会是委托？",
+                "stage": "她脸上的惊慌退下去一点，反倒显出几分兴奋。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4637-L4638",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "你脑子没问题吧，委托？我们是少年侦探团么？",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4640",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "别这么吐槽啦，斑爷，你其实也一直期待不是么。而且我看，",
+                "stage": "她回过头，看了看还在不远处徘徊的年轻男人。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4641-L4643",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "我看他也不像坏人吧，挺面善的。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4643-L4644",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "上班族，也没带着公文包，看样子的确是有什么事呢。还有不要再叫斑爷。",
+                "stage": "她也回头稍稍打量了一下对方的装束。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4645-L4648",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "你明明都已经习惯这个称呼了干什么还要吐槽，不过斑爷你的推理能力有上升趋势啊，怎么样，要不要折回去问问他有什么委托？",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4649-L4650",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "不——要。我们去买饮料喝吧，渴死了。今天的作业也是写不完的节奏，璇儿你能不能着调一点？",
+                "stage": "她脚步没停，拉着同伴继续往街口走。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4651-L4652",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "我可不想被天天都借鉴别人作业的你吐槽这种事，好吧，这次机会可是你自己放弃的哟。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4654",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "",
+                "stage": "他没有追上去，只在原地徘徊了一会儿；两个女生走远后，他才独自朝街边的奶茶店过去。",
+                "provenance": {
+                  "source_kind": "director_adaptation",
+                  "event_uid": "E015-04",
+                  "canon_src": "source/novel_1-69.md:L4656-L4661",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "paraphrase"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "scene_source_excerpt": {
+        "_note": "化用素材，仅供运行时导演化用氛围；evidence: E015-04/E015-05，Ch15 搭讪与奶茶店段。玩家可见层零书签。",
+        "校门口搭讪": "下班后的十六中门口，放学的人流散着。一个二十出头、西装没扎好领带、也没拎公文包的年轻男人，堆着一脸干净得有点过头的笑，逮着两个背书包的女生问“请问你们是高中生么”“平时几点放学”——问完他自己脸都挂不住了。女生皱着眉快步绕开，压低声音嘀咕：这大哥不会是脑子有问题吧，想干嘛。他站在原地也不恼，像是背后有谁在盯着他看，讪讪的。",
+        "暗处的注视": "街对面不远，有个女人躲在暗处看着这一幕。该注视为剧情推断，仅在奶茶店末尾坐实魏初在场，在此不当作焊死情节（待裁/推断）。",
+        "转向奶茶店": "搭讪彻底砸了。那男人没再纠缠，转身钻进旁边的奶茶店，点了杯岩盐芝士绿茶少冰，像是要用一杯饮料把刚才的丢脸冲淡。两个女生本来只想买喝的解渴，却在取餐口又和他撞个正着——世界小得有点过分。"
+      },
+      "ambient_stage": {
+        "校门": "铁栏杆、门卫室、校服人流和放学后的自行车铃声混在一起。",
+        "路边": "小卖部灯牌刚亮，行人不断绕过停在路边的电动车。",
+        "暗处": "街对面有个女人借树影遮着自己，像是在看热闹。",
+        "奶茶店门口": "玻璃门上映着路灯，里面飘出奶香和冰块碰撞杯壁的声音。"
+      },
+      "memory_layers": {
+        "context_memory": [
+          "你以旧校友身份回到十六中门口，只是顺路看看。",
+          "一个陌生年轻男人刚刚用很笨拙的问题拦住两个高中女生，女生明显被吓到了。",
+          "两个女生刚绕开他，嘴上吐槽、脚步却还没完全放松，仍把你和陌生男人都当成需要警惕的成年人。",
+          "这场搭讪本身没有实质伤害，但气氛仍紧绷；陌生男人看起来像在完成任务，而不是真心骚扰。"
+        ],
+        "relationship_memory": [
+          "你与张尘、斑驳、雨璇都是第一次照面，彼此都还没有名字。",
+          "斑驳和雨璇彼此挨着，刚躲过搭讪，对陌生成年男人保持警惕，对突然出现的你也同样提防。"
+        ],
+        "knowledge_gate": [
+          "【此刻知道·可自然谈】十六中放学、校门口、人流散去、一个奇怪上班族向两个女生搭话。",
+          "【此刻知道·可自然谈】你是旧校友，可以自然提起母校、校门、放学时间和看见陌生人搭话后的担心。",
+          "【身份口径】在玩家自报且张尘、斑驳、雨璇都向玩家报名之前，对玩家只能用外貌称呼：年轻男人、染异色头发的假小子女生、扎着马尾的女生；斑驳与雨璇彼此是好友，NPC↔NPC 可自然互称。",
+          "【自然不谈】任何人的真名、深层来历、暗线计划、未来行程与秘密托付都不属于眼前能说出口的事。"
+        ]
+      },
+      "must_happen": [
+        {
+          "id": "ZG1",
+          "desc": "你以旧校友身份落在十六中门口，观察放学后的人流与旧校门。",
+          "evidence": "阿棠落点：十六中校友。",
+          "frame_beat": [
+            "GATE1"
+          ]
+        },
+        {
+          "id": "ZG2",
+          "desc": "年轻男人以吊儿郎当的上班族样子拦住两个女生，问出很笨拙的搭话问题。",
+          "evidence": "E015-04：张尘被罚到十六中校门口搭讪。",
+          "frame_beat": [
+            "GATE2"
+          ]
+        },
+        {
+          "id": "ZG3",
+          "desc": "两个女生绕开他，一个用吐槽压住不安，另一个觉得对方像有事要说；可上前干预、继续旁观，或什么也不做，现场仍按各自选择发展。",
+          "evidence": "E015-04/E015-05：斑驳雨璇被搭讪后转入奶茶店偶遇。",
+          "frame_beat": []
+        },
+        {
+          "id": "ZG4",
+          "desc": "搭讪失败后，张尘主动退开并决定去旁边买饮料、寻找完成惩罚的第二次机会；斑驳与雨璇是否也去买喝的，由她们自己的口渴与选择决定。",
+          "evidence": "E015-05：张尘去买饮料并等待第二次机会；斑驳因口渴独立去买饮料，随后偶遇。",
+          "after": [
+            "ZG3"
+          ],
+          "frame_beat": [
+            "GATE3"
+          ]
+        }
+      ],
+      "branch_points": [
+        {
+          "id": "intervene",
+          "trigger": "你上前插话、拦住、替女生解围、询问对方想做什么或明确保护两个女生。",
+          "keywords": {
+            "positive": [
+              "上前",
+              "拦住",
+              "解围",
+              "插话",
+              "护着",
+              "护住",
+              "制止",
+              "别骚扰"
+            ],
+            "negative": [
+              "旁观",
+              "不插话",
+              "远远",
+              "只看",
+              "尾随",
+              "跟着看"
+            ]
+          }
+        },
+        {
+          "id": "watch",
+          "trigger": "你没有上前，只继续观察、尾随或保持距离看事情怎么发展。",
+          "keywords": {
+            "positive": [
+              "旁观",
+              "不插话",
+              "远远",
+              "只看",
+              "先看",
+              "尾随",
+              "不动",
+              "跟着看"
+            ],
+            "negative": [
+              "上前",
+              "拦住",
+              "解围",
+              "替女生",
+              "护着",
+              "护住",
+              "制止",
+              "别骚扰"
+            ]
+          }
+        }
+      ],
+      "branch_rules": {
+        "intervene": [
+          "intervene"
+        ],
+        "watch": [
+          "watch"
+        ]
+      },
+      "intent_affordances": [
+        {
+          "affordance_id": "ask_banbo_cafe_consent",
+          "goal_key": "ask_banbo_cafe_consent",
+          "description": "在张尘提出去旁边说清后，请斑驳自己决定是否愿意同去。",
+          "target_cons": "C.banbo.WMAIN",
+          "mode": "negotiate_now",
+          "source": "frame.public.invitation",
+          "after_must_happen": [
+            "ZG1",
+            "ZG2"
+          ],
+          "requires_branch_progress": [
+            "intervene"
+          ],
+          "requires_actor_consent": true,
+          "visible_reason": "她就在现场，能听见公开邀请，也有权拒绝。",
+          "storylet": {
+            "entry_conditions": [
+              "public_invitation_heard",
+              "banbo_can_decide_for_herself"
+            ],
+            "invariants": [
+              "director_does_not_choose_banbo_outcome",
+              "player_cannot_speak_for_banbo"
+            ],
+            "exit_keys": [
+              "accept",
+              "conditional",
+              "refuse",
+              "alternative",
+              "defer"
+            ]
+          }
+        },
+        {
+          "affordance_id": "ask_yuxuan_cafe_consent",
+          "goal_key": "ask_yuxuan_cafe_consent",
+          "description": "在张尘提出去旁边说清后，请雨璇自己决定是否愿意同去。",
+          "target_cons": "C.yuxuan.WMAIN",
+          "mode": "negotiate_now",
+          "source": "frame.public.invitation",
+          "after_must_happen": [
+            "ZG1",
+            "ZG2"
+          ],
+          "requires_branch_progress": [
+            "intervene"
+          ],
+          "requires_actor_consent": true,
+          "visible_reason": "她就在现场，能听见公开邀请，也有权拒绝。",
+          "storylet": {
+            "entry_conditions": [
+              "public_invitation_heard",
+              "yuxuan_can_decide_for_herself"
+            ],
+            "invariants": [
+              "director_does_not_choose_yuxuan_outcome",
+              "player_cannot_speak_for_yuxuan"
+            ],
+            "exit_keys": [
+              "accept",
+              "conditional",
+              "refuse",
+              "alternative",
+              "defer"
+            ]
+          }
+        }
+      ],
+      "autonomous_decisions": [
+        {
+          "decision_id": "c16_zhangchen_after_rebuff",
+          "actor_cons": "C.zhangchen.WMAIN",
+          "situation": "两个女生已经绕开。眼前的搭话失败了；你可以留在校门口，也可以独自去旁边买饮料，另找让这场惩罚收场的办法。",
+          "after_must_happen": [
+            "ZG1",
+            "ZG2"
+          ],
+          "requires_branch_progress": [
+            "watch"
+          ],
+          "valid_outcomes": [
+            "leave",
+            "defer",
+            "alternative"
+          ],
+          "outcome_branch_progress": {
+            "leave": [
+              "c16_zhangchen_to_drink"
+            ],
+            "defer": [
+              "c16_zhangchen_stays_gate"
+            ],
+            "alternative": [
+              "c16_zhangchen_delta_choice"
+            ]
+          }
+        },
+        {
+          "decision_id": "c16_banbo_after_rebuff",
+          "actor_cons": "C.banbo.WMAIN",
+          "situation": "陌生人的搭话已经被你们甩在身后。你可以带同伴去买喝的、直接回家，或先停下来确认他没有再跟来。",
+          "after_must_happen": [
+            "ZG1",
+            "ZG2"
+          ],
+          "requires_branch_progress": [
+            "watch"
+          ],
+          "valid_outcomes": [
+            "leave",
+            "defer",
+            "alternative"
+          ],
+          "outcome_branch_progress": {
+            "leave": [
+              "c16_banbo_to_drink"
+            ],
+            "defer": [
+              "c16_banbo_stays_gate"
+            ],
+            "alternative": [
+              "c16_banbo_delta_choice"
+            ]
+          }
+        },
+        {
+          "decision_id": "c16_yuxuan_after_rebuff",
+          "actor_cons": "C.yuxuan.WMAIN",
+          "situation": "同伴已经把你带离那名陌生人。你可以和她去买喝的、提议折回问清楚，或先按她的意思离开。",
+          "after_must_happen": [
+            "ZG1",
+            "ZG2"
+          ],
+          "requires_branch_progress": [
+            "watch"
+          ],
+          "valid_outcomes": [
+            "leave",
+            "defer",
+            "alternative"
+          ],
+          "outcome_branch_progress": {
+            "leave": [
+              "c16_yuxuan_to_drink"
+            ],
+            "defer": [
+              "c16_yuxuan_stays_gate"
+            ],
+            "alternative": [
+              "c16_yuxuan_delta_choice"
+            ]
+          }
+        }
+      ],
+      "exits": [
+        {
+          "target_card": "runtime/free_stage_card_milktea_4p.json",
+          "trigger": "ZG1-ZG4 全齐后，你上前干预；张尘提出去旁边说清，你明确决定一起去。女生是否接受由她们当场回应，不由旁白预设。",
+          "exit_state": "intervened",
+          "requires_branch_progress": [
+            "c16_player_cafe_accepted"
+          ],
+          "requires_actor_decisions": {
+            "C.banbo.WMAIN": [
+              "accept",
+              "conditional"
+            ],
+            "C.yuxuan.WMAIN": [
+              "accept",
+              "conditional"
+            ]
+          },
+          "bridge_hint": "张尘为自己的冒失道歉，提议去旁边把话说清。你先表明愿意同去；两个女生各自作出回应后，才有人往店里走。"
+        },
+        {
+          "target_card": "runtime/free_stage_card_milktea_watch.json",
+          "trigger": "ZG1-ZG4 全齐后，你选择不干预，继续远远看着事情发展。",
+          "exit_state": "watched",
+          "bridge_text": "两个女生先往街口的奶茶店去了；那个年轻男人停了一会儿，稍后也独自进了同一家店。你按自己的选择跟到店里，在取餐口视线边缘停下，没有自动加入他们。",
+          "bridge_hint": "你没有出声。张尘去买饮料，两个女生也因口渴另行进店；你保持距离，看着两条动机在取餐口重新碰上。"
+        }
+      ],
+      "locks": [
+        "在互相自我介绍完成前，NPC 不得对玩家直呼张尘、斑驳、雨璇等真名，只能用外貌称呼。",
+        "龙也、嘱托、信物只属于场外超游线索；玩家若对角色说出，必须被 verbal meta-breach 吞没，不入场内知识。",
+        "张尘此刻不暴露深层计划、暗线身份或未来事件，只表现为被迫完成大冒险的奇怪上班族。",
+        "斑驳和雨璇彼此挨着、是好朋友，彼此可用斑驳/雨璇/斑爷等称呼；对玩家与陌生男人仍用外貌称呼，直到玩家自报后三人分别向玩家报名。",
+        "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon、分支、节点、周目。"
+      ],
+      "persona_cards": {
+        "C.zhangchen.WMAIN": {
+          "name": "张尘",
+          "_alias_visible": "年轻男人 / 奇怪上班族",
+          "_review": "★★★ 张尘开场 persona 仅供工程落地，需人裁复核声纹。",
+          "constraints": [
+            "二十出头、笑容干净，吊儿郎当里带一点被罚完成任务的尴尬。",
+            "能用插科打诨消解紧张，但被追问深处时只打太极。",
+            "此刻只承认打赌输了，不解释更深背景。",
+            "搭讪失败后仍想请喝东西把任务圆过去，不能停在原地发呆。"
+          ],
+          "inner_state": {
+            "want_now": "赶紧把这场丢人的大冒险糊弄过去，最好还能请她们喝点什么，别让任务彻底泡汤。",
+            "knot": "笑得越自然，越不想让陌生人看见自己被谁牵着走。",
+            "unsaid": "魏初说过会全程注视；他知道这趟丢人差事很可能正被她当乐子看。若另有玩家目光，只能由当拍现场感知另行投递。",
+            "stance_to_player": "若你干预，他先用玩笑挡开；若你旁观太久，他会主动把你叫出来。"
+          },
+          "scene_working_memory": {
+            "scene_uid": "C16_GATE_CONTACT",
+            "goals": [
+              "完成魏初给的大冒险：向十六中女生搭话、请布丁，之后还要去十字路口唱歌。",
+              "让魏初痛快一次，争取尽快转正。"
+            ],
+            "commitments": [
+              "魏初在场前晃着他的肩膀说过“好好干啊我会全程注视你”；他知道这场差事可能正在被她看着。"
+            ],
+            "unresolved_topics": [
+              "怎样把笨拙的搭话和请布丁完成，又不把深层背景说给陌生人听。"
+            ],
+            "body_state": "领带没扎好，刚硬着头皮靠近两名女生，笑容里有明显的尴尬。",
+            "source": {
+              "event_uid": "E015-04",
+              "canon_src": "source/novel_1-69.md:L4615-L4626",
+              "adaptation_kind": "paraphrase"
+            }
+          },
+          "phase_voice_profile": {
+            "phase": "ch15_school_gate",
+            "source_event": "E015-04",
+            "canon_src": "source/novel_1-69.md:L4615-L4634",
+            "positive_patterns": [
+              "笨拙但真诚地用短句搭话；问完才后知后觉地察觉自己的问题不太妥当。",
+              "用一点自嘲收场，但不把尴尬包装成夸张段子或社交表演。",
+              "被追问理由时先收住玩笑，现实地回应眼前任务，不替自己补写额外身世。"
+            ],
+            "avoid_phrases": [
+              "耳朵尖",
+              "知音",
+              "临时演员",
+              "尴尬日子说得有意思"
+            ],
+            "disclosure_limit": "只承认打赌输掉和眼前任务；不补写这段原著未交代的理由或身世。"
+          },
+          "slow_memory_activation_cues": {
+            "苏颖最后来电/坠楼": [
+              "电话",
+              "铃",
+              "雨"
+            ],
+            "41": [
+              "白光",
+              "封闭",
+              "房间",
+              "纸页",
+              "出口"
+            ],
+            "39": [
+              "笑声",
+              "女孩",
+              "朋友"
+            ]
+          },
+          "boundaries": {
+            "hard": [
+              "深层计划",
+              "被带走的过去",
+              "旧校伤口"
+            ],
+            "soft": [
+              "为什么来十六中",
+              "暗处女人是谁"
+            ],
+            "style": "干净笑容、吊儿郎当、话里有话；被撬深处只打太极。",
+            "voice_samples": [
+              "讲道理，我看起来有那么像坏人吗？",
+              "打赌输了，出来丢人现眼，这解释够朴素了吧。"
+            ]
+          },
+          "voice_samples": [
+            {
+              "text": "请问你们是高中生么？",
+              "provenance": {
+                "source_kind": "canon_quote",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4625",
+                "source_ch": 15,
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "adaptation_kind": "direct_quote",
+                "confidence": "high"
+              }
+            },
+            {
+              "text": "这样啊，那你们平时几点放学？",
+              "provenance": {
+                "source_kind": "canon_quote",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4633",
+                "source_ch": 15,
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "adaptation_kind": "direct_quote",
+                "confidence": "high"
+              }
+            }
+          ]
+        },
+        "C.banbo.WMAIN": {
+          "name": "敖斑驳",
+          "_alias_visible": "染异色头发的假小子女生",
+          "constraints": [
+            "天津十六中女生，假小子、毒舌吐槽役，被同伴叫“斑爷”但嘴上嫌弃这称呼。",
+            "对雨璇有笨拙的保护欲；真出事时会先确认她想怎么做，再自己决定怎样帮。",
+            "刚躲过陌生男人的搭讪，此刻应警惕、吐槽、嘴硬，而不是热络社交。",
+            "此刻只把对方当个奇怪的成年人；不认识你，除非你干预时搭话。"
+          ],
+          "inner_state": {
+            "want_now": "赶紧离开校门口，买杯喝的压惊，别再被奇怪大人缠上。",
+            "knot": "嘴硬心软，刚放松一点，仍拉着雨璇不放。",
+            "unsaid": "她也觉得那男人不像纯坏人，但更怕雨璇心软惹麻烦。",
+            "stance_to_player": "对突然冒出来的你先是警惕打量、毒舌两句；你要真帮上忙，会别扭地认。"
+          },
+          "boundaries": {
+            "hard": [],
+            "soft": [
+              "家里事",
+              "被叫斑爷"
+            ],
+            "style": "毒舌、反问、翻白眼带过，护短时会突然认真。",
+            "voice_samples": [
+              "该不会是头脑故障吧，这大哥想要干什么？",
+              "你脑子没问题吧，委托？我们是少年侦探团么？"
+            ]
+          },
+          "voice_samples": [
+            {
+              "text": "不要。我们去买饮料喝吧，渴死了，今天作业还写不完呢。",
+              "provenance": {
+                "source_kind": "director_adaptation",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4651-L4652",
+                "source_ch": 15,
+                "speaker_cons": "C.banbo.WMAIN",
+                "adaptation_kind": "paraphrase",
+                "confidence": "high"
+              }
+            },
+            {
+              "text": "额呵呵，好巧哦。这世界可真小。",
+              "provenance": {
+                "source_kind": "director_adaptation",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4668",
+                "source_ch": 15,
+                "speaker_cons": "C.banbo.WMAIN",
+                "adaptation_kind": "paraphrase",
+                "confidence": "high"
+              }
+            }
+          ]
+        },
+        "C.yuxuan.WMAIN": {
+          "name": "潘雨璇",
+          "_alias_visible": "扎着马尾的女生",
+          "constraints": [
+            "天津十六中女生，天真热心、爱脑补委托，其实理智敏锐、善观察。",
+            "善良、面善，愿意搭理陌生人；会拆穿斑驳的嘴硬。",
+            "刚被搭讪吓到过，此刻应余悸未消、好奇里带害怕，不能一上来就像老朋友。",
+            "此刻只把对方当个奇怪但面善的上班族；不认识你。"
+          ],
+          "inner_state": {
+            "want_now": "先确认刚才那个怪人没再跟来，再考虑要不要买喝的。",
+            "knot": "热心归热心，刚放松下来仍需要斑驳陪着。",
+            "unsaid": "她隐约觉得那男人不像坏人、像有心事，但没往深里想。",
+            "stance_to_player": "对你比张尘更不设防，但仍会先观察你是不是来解围的。"
+          },
+          "boundaries": {
+            "hard": [],
+            "soft": [
+              "父亲的事"
+            ],
+            "style": "热络、爱接话、爱推理脑补；慌起来语无伦次。",
+            "voice_samples": [
+              "啊嗯，是高中。",
+              "不知道啊，不过感觉他好像有什么事要说，该不会是委托？"
+            ]
+          },
+          "voice_samples": [
+            {
+              "text": "这算是，偶遇么？",
+              "provenance": {
+                "source_kind": "canon_quote",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4666",
+                "source_ch": 15,
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "adaptation_kind": "direct_quote",
+                "confidence": "high"
+              }
+            },
+            {
+              "text": "别这么吐槽啦，斑爷，你其实也一直期待不是么。",
+              "provenance": {
+                "source_kind": "canon_quote",
+                "event_uid": "E015-04",
+                "canon_src": "source/novel_1-69.md:L4641",
+                "source_ch": 15,
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "adaptation_kind": "direct_quote",
+                "confidence": "high"
+              }
+            }
+          ]
+        }
+      }
+    },
+    "wline_weichu": {
+      "_target": "runtime/free_stage_card_16zhong_weichu_gate.json",
+      "entry_projection": {
+        "context_memory": [
+          "张尘被罚到十六中门口搭讪；你跟魏初来看他出丑，不是校友盯梢。"
+        ],
+        "relationship_memory": [
+          "你与魏初是同事兼看戏同盟；张尘仍是你部门那个贫嘴新人。"
+        ]
+      },
+      "scene_id": "CARD_16ZHONG_WEICHU_GATE",
+      "ch_anchor": 15,
+      "clock": "16:55",
+      "entry_hook": "放学铃散在风里。你和魏初站在稍远的地方，看张尘揣着大冒险任务往校门口走——她说会全程注视，不是说说而已。",
+      "blurb": "十六中门口人流渐稀。张尘领带没扎好，堆着干净得过头的笑，拦住两个背书包的女生问话；魏初在暗处憋着笑，肩膀一抖一抖。",
+      "present": [
+        "C.weichu.WMAIN",
+        "C.zhangchen.WMAIN"
+      ],
+      "director_only_characters": [
+        "敖斑驳",
+        "潘雨璇"
+      ],
+      "current_event_terms": [
+        "十六中",
+        "搭讪",
+        "大冒险",
+        "看戏",
+        "奶茶店"
+      ],
+      "scene_source_excerpt": {
+        "_note": "化用 E015-04；与 CARD_16ZHONG_GATE 物理同场、另 view，不改阿棠卡文案。",
+        "校门口搭讪": "下班后十六中门口。张尘堆着干净笑容拦住两个背书包女生：请问你们是高中生么，平时几点放学——问完自己脸都挂不住。女生快走，一个嘀咕头脑故障，一个疑委托。",
+        "暗处注视": "街对面魏初躲着看，肩膀抖，极力憋笑。我会全程注视你不是说说。",
+        "转向奶茶店": "搭讪砸了。张尘转身钻进旁边奶茶店，点了岩盐芝士绿茶少冰，像要用一杯饮料把丢脸冲淡。"
+      },
+      "ambient_stage": {
+        "校门口": "铁栏杆、校服人流和放学铃声混在一起。",
+        "暗处": "街对面树影里，魏初憋着笑，刻意压低声音。",
+        "奶茶店方向": "玻璃门上映路灯，奶香飘出来。"
+      },
+      "memory_layers": {
+        "context_memory": [
+          "张尘午休抽鬼连输，被罚到十六中门口搭讪女生。",
+          "你跟魏初在稍远/暗处看戏，不是校友身份。",
+          "两个高中女生被吓到绕开，张尘脸挂不住。"
+        ],
+        "relationship_memory": [
+          "你与魏初是同事，此刻一起看张尘出丑。",
+          "张尘仍是你部门新人，彼此已见过几天。"
+        ],
+        "knowledge_gate": [
+          "【此刻知道·可自然谈】张尘被罚搭讪、魏初在看戏、两个高中女生被吓到绕开。",
+          "【身份口径】你是跟上司看热闹的同事，不是校友盯梢；女生姓名与来历此刻不知。",
+          "【自然不谈】两个孩子真名、深层来历、阿棠线细节——此刻只是路人女生。"
+        ]
+      },
+      "must_happen": [
+        {
+          "id": "WZG1",
+          "desc": "你与魏初在暗处或稍远位置，看张尘走向十六中门口执行大冒险。",
+          "evidence": "编·在场框",
+          "frame_beat": [
+            "GATE1"
+          ]
+        },
+        {
+          "id": "WZG2",
+          "desc": "张尘笨拙搭讪两个女生，女生绕开；搭讪彻底砸了。",
+          "evidence": "E015-04",
+          "frame_beat": [
+            "GATE2"
+          ]
+        },
+        {
+          "id": "WZG3",
+          "desc": "搭讪失败后张尘往旁边奶茶店去；你可插话解围或继续只看。",
+          "evidence": "E015-04/05",
+          "after": [
+            "WZG2"
+          ],
+          "frame_beat": [
+            "GATE3"
+          ]
+        }
+      ],
+      "branch_points": [
+        {
+          "id": "intervene",
+          "trigger": "你上前插话、拦住、替女生解围或明确制止骚扰。",
+          "keywords": {
+            "positive": [
+              "上前",
+              "拦住",
+              "解围",
+              "插话",
+              "护着",
+              "制止",
+              "别骚扰"
+            ],
+            "negative": [
+              "旁观",
+              "只看",
+              "远远",
+              "看戏",
+              "不插话"
+            ]
+          }
+        },
+        {
+          "id": "watch",
+          "trigger": "你没有上前，只跟魏初继续看戏。",
+          "keywords": {
+            "positive": [
+              "旁观",
+              "只看",
+              "远远",
+              "看戏",
+              "不插话",
+              "跟着看"
+            ],
+            "negative": [
+              "上前",
+              "拦住",
+              "解围",
+              "插话",
+              "制止"
+            ]
+          }
+        }
+      ],
+      "branch_rules": {
+        "intervene": [
+          "intervene"
+        ],
+        "watch": [
+          "watch"
+        ]
+      },
+      "exits": [
+        {
+          "target_card": "runtime/free_stage_card_milktea_weichu.json",
+          "trigger": "WZG1-WZG3 全齐后，张尘钻进奶茶店，你跟魏初或张尘过去。",
+          "exit_state": "to_milktea",
+          "bridge_hint": "张尘端着岩盐芝士绿茶往奶茶店钻；魏初从暗处出来，示意你也跟上去看下一出。"
+        }
+      ],
+      "locks": [
+        "斑驳、雨璇只由导演叙述，不开 actor，不进 persona_cards。",
+        "不改 CARD_16ZHONG_GATE 文案；物理同场、魏初侧另卡。",
+        "张尘不暴露深层计划；龙也玩家说出口必须被吞没。",
+        "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon。"
+      ],
+      "persona_cards": {
+        "C.weichu.WMAIN": {
+          "name": "魏初",
+          "constraints": [
+            "看戏心态，憋笑但维持主管体面。",
+            "全程注视张尘，偶尔低声点评。",
+            "对同事可直接说话，不必装陌生。"
+          ],
+          "inner_state": {
+            "want_now": "看张尘把大冒险做完，别真惹出事。",
+            "knot": "憋笑憋得肩膀发抖，仍要装严肃。",
+            "unsaid": "她也需要这种荒唐把心事压一压。",
+            "stance_to_player": "把你当看戏同盟；会低声说闲着也可以看戏。"
+          },
+          "boundaries": {
+            "hard": [
+              "亡夫真相",
+              "龙也假死"
+            ],
+            "soft": [
+              "家庭旧事"
+            ],
+            "style": "低声吐槽、憋笑、关键时刻仍护短。",
+            "voice_samples": [
+              "有趣的事可不是天天有。",
+              "闲着也可以看戏。"
+            ]
+          },
+          "voice_samples": [
+            "好好干啊，我会全程注视你——可不是说说。",
+            "啧，脸都挂不住了还硬撑。"
+          ]
+        },
+        "C.zhangchen.WMAIN": {
+          "name": "张尘",
+          "constraints": [
+            "被罚大冒险，笑容干净但尴尬。",
+            "搭讪失败后仍想请喝东西圆场。",
+            "知道魏初在暗处看，装作没发现。",
+            "对同事可直接称呼，想拉近时会多接两句。"
+          ],
+          "phase_voice_profile": {
+            "phase": "ch15_school_gate",
+            "source_event": "E015-04",
+            "canon_src": "source/novel_1-69.md:L4615-L4634",
+            "positive_patterns": [
+              "笨拙但真诚地短句搭话；问完才后知后觉地发现问题不妥。",
+              "承认赌约和任务，用有限自嘲收场，不把尴尬演成社交表演。",
+              "知道魏初在看也只是硬着头皮完成眼前事。"
+            ],
+            "avoid_phrases": [
+              "耳朵尖",
+              "知音",
+              "临时演员",
+              "尴尬日子说得有意思"
+            ],
+            "disclosure_limit": "只承认打赌输掉和眼前任务；不补写这段原著未交代的理由或身世。"
+          },
+          "inner_state": {
+            "want_now": "把搭讪和请布丁两关糊弄过去。",
+            "knot": "笑得越自然越丢脸。",
+            "unsaid": "他感觉背后有人在笑。",
+            "stance_to_player": "已当你是同事；你若解围他会直呼道谢，若只看他会装作不知道。"
+          },
+          "boundaries": {
+            "hard": [
+              "深层计划",
+              "被带走的过去"
+            ],
+            "soft": [
+              "为什么来十六中"
+            ],
+            "style": "干净笑容、吊儿郎当、话里有话。",
+            "voice_samples": [
+              "讲道理，我看起来有那么像坏人吗？",
+              "这样啊，那你们知道平时几点放学么？"
+            ]
+          },
+          "voice_samples": [
+            "请问你们是高中生么？",
+            "那个，不好意思请问，请问你们是高中生么？"
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>内核验收台 · 中心医院帧</title>
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #101114;
+  --panel: #191b20;
+  --panel-2: #22262d;
+  --line: #363c45;
+  --text: #f0eee7;
+  --muted: #aeb4bd;
+  --green: #48d18a;
+  --yellow: #f1c84b;
+  --red: #f06b6b;
+  --blue: #77b7ff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+}
+
+main {
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 28px 0 40px;
+}
+
+header {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 18px;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(26px, 4vw, 42px);
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+
+h2, h3, p { margin: 0; }
+
+.subhead {
+  color: var(--muted);
+  max-width: 900px;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 16px 0 22px;
+}
+
+button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:hover { border-color: var(--blue); }
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.summary-item, .card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.summary-item {
+  padding: 12px;
+}
+
+.summary-label {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.summary-value {
+  margin-top: 4px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 14px;
+}
+
+.card {
+  min-height: 360px;
+  overflow: hidden;
+}
+
+.card-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  background: #20232a;
+}
+
+.card-title {
+  display: grid;
+  gap: 3px;
+}
+
+.card-title h2 {
+  font-size: 18px;
+}
+
+.kernel-id {
+  color: var(--muted);
+  font: 12px/1.3 Consolas, "JetBrains Mono", monospace;
+}
+
+.badge {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 1px solid rgba(72, 209, 138, 0.4);
+  color: var(--green);
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.card-body {
+  display: grid;
+  gap: 12px;
+  padding: 14px 16px 16px;
+}
+
+.section {
+  display: grid;
+  gap: 6px;
+}
+
+.label {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.mono {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #111318;
+  padding: 10px;
+  font: 12px/1.55 Consolas, "JetBrains Mono", monospace;
+  white-space: pre-wrap;
+}
+
+.list {
+  display: grid;
+  gap: 6px;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 5px;
+}
+
+.row span:first-child { color: var(--muted); }
+.ok { color: var(--green); }
+.warn { color: var(--yellow); }
+.bad { color: var(--red); }
+.blue { color: var(--blue); }
+
+@media (max-width: 680px) {
+  main { width: min(100% - 20px, 1180px); padding-top: 18px; }
+  .card { min-height: auto; }
+}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>内核验收台 · 中心医院帧</h1>
+    <p class="subhead">V1 立即验收面：不接引擎，不改正典，只用医院共享物理帧和合成证据展示五个红闸的 worked example。</p>
+  </header>
+
+  <section class="summary" aria-label="验收摘要">
+    <div class="summary-item">
+      <div class="summary-label">场景</div>
+      <div class="summary-value">中心医院</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">帧窗</div>
+      <div class="summary-value">19:00-23:59</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">红闸</div>
+      <div class="summary-value"><span id="passedCount">0</span>/5</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">人裁推荐已采用</div>
+      <div class="summary-value">D→A→C→B</div>
+    </div>
+  </section>
+
+  <div class="toolbar">
+    <button type="button" id="rerunButton">重新演算</button>
+    <span class="kernel-id">同源内核：card_frame_projection / beat_ledger / world_calendar / offscreen_tick / heart_gate</span>
+  </div>
+
+  <section id="cards" class="grid" aria-label="红闸 worked examples"></section>
+</main>
+
+<script>
+const frame = {
+  id: "zhongxin_hospital_shared_ch16_ch17",
+  scene: "中心医院",
+  window: { start: "19:00", end: "23:59" },
+  physicalBeats: ["BE1", "BE2", "BE3", "BE4", "BE5", "BE6", "BE7", "BE8", "BE9"],
+  views: {
+    aline: {
+      clock: "22:40",
+      must: [
+        { id: "HP1", frame_beat: ["BE1"], desc: "急诊大厅与晴明伤势" },
+        { id: "HP2", frame_beat: ["BE4"], desc: "真纪赶到抱住修哉" },
+        { id: "HP3", frame_beat: ["BE5"], desc: "修哉装失忆挡住问询" },
+        { id: "HP4", frame_beat: ["BE7"], desc: "雨璇认出登记名" },
+        { id: "HP5", frame_beat: ["BE8"], desc: "张尘索款与密码 241172" }
+      ]
+    },
+    line_16zhong: {
+      clock: "19:20",
+      must: [
+        { id: "ZH1", frame_beat: ["BE1"], desc: "急诊大厅人满为患" },
+        { id: "ZH2", frame_beat: ["BE2"], desc: "潘父虚惊现身" },
+        { id: "ZH3", frame_beat: ["BE3"], desc: "头缠纱布青年在手术室外" },
+        { id: "ZH4", frame_beat: ["BE4", "BE5"], desc: "日语一行人赶到，修哉装失忆" },
+        { id: "ZH5", frame_beat: ["BE6"], desc: "银发伤员被推出手术室" },
+        { id: "ZH6", frame_beat: ["BE9"], desc: "电梯间侦探搭档成立" },
+        { id: "ZH7", frame_beat: [], desc: "纯视角收口项，永不折叠" }
+      ],
+      directorOnly: ["折原修哉", "坂本晴明", "折原真纪", "川口秋人", "魏初", "吴叔"]
+    }
+  }
+};
+
+function minutes(value) {
+  const [h, m] = String(value || "00:00").split(":").map(Number);
+  return h * 60 + m;
+}
+
+function timeKey(cursor) {
+  return [Number(cursor.ch_anchor || 0), minutes(cursor.world_clock)];
+}
+
+function isForward(oldCursor, newCursor) {
+  const a = timeKey(oldCursor);
+  const b = timeKey(newCursor);
+  return b[0] > a[0] || (b[0] === a[0] && b[1] >= a[1]);
+}
+
+function enterCard(cursor, clock, window) {
+  const lo = minutes(window.start);
+  const hi = minutes(window.end);
+  const cardInWindow = lo <= minutes(clock) && minutes(clock) <= hi;
+  const cursorInSpan = lo <= minutes(cursor.world_clock) && minutes(cursor.world_clock) <= hi;
+  if (!cardInWindow || !cursorInSpan) throw new Error("clock 不在入场窗");
+  return { ...cursor };
+}
+
+function beatKey(frameId, beatId) {
+  return `${frameId}::${beatId}`;
+}
+
+function markDone(ledger, run, frameId, beatIds) {
+  const bucket = ledger[String(run)] ||= [];
+  for (const beatId of beatIds) {
+    const key = beatKey(frameId, beatId);
+    if (!bucket.includes(key)) bucket.push(key);
+  }
+  return ledger;
+}
+
+function completedBeats(ledger, run, frameId) {
+  const prefix = `${frameId}::`;
+  return new Set((ledger[String(run)] || []).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length)));
+}
+
+function itemFolds(item, done) {
+  const beats = item.frame_beat;
+  if (!beats || beats.length === 0) return false;
+  return beats.every(beat => done.has(beat));
+}
+
+function resolveView(viewId, ledger, run) {
+  const done = completedBeats(ledger, run, frame.id);
+  const live = [];
+  const folded = [];
+  for (const item of frame.views[viewId].must) {
+    (itemFolds(item, done) ? folded : live).push(item);
+  }
+  return { live, folded };
+}
+
+function dueEvents(schedule, fromCursor, toCursor) {
+  if (!isForward(fromCursor, toCursor)) throw new Error("离屏 tick 不允许游标倒退");
+  const lo = timeKey(fromCursor);
+  const hi = timeKey(toCursor);
+  return schedule.filter(event => {
+    const key = [event.ch_anchor, minutes(event.clock)];
+    const afterLo = key[0] > lo[0] || (key[0] === lo[0] && key[1] > lo[1]);
+    const beforeHi = key[0] < hi[0] || (key[0] === hi[0] && key[1] <= hi[1]);
+    return afterLo && beforeHi;
+  });
+}
+
+function isVisible(event, playerCursor, channels = new Set()) {
+  if (event.learn_ch === undefined) return false;
+  if (Number(event.learn_ch) > Number(playerCursor.ch_anchor || 0)) return false;
+  return !event.channel || channels.has(event.channel);
+}
+
+function heartEvaluate(table, currentStage, evidence) {
+  const qualified = highestQualified(table, evidence);
+  if (qualified < currentStage) return qualified;
+  return Math.min(currentStage + 1, qualified);
+}
+
+function highestQualified(table, evidence) {
+  let stage = 0;
+  for (const key of Object.keys(table.stages).sort((a, b) => Number(a) - Number(b))) {
+    const gate = table.stages[key];
+    const req = gate.requires;
+    const attended = evidence.attended.has(req.trough_event_uid);
+    const tags = evidence.action_tags[req.trough_event_uid] || new Set();
+    const hitCount = req.action_features.filter(tag => tags.has(tag)).length;
+    const closed = gate.closes_on.some(tag => evidence.violations.has(tag));
+    if (attended && hitCount >= (req.min_features || 1) && !closed) stage = Number(key);
+    else break;
+  }
+  return stage;
+}
+
+const demos = [
+  {
+    id: "card_frame_projection",
+    title: "P0 帧卡投影",
+    kernel: "scripts/generate_view_cards.py + test_frame_card_projection.py",
+    run() {
+      const beatIds = new Set(frame.physicalBeats);
+      const referenced = new Set();
+      for (const view of Object.values(frame.views)) {
+        for (const item of view.must) {
+          if (!Array.isArray(item.frame_beat)) throw new Error(`${item.id} 缺 frame_beat`);
+          for (const beat of item.frame_beat) {
+            if (!beatIds.has(beat)) throw new Error(`${item.id} 引用不存在 beat ${beat}`);
+            referenced.add(beat);
+          }
+        }
+      }
+      const ghosts = [...beatIds].filter(beat => !referenced.has(beat));
+      return {
+        pass: ghosts.length === 0,
+        rows: [
+          ["帧", `${frame.scene} / ${frame.id}`],
+          ["视角", Object.keys(frame.views).join(" + ")],
+          ["物理 beat", `${frame.physicalBeats.length} 个，幽灵 ${ghosts.length} 个`],
+          ["投影纪律", "旧路径是机器投影，勿手改"]
+        ],
+        detail: JSON.stringify({ clock_window: frame.window, referenced: [...referenced].sort() }, null, 2)
+      };
+    }
+  },
+  {
+    id: "beat_ledger",
+    title: "P5 跨帧记账",
+    kernel: "runtime/beat_ledger.py",
+    run() {
+      const ledger = {};
+      markDone(ledger, 1, frame.id, ["BE1", "BE4", "BE5"]);
+      const view = resolveView("line_16zhong", ledger, 1);
+      const pureViewLive = view.live.some(item => item.id === "ZH7");
+      return {
+        pass: view.folded.map(item => item.id).join(",") === "ZH1,ZH4" && pureViewLive,
+        rows: [
+          ["已发生", ledger["1"].join(", ")],
+          ["折叠", view.folded.map(item => item.id).join(", ") || "无"],
+          ["仍需演", view.live.map(item => item.id).join(", ")],
+          ["纯视角项", pureViewLive ? "ZH7 仍保留" : "错误折叠"]
+        ],
+        detail: view.folded.map(item => item.desc).join("\n")
+      };
+    }
+  },
+  {
+    id: "world_calendar",
+    title: "P3 世界日历",
+    kernel: "runtime/world_calendar.py",
+    run() {
+      const cursor = { ch_anchor: 17, world_clock: "22:40", run: 1, worldline: "WMAIN" };
+      const afterEarlierCard = enterCard(cursor, "19:20", frame.window);
+      const run2 = { ...cursor, run: 2 };
+      const sameTimeKey = JSON.stringify(timeKey(cursor)) === JSON.stringify(timeKey(run2));
+      const noRollback = JSON.stringify(afterEarlierCard) === JSON.stringify(cursor);
+      return {
+        pass: sameTimeKey && noRollback,
+        rows: [
+          ["当前游标", `${cursor.ch_anchor} / ${cursor.world_clock} / run=${cursor.run}`],
+          ["进 19:20 视角", noRollback ? "不回写、不倒退" : "发生倒退"],
+          ["run 正交", sameTimeKey ? "run 不进 time_key" : "run 污染时间轴"],
+          ["人裁推荐", "E016 车祸起点入库后收窄帧窗"]
+        ],
+        detail: JSON.stringify({ before: cursor, after_enter_19_20: afterEarlierCard, time_key: timeKey(cursor) }, null, 2)
+      };
+    }
+  },
+  {
+    id: "offscreen_tick",
+    title: "P5 离屏推进",
+    kernel: "runtime/offscreen_tick.py",
+    run() {
+      const schedule = [
+        { event_uid: "E018-魏初家", ch_anchor: 18, clock: "20:10", learn_ch: 18, channel: "met_in_person", desc: "魏初家段" },
+        { event_uid: "E0XX-龙也真相", ch_anchor: 50, clock: "21:00", learn_ch: 60, desc: "龙也假死真相，导演-only" }
+      ];
+      const fired = dueEvents(schedule, { ch_anchor: 17, world_clock: "22:40" }, { ch_anchor: 50, world_clock: "21:30" });
+      const playerCursor = { ch_anchor: 18, world_clock: "20:30" };
+      const visible = fired.filter(event => isVisible(event, playerCursor, new Set(["met_in_person"])));
+      const hidden = fired.filter(event => !isVisible(event, playerCursor, new Set(["met_in_person"])));
+      return {
+        pass: visible.length === 1 && hidden.length === 1 && hidden[0].learn_ch === 60,
+        rows: [
+          ["本次触发", fired.map(event => event.event_uid).join(", ")],
+          ["玩家可知", visible.map(event => event.event_uid).join(", ")],
+          ["导演-only", hidden.map(event => event.event_uid).join(", ")],
+          ["渗漏免疫", "learn_ch > 当前章绝不泄"]
+        ],
+        detail: JSON.stringify({ visible, director_only: hidden }, null, 2)
+      };
+    }
+  },
+  {
+    id: "heart_gate",
+    title: "P6 心房阶闸",
+    kernel: "runtime/heart_gate.py",
+    run() {
+      const table = {
+        stages: {
+          1: {
+            requires: { trough_event_uid: "E016-09", presence: true, action_features: ["kept_secret", "silent_company"], min_features: 1 },
+            closes_on: ["interrogate_wound", "betrayal", "transactional"]
+          },
+          2: {
+            requires: { trough_event_uid: "E017-01", presence: true, action_features: ["stayed_after_truth"], min_features: 1 },
+            closes_on: ["interrogate_wound", "betrayal", "transactional"]
+          }
+        }
+      };
+      const wordsOnly = { attended: new Set(), action_tags: {}, violations: new Set() };
+      const realEvidence = {
+        attended: new Set(["E016-09"]),
+        action_tags: { "E016-09": new Set(["kept_secret"]) },
+        violations: new Set()
+      };
+      const closed = {
+        attended: new Set(["E016-09"]),
+        action_tags: { "E016-09": new Set(["kept_secret"]) },
+        violations: new Set(["interrogate_wound"])
+      };
+      const a = heartEvaluate(table, 0, wordsOnly);
+      const b = heartEvaluate(table, 0, realEvidence);
+      const c = heartEvaluate(table, 1, closed);
+      return {
+        pass: a === 0 && b === 1 && c === 0,
+        rows: [
+          ["嘴甜但不在场", `阶 ${a}`],
+          ["在场 + kept_secret", `阶 ${b}`],
+          ["逼问创伤", `回退到阶 ${c}`],
+          ["人裁推荐", "先按 D→A→C→B 填配套表"]
+        ],
+        detail: "判定没有自由文本入口，只读 attended / action_tags / violations。"
+      };
+    }
+  }
+];
+
+function render() {
+  const root = document.querySelector("#cards");
+  root.innerHTML = "";
+  let passed = 0;
+  for (const demo of demos) {
+    const result = demo.run();
+    if (result.pass) passed += 1;
+    const card = document.createElement("article");
+    card.className = "card";
+    card.dataset.kernel = demo.id;
+    card.innerHTML = `
+      <div class="card-head">
+        <div class="card-title">
+          <h2>${demo.title}</h2>
+          <div class="kernel-id">${demo.kernel}</div>
+        </div>
+        <div class="badge ${result.pass ? "ok" : "bad"}">${result.pass ? "PASS" : "FAIL"}</div>
+      </div>
+      <div class="card-body">
+        <div class="section">
+          <div class="label">输入→输出</div>
+          <div class="list">
+            ${result.rows.map(([k, v]) => `<div class="row"><span>${k}</span><strong>${v}</strong></div>`).join("")}
+          </div>
+        </div>
+        <div class="section">
+          <div class="label">worked example</div>
+          <pre class="mono">${result.detail}</pre>
+        </div>
+      </div>
+    `;
+    root.appendChild(card);
+  }
+  document.querySelector("#passedCount").textContent = String(passed);
+}
+
+document.querySelector("#rerunButton").addEventListener("click", render);
+render();
+</script>
+</body>
+</html>

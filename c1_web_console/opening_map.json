@@ -1,0 +1,1728 @@
+{
+  "天安门升旗广场": {
+    "_note": "LEGACY（2026-07-03 冻结）：逐拍回放管线，不修不删，新能力去 runtime/free_stage_prototype.py；理由见 docs/plans/角色活着_simulation_first_长期计划与工作流重构_2026-07-03.md",
+    "blurb": "三月初的清晨，广场上人声鼎沸，国旗在晨光里缓缓升起。",
+    "available_exits": [
+      {
+        "place": "广场旁咖啡厅",
+        "route": "shared",
+        "scene_id": "OPENING_CAFE_001",
+        "ch_anchor": 8,
+        "kind": "agenda_soft_exit"
+      },
+      {
+        "place": "王府井街道",
+        "route": "shared",
+        "scene_id": "OPENING_WANGFUJING_001",
+        "ch_anchor": 10,
+        "kind": "agenda_soft_exit"
+      },
+      {
+        "place": "北京海族馆",
+        "ch_anchor": 10,
+        "scene_id": "OPENING_AQUARIUM_001",
+        "kind": "agenda_soft_exit",
+        "route": "A"
+      }
+    ],
+    "chapters": {
+      "8": {
+        "present": [
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "老姐/女声",
+            "text": "靠，谁叫你偏偏拿着单反！长得高了不起啊，为什么要这么挡住我的视线！",
+            "beat_type": "overhear",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "不行，手冻抖了，抖得厉害，真的没法要了……这下视频真的没法要了啦。",
+            "stage": "亮了亮单反，语气懊恼。",
+            "beat_type": "overhear",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "老姐/女声",
+            "text": "唔，那边的妹子定力不错，拿手机一直录着呢，找她借下视频好了。",
+            "beat_type": "overhear",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "升旗结束，你收起手机，一转身，三个年轻人正站在你身后。",
+            "beat_type": "scene_intro",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "小姐，那个，你手机不错。圆脸，你问人借东西能不能别像拦路采访。",
+            "stage": "他搓着手，先看了看自己的口袋，才把话递出来。",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "能不能不要说这么容易被误会的话？……那个，小姐，不好意思，我表姐真纪个子矮没拍到升旗，你刚才那段视频能不能借我们看一下？",
+            "stage": "一边吐槽同伴，一边故作镇定地补救。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "啧，要么搭把手要么直说不乐意——杵在那儿，问题又不会自己长腿跑了。",
+            "stage": "他偏头去催身边的银发青年。",
+            "beat_type": "normal",
+            "condition": "玩家表示同意、借给他们，或者配合并实质性地接话/回答了关于手机三星像素的问题。",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "视频的事先谢谢你。啊，中文我说得不好。要是听起来唐突，先当成是他太着急了。",
+            "stage": "抓了抓头发，语气很轻，视线却一直留意着你手里的手机和周围的人群。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "locked",
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "一起走也行。那个，我们其实是帮我表姐真纪要个清晰的录像，她个子矮没看到，我录的视频手抖糊了。如果可以的话，能不能把刚才的升旗视频传给我们一份？",
+            "stage": "搓了搓冻红的双手，露出恳求的表情。",
+            "beat_type": "normal",
+            "condition": "玩家表示同意、继续，或者询问关于录像/真纪/老姐的问题。",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "你点头了。手冻僵了吗？不如找个暖和点的地方。",
+            "stage": "你手一滑，他顺手接住手机，在掌心里转了两圈，又稳稳递回给你。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "不用谢，手机也该还你。那个，其实我叫川口秋人。这两位是坂本晴明和折原修哉。真纪姐要是看到视频，大概会立刻问你在哪儿拍的。",
+            "stage": "自我介绍道，顺手指了指身旁的其他两人。",
+            "beat_type": "introduce",
+            "introduces": [
+              "C.akito.WMAIN",
+              "C.kakashi.WMAIN",
+              "C.xiuzai.WMAIN"
+            ],
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "那先找个暖和点的地方吧。真纪姐回消息之前，我们也不能一直站在风里。",
+            "stage": "看了眼手机，又朝广场外的人流示意。",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          }
+        ],
+        "encounters": [
+          {
+            "beat": "三月初清晨的天安门广场，国歌正压着寒风往上走。你举着手机录升旗，指尖冻得发红，注意力却慢慢从旗杆飘向了身边那些陌生人的说话声。",
+            "canon_src": "E008-01",
+            "canon_anchor": "OPENING-E008-01"
+          }
+        ]
+      }
+    }
+  },
+  "北京海族馆": {
+    "blurb": "幽蓝的光影里，水母在玻璃后慢慢呼吸。",
+    "available_exits": [
+      {
+        "place": "人豚共舞表演区",
+        "ch_anchor": 12,
+        "route": "A",
+        "scene_id": "OPENING_DOLPHIN_001",
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "10": {
+        "present": [
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "秋人",
+            "text": "啊，好巧诶！真没想到这么快又见面了。刚才还没来得及好好道谢呢。",
+            "stage": "有些惊喜地打了个招呼。",
+            "beat_type": "normal",
+            "condition": "玩家到达海族馆、表示认出了他们，或者回应了打招呼。",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "确实好巧。不过，这地方比广场暖和多了。",
+            "stage": "朝你笑了笑，点了点头。",
+            "beat_type": "normal",
+            "condition": "玩家回应再遇、评论水族馆或温度，或搭话/评论修哉/秋人/话题。",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "看那边的玻璃缸……",
+            "stage": "指了指水母缸，若有所思。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "这个，可以烹来吃掉么？",
+            "stage": "看着里面奇怪的水母和清道夫，撑了撑眼镜问。",
+            "beat_type": "normal",
+            "condition": "玩家对再遇、温度或水族馆表示回应。",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我不太清楚它的内部构造……不过烤着吃说不定……",
+            "stage": "用日语低声和修哉讨论起来，引得秋人直翻白眼。",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "你们两个，在公共场合能不能讨论点正常的食物啊！太丢脸了……",
+            "stage": "顺势拍了拍额头，叹了口气。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "但是我还是很想问，为什么这边没有高智商的蛤蟆啊。",
+            "stage": "他端着空了的爆米花桶，语气很是遗憾。",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "你是指会算卦的那种么？那也就只有在 NARUTO 里面有吧。还有啊，会说话的大蛇、不带壳的蜗牛、会说话的猩猩，都是不存在的哟。",
+            "stage": "修哉舔了舔手指上的焦糖，斜着眼吐槽。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "其实，给岸本老师当过助手也是真的啦，不过不要说得像我认识真蛤蟆一样啊。",
+            "stage": "圆脸青年尴尬地压低帽檐，连忙分辩。",
+            "beat_type": "normal",
+            "condition": "玩家提到火影、漫画，或者指出秋人是助手/作者相关的话题。",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "不过，那个孩子真的好可爱。",
+            "stage": "顺着他的视线，水池里的海豚正高高跃起，引来观众的一片掌声。",
+            "beat_type": "normal",
+            "pause_after": true,
+            "improv": "anchored",
+            "scene_end": false
+          }
+        ],
+        "encounters": [
+          {
+            "beat": "光线梦幻的水母缸前，游客如织。那三个人正站在这里，像是顺着今天的行程一路逛到了下一站。",
+            "canon_src": "E010-03",
+            "canon_anchor": "OPENING-E010-03"
+          }
+        ]
+      }
+    }
+  },
+  "人豚共舞表演区": {
+    "blurb": "海豚池上方的大屏幕亮起“今日幸运观众”，光标在人群里扫来扫去。",
+    "scene_id": "OPENING_DOLPHIN_001",
+    "available_exits": [
+      {
+        "place": "街角咖啡厅",
+        "route": "A",
+        "scene_id": "OPENING_SHOOTING_001",
+        "ch_anchor": 13,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "12": {
+        "present": [
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "大屏幕打出『今日幸运观众』光标框住你们，伴奏响起。",
+            "stage": "光标在人群中扫来扫去，最后定格。",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "饲养员招手：『请这几位上来，跟我们的明星海豚来一段——人豚共舞！』",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "我问过饲养员了，貌似就是我们跳一个扭扭体操的话，海豚也会跟着一起跳……",
+            "stage": "压低声音解释。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "你们两个像接头暗号的动作是搞什么啊！又不是在做任务说什么耳语啊！",
+            "stage": "压低声音吐槽。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "主持人宣布正式开始，卡卡西被选上台，眼睛亮起来，大幅度扭动，越扭越卖力，浑然忘我。秋人被一把拽过来，身体僵硬地跟着扭。修哉边吃爆米花边配合。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "海豚发出尖锐的叫声，浮出水面，靠着尾巴的力气摆动着身子，引来全场哄笑与掌声。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "眼前这一幕——银发青年忘我热舞，海豚配合尖叫，三人狼狈却默契——你不由自主地举起手机，把这幕录了下来。",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "录像上传爆红，没人会想到，在某条转发的评论区里，有人盯着画面角落那张银发的侧脸，沉默了很久。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": true,
+            "stage": "-"
+          }
+        ],
+        "encounters": [
+          {
+            "beat": "海豚池上方的大屏幕亮起“今日幸运观众”，你们这一片被框住了。",
+            "canon_src": "E012-01",
+            "canon_anchor": "OPENING-E012-01"
+          }
+        ]
+      }
+    }
+  },
+  "王府井街道": {
+    "blurb": "王府井的人潮从商场门口往外涌，真纪约好的会合点却迟迟没有人影。这更像一个短暂停靠的岔口，而不是能一直站着等人的地方。",
+    "available_exits": [
+      {
+        "place": "北京海族馆",
+        "route": "A",
+        "scene_id": "OPENING_AQUARIUM_001",
+        "ch_anchor": 10,
+        "kind": "agenda_soft_exit"
+      },
+      {
+        "place": "天津·真纪家见张尘",
+        "route": "B",
+        "scene_id": "OPENING_TIANJIN_ZHANGCHEN_001",
+        "ch_anchor": 15,
+        "kind": "agenda_soft_exit"
+      },
+      {
+        "place": "十六中校门口",
+        "route": "C",
+        "scene_id": "OPENING_SHILIUZHONG_001",
+        "ch_anchor": 15,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "10": {
+        "present": [
+          "C.player.WMAIN",
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "修哉",
+            "text": "我敢保证真纪姐又把“马上到”说成了一个很宽泛的概念。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "阿哈，那就别站在这里给人潮当路障。她要是真到了，自然会打电话骂秋人，我们先离开这个会合点。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "那总得先动起来吧？真纪姐要追人，总比在这条街上捞针容易。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "海族馆？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "玩家",
+            "text": "",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "真纪的电话仍旧没有打来。王府井的人潮把等待冲得越来越散，继续站在这里已经没有意义，只能先离开这个会合点。",
+            "stage": "离开王府井会合点",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "auto_transition": true
+          }
+        ]
+      }
+    },
+    "scene_id": "OPENING_WANGFUJING_001"
+  },
+  "中心医院合流": {
+    "blurb": "急救室的灯亮着，走廊里三拨人几乎同时赶到。",
+    "scene_id": "OPENING_HOSPITAL_001",
+    "available_exits": [],
+    "chapters": {
+      "16": {
+        "present": [
+          "C.xiuzai.WMAIN",
+          "C.maki.WMAIN",
+          "C.zhangchen.WMAIN",
+          "C.weichu.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "急救室的灯亮着，走廊里弥漫着消毒水的气味。你跟着担架一路跑到这里，看见银发青年被推进手术室。",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "真纪",
+            "text": "不会吧？不会出事对吧。不会出事对不对？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "真纪",
+            "text": "修哉！",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "真纪",
+            "text": "阿修阿修，太好了还活着。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "真纪",
+            "text": "阿修，你没事么？头很疼么，严重么？医生怎么说？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "修哉躺在病床上，手臂缠着绷带。真纪抱住了他，手在发抖。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "卡卡西在手术室里，肋骨骨折。",
+            "text_variants": {
+              "converged": "卡卡西在手术室里，肋骨骨折。",
+              "branched_full": "卡卡西被推进手术区，肋骨骨折，但生命体征还稳着。"
+            },
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "很讽刺对不对，这一次，我",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "啊，对了吴叔。很抱歉，我把你的车……",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "吴夏",
+            "text": "精神损失费。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "你个没有下限的家伙，都说有车险了为什么还让我赔？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "刘云天",
+            "text": "姐夫，你早说过现在不是我说了算，所以这",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "我去找个有电脑的办公室，然后帮我们的晴明君打理一下'后事'。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "警察来问询，修哉装失忆：「脑震荡，全都忘了。」",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          }
+        ]
+      },
+      "17": {
+        "present": [
+          "C.xiuzai.WMAIN",
+          "C.maki.WMAIN",
+          "C.weichu.WMAIN",
+          "C.zhangchen.WMAIN",
+          "C.banbo.WMAIN",
+          "C.yuxuan.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "雨璇在电梯口停住，盯着急救区外的登记名和视频截图，声音发紧：那是……卡卡西？",
+            "text_variants": {
+              "converged": "雨璇在电梯口停住，盯着急救区外的登记名和视频截图，声音发紧：那是……卡卡西？",
+              "branched_full": "雨璇在电梯口停住，盯着急救区外的登记名和视频截图，声音发紧：那是……卡卡西？"
+            },
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "雨璇",
+            "text": "这是……卡卡西？我在视频里见过他。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "斑驳",
+            "text": "（拜托你帮我查一下他）",
+            "beat_type": "overhear",
+            "condition": "玩家选择旁观斑驳与雨璇的互动",
+            "improv": "anchored",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导师",
+            "text": "魏初办完留观手续离开，路人以为他和前女友也差不多，前路也是如此。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导师",
+            "text": "张尘出现在医院走廊，认出了斑驳和雨璇。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "三拨人在急诊走廊几乎同时出现——真纪抱着修哉、雨璇盯着急救区里那个名字、张尘来要钱——所有人都被即将到来的命运缠绕在一起。",
+            "text_variants": {
+              "converged": "三拨人在急诊走廊几乎同时出现——真纪抱着修哉、雨璇盯着急救区里那个名字、张尘来要钱——所有人都被即将到来的命运缠绕在一起。",
+              "branched_full": "三拨人在急诊走廊几乎同时出现——真纪抱着修哉、雨璇盯着急救区里那个名字、张尘来要钱——所有人都被即将到来的命运缠绕在一起。"
+            },
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          }
+        ]
+      }
+    }
+  },
+  "广场旁咖啡厅": {
+    "blurb": "广场旁咖啡厅里，玻璃窗隔开清晨的冷风，真纪的去向和升旗后的余温一起落在桌边。",
+    "scene_id": "OPENING_CAFE_001",
+    "available_exits": [
+      {
+        "place": "王府井街道",
+        "route": "shared",
+        "scene_id": "OPENING_WANGFUJING_001",
+        "ch_anchor": 10,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "8": {
+        "present": [
+          "C.player.WMAIN",
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "真纪说要弥补早上没拍到的升旗，临时去追那位升旗手的后续。几个人便在广场旁的咖啡厅坐下，桌上的热咖啡把刚才的冷风隔开了一点。",
+            "stage": "咖啡厅",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "早上多亏你帮忙。我表姐真纪个子矮，我自己拍的视频又抖得像要把天安门晃走，所以才想跟你借一下画面。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "别把“手抖”说得那么客气。你那段录像看完，我都快相信升旗台会自己跑了。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "不过真要说起来，我们也确实麻烦你了。如果你赶时间，坐到这里就当是中场休息，别被我们拖着走。",
+            "stage": "笑着把杯子推近一点。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "玩家",
+            "text": "",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "修哉。不是假名，也不需要配套树种说明书。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "我是川口秋人。表姐说她一会儿去王府井那边和我们会合，但她跟人跟得很投入，常常说“大概”就等于没有准点。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "那就别在咖啡厅里把早晨耗完了。王府井离这里不远，人多，她真找回来也更容易碰头。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "真纪的电话暂时没有回来。你看了看窗外逐渐热起来的人流，桌边几个人也差不多把杯子收拾起来。",
+            "stage": "窗外的人潮往王府井方向流动。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          }
+        ]
+      },
+      "9": {
+        "present": [
+          "C.player.WMAIN",
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "秋人",
+            "text": "走吧。要是真纪先到了王府井，她一定会反过来埋怨我们坐得太稳。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "那就趁她还没有埋怨之前出发。路上人多，别走散就行。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "他们推开咖啡厅的门。清晨的热气迎面涌来，下一段行程被王府井的人潮接走。",
+            "stage": "离开咖啡厅",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "auto_transition": true
+          }
+        ]
+      }
+    }
+  },
+  "京津高速伏击": {
+    "blurb": "车内，修哉和卡卡西的对话——然后，一声刺耳的刹车划破夜色。",
+    "scene_id": "OPENING_HIGHWAY_001",
+    "available_exits": [
+      {
+        "place": "中心医院合流",
+        "route": "A",
+        "scene_id": "OPENING_HOSPITAL_001",
+        "ch_anchor": 17,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "16": {
+        "present": [
+          "C.xiuzai.WMAIN",
+          "C.kakashi.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "player",
+            "type": "player_choice",
+            "path_id": "B1_dog",
+            "snr_cost": "low",
+            "text": "【车窗外的夜色里，你隐约看到前方有一团黑影在移动——】",
+            "stage": "车内",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false,
+            "choice_prompt": "夜色里，你从后座隐约看到前方路上有一团黑影——"
+          },
+          {
+            "speaker": "修哉",
+            "text": "哇啊！狗！快闪开啊！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "左打轮左打轮啊！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "拉手闸拉手闸啊！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "狗，狗，撞上了么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "不会给人家孩子吓出什么心理阴影吧……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "修哉，抱歉呐。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "这个国家……是我在一味地逃避一些事情，所以变得太敏感。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "虽然不知道那只狗狗是何方神圣，但是……突然很想感谢它一下。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "明显颠簸——爆胎了。",
+            "stage": "车内",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我说……你会换轮胎么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "大货车逆行撞来——！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "修哉",
+            "text": "死定了……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "修哉，下车！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "修哉，下车快点跑啊！",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "player",
+            "type": "player_choice",
+            "path_id": "choiceA_brace",
+            "snr_cost": 0,
+            "text": "【撞击的瞬间，你本能地——】",
+            "stage": "车内",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false,
+            "choice_prompt": "撞击的瞬间，金属尖叫撕裂车厢——你的身体已经悬在半空。"
+          },
+          {
+            "speaker": "导演",
+            "text": "有人扑过来护住司机席——爆炸吞噬整个车厢。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "text_variants": {
+              "converged": "有人扑过来护住司机席——爆炸吞噬整个车厢。",
+              "branched_full": "有人扑过来护住司机席——你最后一个念头是往卡卡西那边扑——然后，火焰。"
+            }
+          },
+          {
+            "speaker": "导演",
+            "text": "卡卡西重伤，陷入昏迷。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": true,
+            "text_variants": {
+              "converged": "卡卡西重伤，陷入昏迷。",
+              "branched_full": "卡卡西……还在微弱地呼吸。肋骨断了，但他在。活着。"
+            }
+          }
+        ],
+        "encounters": [
+          {
+            "beat": "车内，修哉和卡卡西的对话——然后，一声刺耳的刹车划破夜色。",
+            "canon_src": "E016-01~E016-03",
+            "canon_anchor": "OPENING-E016-01"
+          }
+        ]
+      }
+    }
+  },
+  "天津·真纪家见张尘": {
+    "blurb": "真纪家的客厅里，一个陌生青年正在等消息。张尘被临时叫来帮忙，局面却明显已经不是普通接人那么简单了。",
+    "scene_id": "OPENING_TIANJIN_ZHANGCHEN_001",
+    "available_exits": [
+      {
+        "place": "中心医院合流",
+        "route": "B",
+        "scene_id": "OPENING_HOSPITAL_001",
+        "ch_anchor": 17,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "15": {
+        "present": [
+          "C.maki.WMAIN",
+          "C.akito.WMAIN",
+          "C.zhangchen.WMAIN",
+          "C.weichu.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "天津站。傍晚。人群匇匇。秋人拎着单反，真纪提着行李，两人从出站口涌出的人流中挤出来。",
+            "stage": "天津站出口",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "秋人",
+            "text": "比开车那两位快多了……也不知道他们到哪了。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "真纪家的门打开，刘云天迎出来。客厅里还有一个人——坐在沙发上，穿着普通的青年。",
+            "stage": "真纪家客厅",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "刘云天",
+            "text": "这位是小初的同事，张尘。来帮忙的。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "请多指教，我是张尘。初姐让我先过来看看，有什么事随时说。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "玩家",
+            "text": "",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "condition": "玩家第一次见张尘",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "真纪",
+            "text": "云天，医院那边我要去，张尘你先——",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "初姐说了，她去医院，让我在家这边待命。你们要去的话，我可以开车送。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "电话铃声突然响起。魏初的声音从免提里传出。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "魏初",
+            "text": "他们两个都在急救室，伤得不轻。你们尽快过来，地址我发给你们。",
+            "stage": "电话",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "[对电话] 老大你冷静，需要我做什么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "魏初",
+            "text": "[背景音嘈杂] ……先帮我盯着真纪那边，别让她一个人承受。",
+            "stage": "电话",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "张尘挂断电话，看向众人。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true,
+            "pause_after": false
+          }
+        ]
+      }
+    }
+  },
+  "十六中校门口": {
+    "blurb": "放学时分，校门口人来人往。斑驳和雨璇正在聊天，一个银发青年来走过来问路——命运的齿轮开始转动。",
+    "scene_id": "OPENING_SHILIUZHONG_001",
+    "available_exits": [
+      {
+        "place": "等消息去医院",
+        "route": "C",
+        "scene_id": "OPENING_WAIT_HOSPITAL_001",
+        "ch_anchor": 16,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "15": {
+        "present": [
+          "C.zhangchen.WMAIN",
+          "C.banbo.WMAIN",
+          "C.yuxuan.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "十六中校外路口，放学时分。人流涌动，学生三三两两走出校门。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "斑驳",
+            "text": "（和雨璇聊天）等下要去哪？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "雨璇",
+            "text": "（回应斑驳）随便吧……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "你们知道十六中怎么走吗？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "玩家",
+            "text": "",
+            "stage": "旁观位",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "这算是，偶遇么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "我请你们吃布丁，要不要去。拜托你们。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "车祸的消息传来——高速连环车祸，有人重伤。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true,
+            "pause_after": false
+          }
+        ]
+      }
+    }
+  },
+  "等消息去医院": {
+    "blurb": "车祸的消息终于来了。一行人匇匇赶往中心医院——修哉和卡卡西在急救室里生死未卜。",
+    "scene_id": "OPENING_WAIT_HOSPITAL_001",
+    "available_exits": [
+      {
+        "place": "中心医院合流",
+        "route": "C",
+        "scene_id": "OPENING_HOSPITAL_001",
+        "ch_anchor": 17,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "16": {
+        "present": [
+          "C.banbo.WMAIN",
+          "C.yuxuan.WMAIN",
+          "C.zhangchen.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "中心医院急诊大厅。一行人匇匇赶到。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "斑驳",
+            "text": "我爸在急救室……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "玩家",
+            "text": "",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "斑驳在医院找到受伤的修哉和卡卡西。",
+            "stage": "医院走廊",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "所有的卡密码都是241172，虽然都没有多少钱。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "张尘",
+            "text": "不过话说居然都是车祸呢，好巧，该不会是在同一个地方吧。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false
+          },
+          {
+            "speaker": "导演",
+            "text": "魏初赶到医院。斑驳和雨璇被警方问询。",
+            "stage": "医院",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true,
+            "pause_after": false
+          }
+        ]
+      }
+    }
+  },
+  "街角咖啡厅": {
+    "blurb": "春末的傍晚，咖啡厅的露台上啤酒瓶叮当作响。",
+    "scene_id": "OPENING_SHOOTING_001",
+    "available_exits": [
+      {
+        "place": "京津高速",
+        "route": "A",
+        "ch_anchor": 16,
+        "scene_id": "OPENING_HIGHWAY_001",
+        "kind": "agenda_soft_exit"
+      },
+      {
+        "place": "天津·真纪家见张尘",
+        "route": "B",
+        "ch_anchor": 15,
+        "scene_id": "OPENING_TIANJIN_ZHANGCHEN_001",
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "13": {
+        "present": [
+          "C.kakashi.WMAIN",
+          "C.xiuzai.WMAIN",
+          "C.akito.WMAIN",
+          "C.player.WMAIN"
+        ],
+        "dialogue_flow": [
+          {
+            "speaker": "修哉",
+            "text": "被你那优雅的气质吓傻了。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "我说，你这胃口是怎么长的？竟然如此能吃。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "我们还要继续去丢人才好么？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "几句没头没尾的玩笑在桌边撞在一起，咖啡的热气还没散，街口的风却忽然冷了一点。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我们去偷海豚吧。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "那么现在这样呢？我们，一起去拯救被束缚的海豚吧。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "战争中 MIA。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "好了到此为止，就不要再拿我开涮了吧，时候还早我们不如去赶去看个降旗？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "帝都抢购大战，你修行还不够啊少年。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "街边突然传来一声清脆的爆鸣——第一枪。一名少妇头部中弹，鲜血瞬间溅在阳伞上。街道骤然陷入一片死寂。",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "狙击。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "跑！",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "阿修？！哇啊！",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "紧接着是第二枪，击倒了街边的一名围观大叔。人群开始疯狂尖叫奔跑。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "这种熟悉的杀意……是那帮人吗。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我正在做。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "卡卡西感知到杀意，闪避子弹。子弹贴着他的发丝飞过，将身后的雕花铁栏轰然震断。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我，被当做目标？很有可能是，那么绝对不能牵连到旁边的人……",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "对面大厦的十层，有个拿着狙击枪的人。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "修哉抓起面粉袋撒向空气，视野模糊，三人汇合。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "他，套着黑色的头套，我也只能看个轮廓。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "我照下来了，不过，只是轮廓的话也许没什么用吧。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "我已经在这么做了。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "卡卡西用神威折弯狙击手的枪支，狙击手撤退。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "那家伙，居然走了。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "大冷天我居然出了一身汗，也算是不错的精神锻炼了吧。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "那个，你没事吧？刚才有没有被碎片擦到？",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "卡卡西脱下外套披在受惊的路人肩上，确认她没有被碎片伤到。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "修哉",
+            "text": "好了到此为止，具体为什么要丢下你一个人，我们回头再解释行不行。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "修哉看了一眼卡卡西的动作，低声吐槽：「这种时候还演什么言情剧。」",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "秋人",
+            "text": "总觉得，我好像记录下来很多不错的画面，回头当作绘画素材好了。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "卡卡西",
+            "text": "亲热天堂。",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": false,
+            "scene_end": false,
+            "stage": "-"
+          },
+          {
+            "speaker": "导演",
+            "text": "「下一站，你们要去哪里？」",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "scene_end": true,
+            "pause_after": true,
+            "stage": "-"
+          }
+        ],
+        "encounters": [
+          {
+            "beat": "春末傍晚的露天咖啡座上，咖啡的香气还没散去，午后的阳光温暖如初，但危险已经无声降临。",
+            "canon_src": "E013-01~E013-11",
+            "canon_anchor": "OPENING-E013-01"
+          }
+        ]
+      }
+    }
+  }
+}

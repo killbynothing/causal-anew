@@ -1,0 +1,95 @@
+{
+  "scene": "天津的空白日",
+  "scene_id": "OPENING_TIANJIN_PAUSE_001",
+  "ch_anchor": 15,
+  "clock": "16:40",
+  "blurb": "你提前回到天津。没有人替你安排下一站：前一日余下的时间安静过去，第二天下午的街道照常放学、下班、亮起店招。",
+  "present": ["C.player.WMAIN"],
+  "scene_frame": {
+    "where": "天津市区（未指定具体地点）",
+    "when": "升旗翌日下午，十六中放学前",
+    "为什么在这里": "你在升旗后自行结束北京行程，提前回到天津；世界照常推进到第二天下午。",
+    "此刻想要什么": "没有预设任务。你可以停留、离开，或自行决定去哪里。",
+    "关系": "这里不预设你认识任何天津人物，也不把任何人物作为你的目的地。"
+  },
+  "entry_hook": "天津的风比北京软一些。你提前回来了，没人催你去任何地方。隔日午后，远处放学铃声落下，街上的人流开始有了方向。",
+  "memory_layers": {
+    "context_memory": ["你拒绝了海洋馆行程，已自行回到天津。", "北京线人物仍按自己的正典行程推进；你不在场的事不自动变成你的经历。"],
+    "relationship_memory": [],
+    "knowledge_gate": ["【此刻知道·可自然谈】你人在天津，第二天下午接近放学时段。", "【自然不谈】任何未在场人物的姓名、动机、行程与后续事故。"]
+  },
+  "ambient_stage": {
+    "街口": "放学前的路口有人等灯，店门口偶尔响一声取货提示。",
+    "便利店": "玻璃门后有收银台和靠窗的小桌；谁都可以进，也可以不进。",
+    "公交站": "下一班车还没到，站牌下的人各自看着时间。"
+  },
+  "ambient_actor_profiles": [
+    {
+      "profile_id": "street_counter",
+      "public_role": "街口店员",
+      "want_now": "把眼前的单子和找零处理完，尽量别耽误下一位。",
+      "constraints": ["只知道自己所在街区和当下可见的事。", "陌生人的请求可以回答、婉拒或请对方稍等。"],
+      "boundaries": {
+        "hard": [],
+        "soft": ["私人住处", "下班后的安排"],
+        "style": "忙时短答，空下来才会多说；不因为玩家开口就变得熟络。"
+      }
+    }
+  ],
+  "intent_affordances": [
+    {
+      "affordance_id": "wander_tianjin_freely",
+      "goal_key": "wander_or_observe",
+      "description": "玩家想在天津街头随意走走、停留、观察或改变方向；世界提供可见环境，不把选择改写成任务。",
+      "mode": "do_now",
+      "source": "tianjin_leisure_public_space",
+      "score": 5,
+      "visible_reason": "这里没有预设目的地；你可以自己决定接下来往哪儿走。",
+      "storylet": {
+        "entry_conditions": ["player_action_or_speech_is_observable"],
+        "invariants": ["no_auto_quest", "no_canon_character_summon", "thought_does_not_move_body"],
+        "exit_keys": ["continue", "route", "defer"]
+      }
+    },
+    {
+      "affordance_id": "contact_tianjin_ambient_person",
+      "goal_key": "contact_ambient_person",
+      "description": "玩家向眼前可接触的街口店员问路、询问店内情况或自然开口；对方按照自己的工作、边界和当下处境回应。",
+      "target_cons": "$ambient:street_counter",
+      "mode": "negotiate_now",
+      "source": "tianjin_street_counter",
+      "requires_actor_consent": true,
+      "score": 10,
+      "visible_reason": "店员在公共柜台，能听见你；回答、拒绝或请你稍等都由对方决定。",
+      "storylet": {
+        "entry_conditions": ["player_request_is_observable", "public_counter_is_reachable"],
+        "invariants": ["ambient_actor_has_refusal_right", "identity_establishes_only_after_reciprocity", "same_run_same_worldline_only"],
+        "exit_keys": ["accept", "conditional", "refuse", "alternative", "defer"]
+      }
+    }
+  ],
+  "must_happen": [],
+  "exits": [
+    {
+      "target_card": "runtime/free_stage_card_16zhong_gate.json",
+      "trigger": "玩家明确表示前往、路过或想看看天津十六中。",
+      "bridge_hint": "你沿着放学前后的人流走到天津十六中附近。",
+      "entry_context": {
+        "entry_id": "ceremony_return_to_16zhong_gate",
+        "source_opening_id": "aline_tiananmen",
+        "source_line": "line_ceremony",
+        "arrival_reason": "升旗后自行回到天津，翌日下午来到十六中附近。",
+        "public_context": ["从北京提前返津的普通访客", "此刻只是来到学校附近，不预设与现场任何人相识"],
+        "relationship_context": ["未与现场人物建立关系"]
+      }
+    }
+  ],
+  "locks": [
+    "本卡是玩家选择产生的 δ 时间留白，不把返津伪装成原著必经。",
+    "不点名、不暗示十六中现场的人物；地点入口只介绍地点与时间。",
+    "正典人物只有在原著/DB/persona 有到场来源时才出现；不得为了填充闲拍窗口生成其日常习惯。",
+    "环境角色在双方可观察回应前只是临时身体；回应后才在本 run+worldline 建立稳定身份。",
+    "玩家不表达去十六中时不得强制转场。",
+    "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon、分支、节点。"
+  ]
+}

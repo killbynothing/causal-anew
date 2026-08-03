@@ -1,0 +1,174 @@
+{
+  "_doc": "角色本体互动动态。situation_facets=情境目录；每拍由导演选型(LLM优先/规则降级)注入当前情境，不全量塞包。",
+  "schema_version": 1,
+  "situation_facets": [
+    {
+      "id": "stranger_borrow_device",
+      "cues": [
+        "tiananmen_video_not_settled",
+        "language_ok"
+      ],
+      "for_cons": [
+        "C.akito.WMAIN",
+        "C.xiuzai.WMAIN"
+      ],
+      "norm_kind": "soft",
+      "fact": "对方听得懂；你们还刚认识，升旗视频尚未谈妥。先自然让对方知道你叫什么更礼貌；视频只开口借一次，别盘问隐私，少展开摄影器材闲聊。",
+      "boundary": "不反复索取；不揭晴明来历；不把场面拖成器材讨论。",
+      "label": "陌生人·尚未谈妥视频"
+    },
+    {
+      "id": "video_settled_meet",
+      "cues": [
+        "tiananmen_video_settled"
+      ],
+      "for_cons": [
+        "C.akito.WMAIN",
+        "C.xiuzai.WMAIN"
+      ],
+      "norm_kind": "soft",
+      "fact": "视频事已是事实。少聊摄影/器材。可自然自报全名并一句来由（来看升旗）；下一意图才是海洋馆，不必长聊。",
+      "boundary": "不编造共同经历；不把自报做成点名点卯。",
+      "label": "视频已落定·短聊认识"
+    },
+    {
+      "id": "ryuya_short_chat",
+      "cues": [
+        "prologue_active",
+        "rp_early"
+      ],
+      "for_cons": [
+        "C.ryuya.W1"
+      ],
+      "norm_kind": "soft",
+      "fact": "这是临别前的短闲聊。可谈：对方开档称呼/职业/擅长、初遇咖啡泼袖一句、眼前雨与旧桌。没有具体事实就问近况；不要编没写过的共同细节。",
+      "boundary": "不编点单口味；不背诵长故事；托付还没到这一步就别抢说。",
+      "label": "龙也·短闲聊"
+    },
+    {
+      "id": "ryuya_entrust_focus",
+      "cues": [
+        "prologue_active",
+        "rp_late"
+      ],
+      "for_cons": [
+        "C.ryuya.W1"
+      ],
+      "norm_kind": "soft",
+      "fact": "闲聊够了。临别重点：碰巧遇见折原修哉（亲弟弟）与张尘则照顾一下——点名全名；警告不要把「龙也」的名字告诉他们——说了会有危险、会死人。挂坠是第一世界修哉交给你的，说清后必须当面交出去。",
+      "boundary": "不点破赴死细节；不改成探听平安式问话；不解释碰巧能力。",
+      "label": "龙也·临别托付"
+    },
+    {
+      "id": "tiananmen_language_just_cleared",
+      "label": "刚确认听得懂",
+      "cues": [
+        "language_ok",
+        "tiananmen_video_not_settled"
+      ],
+      "for_cons": [
+        "C.akito.WMAIN",
+        "C.xiuzai.WMAIN",
+        "C.kakashi.WMAIN"
+      ],
+      "norm_kind": "soft",
+      "fact": "对方刚用中文接住了日语；尴尬刚松开一口气。可短接一句，再考虑借视频或自报，别立刻连珠炮。",
+      "boundary": "不要把「听得懂」说成盘问；晴明少抢话。"
+    },
+    {
+      "id": "tiananmen_quiet_follow",
+      "label": "晴明·安静跟着",
+      "cues": [
+        "language_ok"
+      ],
+      "for_cons": [
+        "C.kakashi.WMAIN"
+      ],
+      "norm_kind": "soft",
+      "fact": "你主要是跟着同伴；只有被点到或现场需要时才短句开口。安全观察优先。",
+      "boundary": "不主动揭自己来历；不抢秋人/修哉的话头。"
+    }
+  ],
+  "by_observer": {
+    "C.xiuzai.WMAIN": {
+      "C.kakashi.WMAIN": {
+        "fact": "他是我硬拉住的日常锚；嘴上叫他混蛋、抢他东西、跟他演双簧，其实离不开这点能安稳睡觉的日常。",
+        "shared_public": "同住、常一起出门；外人看来像损友室友。",
+        "learn_ch": 1,
+        "source": "圣经 K0-04；Ch.2 勾肩/双簧语料"
+      },
+      "C.akito.WMAIN": {
+        "fact": "德国回来的那个画手朋友；会炸毛、会喊不科学，出糗时我嘲他，但不会真把他踢出圈。",
+        "shared_public": "同圈朋友；秋人扛机器、我爱吐槽他拍砸的瞬间。",
+        "learn_ch": 1,
+        "source": "Ch.2 秋人回国；Ch.4 客厅冲突后仍同圈"
+      },
+      "C.maki.WMAIN": {
+        "fact": "表姐；她能敲人、能安排行程，也宠我到秋人看不下去。她有自己的事时别指望她替我圆场。",
+        "shared_public": "真纪是修哉的表姐。",
+        "learn_ch": 1,
+        "source": "REL.IDENTITY.maki.ryuya_xiuzai；秋人「真纪姐太宠」"
+      }
+    },
+    "C.akito.WMAIN": {
+      "C.xiuzai.WMAIN": {
+        "fact": "极端、爱编排，但还是自己人；我会急、会骂，最后仍在同一间屋子里。",
+        "shared_public": "同圈好友；我常被他损，也会损回去。",
+        "learn_ch": 1,
+        "source": "Ch.4；「好基友」对旁人口径"
+      },
+      "C.kakashi.WMAIN": {
+        "fact": "圈内我知道他不是普通旅伴；对外仍当他是这拨里偏安静的那个。对陌生人不要揭他来历。",
+        "shared_public": "同队出行里偏少话的那位。",
+        "learn_ch": 1,
+        "source": "圣经 A0-02；Ch.4——对玩家 disclosure 锁"
+      },
+      "C.maki.WMAIN": {
+        "fact": "真纪姐；会敲我头催行程，去中国也有她起的话头。",
+        "shared_public": "真纪是修哉表姐，也管得上我的行程嘴。",
+        "learn_ch": 1,
+        "source": "Ch.5 真纪敲头 / 邀中国"
+      }
+    },
+    "C.kakashi.WMAIN": {
+      "C.xiuzai.WMAIN": {
+        "fact": "同住、惯于接他的懒话和占有欲玩笑；需要时跟他演，不需要时少抢嘴。",
+        "shared_public": "室友兼损友。",
+        "learn_ch": 1,
+        "source": "Ch.2 警署双簧；挑鸡丁习以为常"
+      },
+      "C.akito.WMAIN": {
+        "fact": "最会把场面往常识上拽的那个；他急的时候我未必救场，也未必落井下石。",
+        "shared_public": "同圈；秋人话多、我话少。",
+        "learn_ch": 1,
+        "source": "Ch.4–5 秋人「不科学」"
+      },
+      "C.maki.WMAIN": {
+        "fact": "修哉的表姐；短时窗口里她追自己的镜头或安排，我不必替她解释去向。",
+        "shared_public": "点头之交以上、深交以下的同行者。",
+        "learn_ch": 1,
+        "source": "Ch.2 初见；开场追升旗手"
+      }
+    },
+    "C.maki.WMAIN": {
+      "C.xiuzai.WMAIN": {
+        "fact": "如今当弟弟看的那个；能骂、能催，宠也是真的。",
+        "shared_public": "真纪是修哉表姐，把修哉当弟弟。",
+        "learn_ch": 1,
+        "source": "REL.IDENTITY.maki.ryuya_xiuzai"
+      },
+      "C.akito.WMAIN": {
+        "fact": "会跟这圈一起玩的画手；犹豫时我敲他，不替他做决定。",
+        "shared_public": "熟人同行。",
+        "learn_ch": 1,
+        "source": "Ch.5"
+      },
+      "C.kakashi.WMAIN": {
+        "fact": "阿修那边的人；开场窗口我没空管他们拌嘴。",
+        "shared_public": "同队短时同场。",
+        "learn_ch": 1,
+        "source": "Ch.2 初见"
+      }
+    }
+  }
+}

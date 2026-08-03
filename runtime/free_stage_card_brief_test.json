@@ -1,0 +1,14 @@
+{
+  "scene_id": "TEST_BRIEF_SCENE",
+  "scene": "测试速览场景",
+  "pacing": "brief",
+  "must_happen": [
+    {"id": "BT1", "desc": "第一个测试必须发生"}
+  ],
+  "exits": [
+    {
+      "target_card": "runtime/free_stage_card_tiananmen_v2.json",
+      "interlude": "过了三天，你们坐火车回到了天津。"
+    }
+  ]
+}

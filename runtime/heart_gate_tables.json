@@ -1,0 +1,80 @@
+{
+  "pending_human": false,
+  "tables": {
+    "C.xiuzai.WMAIN": {
+      "stages": {
+        "1": {
+          "requires": {
+            "trough_event_uid": "E016-02",
+            "presence": true,
+            "action_features": ["shielded", "silent_company"],
+            "min_features": 1
+          },
+          "closes_on": ["interrogate_wound", "meta_concept", "transactional"]
+        },
+        "2": {
+          "requires": {
+            "trough_event_uid": "E016-09",
+            "presence": true,
+            "action_features": ["kept_secret", "silent_company"],
+            "min_features": 1
+          },
+          "closes_on": ["interrogate_wound", "betrayal", "transactional"]
+        },
+        "3": {
+          "requires": {
+            "trough_event_uid": "E033-01",
+            "presence": true,
+            "action_features": ["stayed_after_truth"],
+            "min_features": 1
+          },
+          "closes_on": ["meta_concept", "betrayal", "pity"]
+        }
+      }
+    },
+    "C.zhangchen.WMAIN": {
+      "stages": {
+        "1": {
+          "requires": {
+            "trough_event_uid": "E015-04",
+            "presence": true,
+            "action_features": ["practical_help", "kept_secret"],
+            "min_features": 1
+          },
+          "closes_on": ["pity", "transactional", "meta_concept"]
+        },
+        "2": {
+          "requires": {
+            "trough_event_uid": "E048-01",
+            "presence": true,
+            "action_features": ["silent_company", "stayed_after_truth"],
+            "min_features": 1
+          },
+          "closes_on": ["betrayal", "transactional", "meta_concept"]
+        }
+      }
+    },
+    "C.kakashi.WMAIN": {
+      "stages": {
+        "1": {
+          "requires": {
+            "trough_event_uid": "E016-03",
+            "presence": true,
+            "action_features": ["shielded", "silent_company"],
+            "min_features": 1
+          },
+          "closes_on": ["interrogate_wound", "meta_concept"]
+        },
+        "2": {
+          "requires": {
+            "trough_event_uid": "E013-02",
+            "presence": true,
+            "action_features": ["stayed_after_truth", "practical_help"],
+            "min_features": 1
+          },
+          "closes_on": ["interrogate_wound", "transactional", "betrayal"]
+        }
+      }
+    }
+  }
+}

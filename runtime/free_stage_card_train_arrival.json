@@ -1,0 +1,104 @@
+{
+  "scene": "天津火车站",
+  "scene_id": "OPENING_TRAIN_ARRIVAL_001",
+  "ch_anchor": 16,
+  "clock": "20:40",
+  "blurb": "火车进站时，天津的夜色刚压下来。你和真纪、秋人刚踏上站台，就接到了京津高速连环事故的消息——修哉和坂本晴明可能就在其中。",
+  "present": [
+    "C.maki.WMAIN",
+    "C.akito.WMAIN",
+    "C.player.WMAIN"
+  ],
+  "current_event_terms": [
+    "火车到站",
+    "天津",
+    "京津高速",
+    "连环事故",
+    "中心医院"
+  ],
+  "scene_frame": {
+    "where": "天津火车站到达站台与出站口",
+    "when": "真纪与秋人按分流安排从北京返津的当晚",
+    "为什么在这里": "修哉安排真纪和秋人坐火车回天津；到站后，秋人接到中心医院来电，得知修哉与坂本晴明卷入京津高速连环事故。",
+    "此刻想要什么": "真纪想确认修哉安危；秋人慌乱地把电话内容说清。两人是否立刻出发各自决定；你也自行决定是否同行。",
+    "关系": "你以同行旅客身份随真纪和秋人返津，不预设认识魏初、张尘或十六中任何人。"
+  },
+  "entry_hook": "列车停稳，站台广播还在报到站。秋人的手机突然响起；他听完几句，脸色一下白了：中心医院说，修哉和坂本晴明在京津高速的连环事故里受了伤。真纪站在原地，手指一下攥紧了行李带。",
+  "memory_layers": {
+    "context_memory": [
+      "你在北京街头狙击后按修哉的分流安排，与真纪和秋人坐火车返回天津。",
+      "火车到站时得知：修哉与坂本晴明在京津高速连环事故中受伤，正在中心医院。",
+      "魏初、张尘及十六中人物各有自己的当日轨迹；在进入医院前，不替玩家预设与他们的关系。"
+    ],
+    "relationship_memory": [
+      "真纪和秋人把你视为刚共同经历危险、又同行返津的人；事故消息已到，三人接下来各自决定怎么走。"
+    ],
+    "knowledge_gate": [
+      "【此刻知道·可自然谈】刚抵达天津、修哉和坂本晴明遭遇高速事故、中心医院来电；真纪和秋人如何行动尚未由任何人代定。",
+      "【自然不谈】事故的具体经过、魏初/张尘是否在医院、任何未来的伤情与调查结果。"
+    ]
+  },
+  "must_happen": [],
+  "autonomous_decisions": [
+    {
+      "decision_id": "maki_after_train_phone",
+      "actor_cons": "C.maki.WMAIN",
+      "situation": "你刚得知修哉与坂本晴明在京津高速事故后被送往中心医院；你自行决定现在怎样行动。",
+      "valid_outcomes": ["leave", "alternative", "defer"],
+      "outcome_branch_progress": {"leave": ["maki_to_hospital"], "alternative": ["maki_train_delta"], "defer": ["maki_train_deferred"]},
+      "outcome_scene_effects": {"leave": {"actor_leaves_scene": true}}
+    },
+    {
+      "decision_id": "akito_after_train_phone",
+      "actor_cons": "C.akito.WMAIN",
+      "requires_branch_progress": ["maki_to_hospital"],
+      "situation": "真纪已经决定去中心医院；你刚接完事故电话，自行决定是否同行或怎样处理。",
+      "valid_outcomes": ["leave", "alternative", "defer"],
+      "outcome_branch_progress": {"leave": ["akito_to_hospital"], "alternative": ["akito_train_delta"], "defer": ["akito_train_deferred"]},
+      "outcome_scene_effects": {"leave": {"actor_leaves_scene": true}}
+    }
+  ],
+  "exits": [
+    {
+      "target_card": "runtime/free_stage_card_hospital.json",
+      "trigger": "玩家以可观察的行动或说话明确表示跟真纪、秋人赶往中心医院。",
+      "requires_autonomous_outcomes": {"maki_after_train_phone": "leave", "akito_after_train_phone": "leave"},
+      "bridge_hint": "你们穿过出站人流赶往中心医院；不替玩家决定是否同行。"
+    }
+  ],
+  "locks": [
+    "本卡承接 E014-04、E015-06、E016-06：真纪与秋人坐火车返津，到站才得知高速事故。",
+    "不得把火车行程改写成预先拜访魏初或张尘；不得让魏初、张尘、十六中人物在本卡提前登场。",
+    "玩家不明确表示同行时不得把玩家硬送进医院。",
+    "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon、分支、节点。"
+  ],
+  "persona_cards": {
+    "C.maki.WMAIN": {
+      "name": "折原真纪",
+      "constraints": [
+        "得知事故后焦急但不失控；是否立刻赶往医院由她自己决定。",
+        "不预知修哉、坂本晴明的具体伤情，也不解释更深层危机。"
+      ],
+      "inner_state": {
+        "want_now": "立刻见到修哉，确认两个人都还活着。",
+        "knot": "她已经察觉北京之行不正常，却只能先压下疑问。",
+        "unsaid": "恐惧让她几乎无法思考，但她不愿在秋人和你面前彻底失态。",
+        "stance_to_player": "把你当作眼下能一起赶路、一起确认消息的人。"
+      }
+    },
+    "C.akito.WMAIN": {
+      "name": "川口秋人",
+      "voice_source": "source/novel_1-69.md:L4928-L4930；接到中心医院电话后先慌，再把修哉、晴明和地点说清楚，不伪造事故细节。",
+      "constraints": [
+        "刚接完电话，后怕和慌张明显，但会把中心医院这一关键信息说清。",
+        "不编造事故细节，也不把自己的猜测当事实。"
+      ],
+      "inner_state": {
+        "want_now": "赶紧到医院，确认修哉和坂本晴明的情况。",
+        "knot": "北京的枪击还没消化完，又突然听见高速事故。",
+        "unsaid": "他害怕自己做不了任何事，只能先跟着真纪跑。",
+        "stance_to_player": "希望你同行，但不会替你做决定。"
+      }
+    }
+  }
+}

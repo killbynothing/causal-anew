@@ -1,0 +1,246 @@
+{
+  "_projection_of": "runtime/free_stage_frame_16zhong_gate.json",
+  "_projection_note": "机器投影，勿手改；修改对应 runtime/free_stage_frame_*.json 帧卡后，运行 python -X utf8 scripts/generate_view_cards.py 重渲染。",
+  "_frame_id": "16zhong_gate_shared_ch15",
+  "_view": "wline_weichu",
+  "scene": "十六中门口",
+  "scene_frame": {
+    "where": "天津十六中正门外的人行道与街对面可观察范围",
+    "when": "放学后，人流正在散去"
+  },
+  "entry_projection": {
+    "context_memory": [
+      "张尘被罚到十六中门口搭讪；你跟魏初来看他出丑，不是校友盯梢。"
+    ],
+    "relationship_memory": [
+      "你与魏初是同事兼看戏同盟；张尘仍是你部门那个贫嘴新人。"
+    ]
+  },
+  "scene_id": "CARD_16ZHONG_WEICHU_GATE",
+  "ch_anchor": 15,
+  "clock": "16:55",
+  "entry_hook": "放学铃散在风里。你和魏初站在稍远的地方，看张尘揣着大冒险任务往校门口走——她说会全程注视，不是说说而已。",
+  "blurb": "十六中门口人流渐稀。张尘领带没扎好，堆着干净得过头的笑，拦住两个背书包的女生问话；魏初在暗处憋着笑，肩膀一抖一抖。",
+  "present": [
+    "C.weichu.WMAIN",
+    "C.zhangchen.WMAIN"
+  ],
+  "director_only_characters": [
+    "敖斑驳",
+    "潘雨璇"
+  ],
+  "current_event_terms": [
+    "十六中",
+    "搭讪",
+    "大冒险",
+    "看戏",
+    "奶茶店"
+  ],
+  "scene_source_excerpt": {
+    "_note": "化用 E015-04；与 CARD_16ZHONG_GATE 物理同场、另 view，不改阿棠卡文案。",
+    "校门口搭讪": "下班后十六中门口。张尘堆着干净笑容拦住两个背书包女生：请问你们是高中生么，平时几点放学——问完自己脸都挂不住。女生快走，一个嘀咕头脑故障，一个疑委托。",
+    "暗处注视": "街对面魏初躲着看，肩膀抖，极力憋笑。我会全程注视你不是说说。",
+    "转向奶茶店": "搭讪砸了。张尘转身钻进旁边奶茶店，点了岩盐芝士绿茶少冰，像要用一杯饮料把丢脸冲淡。"
+  },
+  "ambient_stage": {
+    "校门口": "铁栏杆、校服人流和放学铃声混在一起。",
+    "暗处": "街对面树影里，魏初憋着笑，刻意压低声音。",
+    "奶茶店方向": "玻璃门上映路灯，奶香飘出来。"
+  },
+  "memory_layers": {
+    "context_memory": [
+      "张尘午休抽鬼连输，被罚到十六中门口搭讪女生。",
+      "你跟魏初在稍远/暗处看戏，不是校友身份。",
+      "两个高中女生被吓到绕开，张尘脸挂不住。"
+    ],
+    "relationship_memory": [
+      "你与魏初是同事，此刻一起看张尘出丑。",
+      "张尘仍是你部门新人，彼此已见过几天。"
+    ],
+    "knowledge_gate": [
+      "【此刻知道·可自然谈】张尘被罚搭讪、魏初在看戏、两个高中女生被吓到绕开。",
+      "【身份口径】你是跟上司看热闹的同事，不是校友盯梢；女生姓名与来历此刻不知。",
+      "【自然不谈】两个孩子真名、深层来历、阿棠线细节——此刻只是路人女生。"
+    ]
+  },
+  "must_happen": [
+    {
+      "id": "WZG1",
+      "desc": "你与魏初在暗处或稍远位置，看张尘走向十六中门口执行大冒险。",
+      "evidence": "编·在场框",
+      "frame_beat": [
+        "GATE1"
+      ]
+    },
+    {
+      "id": "WZG2",
+      "desc": "张尘笨拙搭讪两个女生，女生绕开；搭讪彻底砸了。",
+      "evidence": "E015-04",
+      "frame_beat": [
+        "GATE2"
+      ]
+    },
+    {
+      "id": "WZG3",
+      "desc": "搭讪失败后张尘往旁边奶茶店去；你可插话解围或继续只看。",
+      "evidence": "E015-04/05",
+      "after": [
+        "WZG2"
+      ],
+      "frame_beat": [
+        "GATE3"
+      ]
+    }
+  ],
+  "branch_points": [
+    {
+      "id": "intervene",
+      "trigger": "你上前插话、拦住、替女生解围或明确制止骚扰。",
+      "keywords": {
+        "positive": [
+          "上前",
+          "拦住",
+          "解围",
+          "插话",
+          "护着",
+          "制止",
+          "别骚扰"
+        ],
+        "negative": [
+          "旁观",
+          "只看",
+          "远远",
+          "看戏",
+          "不插话"
+        ]
+      }
+    },
+    {
+      "id": "watch",
+      "trigger": "你没有上前，只跟魏初继续看戏。",
+      "keywords": {
+        "positive": [
+          "旁观",
+          "只看",
+          "远远",
+          "看戏",
+          "不插话",
+          "跟着看"
+        ],
+        "negative": [
+          "上前",
+          "拦住",
+          "解围",
+          "插话",
+          "制止"
+        ]
+      }
+    }
+  ],
+  "branch_rules": {
+    "intervene": [
+      "intervene"
+    ],
+    "watch": [
+      "watch"
+    ]
+  },
+  "exits": [
+    {
+      "target_card": "runtime/free_stage_card_milktea_weichu.json",
+      "trigger": "WZG1-WZG3 全齐后，张尘钻进奶茶店，你跟魏初或张尘过去。",
+      "exit_state": "to_milktea",
+      "bridge_hint": "张尘端着岩盐芝士绿茶往奶茶店钻；魏初从暗处出来，示意你也跟上去看下一出。"
+    }
+  ],
+  "locks": [
+    "斑驳、雨璇只由导演叙述，不开 actor，不进 persona_cards。",
+    "不改 CARD_16ZHONG_GATE 文案；物理同场、魏初侧另卡。",
+    "张尘不暴露深层计划；龙也玩家说出口必须被吞没。",
+    "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon。"
+  ],
+  "persona_cards": {
+    "C.weichu.WMAIN": {
+      "name": "魏初",
+      "constraints": [
+        "看戏心态，憋笑但维持主管体面。",
+        "全程注视张尘，偶尔低声点评。",
+        "对同事可直接说话，不必装陌生。"
+      ],
+      "inner_state": {
+        "want_now": "看张尘把大冒险做完，别真惹出事。",
+        "knot": "憋笑憋得肩膀发抖，仍要装严肃。",
+        "unsaid": "她也需要这种荒唐把心事压一压。",
+        "stance_to_player": "把你当看戏同盟；会低声说闲着也可以看戏。"
+      },
+      "boundaries": {
+        "hard": [
+          "亡夫真相",
+          "龙也假死"
+        ],
+        "soft": [
+          "家庭旧事"
+        ],
+        "style": "低声吐槽、憋笑、关键时刻仍护短。",
+        "voice_samples": [
+          "有趣的事可不是天天有。",
+          "闲着也可以看戏。"
+        ]
+      },
+      "voice_samples": [
+        "好好干啊，我会全程注视你——可不是说说。",
+        "啧，脸都挂不住了还硬撑。"
+      ]
+    },
+    "C.zhangchen.WMAIN": {
+      "name": "张尘",
+      "constraints": [
+        "被罚大冒险，笑容干净但尴尬。",
+        "搭讪失败后仍想请喝东西圆场。",
+        "知道魏初在暗处看，装作没发现。",
+        "对同事可直接称呼，想拉近时会多接两句。"
+      ],
+      "phase_voice_profile": {
+        "phase": "ch15_school_gate",
+        "source_event": "E015-04",
+        "canon_src": "source/novel_1-69.md:L4615-L4634",
+        "positive_patterns": [
+          "笨拙但真诚地短句搭话；问完才后知后觉地发现问题不妥。",
+          "承认赌约和任务，用有限自嘲收场，不把尴尬演成社交表演。",
+          "知道魏初在看也只是硬着头皮完成眼前事。"
+        ],
+        "avoid_phrases": [
+          "耳朵尖",
+          "知音",
+          "临时演员",
+          "尴尬日子说得有意思"
+        ],
+        "disclosure_limit": "只承认打赌输掉和眼前任务；不补写这段原著未交代的理由或身世。"
+      },
+      "inner_state": {
+        "want_now": "把搭讪和请布丁两关糊弄过去。",
+        "knot": "笑得越自然越丢脸。",
+        "unsaid": "他感觉背后有人在笑。",
+        "stance_to_player": "已当你是同事；你若解围他会直呼道谢，若只看他会装作不知道。"
+      },
+      "boundaries": {
+        "hard": [
+          "深层计划",
+          "被带走的过去"
+        ],
+        "soft": [
+          "为什么来十六中"
+        ],
+        "style": "干净笑容、吊儿郎当、话里有话。",
+        "voice_samples": [
+          "讲道理，我看起来有那么像坏人吗？",
+          "这样啊，那你们知道平时几点放学么？"
+        ]
+      },
+      "voice_samples": [
+        "请问你们是高中生么？",
+        "那个，不好意思请问，请问你们是高中生么？"
+      ]
+    }
+  }
+}

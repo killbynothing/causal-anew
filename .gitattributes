@@ -1,0 +1,7 @@
+* text=auto eol=lf
+*.png  binary
+*.jpg  binary
+*.db   binary
+*.pyc  binary
+*.xlsx binary
+data/world_truth.db filter=lfs diff=lfs merge=lfs -text

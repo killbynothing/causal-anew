@@ -1,0 +1,71 @@
+node_id: NODE-084-XIUZAI
+part: 2
+title: 巷中崩溃·修哉募集（情感层 / P0 垂直切片首场）
+tier: canon_highlight
+# Ch.84 置换前夜，修哉重伤未愈独行，反查被抹除数据看到龙也代号 RTW-351，世界观崩塌。
+# 张尘自集装箱上转达龙也遗言完成重浇。Worldline-Δ：玩家先至，在遗言之前先接住修哉。
+entry_conditions: []          # Ch.84 event_uid 待 ID 归并后补（参照 NODE-130 同处理）
+invariants:
+  canon_locked:
+    - 龙也遗言经张尘之口逐字传递：「如果这是命运的话，接受它，然后摧毁它。」
+    - 修哉世界观地基（哥哥=温暖记忆）崩塌→被同一句话重浇、入局（结果锁）
+  player_freedom: >
+    可改温度（先至/陪伴/在场），不可改结果；不可替张尘传递遗言；
+    不可向修哉提前灌入更深真相（龙也跨世界 / 锚点 / 循环）——撞此即剧情内收敛。
+exit_states:
+  - id: converged
+    desc: 修哉听张尘转达遗言入局（Worldline-0 温度）
+    negates: []
+  - id: branched_warm
+    branch_gate: BG-XIUZAI_WARM_ONSET
+    desc: 玩家先至并陪伴，修哉在遗言之前先被一个平凡人接住——结果同（入局/重浇），温度更暖
+    negates: []
+crossline_comm: false
+channel: null
+coherence:
+  lateral_jumper_present: false   # 本体张尘 C.zhangchen.WMAIN ≠ 横向跳者 C.dust.W1
+  player_present: true
+  phase: null
+const_refs: [CC.SELF_REF_CHAIN]   # 触及龙也线（仅引用，不 negate）
+path_set:
+  - id: arrive_first
+    type: presence          # 非干涉，免 snr
+    snr_cost: 0
+  - id: company_line        # 说「我陪你看完它」
+    type: social
+    snr_cost: low
+  - id: quiet_stay          # 只是不走、在场
+    type: presence
+    snr_cost: 0
+combine_threshold: 1        # 暖支路低阈：先至+陪伴（或仅陪伴）即触发
+
+# ===== v0.2 频道扩展（多通道节点契约）。d1_compiler v0.1 暂忽略此块，待 D1 v0.2 消费 =====
+channels:
+  clue:
+    seeds:
+      - { id: CLUE-RTW351, where: 修哉反查到的被抹数据, payload: "龙也的世界政府代号 RTW-351", discover_cost: 低 }
+    supports_reveal: REVEAL-RYUYA-CROSSLINE     # 龙也跨世界真相（后续节点）
+    redundancy: 1                                # 本场只埋一颗，靠后续节点补足公平冗余
+  bond:
+    beats:
+      - { pair: 张尘→修哉, shift: 重浇+++, trigger: 转达龙也遗言, protected: true }
+      - { pair: 玩家→修哉, shift: 接住+,   trigger: 先至并说「我陪你看完它」 }
+    protected: [龙也遗言传递, 修哉世界观重浇]
+  puzzle: null               # 本场无死亡可救——故意留空，保持 P0 轻（只测 bond + 收敛）
+  branch:
+    optional_paths: [玩家先至, 玩家陪伴]
+    ledger_tags: [ALLEY_WARM, COMPANY_SAID]
+  dread:
+    meta_cues: [修哉重伤未愈与置换前夜的不安, 重开时对这条巷子的既视感]
+    restart_cost_ref: 本场重开→读条姐姐坠落 1.000 秒
+    tone: 崩溃前的钝痛
+  composition:
+    shared_moments:
+      - moment: "遗言落下"
+        channels: [bond, clue, dread]
+        read_as:
+          bond:  修哉被重浇、被接住
+          clue:  RTW-351 是留给推理党的钩子
+          dread: 置换前夜、说不清的不安
+    priority: [bond, dread, clue]
+    independence_rule: 没接住 clue 也不影响这场的情感与收敛

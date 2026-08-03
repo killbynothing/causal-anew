@@ -1,0 +1,1570 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>因果之外 · 沉浸式叙事舱</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Outfit:wght@300;400;600;800&family=Noto+Serif+SC:wght@400;600;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-hue: 220;
+  --night: hsl(var(--bg-hue), 35%, 6%);
+  --panel: hsl(var(--bg-hue), 28%, 10%);
+  --panel-light: hsl(var(--bg-hue), 24%, 14%);
+  --line: hsl(var(--bg-hue), 22%, 18%);
+  --paper: #e8e1d2;
+  --dim: #9b9584;
+  --red: #ff0055;
+  --cyan: #00f0ff;
+  --cyan-dim: #006b73;
+  --yellow: #ffe600;
+  --font-title: 'Outfit', -apple-system, "PingFang SC", sans-serif;
+  --font-serif: "Noto Serif SC", serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--night);
+  color: var(--paper);
+  font-family: var(--font-title);
+  font-size: 15px;
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+header {
+  height: 64px;
+  border-bottom: 1px solid var(--line);
+  background: hsla(var(--bg-hue), 35%, 5%, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  position: relative;
+  z-index: 10;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  background: linear-gradient(135deg, #fff 30%, var(--dim) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.logo span {
+  color: var(--red);
+  -webkit-text-fill-color: var(--red);
+  text-shadow: 0 0 10px rgba(255, 0, 85, 0.4);
+}
+
+.hud-surface {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--line);
+  padding: 6px 16px;
+  border-radius: 20px;
+  color: var(--cyan);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#chatContainer {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 10%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bubble {
+  max-width: 80%;
+  animation: fadeIn 0.4s ease forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.bubble.director {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--dim);
+  padding: 16px 24px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.02), transparent);
+  border-left: 2px solid rgba(0, 240, 255, 0.2);
+  border-right: 2px solid rgba(0, 240, 255, 0.2);
+  margin: 12px 0;
+  border-radius: 4px;
+}
+
+.bubble.player {
+  align-self: flex-end;
+}
+
+.bubble.npc {
+  align-self: flex-start;
+}
+
+.bubble-inner {
+  padding: 14px 18px;
+  border-radius: 12px;
+  position: relative;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.bubble.player .bubble-inner {
+  background: var(--panel-light);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  border-bottom-right-radius: 2px;
+  color: #fff;
+}
+
+.bubble.npc .bubble-inner {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 2px;
+}
+
+.speaker-meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bubble.player .speaker-meta {
+  color: var(--cyan);
+  justify-content: flex-end;
+}
+
+.bubble.npc .speaker-meta {
+  color: var(--yellow);
+}
+
+.stage-direction {
+  font-family: var(--font-serif);
+  font-size: 13.5px;
+  color: var(--dim);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.turn-source-badge {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--dim);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.dialogue-text {
+  letter-spacing: 0.03em;
+}
+
+footer {
+  padding: 24px 10%;
+  border-top: 1px solid var(--line);
+  background: hsla(var(--bg-hue), 35%, 5%, 0.85);
+  backdrop-filter: blur(12px);
+  display: flex;
+  gap: 16px;
+  align-items: flex-end;
+}
+
+input,
+select,
+textarea {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px 20px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  outline: none;
+  transition: all 0.3s;
+}
+
+textarea {
+  min-height: 72px;
+  max-height: 180px;
+  resize: vertical;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.2);
+}
+
+textarea#chatInput.active-turn {
+  border-color: var(--cyan);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.25);
+  background: rgba(0, 240, 255, 0.03);
+}
+
+button {
+  background: transparent;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  color: var(--cyan);
+  border-radius: 8px;
+  padding: 0 28px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-family: inherit;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+button:hover:not(:disabled) {
+  background: var(--cyan);
+  color: #000;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4);
+}
+
+button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--line);
+  color: var(--dim);
+}
+
+.typing-indicator {
+  align-self: flex-start;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px 18px;
+  border-radius: 12px;
+  border-bottom-left-radius: 2px;
+  font-size: 13px;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  background: var(--dim);
+  border-radius: 50%;
+  animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.dot:nth-child(1) { animation-delay: -0.32s; }
+.dot:nth-child(2) { animation-delay: -0.16s; }
+
+@keyframes bounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
+
+#toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: rgba(255, 0, 85, 0.9);
+  color: #fff;
+  padding: 10px 24px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  opacity: 0;
+  transition: all 0.3s;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 4px 16px rgba(255, 0, 85, 0.3);
+}
+
+#toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+.time-flash {
+  animation: reset-flash 0.8s ease-out;
+}
+@keyframes reset-flash {
+  0% { background-color: rgba(255, 0, 85, 0.45); }
+  100% { background-color: transparent; }
+}
+#btnResetScene:hover:not(:disabled) {
+  background: var(--red) !important;
+  color: #fff !important;
+  box-shadow: 0 0 16px rgba(255, 0, 85, 0.4) !important;
+  border-color: var(--red) !important;
+}
+#btnNewRun:hover:not(:disabled) {
+  background: var(--cyan) !important;
+  color: #000 !important;
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.4) !important;
+  border-color: var(--cyan) !important;
+}
+
+.prologue-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: linear-gradient(180deg, rgba(9, 11, 16, 0.96), rgba(8, 15, 18, 0.98));
+  overflow-y: auto;
+  padding: 32px 6vw;
+}
+
+.prologue-shell {
+  width: min(980px, 100%);
+  margin: 0 auto;
+  display: grid;
+  gap: 22px;
+}
+
+.prologue-title {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.prologue-copy {
+  color: var(--paper);
+  font-family: var(--font-serif);
+  font-size: 16px;
+  line-height: 1.85;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field label {
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.prologue-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 720px) {
+  header {
+    height: auto;
+    min-height: 64px;
+    padding: 12px;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  #chatContainer {
+    padding: 18px 14px;
+  }
+
+  footer {
+    padding: 12px;
+    flex-direction: column;
+  }
+
+  .bubble {
+    max-width: 96%;
+  }
+
+  .profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  button {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="logo">存在的意义<span>·因果之外</span></div>
+  </div>
+  <div style="display: flex; gap: 12px; align-items: center;">
+    <div class="hud-surface" id="hudSurface">
+      📍 <span id="locationVal">加载中...</span>
+    </div>
+    <select id="apiSelector" style="padding: 0 12px; font-size: 13px; border-radius: 20px; border: 1px solid rgba(0, 240, 255, 0.4); background: rgba(9, 11, 16, 0.6); color: var(--cyan); height: 32px; cursor: pointer; outline: none; transition: border-color 0.2s;">
+      <option value="default">火山 Coding Plan · deepseek-v4-flash</option>
+    </select>
+    <button id="btnBondArchive" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(0, 240, 255, 0.4); color: var(--cyan); height: 32px; cursor: pointer; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.3);">羁绊档案</button>
+    <button id="btnSlots" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(0, 240, 255, 0.4); color: var(--cyan); height: 32px; display: none;">存档/读档</button>
+    <button id="btnResetScene" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(255, 0, 85, 0.4); color: var(--red); height: 32px;">重开本场</button>
+    <button id="btnNewRun" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(0, 240, 255, 0.4); color: var(--cyan); height: 32px;">从头重开</button>
+  </div>
+</header>
+
+<section id="bondOverlay" class="prologue-overlay" style="display: none; background: rgba(9, 11, 16, 0.95); backdrop-filter: blur(16px); align-items: center; justify-content: center; z-index: 2000;">
+  <div class="prologue-shell" style="max-width: 900px; width: 90%; max-height: 85vh; overflow-y: auto; padding: 32px; border: 1px solid rgba(0, 240, 255, 0.3); border-radius: 16px; background: rgba(22, 28, 36, 0.95); box-shadow: 0 0 30px rgba(0, 240, 255, 0.15); color: #fff;">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 240, 255, 0.2); padding-bottom: 16px; margin-bottom: 24px;">
+      <h2 style="margin: 0; font-size: 20px; color: var(--cyan); text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);">羁绊与记忆档案</h2>
+      <button id="closeBondBtn" style="background: transparent; border: 1px solid rgba(255, 255, 255, 0.2); color: #fff; padding: 6px 16px; border-radius: 20px; cursor: pointer; transition: all 0.2s;">关闭</button>
+    </div>
+    
+    <div style="margin-bottom: 24px; font-size: 14px;">
+      <span style="color: rgba(255, 255, 255, 0.6);">经历了足迹：</span>
+      <span id="bondFootprints" style="color: var(--cyan); font-weight: bold;"></span>
+    </div>
+    
+    <div id="bondNpcCards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 32px;">
+      <!-- NPC 卡片 -->
+    </div>
+    
+    <div>
+      <h3 style="border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 8px; font-size: 16px; color: rgba(255, 255, 255, 0.9);">记忆固化时间线</h3>
+      <div id="bondTimeline" style="margin-top: 16px; display: flex; flex-direction: column; gap: 16px;">
+        <!-- 时间线 -->
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="slotsOverlay" class="prologue-overlay" style="display: none; background: rgba(9, 11, 16, 0.98); backdrop-filter: blur(16px); align-items: center; justify-content: center;">
+  <div class="prologue-shell" style="max-width: 800px; padding: 24px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel);">
+    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--line); padding-bottom: 12px; margin-bottom: 16px;">
+      <h2 style="font-family: var(--font-title); font-size: 24px; color: #fff;">存档/读档管理</h2>
+      <button id="btnCloseSlots" style="padding: 4px 12px; font-size: 13px; border-radius: 6px; border-color: var(--line);">关闭</button>
+    </div>
+    
+    <div style="display: flex; gap: 12px; align-items: center; margin-bottom: 20px;">
+      <input id="newSlotId" type="text" placeholder="输入新存档名称进行另存为..." style="padding: 10px 14px; font-size: 14px;">
+      <button id="btnSaveAsCurrent" style="height: 44px; padding: 0 16px; font-size: 14px;">另存当前进度</button>
+    </div>
+
+    <div style="max-height: 400px; overflow-y: auto;">
+      <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: var(--font-title); font-size: 14px;">
+        <thead>
+          <tr style="border-bottom: 2px solid var(--line); color: var(--dim);">
+            <th style="padding: 10px;">存档名称</th>
+            <th style="padding: 10px;">当前场景</th>
+            <th style="padding: 10px;">拍数</th>
+            <th style="padding: 10px;">上次游玩</th>
+            <th style="padding: 10px; text-align: right;">操作</th>
+          </tr>
+        </thead>
+        <tbody id="slotsTableBody">
+          <!-- Dynamically populated -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section id="prologueOverlay" class="prologue-overlay">
+  <div class="prologue-shell">
+    <div>
+      <div class="prologue-title">天津出发前夜</div>
+      <div class="prologue-copy">
+        你现在住在天津。去北京看升旗这件事本来不算特别，只是龙也两年前留下的那条线，终于又轻轻拽了你一下。
+        你们认识好些年了，可见面次数一只手数得过来。只是他每次找你，都不是小事。
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <div class="field">
+        <label for="profileName">名字</label>
+        <input id="profileName" type="text" value="阿七" maxlength="16">
+      </div>
+      <div class="field">
+        <label for="profileGender">称呼</label>
+        <select id="profileGender">
+          <option value="unspecified">不明示</option>
+          <option value="female">女性</option>
+          <option value="male">男性</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="profileAge">年龄段</label>
+        <select id="profileAge">
+          <option value="20s">二十来岁</option>
+          <option value="18-22">18-22</option>
+          <option value="23-29">23-29</option>
+          <option value="30-35">30-35</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="profileIdentity">身份</label>
+        <select id="profileIdentity">
+          <option value="tianjin_student">天津在校大学生</option>
+          <option value="tianjin_worker">天津本地上班族</option>
+          <option value="tianjin_migrant">现居天津的外地青年</option>
+          <option value="tianjin_freelance">天津土著，待业或打零工</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="profileTrait">软特长</label>
+        <select id="profileTrait">
+          <option value="calm_under_pressure">临场不慌</option>
+          <option value="eidetic_detail">过目不忘</option>
+          <option value="low_presence">不起眼</option>
+          <option value="disarming">让人放下戒心</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="profileJapanese">日语理由</label>
+        <input id="profileJapanese" type="text" value="和龙也练的，但他没带你进过他的圈子">
+      </div>
+    </div>
+
+    <div class="prologue-copy">
+      龙也把一枚项链放到你手里，语气仍然很轻：
+      “这条项链就是你的了。答应我，别让修哉，还有那个叫张尘的，太难。遇不上也别放在心上。记住，别告诉他们。你们……应该会成为好朋友的。说不定，还有一个人，你会喜欢。”
+    </div>
+
+    <div class="field">
+      <label for="prologueReply">你怎么回答他</label>
+      <textarea id="prologueReply" placeholder="可以写一句话，也可以写动作、观察、沉默。例如：我把项链收好，只问他是不是又要失踪。"></textarea>
+    </div>
+
+    <div class="prologue-actions">
+      <button id="btnBeginPrologue" type="button">去北京看升旗</button>
+    </div>
+  </div>
+</section>
+
+<div id="chatContainer"></div>
+
+<div id="briefPacingPanel" style="background: rgba(0, 240, 255, 0.03); border: 1px dashed rgba(0, 240, 255, 0.3); border-radius: 12px; padding: 20px; text-align: center; margin: 12px 10%; display: none; animation: fadeIn 0.4s ease;">
+  <p style="font-family: var(--font-title); font-size: 15px; margin-bottom: 12px; color: var(--paper);">当前场景支持快速速览。你希望如何体验？</p>
+  <div style="display: flex; gap: 16px; justify-content: center;">
+    <button id="btnPacingPlay" style="padding: 8px 20px; font-size: 13.5px; border-radius: 20px;">💬 深入细聊</button>
+    <button id="btnPacingSkip" style="padding: 8px 20px; font-size: 13.5px; border-radius: 20px; border-color: rgba(255, 230, 0, 0.4); color: var(--yellow);">⚡ 幕间速览</button>
+  </div>
+</div>
+
+<footer style="display: flex; gap: 16px; align-items: flex-end; padding: 20px 10%;">
+  <div id="threeChannelInput" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+    <textarea id="chatInputSpeech" placeholder="💬 【你说】说出你的台词... 例：我把项链收好，问他接下来去哪。" style="height: 42px; min-height: 42px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 10px 16px; font-size: 13.5px;" disabled></textarea>
+    <textarea id="chatInputAction" placeholder="🏃 【你做】输入你的动作或观察... 例：（向左侧避开）（仔细打量着对方的眼睛）" style="height: 42px; min-height: 42px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 10px 16px; font-size: 13.5px;" disabled></textarea>
+    <textarea id="chatInputThought" placeholder="🧠 【你心想】输入你的心理活动（NPC听不见，仅用于触发因果与旁白低语）" style="height: 42px; min-height: 42px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 10px 16px; font-size: 13.5px;" disabled></textarea>
+  </div>
+  <button id="btnSend" disabled style="height: 142px; min-width: 90px; border-radius: 8px; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--line); color: var(--cyan); font-family: var(--font-title); font-size: 15px; cursor: pointer; transition: all 0.3s;">发送</button>
+</footer>
+
+<div id="toast"></div>
+
+<script>
+const state = {
+  engine: "scene",
+  freeStageSessionId: null,
+  freeStageEnded: false,
+  sceneId: "OPENING_TIANANMEN_001",
+  place: "天安门升旗广场",
+  ch: 8,
+  runNo: 1,
+  busy: false,
+  playerProfile: null,
+};
+
+const chatContainer = document.getElementById('chatContainer');
+const chatInputSpeech = document.getElementById('chatInputSpeech');
+const chatInputAction = document.getElementById('chatInputAction');
+const chatInputThought = document.getElementById('chatInputThought');
+
+const chatInput = {
+  get disabled() {
+    return chatInputSpeech.disabled;
+  },
+  set disabled(val) {
+    chatInputSpeech.disabled = val;
+    chatInputAction.disabled = val;
+    chatInputThought.disabled = val;
+  },
+  get value() {
+    return chatInputSpeech.value;
+  },
+  set value(val) {
+    chatInputSpeech.value = val;
+    chatInputAction.value = val;
+    chatInputThought.value = val;
+  },
+  classList: {
+    add(cls) {
+      chatInputSpeech.classList.add(cls);
+      chatInputAction.classList.add(cls);
+      chatInputThought.classList.add(cls);
+    },
+    remove(cls) {
+      chatInputSpeech.classList.remove(cls);
+      chatInputAction.classList.remove(cls);
+      chatInputThought.classList.remove(cls);
+    }
+  },
+  set placeholder(txt) {
+    if (txt.includes("思考中") || txt.includes("选择体验")) {
+      chatInputSpeech.placeholder = txt;
+      chatInputAction.placeholder = txt;
+      chatInputThought.placeholder = txt;
+    } else {
+      chatInputSpeech.placeholder = "💬 【你说】说出你的台词... 例：我把项链收好，问他接下来去哪。";
+      chatInputAction.placeholder = "🏃 【你做】输入你的动作或观察... 例：（向左侧避开）（仔细打量着对方的眼睛）";
+      chatInputThought.placeholder = "🧠 【你心想】输入你的心理活动（NPC听不见，仅用于触发因果与旁白低语）";
+    }
+  },
+  focus() {
+    chatInputSpeech.focus();
+  }
+};
+const btnSend = document.getElementById('btnSend');
+const locationVal = document.getElementById('locationVal');
+const btnResetScene = document.getElementById('btnResetScene');
+const btnNewRun = document.getElementById('btnNewRun');
+const prologueOverlay = document.getElementById('prologueOverlay');
+const btnBeginPrologue = document.getElementById('btnBeginPrologue');
+
+function showToast(msg, type = "error") {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  if (type === "info" || type === "success") {
+    t.style.background = "rgba(0, 240, 255, 0.9)";
+    t.style.boxShadow = "0 4px 16px rgba(0, 240, 255, 0.3)";
+  } else {
+    t.style.background = "rgba(255, 0, 85, 0.9)";
+    t.style.boxShadow = "0 4px 16px rgba(255, 0, 85, 0.3)";
+  }
+  t.classList.add('show');
+  setTimeout(() => {
+    t.classList.remove('show');
+  }, 3500);
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function parsePlayerInputModalities(input) {
+  const text = String(input || "").trim();
+  if (!text) return { speech: "", action: "", thought: "" };
+
+  const actionHints = ["我", "走", "跑", "拿", "把", "递", "看", "观察", "检查", "靠近", "退后", "拍", "录", "收起", "点头", "摇头"];
+  const thoughtHints = ["心想", "暗想", "默默想", "心里想"];
+  const thoughtMatches = [];
+  let remaining = text;
+  for (const pattern of [/\((.*?)\)/g, /\[(.*?)\]/g, /【(.*?)】/g, /（(.*?)）/g]) {
+    const matches = [...remaining.matchAll(pattern)].map((item) => item[1].trim()).filter(Boolean);
+    if (matches.length) {
+      thoughtMatches.push(...matches);
+      remaining = remaining.replace(pattern, "").trim();
+    }
+  }
+  const isBracketAction = /^\*.+\*$/.test(remaining);
+  const isThought = thoughtHints.some((kw) => text.includes(kw));
+  const isAction = isBracketAction || actionHints.some((kw) => remaining.startsWith(kw));
+
+  if (thoughtMatches.length) return { speech: remaining, action: "", thought: thoughtMatches.join(" ") };
+  if (isThought) return { speech: "", action: "", thought: text };
+  if (isAction && !/[“”"]/.test(remaining)) return { speech: "", action: remaining.replace(/^\*|\*$/g, ""), thought: "" };
+  return { speech: text, action: "", thought: "" };
+}
+
+function appendBubble(role, speaker, content, stage, lang) {
+  const bubble = document.createElement("div");
+  bubble.className = `bubble ${role}`;
+
+  if (role === "director") {
+    bubble.innerHTML = `<div class="bubble-inner">${escapeHtml(content)}</div>`;
+  } else {
+    const isPlayer = role === "player";
+    const metaHtml = `<div class="speaker-meta">${escapeHtml(speaker)}</div>`;
+    const stageHtml = stage ? `<div class="stage-direction">(${escapeHtml(stage)})</div>` : "";
+
+    let dialogueHtml = "";
+    if (isPlayer) {
+      const parsed = parsePlayerInputModalities(content);
+      if (parsed.thought) {
+        dialogueHtml = `<div class="dialogue-text" style="color: var(--dim); opacity: 0.85; font-family: var(--font-mono); font-size: 13.5px;">${escapeHtml(parsed.thought)}</div>`;
+      } else if (parsed.action) {
+        dialogueHtml = `<div class="dialogue-text" style="font-style: italic; color: #b0c4de;">${escapeHtml(parsed.action)}</div>`;
+      } else {
+        dialogueHtml = `<div class="dialogue-text">“${escapeHtml(parsed.speech || content)}”</div>`;
+      }
+    } else {
+      const langTag = (lang === "ja")
+        ? `<span style="font-family: var(--font-mono); font-size: 11px; color: var(--cyan-dim); margin-right: 4px;">〔日语〕</span>`
+        : "";
+      dialogueHtml = `<div class="dialogue-text">${langTag}“${escapeHtml(content)}”</div>`;
+    }
+
+    bubble.innerHTML = `
+      <div class="bubble-inner">
+        ${metaHtml}
+        ${stageHtml}
+        ${dialogueHtml}
+      </div>
+    `;
+  }
+
+  chatContainer.appendChild(bubble);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function turnSourceLabel(source) {
+  const labels = {
+    canon: "正典",
+    llm: "API",
+    actor_llm: "API",
+    local_fallback: "本地兜底",
+    scene_ended: "收场",
+  };
+  return labels[source] || "";
+}
+
+function appendTurnSourceBadge(source) {
+  const label = turnSourceLabel(source);
+  if (!label) return;
+  const badge = document.createElement("div");
+  badge.className = "turn-source-badge";
+  badge.dataset.role = "turnSourceBadge";
+  badge.textContent = label;
+  // Player surface intentionally hides turn source badges, so we do not append it to container.
+  return;
+}
+
+function showTypingIndicator() {
+  const indicator = document.createElement('div');
+  indicator.className = 'typing-indicator';
+  indicator.id = 'typingIndicator';
+  indicator.innerHTML = `
+    <span>在场者思考中</span>
+    <div class="dot"></div>
+    <div class="dot"></div>
+    <div class="dot"></div>
+  `;
+  chatContainer.appendChild(indicator);
+  chatContainer.scrollTop = chatContainer.scrollHeight;
+}
+
+function hideTypingIndicator() {
+  const indicator = document.getElementById('typingIndicator');
+  if (indicator) {
+    indicator.remove();
+  }
+}
+
+async function fetchAPI(path, opts = {}) {
+  // Live play is pinned to server config (Volc Coding Plan + thinking off).
+  const res = await fetch(path, {
+    headers: { 'Content-Type': 'application/json' },
+    ...opts
+  });
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+  return await res.json();
+}
+
+function readPlayerProfile() {
+  const get = (id) => document.getElementById(id)?.value?.trim() || "";
+  return {
+    name: get("profileName") || "阿七",
+    gender: get("profileGender") || "unspecified",
+    age: get("profileAge") || "20s",
+    identity: get("profileIdentity") || "tianjin_student",
+    trait: get("profileTrait") || "calm_under_pressure",
+    japanese: true,
+    japanese_reason: get("profileJapanese") || "和龙也练的，但他没带你进过他的圈子",
+    hometown_anchor: "天津",
+  };
+}
+
+function renderPrologueToChat(reply) {
+  appendBubble("director", "旁白", "天津出发前夜。你把龙也递来的项链收进掌心，金属还有一点凉。", null);
+  appendBubble("npc", "龙也", "这条项链就是你的了。", "他把话说得很轻，像只是把一件忘带的小东西还给你。", "zh");
+  appendBubble("npc", "龙也", "答应我，别让修哉，还有那个叫张尘的，太难。遇不上也别放在心上。", "", "zh");
+  appendBubble("npc", "龙也", "记住，别告诉他们。", "这一句落得很低，他看了你一眼。", "zh");
+  appendBubble("npc", "龙也", "你们……应该会成为好朋友的。说不定，还有一个人，你会喜欢。", "", "zh");
+  if (reply) {
+    appendBubble("player", state.playerProfile?.name || "你", reply, null);
+  }
+  appendBubble("director", "旁白", "后来你从天津出发去北京。清晨的升旗广场很冷，你举着手机，等那条因果线在人群里重新露头。", null);
+}
+
+async function beginFromPrologue() {
+  if (state.busy) return;
+  state.playerProfile = readPlayerProfile();
+  const reply = document.getElementById("prologueReply")?.value?.trim() || "我把项链收好，点了点头。";
+  prologueOverlay.style.display = "none";
+  renderPrologueToChat(reply);
+  if (state.engine === "free_stage") {
+    await startFreeStage();
+  } else {
+    await startScene();
+  }
+}
+
+async function startScene() {
+  // Parse query parameters
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('run')) {
+    state.runNo = parseInt(params.get('run')) || 1;
+  }
+  if (params.has('scene_id')) {
+    state.sceneId = params.get('scene_id');
+  }
+  if (params.has('place')) {
+    state.place = params.get('place');
+  }
+
+  state.busy = true;
+  showTypingIndicator();
+  
+  try {
+    const res = await fetchAPI('/api/scene', {
+      method: 'POST',
+      body: JSON.stringify({
+        op: "start_scene",
+        scene_id: state.sceneId,
+        place: state.place,
+        ch_anchor: state.ch,
+        run_no: state.runNo,
+        player_profile: state.playerProfile
+      })
+    });
+    
+    hideTypingIndicator();
+    updateSurface(res.surface);
+    appendTurnSourceBadge(res.turn_source || res.prompt_debug?.turn_source);
+    renderMessages(res.messages);
+    
+    // Enable inputs
+    chatInput.disabled = false;
+    btnSend.disabled = false;
+    chatInput.classList.add('active-turn');
+    chatInput.placeholder = "【你的回合】说话、动作、观察都可以写。例：我把手机递过去；我问他们为什么找我...";
+    chatInput.focus();
+  } catch (err) {
+    hideTypingIndicator();
+    showToast("无法初始化场景舱，请确保服务已启动");
+  } finally {
+    state.busy = false;
+  }
+}
+
+function ensureFreeStageSessionId() {
+  const params = new URLSearchParams(window.location.search);
+  const explicit = params.get("session_id");
+  if (explicit) {
+    state.freeStageSessionId = explicit;
+    return explicit;
+  }
+  const key = "free_stage_session_id";
+  let sid = localStorage.getItem(key);
+  if (!sid) {
+    sid = `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    localStorage.setItem(key, sid);
+  }
+  state.freeStageSessionId = sid;
+  return sid;
+}
+
+function renderFreeStageTurns(turns) {
+  (turns || []).forEach(item => {
+    if (item.role === "player") {
+      return;
+    }
+    if (item.role === "director_note" || item.role === "marker") {
+      if (item.text) appendBubble("director", item.speaker || "记录", item.text, null);
+      return;
+    }
+    if (item.role === "error") {
+      appendBubble("director", item.speaker || "运行错误", item.text || "这一拍断开了。", null);
+      return;
+    }
+    appendBubble("npc", item.speaker || "在场者", item.text || "", item.stage || "", null);
+  });
+}
+
+const briefPacingPanel = document.getElementById('briefPacingPanel');
+const btnPacingPlay = document.getElementById('btnPacingPlay');
+const btnPacingSkip = document.getElementById('btnPacingSkip');
+
+function handleBriefPacingDecision(res) {
+  if (state.engine !== "free_stage") return false;
+  if (res.pacing !== "brief") {
+    if (briefPacingPanel) briefPacingPanel.style.display = "none";
+    return false;
+  }
+  const sceneName = res.surface?.scene || "brief-scene";
+  const decisionKey = state.freeStageSessionId + "-" + sceneName;
+  if (state.briefDecisionByCard === decisionKey) {
+    if (briefPacingPanel) briefPacingPanel.style.display = "none";
+    return false;
+  }
+  
+  if (briefPacingPanel) briefPacingPanel.style.display = "block";
+  chatInput.disabled = true;
+  btnSend.disabled = true;
+  chatInput.classList.remove('active-turn');
+  chatInput.placeholder = "请在上方选择体验方式...";
+  
+  if (btnPacingPlay) {
+    btnPacingPlay.onclick = () => {
+      state.briefDecisionByCard = decisionKey;
+      if (briefPacingPanel) briefPacingPanel.style.display = "none";
+      chatInput.disabled = false;
+      btnSend.disabled = false;
+      chatInput.classList.add('active-turn');
+      chatInput.placeholder = "【你的回合】说话、动作、观察都可以写。";
+      chatInput.focus();
+    };
+  }
+  
+  if (btnPacingSkip) {
+    btnPacingSkip.onclick = async () => {
+      if (briefPacingPanel) briefPacingPanel.style.display = "none";
+      state.busy = true;
+      showTypingIndicator();
+      try {
+        const skipRes = await fetchAPI('/api/free_stage', {
+          method: 'POST',
+          body: JSON.stringify({
+            op: "skip_scene",
+            session_id: ensureFreeStageSessionId()
+          })
+        });
+        hideTypingIndicator();
+        if (skipRes.surface) {
+          locationVal.textContent = [skipRes.surface.scene, skipRes.ended ? "本场结束" : ""].filter(Boolean).join(" · ");
+        }
+        renderFreeStageTurns(skipRes.turns);
+        if (skipRes.transition && skipRes.transition.consolidation_hint) {
+          showToast(skipRes.transition.consolidation_hint, "info");
+        }
+        if (skipRes.ended) {
+          state.freeStageEnded = true;
+          [chatInputSpeech, chatInputAction, chatInputThought].forEach(el => el.disabled = true);
+          btnSend.disabled = true;
+          chatInputSpeech.classList.remove('active-turn');
+          return;
+        }
+        handleBriefPacingDecision(skipRes);
+      } catch (err) {
+        hideTypingIndicator();
+        showToast("速览切换失败");
+      } finally {
+        state.busy = false;
+      }
+    };
+  }
+  return true;
+}
+
+async function startFreeStage() {
+  state.engine = "free_stage";
+  state.busy = true;
+  showTypingIndicator();
+  try {
+    const res = await fetchAPI('/api/free_stage', {
+      method: 'POST',
+      body: JSON.stringify({
+        op: "start",
+        session_id: ensureFreeStageSessionId()
+      })
+    });
+    hideTypingIndicator();
+    if (res.surface) {
+      locationVal.textContent = [res.surface.scene, res.surface.blurb].filter(Boolean).join(" · ");
+    }
+    renderFreeStageTurns(res.turns);
+    if (handleBriefPacingDecision(res)) {
+      return;
+    }
+    chatInput.disabled = false;
+    btnSend.disabled = false;
+    chatInput.classList.add('active-turn');
+    chatInput.placeholder = "【你的回合】说话、动作、观察都可以写。";
+    chatInput.focus();
+  } catch (err) {
+    hideTypingIndicator();
+    showToast("无法初始化新引擎场景");
+  } finally {
+    state.busy = false;
+  }
+}
+
+function updateSurface(surface) {
+  if (surface) {
+    state.place = surface.location;
+    const parts = [surface.location, surface.scene_label, surface.time_of_day].filter(Boolean);
+    locationVal.textContent = parts.join(" · ");
+  }
+}
+
+function renderMessages(messages) {
+  (messages || []).forEach(msg => {
+    // Player surface intentionally renders only visible speech and stage text.
+    if (msg.role === "director") {
+      appendBubble("director", "旁白", msg.content, null);
+    } else {
+      appendBubble("npc", msg.name || "在场者", msg.content, msg.stage, msg.lang);
+    }
+  });
+}
+
+async function sendMessage() {
+  if (state.busy) return;
+  
+  let val = "";
+  let payload = null;
+  
+  const speech = chatInputSpeech.value.trim();
+  const action = chatInputAction.value.trim();
+  const thought = chatInputThought.value.trim();
+  
+  if (!speech && !action && !thought) return;
+  
+  payload = { speech, action, thought };
+  
+  let parts = [];
+  if (thought) parts.push(`【内心：${thought}】`);
+  if (action) parts.push(`（${action}）`);
+  if (speech) parts.push(speech);
+  val = parts.join(" ");
+  
+  appendBubble("player", "你", val, null);
+  
+  chatInputSpeech.value = "";
+  chatInputAction.value = "";
+  chatInputThought.value = "";
+  
+  state.busy = true;
+  chatInput.disabled = true;
+  btnSend.disabled = true;
+  chatInput.classList.remove('active-turn');
+  chatInput.placeholder = "在场者思考中...";
+  showTypingIndicator();
+  
+  try {
+    const endpoint = state.engine === "free_stage" ? '/api/free_stage' : '/api/scene';
+    const body = state.engine === "free_stage"
+      ? {
+          op: "player_say",
+          session_id: ensureFreeStageSessionId(),
+          player_input: payload
+        }
+      : {
+          op: "player_say",
+          scene_id: state.sceneId,
+          place: state.place,
+          ch_anchor: state.ch,
+          run_no: state.runNo,
+          player_input: val,
+          player_profile: state.playerProfile
+        };
+    const res = await fetchAPI(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    
+    hideTypingIndicator();
+    if (state.engine === "free_stage") {
+      if (res.surface) {
+        locationVal.textContent = [res.surface.scene, res.ended ? "本场结束" : ""].filter(Boolean).join(" · ");
+      }
+      renderFreeStageTurns(res.turns);
+      if (res.transition && res.transition.consolidation_hint) {
+        showToast(res.transition.consolidation_hint, "info");
+      }
+      if (res.ended) {
+        state.freeStageEnded = true;
+        chatInput.disabled = true;
+        btnSend.disabled = true;
+        chatInput.classList.remove('active-turn');
+        return;
+      }
+      if (handleBriefPacingDecision(res)) {
+        return;
+      }
+      return;
+    }
+    updateSurface(res.surface);
+    appendTurnSourceBadge(res.turn_source || res.prompt_debug?.turn_source);
+    renderMessages(res.messages);
+    
+    // If transitioned, update the local state for subsequent messages
+    if (res.transition_target) {
+      const target = res.transition_target;
+      state.sceneId = target.scene_id;
+      state.place = target.place;
+      if (target.ch_anchor) {
+        state.ch = target.ch_anchor;
+      }
+      setTimeout(async () => {
+        appendBubble("director", "旁白", `[系统] 正在进入新场景：${target.place}...`, null);
+        await startScene();
+      }, 1500);
+    }
+  } catch (err) {
+    hideTypingIndicator();
+    showToast("因果链接流转失败");
+  } finally {
+    state.busy = false;
+    if (!(state.engine === "free_stage" && state.freeStageEnded)) {
+      chatInput.disabled = false;
+      btnSend.disabled = false;
+      chatInput.classList.add('active-turn');
+      chatInput.placeholder = "【你的回合】说话、动作、观察都可以写。例：我把手机递过去；我问他们为什么找我...";
+      chatInput.focus();
+    }
+  }
+}
+
+[chatInputSpeech, chatInputAction, chatInputThought].forEach(el => {
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
+  });
+});
+
+btnSend.addEventListener('click', sendMessage);
+
+async function resetSceneFlow() {
+  if (state.busy) return;
+  if (!confirm("确定要重开当前场景吗？这会清除本场对话进度并重置为初始状态。")) {
+    return;
+  }
+  state.busy = true;
+  showToast("正在重开本场场景...");
+  try {
+    const endpoint = state.engine === "free_stage" ? '/api/free_stage' : '/api/scene';
+    const body = state.engine === "free_stage"
+      ? {
+          op: "reset",
+          session_id: ensureFreeStageSessionId()
+        }
+      : {
+          op: "reset_scene",
+          scene_id: state.sceneId,
+          place: state.place,
+          ch_anchor: state.ch,
+          run_no: state.runNo,
+          player_profile: state.playerProfile
+        };
+    const res = await fetchAPI(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
+    if (res.status === "ok") {
+      chatContainer.innerHTML = "";
+      state.freeStageEnded = false;
+      showToast("场景重置成功，重新开始流动。");
+      if (state.engine === "free_stage") {
+        await startFreeStage();
+      } else {
+        await startScene();
+      }
+    } else {
+      showToast("重置场景失败: " + (res.error || "未知错误"));
+    }
+  } catch (err) {
+    console.error("resetSceneFlow failed", err);
+    showToast("重置场景失败，网络或服务器异常");
+  } finally {
+    state.busy = false;
+  }
+}
+
+async function startNewRunFlow() {
+  if (state.busy) return;
+  const promptText = state.engine === "free_stage"
+    ? "确定要从 A 线开场重新开始吗？这会清除当前新引擎会话。"
+    : "确定要开启新的周目并从头重开吗？这会开启一个全新的周目。";
+  if (!confirm(promptText)) {
+    return;
+  }
+  state.busy = true;
+  showToast(state.engine === "free_stage" ? "正在重置 A 线新引擎会话..." : "正在生成新周目并重置世界状态...");
+  
+  // 闪屏动画
+  chatContainer.classList.add('time-flash');
+  setTimeout(() => {
+    chatContainer.classList.remove('time-flash');
+  }, 1000);
+  
+  try {
+    if (state.engine === "free_stage") {
+      localStorage.removeItem("free_stage_session_id");
+      state.freeStageSessionId = `web-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      localStorage.setItem("free_stage_session_id", state.freeStageSessionId);
+      state.freeStageEnded = false;
+      chatContainer.innerHTML = "";
+      prologueOverlay.style.display = "";
+      await fetchAPI('/api/free_stage', {
+        method: 'POST',
+        body: JSON.stringify({
+          op: "reset",
+          session_id: state.freeStageSessionId
+        })
+      });
+      showToast("A 线新引擎已重置，请设定角色档案。");
+      return;
+    }
+    const res = await fetchAPI('/api/scene', {
+      method: 'POST',
+      body: JSON.stringify({
+        op: "new_run",
+        run_no: state.runNo
+      })
+    });
+    if (res.status === "ok") {
+      state.runNo = res.run_no;
+      state.sceneId = res.scene_id || "OPENING_TIANANMEN_001";
+      state.place = "天安门升旗广场";
+      state.ch = 8;
+      chatContainer.innerHTML = "";
+      prologueOverlay.style.display = "";
+      showToast(`已开启新周目 #${state.runNo}`);
+    } else {
+      showToast("开启新周目失败: " + (res.error || "未知错误"));
+    }
+  } catch (err) {
+    console.error("startNewRunFlow failed", err);
+    showToast("开启新周目失败，网络或服务器异常");
+  } finally {
+    state.busy = false;
+  }
+}
+
+btnResetScene.addEventListener('click', resetSceneFlow);
+btnNewRun.addEventListener('click', startNewRunFlow);
+btnBeginPrologue.addEventListener('click', beginFromPrologue);
+
+// Slots Panel UI logic
+const slotsOverlay = document.getElementById('slotsOverlay');
+const btnSlots = document.getElementById('btnSlots');
+const btnCloseSlots = document.getElementById('btnCloseSlots');
+const btnSaveAsCurrent = document.getElementById('btnSaveAsCurrent');
+const slotsTableBody = document.getElementById('slotsTableBody');
+const newSlotId = document.getElementById('newSlotId');
+
+if (btnSlots) btnSlots.addEventListener('click', openSlotsModal);
+if (btnCloseSlots) btnCloseSlots.addEventListener('click', () => { slotsOverlay.style.display = 'none'; });
+if (btnSaveAsCurrent) btnSaveAsCurrent.addEventListener('click', saveAsCurrentProgress);
+
+async function openSlotsModal() {
+  slotsOverlay.style.display = 'flex';
+  await refreshSlotsList();
+}
+
+async function refreshSlotsList() {
+  try {
+    const res = await fetchAPI('/api/free_stage', {
+      method: 'POST',
+      body: JSON.stringify({ op: "list_sessions" })
+    });
+    if (res.status === "ok") {
+      slotsTableBody.innerHTML = "";
+      if (res.sessions.length === 0) {
+        slotsTableBody.innerHTML = `<tr><td colspan="5" style="padding: 20px; text-align: center; color: var(--dim);">暂无任何存档</td></tr>`;
+        return;
+      }
+      res.sessions.forEach(s => {
+        const tr = document.createElement('tr');
+        tr.style.borderBottom = '1px solid var(--line)';
+        
+        const isActive = s.session_id === state.freeStageSessionId;
+        const activeLabel = isActive ? ' <span style="color: var(--cyan); font-weight: bold; font-family: var(--font-mono); font-size: 11px;">(当前)</span>' : '';
+        
+        tr.innerHTML = `
+          <td style="padding: 12px; color: #fff; font-weight: 600;">${escapeHtml(s.session_id)}${activeLabel}</td>
+          <td style="padding: 12px;">${escapeHtml(s.current_scene)}</td>
+          <td style="padding: 12px; font-family: var(--font-mono);">${s.turns}</td>
+          <td style="padding: 12px; font-family: var(--font-mono); font-size: 12px; color: var(--dim);">${s.last_played_time}</td>
+          <td style="padding: 12px; text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+            <button onclick="loadSlot('${escapeHtml(s.session_id)}')" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border-color: rgba(0, 240, 255, 0.3);">读档</button>
+            <button onclick="deleteSlot('${escapeHtml(s.session_id)}')" style="padding: 4px 10px; font-size: 12px; border-radius: 4px; border-color: rgba(255, 0, 85, 0.3); color: var(--red);">删除</button>
+          </td>
+        `;
+        slotsTableBody.appendChild(tr);
+      });
+    }
+  } catch (err) {
+    showToast("无法获取存档列表");
+  }
+}
+
+async function saveAsCurrentProgress() {
+  const targetId = newSlotId.value.trim();
+  if (!targetId) {
+    showToast("请输入存档名称");
+    return;
+  }
+  const sanitized = targetId.replace(/[^a-zA-Z0-9_\-\.]/g, "");
+  if (!sanitized) {
+    showToast("存档名称格式非法");
+    return;
+  }
+  try {
+    const currentId = ensureFreeStageSessionId();
+    const res = await fetchAPI('/api/free_stage', {
+      method: 'POST',
+      body: JSON.stringify({
+        op: "save_as",
+        session_id: currentId,
+        target_session_id: sanitized
+      })
+    });
+    if (res.status === "ok") {
+      showToast(`已另存为存档: ${sanitized}`);
+      newSlotId.value = "";
+      await refreshSlotsList();
+    } else {
+      showToast("另存为失败: " + res.error);
+    }
+  } catch (err) {
+    showToast("另存为失败，网络错误");
+  }
+}
+
+async function loadSlot(sid) {
+  if (!confirm(`确定要读取存档 [${sid}] 吗？当前未保存的进度可能会丢失。`)) {
+    return;
+  }
+  state.freeStageSessionId = sid;
+  localStorage.setItem("free_stage_session_id", sid);
+  slotsOverlay.style.display = 'none';
+  chatContainer.innerHTML = "";
+  state.freeStageEnded = false;
+  
+  chatContainer.classList.add('time-flash');
+  setTimeout(() => {
+    chatContainer.classList.remove('time-flash');
+  }, 1000);
+  
+  showToast(`正在读取存档 [${sid}]...`);
+  await startFreeStage();
+}
+
+async function deleteSlot(sid) {
+  if (sid === state.freeStageSessionId) {
+    showToast("无法删除当前正在使用的存档");
+    return;
+  }
+  if (!confirm(`确定要删除存档 [${sid}] 吗？`)) {
+    return;
+  }
+  try {
+    const res = await fetchAPI('/api/free_stage', {
+      method: 'POST',
+      body: JSON.stringify({
+        op: "delete_session",
+        target_session_id: sid
+      })
+    });
+    if (res.status === "ok") {
+      showToast(`已删除存档: ${sid}`);
+      await refreshSlotsList();
+    } else {
+      showToast("删除失败: " + res.error);
+    }
+  } catch (err) {
+    showToast("删除失败，网络错误");
+  }
+}
+
+async function showBondArchive() {
+  const bondOverlay = document.getElementById("bondOverlay");
+  const bondFootprints = document.getElementById("bondFootprints");
+  const bondNpcCards = document.getElementById("bondNpcCards");
+  const bondTimeline = document.getElementById("bondTimeline");
+  if (!bondOverlay) return;
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      method: "POST",
+      body: JSON.stringify({
+        op: "get_bond_archive",
+        session_id: state.freeStageSessionId || "web-default"
+      })
+    });
+    if (res.status !== "ok") {
+      showToast("加载羁绊档案失败: " + res.error);
+      return;
+    }
+    bondFootprints.textContent = res.visited_scenes.join(" → ");
+    bondNpcCards.innerHTML = "";
+    const npcKeys = ["akito", "xiuzai", "kakashi"];
+    const npcAvatars = { akito: "📷", xiuzai: "💻", kakashi: "晴" };
+    npcKeys.forEach(key => {
+      const npc = res.bonds[key];
+      if (!npc) return;
+      let moodColor = "var(--cyan)";
+      if (npc.mood.includes("警惕") || npc.mood.includes("备战") || npc.mood.includes("警惕中带着一分戒备")) moodColor = "var(--red)";
+      else if (npc.mood.includes("散漫") || npc.mood.includes("平静") || npc.mood.includes("冷静戒备")) moodColor = "#fff";
+      const card = document.createElement("div");
+      card.style.background = "rgba(255, 255, 255, 0.03)";
+      card.style.border = "1px solid rgba(255, 255, 255, 0.1)";
+      card.style.borderRadius = "12px";
+      card.style.padding = "18px";
+      card.style.boxShadow = "inset 0 0 10px rgba(255,255,255,0.02)";
+      card.style.display = "flex";
+      card.style.flexDirection = "column";
+      card.style.gap = "8px";
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <div style="font-size: 16px; font-weight: bold; color: var(--cyan); display: flex; align-items: center; gap: 8px;">
+            <span>${npcAvatars[key] || "👤"}</span><span>${npc.name}</span>
+          </div>
+          <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: rgba(0, 240, 255, 0.15); color: var(--cyan); border: 1px solid rgba(0, 240, 255, 0.3);">${npc.relation}</span>
+        </div>
+        <p style="margin: 4px 0; font-size: 13px; color: rgba(255,255,255,0.7); line-height: 1.4;">${npc.desc}</p>
+        <div style="margin-top: auto; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+          <span style="color: rgba(255,255,255,0.5);">情绪余温印象:</span>
+          <span style="color: ${moodColor}; font-weight: bold;">${npc.mood}</span>
+        </div>
+      `;
+      bondNpcCards.appendChild(card);
+    });
+    bondTimeline.innerHTML = "";
+    if (!res.timeline || res.timeline.length === 0) {
+      bondTimeline.innerHTML = `<div style="text-align: center; color: rgba(255,255,255,0.4); font-size: 13px; padding: 20px;">暂无记忆固化记录，继续旅行会逐渐留印。</div>`;
+    } else {
+      res.timeline.forEach((item, index) => {
+        const row = document.createElement("div");
+        row.style.background = "rgba(255, 255, 255, 0.02)";
+        row.style.borderLeft = "3px solid var(--cyan)";
+        row.style.borderRadius = "0 8px 8px 0";
+        row.style.padding = "14px";
+        row.style.marginBottom = "8px";
+        let memoriesHtml = "";
+        const npcNames = {
+          akito: "川口秋人",
+          xiuzai: "折原修哉",
+          kakashi: "坂本晴明"
+        };
+        ["akito", "xiuzai", "kakashi"].forEach(key => {
+          const m = item.memories[key];
+          if (!m) return;
+          const summary = typeof m === "object" ? m.summary : m;
+          const mood = typeof m === "object" ? m.mood : "";
+          const unresolved = typeof m === "object" ? m.unresolved : "";
+          if (summary) {
+            let detailHtml = `<span style="color: rgba(255,255,255,0.85); font-size: 13px;">${summary}</span>`;
+            if (mood && mood !== "平静" && mood !== "散漫") {
+              detailHtml += ` <span style="font-size: 11px; padding: 1px 5px; border-radius: 4px; background: rgba(0, 240, 255, 0.1); color: var(--cyan); margin-left: 6px;">余温: ${mood}</span>`;
+            }
+            if (unresolved) {
+              detailHtml += `<div style="font-size: 12px; color: #ffda66; margin-top: 2px; padding-left: 10px; border-left: 2px solid rgba(255, 218, 102, 0.4);">未了话头: “${unresolved}”</div>`;
+            }
+            memoriesHtml += `
+              <div style="margin-bottom: 6px; line-height: 1.4;">
+                <strong style="color: var(--cyan); font-size: 13px;">${npcNames[key]}: </strong>${detailHtml}
+              </div>
+            `;
+          }
+        });
+        row.innerHTML = `
+          <div style="font-weight: bold; font-size: 13px; color: #fff; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+            <span>📅</span><span>${item.scene} 固化点</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            ${memoriesHtml || '<span style="color: rgba(255,255,255,0.4);">未留下显性情感印象</span>'}
+          </div>
+        `;
+        bondTimeline.appendChild(row);
+      });
+    }
+    bondOverlay.style.display = "flex";
+  } catch (err) {
+    showToast("加载羁绊档案失败，网络错误");
+  }
+}
+
+window.loadSlot = loadSlot;
+window.deleteSlot = deleteSlot;
+window.showBondArchive = showBondArchive;
+
+// Start
+window.addEventListener('DOMContentLoaded', () => {
+  const apiSelector = document.getElementById("apiSelector");
+  if (apiSelector) {
+    apiSelector.value = localStorage.getItem("player_api_selection") || "default";
+    apiSelector.addEventListener("change", (e) => {
+      localStorage.setItem("player_api_selection", e.target.value);
+    });
+  }
+
+  const btnBondArchive = document.getElementById("btnBondArchive");
+  const closeBondBtn = document.getElementById("closeBondBtn");
+  const bondOverlay = document.getElementById("bondOverlay");
+  if (btnBondArchive) {
+    btnBondArchive.addEventListener("click", showBondArchive);
+  }
+  if (closeBondBtn && bondOverlay) {
+    closeBondBtn.addEventListener("click", () => {
+      bondOverlay.style.display = "none";
+    });
+  }
+
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("free_stage") === "1") {
+    state.engine = "free_stage";
+    if (btnSlots) btnSlots.style.display = "";
+    return;
+  }
+  if (params.get("skip_prologue") === "1") {
+    prologueOverlay.style.display = "none";
+    state.playerProfile = readPlayerProfile();
+    startScene();
+  }
+});
+</script>
+</body>
+</html>

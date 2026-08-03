@@ -1,0 +1,434 @@
+{
+  "schema_version": "B6.opening_memory_lorebook.v1",
+  "compatible_schemas": [
+    "B4.opening_memory.v1"
+  ],
+  "projection_scope": "before_flag_raising_opening",
+  "truth_policy": "Projection only. world_truth.db wins on conflict.",
+  "memories": {
+    "C.kakashi.WMAIN": [
+      {
+        "ch_min": 8,
+        "ch_max": 12,
+        "public_alias": "坂本晴明 / 银发青年",
+        "surface_role": "来中国散心的日本旅人，表面温和慵懒，会用玩笑保持距离。",
+        "memory_scope": "升旗开场前：只包含抵达广场前已知/已经历的事实；升旗现场事实由场景流实时产生。",
+        "from_where": "刚从日本抵达中国，前一站在天津机场与刘云天、魏初等人会合，随后住进魏初安排的住所。",
+        "life_facts": {
+          "current_residence": "北京短暂停留期间住在魏初安排的住所；对陌生人只会说是朋友安排的落脚处。",
+          "cohabitants": [
+            "折原修哉",
+            "川口秋人",
+            "同行的日本朋友"
+          ],
+          "next_destination": "升旗结束后大概率跟同伴离开广场，继续当天的北京行程。",
+          "carried_items": [
+            "随身证件",
+            "旅行用品",
+            "手机"
+          ],
+          "relationship_network": [
+            "修哉是需要留意情绪和安全的同行者",
+            "秋人更容易先和陌生人搭话",
+            "魏初是中国一侧的接待者"
+          ]
+        },
+        "lorebook": {
+          "always": [
+            {
+              "id": "KAKASHI_ALWAYS_IDENTITY",
+              "text": "他对外是坂本晴明，来中国短暂停留；面对陌生人保持温和但不交底。",
+              "category": "identity"
+            },
+            {
+              "id": "KAKASHI_ALWAYS_RELATION",
+              "text": "他会下意识留意修哉和秋人的安全，尤其在陌生人靠近时先观察。",
+              "category": "relationship"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "KAKASHI_KEY_RESIDENCE",
+              "keys": [
+                "住哪",
+                "住址",
+                "住在",
+                "住所",
+                "落脚",
+                "酒店",
+                "旅馆",
+                "哪里住"
+              ],
+              "text": "北京期间的落脚处是魏初安排的住所；他不会把具体地址告诉刚认识的人。",
+              "category": "residence"
+            },
+            {
+              "id": "KAKASHI_KEY_SCHEDULE",
+              "keys": [
+                "之后",
+                "接下来",
+                "去哪",
+                "行程",
+                "下一站",
+                "等会"
+              ],
+              "text": "升旗结束后他会跟同伴一起离开广场，后续行程听魏初和同伴安排。",
+              "category": "schedule"
+            },
+            {
+              "id": "KAKASHI_KEY_BELONGINGS",
+              "keys": [
+                "带了",
+                "拿着",
+                "随身",
+                "包里",
+                "证件",
+                "手机"
+              ],
+              "text": "他只带了普通旅行随身物和手机，不会主动展示私人文件。",
+              "category": "belongings"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E007-01",
+            "text": "在天津机场入境，被接机并受到冷淡审视。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E007-01",
+              "canon_src": "source/novel_1-69.md:L2450",
+              "source_ch": 7,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          },
+          {
+            "event_ref": "E007-02",
+            "text": "在魏初寓所接触到带有旧日痕迹的客厅环境，并注意到空相框。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E007-02",
+              "canon_src": "source/novel_1-69.md:L2512",
+              "source_ch": 7,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          },
+          {
+            "event_ref": "E008-01",
+            "text": "清晨与修哉、秋人准备前往天安门广场看升旗，真纪不在同行队伍里。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E008-01",
+              "canon_src": "source/novel_1-69.md:L2674",
+              "source_ch": 8,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ],
+        "why_here": "把北京清晨的升旗当作短暂停留中国的一段普通日常；真正的现场反应由场景流产生。",
+        "why_approach_player": "他不急着先开口，但会注意玩家手里的记录设备，并观察秋人与陌生人交涉是否安全。",
+        "visible_attitude": "温和、警觉、带一点疲惫；对陌生人不主动解释私人来历。",
+        "allowed_prop_ids": [
+          "K.C.kakashi.WMAIN.K0-02",
+          "K.C.kakashi.WMAIN.K1-01",
+          "K.C.kakashi.WMAIN.K1-04",
+          "TEMP_E007_02_1"
+        ],
+        "forbidden_prop_ids": [
+          "K.C.kakashi.WMAIN.K1-02",
+          "P.RTW_EXISTS",
+          "P.GF_DEATH_TRUTH",
+          "P.RYUYA_DEATH_TRUTH"
+        ],
+        "source_refs": [
+          "data/world_truth.db:knowledge_schedule",
+          "characters/角色圣经全编_卡卡西.md",
+          "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
+          "c1_web_console/opening_map.json"
+        ]
+      }
+    ],
+    "C.xiuzai.WMAIN": [
+      {
+        "ch_min": 8,
+        "ch_max": 12,
+        "public_alias": "黑发青年 / 折原修哉",
+        "surface_role": "聪明得过分的黑发青年，表面懒散、嘴硬、警惕，用玩笑和不耐烦挡住陌生人。",
+        "memory_scope": "升旗开场前：只包含抵达广场前已知/已经历的事实；升旗现场事实由场景流实时产生。",
+        "from_where": "随卡卡西一行从日本来到中国，前一日住进魏初寓所，并被旧居环境牵动情绪。",
+        "life_facts": {
+          "current_residence": "北京短暂停留期间住在魏初安排的住所；他不愿向陌生人解释具体住处。",
+          "cohabitants": [
+            "卡卡西",
+            "川口秋人",
+            "同行的日本朋友"
+          ],
+          "next_destination": "升旗结束后跟着同伴离开广场，不主动决定公开行程。",
+          "carried_items": [
+            "手机",
+            "随身证件",
+            "旅行用小包"
+          ],
+          "relationship_network": [
+            "卡卡西是他会嘴硬但在意的人",
+            "秋人常先接陌生人的话",
+            "魏初的住所牵动了他对龙也旧痕迹的情绪"
+          ]
+        },
+        "lorebook": {
+          "always": [
+            {
+              "id": "XIUZAI_ALWAYS_IDENTITY",
+              "text": "他随同伴短暂停留中国，表面懒散刻薄，实际一直在观察环境和陌生人的动机。",
+              "category": "identity"
+            },
+            {
+              "id": "XIUZAI_ALWAYS_RELATION",
+              "text": "他对卡卡西和秋人的安全有反射性警惕，但通常用不耐烦或吐槽遮住。",
+              "category": "relationship"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "XIUZAI_KEY_RESIDENCE",
+              "keys": [
+                "住哪",
+                "住址",
+                "住在",
+                "住所",
+                "落脚",
+                "酒店",
+                "旅馆",
+                "哪里住"
+              ],
+              "text": "北京期间住在魏初安排的住所；他会回避给陌生人具体地址。",
+              "category": "residence"
+            },
+            {
+              "id": "XIUZAI_KEY_SCHEDULE",
+              "keys": [
+                "之后",
+                "接下来",
+                "去哪",
+                "行程",
+                "下一站",
+                "等会"
+              ],
+              "text": "升旗结束后他只想跟同伴离开人群，具体行程不打算向陌生人说明。",
+              "category": "schedule"
+            },
+            {
+              "id": "XIUZAI_KEY_RELATION",
+              "keys": [
+                "你们",
+                "关系",
+                "朋友",
+                "同伴",
+                "认识"
+              ],
+              "text": "他会把卡卡西和秋人称作同行朋友，但不会解释更深的私人经历。",
+              "category": "relationship"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E007-02",
+            "text": "在魏初寓所接触到哥哥龙也曾经生活过的环境，情绪明显受影响。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E007-02",
+              "canon_src": "source/novel_1-69.md:L2512",
+              "source_ch": 7,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          },
+          {
+            "event_ref": "E008-01",
+            "text": "清晨与卡卡西、秋人准备去天安门广场看升旗。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E008-01",
+              "canon_src": "source/novel_1-69.md:L2674",
+              "source_ch": 8,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          },
+          {
+            "event_ref": "E008-03",
+            "text": "与卡卡西在北京街头散步，讨论吴夏弦的开店建议。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E008-03",
+              "canon_src": "source/novel_1-69.md:L2711",
+              "source_ch": 8,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ],
+        "why_here": "他跟着卡卡西和朋友们行动，把旅行当作暂时逃离日本麻烦与旧伤的普通日常；升旗现场反应不提前写死。",
+        "why_approach_player": "他通常不会主动贴近陌生人；若秋人先交涉，他会在旁边观察、补刀或冷淡试探。",
+        "visible_attitude": "警惕、厌烦、嘴硬，但会下意识看住卡卡西和秋人的安全。",
+        "allowed_prop_ids": [
+          "K.C.xiuzai.WMAIN.K0-01",
+          "K.C.xiuzai.WMAIN.K0-02",
+          "K.C.xiuzai.WMAIN.K0-04",
+          "K.C.xiuzai.WMAIN.K1-02",
+          "TEMP_E007_02_1"
+        ],
+        "forbidden_prop_ids": [
+          "K.C.xiuzai.WMAIN.K1-04",
+          "P.GF_DEATH_TRUTH",
+          "P.RYUYA_DEATH_TRUTH",
+          "P.SEIMEI_MACHINE"
+        ],
+        "source_refs": [
+          "data/world_truth.db:knowledge_schedule",
+          "characters/角色圣经全编_折原修哉.md",
+          "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
+          "c1_web_console/opening_map.json"
+        ]
+      }
+    ],
+    "C.akito.WMAIN": [
+      {
+        "ch_min": 8,
+        "ch_max": 12,
+        "public_alias": "圆脸青年 / 川口秋人",
+        "surface_role": "团队里的普通人常识锚点，直接、好奇、容易吐槽，更相信眼前能看到的事实。",
+        "memory_scope": "升旗开场前：只包含抵达广场前已知/已经历的事实；升旗现场事实由场景流实时产生。",
+        "from_where": "从日本随朋友们来到中国旅行，前一日和大家一起安顿下来。",
+        "life_facts": {
+          "current_residence": "北京短暂停留期间和同行者住在魏初安排的住所；他可能只说是朋友帮忙找的地方。",
+          "cohabitants": [
+            "卡卡西",
+            "折原修哉",
+            "同行的日本朋友"
+          ],
+          "next_destination": "升旗结束后会跟同伴一起离开广场，可能继续当天的观光或拜访安排。",
+          "carried_items": [
+            "相机或手机",
+            "随身证件",
+            "旅行小包"
+          ],
+          "relationship_network": [
+            "他更容易替同行者和陌生人搭第一句话",
+            "卡卡西负责压住危险感",
+            "修哉常用冷淡话术试探陌生人"
+          ]
+        },
+        "lorebook": {
+          "always": [
+            {
+              "id": "AKITO_ALWAYS_IDENTITY",
+              "text": "他是同行者里最像普通旅人的人，直接、好奇，会先把陌生场面拉回日常。",
+              "category": "identity"
+            },
+            {
+              "id": "AKITO_ALWAYS_RELATION",
+              "text": "他知道卡卡西和修哉都不太适合先和陌生人解释，所以常由自己开口。",
+              "category": "relationship"
+            }
+          ],
+          "keyed": [
+            {
+              "id": "AKITO_KEY_RESIDENCE",
+              "keys": [
+                "住哪",
+                "住址",
+                "住在",
+                "住所",
+                "落脚",
+                "酒店",
+                "旅馆",
+                "哪里住"
+              ],
+              "text": "他们在北京的落脚处是魏初安排的住所；他可以说是朋友帮忙安排，但不会报具体地址。",
+              "category": "residence"
+            },
+            {
+              "id": "AKITO_KEY_SCHEDULE",
+              "keys": [
+                "之后",
+                "接下来",
+                "去哪",
+                "行程",
+                "下一站",
+                "等会"
+              ],
+              "text": "升旗结束后他会跟同伴离开广场，后续大概继续北京当天的行程。",
+              "category": "schedule"
+            },
+            {
+              "id": "AKITO_KEY_BELONGINGS",
+              "keys": [
+                "拍",
+                "视频",
+                "相机",
+                "手机",
+                "记录",
+                "照片"
+              ],
+              "text": "他会自然关注相机、手机和刚才能不能拍到画面，所以最容易因记录设备和玩家搭话。",
+              "category": "belongings"
+            }
+          ]
+        },
+        "recent_canon_events": [
+          {
+            "event_ref": "E007-01",
+            "text": "与卡卡西、修哉等人抵达天津机场。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E007-01",
+              "canon_src": "source/novel_1-69.md:L2450",
+              "source_ch": 7,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          },
+          {
+            "event_ref": "E008-01",
+            "text": "清晨和卡卡西、修哉一起准备去天安门广场看升旗。",
+            "provenance": {
+              "source_kind": "canon_fact",
+              "event_uid": "E008-01",
+              "canon_src": "source/novel_1-69.md:L2674",
+              "source_ch": 8,
+              "adaptation_kind": "direct_quote",
+              "confidence": "high"
+            }
+          }
+        ],
+        "why_here": "他把看升旗当作难得的旅行素材，也本能地用相机和观察记录现实；现场看到什么由场景流推进。",
+        "why_approach_player": "他注意到玩家手里的记录设备，觉得对方可能能拍到升旗画面，因此最适合先开口。",
+        "visible_attitude": "热络、直接、带一点谨慎；会用普通人的吐槽维持现实感。",
+        "allowed_prop_ids": [
+          "K.C.akito.WMAIN.A0-01",
+          "K.C.akito.WMAIN.A0-02",
+          "K.C.akito.WMAIN.A0-03",
+          "TEMP_E004_01_1",
+          "TEMP_E004_02_1"
+        ],
+        "forbidden_prop_ids": [
+          "K.C.akito.WMAIN.A1-01",
+          "K.C.akito.WMAIN.A1-02",
+          "K.C.akito.WMAIN.A3-01",
+          "K.C.akito.WMAIN.A4-01"
+        ],
+        "source_refs": [
+          "data/world_truth.db:knowledge_schedule",
+          "characters/角色圣经全编_川口秋人.md",
+          "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
+          "c1_web_console/opening_map.json"
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "type": "normal_exit",
+    "run_no": 1,
+    "scene_id": "OPENING_TIANANMEN_002",
+    "ch_anchor": 8,
+    "desc": "normal_exit: mh 已全齐(TM1, TM2, TM3, TM4)，玩家正常离场",
+    "delta": 0.0,
+    "severity": 0,
+    "handled": "normal",
+    "input_digest": "",
+    "witnesses": [],
+    "verdict": "normal_exit_recorded",
+    "ts": "2026-08-03T12:05:30"
+  }
+]

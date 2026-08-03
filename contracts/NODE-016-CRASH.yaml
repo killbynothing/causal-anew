@@ -1,0 +1,31 @@
+node_id: NODE-016-CRASH
+part: 1
+title: 高速连环车祸与卡卡西救修哉
+tier: canon_beat
+entry_conditions: [E016-01, E016-02, E016-03]
+invariants:
+  canon_locked:
+    - E016-03 卡卡西救出修哉、自身受伤（肋骨骨折）
+  player_freedom: 事前(B1抱走小狗)/事中(choiceA车内卸力)两个物理干预点；二者叠加=零伤害线
+exit_states:
+  - id: converged
+    desc: 卡卡西重伤（Worldline-0）
+    negates: []
+  - id: branched_full
+    branch_gate: BG-CRASH_LIGHT
+    negates: []
+crossline_comm: false
+channel: null
+coherence:
+  lateral_jumper_present: false
+  player_present: true
+  phase: null
+const_refs: []
+path_set:
+  - id: B1_dog
+    type: physical
+    snr_cost: low
+  - id: choiceA_brace
+    type: physical
+    snr_cost: 0
+combine_threshold: 2

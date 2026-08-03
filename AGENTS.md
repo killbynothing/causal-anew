@@ -89,8 +89,9 @@ python scripts/generate_bibles.py           # 从库重渲染投影产物
 | 长期排期（唯一执行入口） | `docs/plans/长期路线图_2026-08-03.md` |
 | 当前真相/进度 | `STATUS.md` |
 | 计划索引 | `docs/plans/INDEX.md` |
-| 怎么干活（loop 格式） | `LOOP总纲_LOOP_CHARTER.md` |
-| 旧仓（封存只读） | `C:\Users\11869\Desktop\令人充满希望的进行啊\` |
+| 怎么干活（loop 格式） | `LOOP总纲_LOOP_CHARTER.md`（待搬）/ 旧仓同名文件 |
+| Git 纪律 | `GIT工作流_GIT_WORKFLOW.md` |
+| 旧仓（封存只读） | 桌面目录 `令人充满希望的进行啊`（双根工作区） |
 
 ---
 

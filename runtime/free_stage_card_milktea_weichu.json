@@ -1,0 +1,427 @@
+{
+  "_projection_of": "runtime/free_stage_frame_16zhong_milktea.json",
+  "_projection_note": "机器投影，勿手改；修改对应 runtime/free_stage_frame_*.json 帧卡后，运行 python -X utf8 scripts/generate_view_cards.py 重渲染。",
+  "_frame_id": "16zhong_milktea_shared_ch15",
+  "_view": "wline_weichu",
+  "scene": "十六中附近奶茶店",
+  "scene_frame": {
+    "where": "十六中附近奶茶店的一层取餐口与二楼座位区",
+    "when": "校门口搭话失败后不久",
+    "为什么在这里": "张尘试图以请饮料和布丁收拾校门口的尴尬；到场者的站位由各自入口决定。",
+    "此刻想要什么": "张尘想把失败的大冒险收场；其他人在是否留下、旁观或离开之间作出自己的选择。",
+    "关系": "校门口的相遇尚新，谁与谁同桌、谁停在外围、谁暂时未被看见属于视角与分支，而非地点本身。"
+  },
+  "entry_projection": {
+    "context_memory": [
+      "张尘请布丁圆场；魏初跟踪看戏；雨璇电话后，斑驳如何行动由她自己决定，你主要保持魏初这一路视角。"
+    ],
+    "relationship_memory": [
+      "你与魏初仍是同事；张尘是否提供钱包或其他帮助，须等现场决定。"
+    ]
+  },
+  "scene_id": "CARD_MILKTEA_WEICHU",
+  "ch_anchor": 15,
+  "clock": "17:20",
+  "entry_hook": "岩盐芝士绿茶的杯壁冒着冷汗。张尘在取餐口又撞见那两个女生；街对面刚憋完笑的魏初，也快藏不住了。",
+  "blurb": "请布丁、留电话、母亲来电——快乐柠檬二楼的气氛刚松一点，就又被车祸消息拽回现实。魏初接到电话，下一步由她和张尘各自决定。",
+  "present": [
+    "C.weichu.WMAIN",
+    "C.zhangchen.WMAIN"
+  ],
+  "director_only_characters": [
+    "敖斑驳",
+    "潘雨璇"
+  ],
+  "current_event_terms": [
+    "奶茶店",
+    "布丁",
+    "车祸",
+    "钱包",
+    "241172",
+    "医院"
+  ],
+  "intent_affordances": [
+    {
+      "affordance_id": "ask_weichu_for_join_cooperation",
+      "goal_key": "seek_weichu_join_cooperation",
+      "description": "玩家准备自行进入或加入公共谈话，并询问魏初是否愿意合作、掩护、同行或透露自己；魏初不拥有阻止玩家行动的权力。",
+      "target_cons": "C.weichu.WMAIN",
+      "mode": "negotiate_now",
+      "source": "frame.public_milktea_space",
+      "requires_actor_consent": true,
+      "score": 20,
+      "visible_reason": "魏初在场、听得见；玩家可以行动，她也可以按自己的处境回应。",
+      "storylet": {
+        "entry_conditions": [
+          "player_request_is_observable",
+          "target_can_hear",
+          "public_space_does_not_require_target_permission"
+        ],
+        "invariants": [
+          "player_physical_action_is_not_owned_by_weichu",
+          "weichu_decides_only_her_own_cooperation",
+          "phone_crisis_canon_beat_is_not_erased",
+          "delta_only_after_physical_or_canon_change"
+        ],
+        "exit_keys": [
+          "accept",
+          "conditional",
+          "refuse",
+          "alternative",
+          "defer"
+        ]
+      }
+    },
+    {
+      "affordance_id": "invite_zhangchen_to_hospital",
+      "goal_key": "invite_zhangchen_hospital",
+      "description": "玩家在医院消息已公开后邀请张尘同行；邀请必须到达他，是否去、附条件、替代帮助、暂缓或拒绝由张尘自己决定。",
+      "target_cons": "C.zhangchen.WMAIN",
+      "mode": "negotiate_now",
+      "source": "frame.after_phone_public_conversation",
+      "requires_actor_consent": true,
+      "after_must_happen": [
+        "WMT4"
+      ],
+      "score": 20,
+      "visible_reason": "张尘仍在场并听见邀请；魏初未邀请他与彼此不熟只由他作为理由权衡。",
+      "storylet": {
+        "entry_conditions": [
+          "player_request_is_observable",
+          "target_can_hear",
+          "hospital_need_is_public_in_scene"
+        ],
+        "invariants": [
+          "zhangchen_decides_from_actor_owned_facts",
+          "no_relationship_threshold",
+          "no_director_preselected_outcome",
+          "commitment_persists_across_scene"
+        ],
+        "exit_keys": [
+          "accept",
+          "conditional",
+          "refuse",
+          "alternative",
+          "defer"
+        ],
+        "outcome_effects": {
+          "accept": {
+            "carry_actor_to_target": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+            "delta": 2.0
+          },
+          "conditional": {
+            "carry_actor_to_target_when_commitment_is_explicit": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+            "delta": 2.0
+          }
+        }
+      }
+    }
+  ],
+  "scene_source_excerpt": {
+    "_note": "化用 E015-05 → E016-05；斑雨远景，魏初张尘主视角。",
+    "偶遇请布丁": "张尘点岩盐芝士绿茶少冰；取餐口又撞见那两个女生。他请上楼吃布丁：拜托别拒绝，否则工作打水漂。魏初暗处几乎笑抽。",
+    "布丁桌": "斑驳调侃布丁高大上；张尘说好在不是铂金项链。雨璇觉得跟上司打赌也会发生。他留号：我叫张尘。",
+    "雨璇电话": "母亲来电——父亲高速车祸。电话事实已公开，斑驳与张尘各自决定如何回应。",
+    "魏初现身": "孩子走后魏初摇摆现身：哟小哥哥，把妹妹们吓跑了？手机响，笑容僵住。弟弟出车祸、正在医院抢救是公开事实；她是否借钱、张尘是否给、她是否立即出发都留给现场决定。"
+  },
+  "ambient_stage": {
+    "一楼": "点餐声、冰块撞杯壁、奶香混在一起。",
+    "二楼": "布丁杯摆上窗边的桌，能看见校门口人流散尽。",
+    "门口": "魏初现身时笑声还没完全收住。"
+  },
+  "memory_layers": {
+    "context_memory": [
+      "张尘刚在十六中门口搭讪失败，转进奶茶店请布丁。",
+      "魏初跟踪看戏，差点笑抽。",
+      "雨璇接到父亲车祸电话；魏初接到弟弟车祸电话，是否借钱或前往医院尚未替任何人决定。"
+    ],
+    "relationship_memory": [
+      "你与魏初一起看戏；她接电话后是否希望你同行、你是否跟去，都在现场决定。",
+      "张尘是否交出钱包、魏初是否接受与出发，须以当前场可见决定为准。"
+    ],
+    "knowledge_gate": [
+      "【此刻知道·可自然谈】请布丁、魏初跟踪看戏、她弟弟和朋友车祸；钱包与医院动线只在角色自己作出可见决定后才可谈。",
+      "【身份口径】弟弟是她的说法；你还不清楚那家人全貌。",
+      "【自然不谈】车祸现场细节与陌生人真实身份——你不在高速上。"
+    ]
+  },
+  "must_happen": [
+    {
+      "id": "WMT1",
+      "desc": "奶茶店偶遇，张尘请两个女生上楼吃布丁圆场。",
+      "evidence": "E015-05",
+      "frame_beat": [
+        "MILK1"
+      ]
+    },
+    {
+      "id": "WMT2",
+      "desc": "布丁桌闲聊；张尘留联系方式，女生们仍警惕但坐下。",
+      "evidence": "E015-05",
+      "frame_beat": [
+        "MILK2"
+      ]
+    },
+    {
+      "id": "WMT3",
+      "desc": "雨璇接到家里车祸电话；远处的人如何行动不替本视图的角色预设。",
+      "evidence": "E016-04",
+      "frame_beat": [
+        "MILK3"
+      ]
+    },
+    {
+      "id": "WMT4",
+      "desc": "魏初现身后接到弟弟车祸电话；电话事实已经发生，之后如何筹钱、是否出发由在场角色自行决定。",
+      "evidence": "E016-05：来电与事故消息。",
+      "after": [
+        "WMT3"
+      ],
+      "frame_beat": [
+        "MILK4"
+      ]
+    }
+  ],
+  "canon_performance": {
+    "segments": [
+      {
+        "segment_id": "WEICHU_PHONE_CRISIS",
+        "trigger": "after_must_happen",
+        "after_must_happen": "WMT3",
+        "interrupt_after": "P_WEICHU_AFTER_PHONE",
+        "event_uid": "E016-05",
+        "canon_src": "source/novel_1-69.md:L4871-L4876",
+        "completes": [
+          "WMT4"
+        ],
+        "turns": [
+          {
+            "role": "npc",
+            "speaker_cons": "C.weichu.WMAIN",
+            "speaker_before_intro": "穿西装的女性",
+            "text": "哟，小哥哥，把妹妹们吓跑了？",
+            "stage": "她从街对面晃出来，刚才没忍住的笑还挂在脸上。",
+            "provenance": {
+              "source_kind": "canon_quote",
+              "event_uid": "E016-05",
+              "canon_src": "source/novel_1-69.md:L4871-L4876",
+              "speaker_cons": "C.weichu.WMAIN",
+              "adaptation_kind": "direct_quote"
+            }
+          },
+          {
+            "role": "narrate",
+            "speaker": "旁白",
+            "text": "手机忽然响起。她看清来电后，笑意停在脸上；电话里传来的事故消息已经足够清楚，但接下来怎么做，还没有人替她决定。",
+            "stage": "店门口的脚步声和冰块声仍在继续；张尘看着她，没有先伸手。",
+            "provenance": {
+              "source_kind": "adaptation_boundary",
+              "event_uid": "E016-05",
+              "canon_src": "source/novel_1-69.md:L4877-L4904",
+              "adaptation_kind": "agency_boundary"
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "autonomous_decisions": [
+    {
+      "decision_id": "weichu_after_phone",
+      "actor_cons": "C.weichu.WMAIN",
+      "after_must_happen": [
+        "WMT4"
+      ],
+      "situation": "你刚得知弟弟与朋友因车祸正在医院抢救；你自行决定要怎样回应、是否向身边的人寻求当下帮助。",
+      "valid_outcomes": [
+        "alternative",
+        "leave",
+        "defer"
+      ],
+      "outcome_branch_progress": {
+        "alternative": [
+          "weichu_requests_immediate_help"
+        ],
+        "leave": [
+          "weichu_leaves_without_help"
+        ],
+        "defer": [
+          "weichu_phone_deferred"
+        ]
+      },
+      "outcome_scene_effects": {
+        "leave": {
+          "actor_leaves_scene": true
+        }
+      }
+    },
+    {
+      "decision_id": "zhangchen_after_weichu_request",
+      "actor_cons": "C.zhangchen.WMAIN",
+      "after_must_happen": [
+        "WMT4"
+      ],
+      "requires_branch_progress": [
+        "weichu_requests_immediate_help"
+      ],
+      "situation": "魏初已经公开表示需要立刻筹钱或拿到钱包去处理医院的急事；你自行决定是否、以及怎样提供帮助。",
+      "valid_outcomes": [
+        "accept",
+        "conditional",
+        "refuse",
+        "alternative",
+        "defer"
+      ],
+      "outcome_branch_progress": {
+        "accept": [
+          "zhangchen_releases_wallet"
+        ],
+        "conditional": [
+          "zhangchen_conditional_wallet_help"
+        ],
+        "refuse": [
+          "zhangchen_declines_wallet"
+        ],
+        "alternative": [
+          "zhangchen_other_help"
+        ],
+        "defer": [
+          "zhangchen_wallet_deferred"
+        ]
+      }
+    },
+    {
+      "decision_id": "weichu_after_wallet_response",
+      "actor_cons": "C.weichu.WMAIN",
+      "after_must_happen": [
+        "WMT4"
+      ],
+      "requires_branch_progress": [
+        "zhangchen_releases_wallet"
+      ],
+      "situation": "张尘已经决定把钱包交给你；你自行决定是否现在带着这份帮助前往医院，或改作别的安排。",
+      "valid_outcomes": [
+        "leave",
+        "alternative",
+        "defer"
+      ],
+      "outcome_branch_progress": {
+        "leave": [
+          "weichu_to_hospital_with_wallet"
+        ],
+        "alternative": [
+          "weichu_wallet_delta"
+        ],
+        "defer": [
+          "weichu_wallet_deferred"
+        ]
+      },
+      "outcome_scene_effects": {
+        "leave": {
+          "actor_leaves_scene": true
+        }
+      }
+    }
+  ],
+  "exits": [
+    {
+      "target_card": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+      "trigger": "WMT1-WMT4 全齐后，你跟上魏初去医院，或稍后赶到。",
+      "exit_state": "follow_to_hospital",
+      "requires_autonomous_outcomes": {
+        "weichu_after_phone": "alternative",
+        "zhangchen_after_weichu_request": "accept",
+        "weichu_after_wallet_response": "leave"
+      },
+      "bridge_hint": "魏初攥着张尘的钱包往外跑，你跟着她冲进中心医院急诊大厅。"
+    }
+  ],
+  "locks": [
+    "斑驳、雨璇只由导演叙述，不开 actor。",
+    "张尘不追问魏初私事深处；龙也玩家说出口必须被吞没。",
+    "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon。"
+  ],
+  "persona_cards": {
+    "C.weichu.WMAIN": {
+      "name": "魏初",
+      "constraints": [
+        "看戏时贫嘴调侃；接到车祸电话后笑容瞬间僵住。",
+        "对弟弟出事反应急；是否向张尘借钱包、如何安排公司与医院由她自己决定。",
+        "对可信同事可直说弟弟出车祸。"
+      ],
+      "inner_state": {
+        "want_now": "先赶到医院，确认弟弟和朋友平安。",
+        "knot": "刚才还在笑，下一秒世界就变了颜色。",
+        "unsaid": "她不想让你看见她慌的样子；是否请你合作或同行，要看你当下做了什么以及她此刻如何取舍。",
+        "stance_to_player": "把你当可信赖同事，但仍保留拒绝、附条件或独自处理的权利。"
+      },
+      "boundaries": {
+        "hard": [
+          "龙也假死结构",
+          "亡夫全文"
+        ],
+        "soft": [
+          "弟弟与修哉关系细节"
+        ],
+        "style": "调侃转急、短句、奔跑时话更少。",
+        "voice_samples": [
+          "哟小哥哥，把妹妹们吓跑了？",
+          "我弟弟出车祸了，还有他的朋友，挺严重，医院抢救。"
+        ]
+      },
+      "voice_samples": [
+        "没带钱包，借我点钱？",
+        "好我马上到。"
+      ]
+    },
+    "C.zhangchen.WMAIN": {
+      "name": "张尘",
+      "constraints": [
+        "请布丁时贫嘴圆场；雨璇电话后先让人冷静。",
+        "魏初求助时，可自行决定是否交钱包、附条件或提供别的帮助。",
+        "被调侃跟踪时尴尬但不恼。",
+        "对同事可直接称呼，愿意时会拉你一起圆场。"
+      ],
+      "phase_voice_profile": {
+        "phase": "ch15_counter_and_table",
+        "source_event": "E015-05",
+        "canon_src": "source/novel_1-69.md:L4656-L4673",
+        "positive_patterns": [
+          "用请布丁和有限自嘲把第二次搭话落到具体邀请。",
+          "在取餐口只处理赌约、请客与眼前偶遇。",
+          "把注意力留在当前可见的人和邀请上。"
+        ],
+        "avoid_phrases": [
+          "知音",
+          "临时演员",
+          "用伤痛讲段子"
+        ],
+        "disclosure_limit": "只承认赌约和请客；不编造尚未在现场出现的后续信息。"
+      },
+      "inner_state": {
+        "want_now": "把丢脸任务收尾，别真被开除。",
+        "knot": "钱包交出去才知道后面还有更糟的晚上。",
+        "unsaid": "他看见魏初慌，会记住。",
+        "stance_to_player": "把你当认识不久的同事；收到邀请会自己权衡是否掺和，也可以拒绝、附条件或换一种方式帮忙。"
+      },
+      "boundaries": {
+        "hard": [
+          "深层计划"
+        ],
+        "soft": [
+          "钱包密码",
+          "转正"
+        ],
+        "style": "贫嘴、借钱时爽快、事后收敛。",
+        "voice_samples": [
+          "所有的卡密码都是 241172，虽然都没有多少钱。",
+          "路上小心。"
+        ]
+      },
+      "voice_samples": [
+        "我请你们吃布丁，拜托别拒绝，否则工作打水漂。",
+        "老大你居然真的在跟踪……"
+      ]
+    }
+  }
+}

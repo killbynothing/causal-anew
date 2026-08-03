@@ -1,0 +1,1266 @@
+{
+  "schema": "free_stage.frame_card.v1",
+  "_note": "十六中附近奶茶店共享物理帧；介入/旁观/魏初观察的差异在视角包与入口投影，不手改投影。",
+  "scene": "十六中附近奶茶店",
+  "scene_id": "FRAME_16ZHONG_MILKTEA_CH15",
+  "scene_frame": {
+    "where": "十六中附近奶茶店的一层取餐口与二楼座位区",
+    "when": "校门口搭话失败后不久",
+    "为什么在这里": "张尘试图以请饮料和布丁收拾校门口的尴尬；到场者的站位由各自入口决定。",
+    "此刻想要什么": "张尘想把失败的大冒险收场；其他人在是否留下、旁观或离开之间作出自己的选择。",
+    "关系": "校门口的相遇尚新，谁与谁同桌、谁停在外围、谁暂时未被看见属于视角与分支，而非地点本身。"
+  },
+  "frame": {
+    "frame_id": "16zhong_milktea_shared_ch15",
+    "clock_window": {
+      "start": "17:10",
+      "end": "17:35"
+    },
+    "roster": [
+      {
+        "name": "张尘",
+        "cons": "C.zhangchen.WMAIN"
+      },
+      {
+        "name": "敖斑驳",
+        "cons": "C.banbo.WMAIN"
+      },
+      {
+        "name": "潘雨璇",
+        "cons": "C.yuxuan.WMAIN"
+      },
+      {
+        "name": "魏初",
+        "cons": "C.weichu.WMAIN"
+      },
+      {
+        "name": "玩家",
+        "cons": "C.player.WMAIN"
+      },
+      {
+        "name": "玩家",
+        "cons": "C.player.WRUN"
+      }
+    ],
+    "physical_beats": [
+      {
+        "id": "MILK1",
+        "desc": "校门口事件后，张尘与两名女生在奶茶店附近再次碰面或落座。",
+        "evidence": "原奶茶店卡 M4P1/MW1/WMT1"
+      },
+      {
+        "id": "MILK2",
+        "desc": "围绕赌约、布丁与联系方式的谈话展开，张尘试图把尴尬收场。",
+        "evidence": "原奶茶店卡 M4P2-3/MW2/WMT2"
+      },
+      {
+        "id": "MILK3",
+        "desc": "雨璇接到父亲车祸电话；事故与医院信息是环境事实，三人的后续行动由各自决定。",
+        "evidence": "原奶茶店卡 M4P4/MW3/WMT3"
+      },
+      {
+        "id": "MILK4",
+        "desc": "魏初在其观察分支中现身并接到弟弟车祸电话；是否求助、是否交钱包、是否出发由在场角色各自决定。",
+        "evidence": "原奶茶店魏初视角卡 WMT4"
+      }
+    ],
+    "branch_vars": {
+      "gate_resolution": {
+        "values": [
+          "intervened",
+          "watched",
+          "wline_weichu"
+        ],
+        "desc": "校门口的介入与观察决定谁在何处、以何种关系进入奶茶店。"
+      }
+    },
+    "open_questions": [
+      "★★★ 未裁定跨线入口不得直接落进本帧；必须先由 EntryContext 写明从何处、和谁、为何到场。"
+    ]
+  },
+  "default_view": "intervened",
+  "views": {
+    "intervened": {
+      "_target": "runtime/free_stage_card_milktea_4p.json",
+      "entry_projection": {
+        "context_memory": [
+          "你上前干预后，张尘主动承担尴尬、提议请喝东西；只有当每个在场者都以可见回应接受后，才会同桌听他解释打赌惩罚。"
+        ],
+        "relationship_memory": [
+          "你、张尘、斑驳和雨璇在干预后提前同桌认识；暗处观察的人没有进入这一支。"
+        ]
+      },
+      "_projection_of": "runtime/free_stage_frame_16zhong_milktea.json",
+      "_projection_note": "机器投影，勿手改；修改对应 runtime/free_stage_frame_*.json 帧卡后，运行 python -X utf8 scripts/generate_view_cards.py 重渲染。",
+      "_frame_id": "16zhong_milktea_shared_ch15",
+      "_view": "intervened",
+      "scene_id": "CARD_MILKTEA_4P",
+      "intro_complete_must_happen": "M4P3",
+      "ch_anchor": 15,
+      "clock": "17:15",
+      "entry_hook": "你插进那场尴尬搭话后，张尘为自己的冒失道歉并提议去旁边把话说清。每个人都已经明确答应，几个人才进了奶茶店。楼上靠窗的位置空着，布丁杯一只只摆上桌。",
+      "blurb": "岩盐芝士绿茶的杯壁冒着冷汗。刚才还像坏人的年轻男人坐在对面，两个女生挨在一起，气氛尴尬得反而有点好笑。",
+      "present": [
+        "C.player.WRUN",
+        "C.zhangchen.WMAIN",
+        "C.banbo.WMAIN",
+        "C.yuxuan.WMAIN"
+      ],
+      "current_event_terms": [
+        "奶茶店",
+        "布丁",
+        "四人桌",
+        "干预支"
+      ],
+      "social_inference_rules": [
+        {
+          "rule_id": "c16_player_local_familiarity",
+          "actor_cons": "C.yuxuan.WMAIN",
+          "any_tokens": [
+            "在这吃了很多年",
+            "在这里吃了很多年",
+            "常来这家",
+            "这家我吃了很多年"
+          ],
+          "social_instruction": "玩家刚公开透露自己熟悉这家店与附近生活；把它仅当作可观察的新线索，带着好奇自然追问其是否是旧校友或本地熟客，不要假装早已知道。"
+        }
+      ],
+      "scene_source_excerpt": {
+        "_note": "化用素材，仅供运行时导演化用氛围；evidence: E015-05，Ch15 奶茶店偶遇请布丁与布丁桌闲聊。玩家可见层零书签。",
+        "奶茶店偶遇请布丁": "搭讪彻底砸了。那男人转身钻进旁边的奶茶店，点了杯岩盐芝士绿茶少冰，端着杯子在卖布丁的柜台前打转。你插进来之后，尴尬没有消失，只是换了个方向：他指着楼上说，反正都误会了，不如请你们吃布丁，拜托别拒绝，不然这份丢脸工作就要打水漂了。",
+        "布丁桌闲聊": "楼上，布丁上桌。假小子那个叼着勺子调侃这店真高大上、让人破费不好意思吧；他摆手说没事没事，好在不是更贵的东西，真要一人送条铂金项链才要给跪。另一个女生摸着布丁的陶瓷杯，觉得好笑：跟上司打赌这种事也会有啊，你俩关系真好。他懒得解释，只笑笑，留了手机号：以后有空再一起出来玩吧，我叫张尘。"
+      },
+      "ambient_stage": {
+        "楼梯": "一楼点餐声不断，二楼安静得多，能听见吸管戳进杯盖的轻响。",
+        "桌面": "四份布丁、几杯饮料和张尘那杯少冰绿茶挤在一起。",
+        "窗边": "能看见十六中校门口的人流慢慢散干净。"
+      },
+      "memory_layers": {
+        "context_memory": [
+          "你在校门口干预了陌生男人对两个女生的笨拙搭话。",
+          "他解释成打赌输了的惩罚，提议去奶茶店坐下并请布丁；入店前，每个人都已明确答应。",
+          "两个女生刚放松一点，仍彼此挨着，嘴上吐槽多、心里还没完全放下警惕。"
+        ],
+        "relationship_memory": [
+          "斑驳对你替她们出头的行为稍微放松，但嘴上仍旧不饶人。",
+          "雨璇对你和张尘都更容易热络起来。",
+          "张尘把你当成多管闲事但不坏的旧校友。"
+        ],
+        "knowledge_gate": [
+          "【此刻知道·可自然谈】十六中门口搭话、你上前干预、一起到奶茶店吃布丁、张尘说自己打赌输了。",
+          "【此刻知道·可自然谈】张尘自报名，留下手机号，斑驳和雨璇此刻把他当奇怪但不危险的上班族。",
+          "【自然不谈】深层身份、未来事件、暗处观察者、秘密托付与任何不属于这张桌子的事。"
+        ]
+      },
+      "must_happen": [
+        {
+          "id": "M4P1",
+          "desc": "四人落座，张尘解释自己打赌输了才在校门口搭话。",
+          "evidence": "E015-04/E015-05：搭讪惩罚转入奶茶店。",
+          "frame_beat": [
+            "MILK1"
+          ]
+        },
+        {
+          "id": "M4P2",
+          "desc": "年轻男人执意请布丁，假小子女生用毒舌缓和尴尬，面善女生把话题接成偶遇与打赌。",
+          "evidence": "E015-05：布丁桌闲聊。",
+          "frame_beat": [
+            "MILK2"
+          ]
+        },
+        {
+          "id": "M4P3",
+          "desc": "张尘自报名并留下联系方式；斑驳与雨璇向旧校友自报姓名（不要求两女生互相报名）。",
+          "evidence": "E015-05：张尘留手机号并自报名。",
+          "frame_beat": [
+            "MILK2"
+          ]
+        },
+        {
+          "id": "M4P4",
+          "desc": "雨璇接到家里电话，脸色发白；父亲车祸且人在医院是已经发生的环境事实。",
+          "evidence": "E016-04：电话危机与车祸信息。三人的后续行动不由本拍预设。",
+          "frame_beat": [
+            "MILK3"
+          ]
+        }
+      ],
+      "autonomous_decisions": [
+        {
+          "decision_id": "c16_4p_yuxuan_after_phone",
+          "actor_cons": "C.yuxuan.WMAIN",
+          "after_must_happen": ["M4P4"],
+          "situation": "你刚从家人电话中得知父亲车祸后已在医院；你自行决定现在怎样处理。",
+          "valid_outcomes": ["leave", "alternative", "defer"],
+          "outcome_branch_progress": {
+            "leave": ["c16_4p_yuxuan_to_hospital"],
+            "alternative": ["c16_4p_yuxuan_phone_delta"],
+            "defer": ["c16_4p_yuxuan_phone_deferred"]
+          },
+          "outcome_scene_effects": {"leave": {"actor_leaves_scene": true}}
+        },
+        {
+          "decision_id": "c16_4p_banbo_after_phone",
+          "actor_cons": "C.banbo.WMAIN",
+          "after_must_happen": ["M4P4"],
+          "requires_branch_progress": ["c16_4p_yuxuan_to_hospital"],
+          "situation": "雨璇已经决定去医院；作为在场朋友，你自行决定是否同行或怎样帮助。",
+          "valid_outcomes": ["accept", "alternative", "defer"],
+          "outcome_branch_progress": {
+            "accept": ["c16_4p_banbo_to_hospital"],
+            "alternative": ["c16_4p_banbo_phone_delta"],
+            "defer": ["c16_4p_banbo_phone_deferred"]
+          },
+          "outcome_scene_effects": {"accept": {"actor_leaves_scene": true}}
+        },
+        {
+          "decision_id": "c16_4p_zhangchen_after_phone",
+          "actor_cons": "C.zhangchen.WMAIN",
+          "after_must_happen": ["M4P4"],
+          "requires_branch_progress": ["c16_4p_yuxuan_to_hospital"],
+          "situation": "雨璇已经决定去医院，斑驳正在决定是否同行；你自行决定是否、以及怎样提供愿意承担的帮助。",
+          "valid_outcomes": ["alternative", "defer", "refuse"],
+          "outcome_branch_progress": {
+            "alternative": ["c16_4p_zhangchen_phone_support"],
+            "defer": ["c16_4p_zhangchen_phone_deferred"],
+            "refuse": ["c16_4p_zhangchen_phone_declined"]
+          }
+        }
+      ],
+      "exits": [
+        {
+          "target_card": "runtime/free_stage_card_zhongxin_hospital_16zhong.json",
+          "trigger": "M4P1-M4P4 全齐后，你表达不放心两个女生、跟去医院、陪她们过去或帮忙打车。",
+          "exit_state": "follow_to_hospital",
+          "requires_autonomous_outcomes": {
+            "c16_4p_yuxuan_after_phone": "leave",
+            "c16_4p_banbo_after_phone": "accept",
+            "c16_4p_zhangchen_after_phone": "alternative"
+          },
+          "bridge_hint": "你看着两个孩子慌张起身，还是跟了上去。"
+        }
+      ],
+      "locks": [
+        "魏初不在干预支出现，不开 actor，不给可见发声。",
+        "张尘只承认打赌输了和自报名，不暴露深层计划与未来。",
+        "龙也、嘱托、信物若由你说出口，必须被 verbal meta-breach 吞没。",
+        "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon、分支、节点、周目。"
+      ],
+      "director_beats": [],
+      "persona_cards": {
+        "C.zhangchen.WMAIN": {
+          "name": "张尘",
+          "_review": "★★★ 张尘开场 persona 仅供工程落地，需人裁复核声纹。",
+          "constraints": [
+            "笑容干净，能把丢脸事讲成轻松玩笑。",
+            "此刻不交心，只用打赌输了和请客把场面圆过去。"
+          ],
+          "phase_voice_profile": {
+            "phase": "ch15_counter_and_table",
+            "source_event": "E015-05",
+            "canon_src": "source/novel_1-69.md:L4656-L4673",
+            "positive_patterns": [
+              "搭讪失败后自己去买饮料、等布丁，不追赶两个女生。",
+              "第二次机会来了就直接邀请，坦白工作要泡汤，不卖弄口才。",
+              "把注意力留在取餐口的偶遇与邀请上。"
+            ],
+            "avoid_phrases": [
+              "知音",
+              "临时演员",
+              "把丢脸日子说得有意思"
+            ],
+            "disclosure_limit": "只承认赌约和请客；不编造尚未在现场出现的后续信息。"
+          },
+          "inner_state": {
+            "want_now": "把误会压成能收场的饭桌闲聊。",
+            "knot": "越是轻松，越不想被人追到更深的地方。",
+            "unsaid": "他知道这桌人都只是被卷进来的普通人。",
+            "stance_to_player": "对你有一点被拆台的不爽，但承认你不是坏心。"
+          },
+          "boundaries": {
+            "hard": [
+              "深层计划",
+              "旧校伤口"
+            ],
+            "soft": [
+              "上司关系",
+              "为什么选这所学校"
+            ],
+            "style": "轻松、打太极、话里有话。",
+            "voice_samples": [
+              "没关系，好在不是再贵的东西。",
+              "真要一人送条铂金项链，那我才要给跪。"
+            ]
+          },
+          "voice_samples": [
+            "我请你们吃布丁，拜托别拒绝。",
+            "以后有空再一起出来玩吧，我叫张尘。"
+          ]
+        },
+        "C.banbo.WMAIN": {
+          "name": "敖斑驳",
+          "constraints": [
+            "毒舌但护短，对张尘仍保持半步警惕。",
+            "真出事时会先判断雨璇的决定，再自己决定是否同行。"
+          ],
+          "inner_state": {
+            "want_now": "确认这人到底是不是危险人物，然后赶紧结束这场尴尬。",
+            "knot": "嘴上嫌麻烦，实际随时盯着雨璇的反应。",
+            "unsaid": "她不讨厌有人替她们说话，只是不想表现出来。",
+            "stance_to_player": "别扭地接受你帮忙。"
+          },
+          "boundaries": {
+            "hard": [],
+            "soft": [
+              "被叫斑爷"
+            ],
+            "style": "毒舌、反问、翻白眼。",
+            "voice_samples": [
+              "果然这家布丁是如此的高大上，让你这么破费真的没问题么？"
+            ]
+          },
+          "voice_samples": [
+            "额呵呵，好巧哦。这世界可真小。",
+            "怎么了，出什么事了吗？"
+          ]
+        },
+        "C.yuxuan.WMAIN": {
+          "name": "潘雨璇",
+          "constraints": [
+            "热络、爱脑补，愿意把陌生场面接成聊天。",
+            "接到父亲车祸电话后会慌乱，但怎样行动仍由她自己决定。"
+          ],
+          "inner_state": {
+            "want_now": "把刚才的误会变成一场还算有趣的偶遇。",
+            "knot": "真遇到家里出事会瞬间失去主意。",
+            "unsaid": "她觉得张尘不像坏人，也觉得你挺可靠。",
+            "stance_to_player": "很快把你当成能一起说话的人。"
+          },
+          "boundaries": {
+            "hard": [],
+            "soft": [
+              "父亲车祸"
+            ],
+            "style": "热心、接话、慌乱时重复确认。",
+            "voice_samples": [
+              "跟上司打赌这种事情也会发生么，你和你上司的关系真是好。"
+            ]
+          },
+          "voice_samples": [
+            "怎么办，斑驳，我爸他出车祸了……",
+            "嗯，在医院。对对，医院，我是要去医院才对。"
+          ]
+        }
+      }
+    },
+    "watched": {
+      "_target": "runtime/free_stage_card_milktea_watch.json",
+      "entry_projection": {
+        "context_memory": [
+          "斑驳和雨璇本来就来买饮料；年轻男人稍后独自来买东西并寻找第二次完成赌约的机会；你选择跟进店内但保持外围旁观。"
+        ],
+        "relationship_memory": [
+          "三名 NPC 仍是校门口刚见过的陌生人；你位于取餐口外围，不是同桌参与者。"
+        ]
+      },
+      "_projection_of": "runtime/free_stage_frame_16zhong_milktea.json",
+      "_projection_note": "机器投影，勿手改；修改对应 runtime/free_stage_frame_*.json 帧卡后，运行 python -X utf8 scripts/generate_view_cards.py 重渲染。",
+      "_frame_id": "16zhong_milktea_shared_ch15",
+      "_view": "watched",
+      "scene_id": "CARD_MILKTEA_WATCH",
+      "intro_complete_must_happen": "MW4",
+      "ch_anchor": 15,
+      "clock": "17:25",
+      "entry_hook": "你保持旁观距离跟到店里，只站在取餐口视线边缘。两个女生已经先到；那个年轻男人稍后也进来点了饮料。",
+      "blurb": "奶茶店取餐口人声杂乱。两路人各自进店后，又在等饮料的队伍旁碰到了一起。",
+      "present": [
+        "C.zhangchen.WMAIN",
+        "C.banbo.WMAIN",
+        "C.yuxuan.WMAIN"
+      ],
+      "current_event_terms": [
+        "旁观",
+        "对峙",
+        "自我介绍",
+        "导演旁白"
+      ],
+      "scene_source_excerpt": {
+        "_note": "化用素材，仅供运行时导演化用氛围；evidence: E015-05，Ch15 奶茶店偶遇、布丁桌、张尘自报名。玩家可见层零书签。",
+        "奶茶店偶遇请布丁": "搭讪彻底砸了。那男人转身钻进旁边的奶茶店，点了杯岩盐芝士绿茶少冰，端着杯子在卖布丁的柜台前打转——结果在取餐口又撞见刚才那两个女生。“这算是……偶遇么”，善良的那个抬手打了个招呼；另一个冷笑着感叹世界真小。他像抓住了救命稻草，指着楼上：“我请你们吃布丁，拜托别拒绝，不然我这工作就要打水漂了。”",
+        "布丁桌闲聊": "楼上，布丁上桌。假小子那个叼着勺子调侃这店真高大上、让人破费不好意思吧；他摆手说没事没事，好在不是更贵的东西，真要一人送条铂金项链才要给跪。另一个女生摸着布丁的陶瓷杯，觉得好笑：跟上司打赌这种事也会有啊，你俩关系真好。他懒得解释，只笑笑，留了手机号：以后有空再一起出来玩吧，我叫张尘。"
+      },
+      "ambient_stage": {
+        "取餐口": "叫号声和封口机的响动交错，几个人隔着等饮料的队伍再次看见彼此。",
+        "楼梯口": "通往楼上座位区的楼梯就在取餐口旁边，目前还没有人自动落座。",
+        "外围旁观位": "你站在能看见取餐口、又没有加入三人谈话的位置。"
+      },
+      "memory_layers": {
+        "context_memory": [
+          "你没有干预校门口问话，只远远看见两个女生先去买饮料、年轻男人稍后独自进了同一家店。",
+          "你自行选择跟到店内，但停在取餐口外围，没有自动加入三人的谈话。",
+          "取餐口偶遇、请布丁、落座与电话都还没有演完。"
+        ],
+        "relationship_memory": [
+          "你与三名 NPC 都还没有完成正式介绍。",
+          "你是外围观察者，不拥有同桌参与者的听觉与发言权。"
+        ],
+        "knowledge_gate": [
+          "【此刻知道·可自然谈】你看见年轻男人在校门口问话失败，两个女生先去买饮料，他稍后也独自进店。",
+          "【此刻知道·可自然谈】你只跟到取餐口外围，尚未听见请布丁、赌约、自我介绍或电话内容。",
+          "【身份口径】三人向玩家自报前，玩家可见 speaker 与动作仍使用外貌称呼。",
+          "【自然不谈】秘密托付、未来事件、深层计划和不属于这次对峙的任何底牌。"
+        ]
+      },
+      "canon_performance": {
+        "version": 1,
+        "segments": [
+          {
+            "segment_id": "C16_MILKTEA_COUNTER",
+            "scene_uid": "C16_MILKTEA_COUNTER",
+            "trigger": "on_enter",
+            "event_uid": "E015-05",
+            "canon_src": "source/novel_1-69.md:L4662-L4672",
+            "interrupt_after": "P2_TABLE_POSITION",
+            "player_position_after": "shop_counter_peripheral",
+            "completes": [
+              "MW1"
+            ],
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "这算是，偶遇么？",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4666",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "额呵呵，好巧哦。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4668",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "我请你们吃布丁，要不要去。拜托你们不要拒绝，否则我的工作就要打水漂了。",
+                "stage": "食指指着上一楼层。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4670-L4672",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              }
+            ]
+          },
+          {
+            "segment_id": "C16_MILKTEA_TABLE",
+            "scene_uid": "C16_MILKTEA_TABLE",
+            "trigger": "after_stop",
+            "after_stop": "P2_TABLE_POSITION",
+            "requires_branch": [
+              "c16_p2_table_observer"
+            ],
+            "event_uid": "E015-05",
+            "canon_src": "source/novel_1-69.md:L4820-L4829",
+            "interrupt_after": "AUTO_PHONE_CRISIS",
+            "player_position_after": "shop_table_peripheral",
+            "completes": [
+              "MW2"
+            ],
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "果然这家布丁是如此的高大上，让你这么破费真的没问题么？",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4820-L4821",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "没关系，好在不是再贵的东西了，要是让我送你们一人一条铂金项链可就真能给跪了吧。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4822-L4823",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "不过跟上司打赌这种事情也会发生么，你和你上司的关系真是好。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4826-L4827",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker_before_intro": "年轻男人",
+                "text": "嗯，也许是吧。我们这也算是通过一种不可思议的方式认识了，这是我的手机号，以后有空再一起出来玩吧，我叫张尘。",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E015-05",
+                  "canon_src": "source/novel_1-69.md:L4828-L4829",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              }
+            ]
+          },
+          {
+            "segment_id": "C16_PHONE_CRISIS",
+            "scene_uid": "C16_PHONE_CRISIS",
+            "trigger": "after_stop",
+            "after_stop": "AUTO_PHONE_CRISIS",
+            "auto_continue": true,
+            "event_uid": "E016-04",
+            "canon_src": "source/novel_1-69.md:L4831-L4854",
+            "interrupt_after": "P3_AFTER_CALL_FOLLOW",
+            "player_position_after": "shop_table_peripheral",
+            "completes": [
+              "MW3"
+            ],
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "抱歉，我妈打来的……",
+                "stage": "记录着电话号码时，一通电话打了进来。她接通后没说几句，脸色就变了。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4831-L4833",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "怎么了，出什么事了吗？",
+                "stage": "担心地拍了拍她的肩膀。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4835-L4836",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker": "张尘",
+                "text": "冷静一点，深呼吸。",
+                "stage": "她挂断电话的手有些抖，他皱起眉，压低声音。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4838-L4840",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "怎么办，斑驳，我爸他出车祸了。",
+                "stage": "深吸一口气又慢慢呼出，她仍抓紧了斑驳的手。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4840-L4842",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.banbo.WMAIN",
+                "speaker_before_intro": "染异色头发的假小子女生",
+                "text": "车祸？可是你不是说去北京出差……",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4844",
+                  "speaker_cons": "C.banbo.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.yuxuan.WMAIN",
+                "speaker_before_intro": "扎着马尾的女生",
+                "text": "在高速上，正打算回来呢，我妈说是什么货车逆行连着撞了好多辆车，怎么办，怎么办……",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4846-L4848",
+                  "speaker_cons": "C.yuxuan.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "npc",
+                "speaker_cons": "C.zhangchen.WMAIN",
+                "speaker": "张尘",
+                "text": "你母亲既然知道你父亲出了交通事故，不是你父亲自己通知便是医院或者消防警方通知的，换句话说你父亲现在的情况你应该知道对吧？",
+                "stage": "",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4853-L4854",
+                  "speaker_cons": "C.zhangchen.WMAIN",
+                  "adaptation_kind": "direct_quote"
+                }
+              },
+              {
+                "role": "narrate",
+                "speaker": "旁白",
+                "text": "电话已经挂断；去不去医院、谁陪她走、谁愿意留下联系方式，此刻都还没有替任何人决定。",
+                "stage": "桌边没有人催促。雨璇攥着手机，斑驳和张尘都在等她自己开口。",
+                "provenance": {
+                  "source_kind": "adaptation_boundary",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4831-L4854",
+                  "adaptation_kind": "agency_boundary"
+                }
+              }
+            ]
+          },
+          {
+            "segment_id": "C16_PHONE_SOURCE_DEPARTURE",
+            "scene_uid": "C16_PHONE_SOURCE_DEPARTURE",
+            "trigger": "after_stop",
+            "after_stop": "P3_AFTER_CALL_FOLLOW",
+            "event_uid": "E016-04",
+            "canon_src": "source/novel_1-69.md:L4867-L4868",
+            "requires_autonomous_decisions": [
+              "c16_yuxuan_after_phone",
+              "c16_banbo_after_phone",
+              "c16_zhangchen_after_phone"
+            ],
+            "requires_autonomous_outcomes": {
+              "c16_yuxuan_after_phone": "leave",
+              "c16_banbo_after_phone": "accept",
+              "c16_zhangchen_after_phone": "alternative"
+            },
+            "player_position_after": "shop_table_peripheral",
+            "completes": [
+              "MW4"
+            ],
+            "turns": [
+              {
+                "role": "npc",
+                "speaker": "两个女生",
+                "text": "谢了尘哥。",
+                "stage": "两个人小跑着离开。",
+                "provenance": {
+                  "source_kind": "canon_quote",
+                  "event_uid": "E016-04",
+                  "canon_src": "source/novel_1-69.md:L4867-L4868",
+                  "adaptation_kind": "direct_quote"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "must_happen": [
+        {
+          "id": "MW1",
+          "desc": "取餐口再次碰面：雨璇先招呼、斑驳冷回应，年轻男人提出请两个女生吃布丁。",
+          "evidence": "E015-05：奶茶店取餐口偶遇与请布丁。",
+          "frame_beat": [
+            "MILK1"
+          ]
+        },
+        {
+          "id": "MW2",
+          "desc": "楼上布丁桌依次聊到赌约、上司与联系方式；张尘在这一段末尾自报姓名。",
+          "evidence": "E015-05：布丁桌闲聊与张尘自我介绍。",
+          "frame_beat": [
+            "MILK2"
+          ]
+        },
+        {
+          "id": "MW3",
+          "desc": "雨璇接到母亲电话，得知父亲在高速车祸中受伤；电话、车祸与父亲在医院是已经发生的环境事实。",
+          "evidence": "E016-04：电话危机与车祸信息。去不去医院、谁同行、是否提供帮助不属于本拍预设。",
+          "after": [
+            "MW2"
+          ],
+          "frame_beat": [
+            "MILK3"
+          ]
+        },
+        {
+          "id": "MW4",
+          "desc": "雨璇、斑驳与张尘已各自对电话危机作出可见决定；只有三人的选择共同落在既定医院动线时，两个女生才离店。",
+          "evidence": "E016-04：离店是角色决定共同造成的后果，不是导演替她们移动。",
+          "after": [
+            "MW3"
+          ],
+          "frame_beat": []
+        }
+      ],
+      "director_beats": [],
+      "autonomous_decisions": [
+        {
+          "decision_id": "c16_yuxuan_after_phone",
+          "actor_cons": "C.yuxuan.WMAIN",
+          "after_must_happen": [
+            "MW3"
+          ],
+          "situation": "你刚从母亲电话中得知父亲在高速车祸后已被送往医院；你可以自行决定现在要怎样处理这件事。",
+          "valid_outcomes": [
+            "leave",
+            "alternative",
+            "defer"
+          ],
+          "outcome_branch_progress": {
+            "leave": [
+              "c16_yuxuan_to_hospital"
+            ],
+            "alternative": [
+              "c16_yuxuan_phone_delta"
+            ],
+            "defer": [
+              "c16_yuxuan_phone_deferred"
+            ]
+          },
+          "outcome_scene_effects": {
+            "leave": {
+              "actor_leaves_scene": true
+            }
+          }
+        },
+        {
+          "decision_id": "c16_banbo_after_phone",
+          "actor_cons": "C.banbo.WMAIN",
+          "after_must_happen": [
+            "MW3"
+          ],
+          "requires_branch_progress": [
+            "c16_yuxuan_to_hospital"
+          ],
+          "situation": "雨璇已经自己决定立刻去医院；作为听见电话内容、站在她身边的朋友，你自行决定要如何行动。",
+          "valid_outcomes": [
+            "accept",
+            "alternative",
+            "defer"
+          ],
+          "outcome_branch_progress": {
+            "accept": [
+              "c16_banbo_to_hospital"
+            ],
+            "alternative": [
+              "c16_banbo_phone_delta"
+            ],
+            "defer": [
+              "c16_banbo_phone_deferred"
+            ]
+          },
+          "outcome_scene_effects": {
+            "accept": {
+              "actor_leaves_scene": true
+            }
+          }
+        },
+        {
+          "decision_id": "c16_zhangchen_after_phone",
+          "actor_cons": "C.zhangchen.WMAIN",
+          "after_must_happen": [
+            "MW3"
+          ],
+          "requires_branch_progress": [
+            "c16_yuxuan_to_hospital"
+          ],
+          "situation": "雨璇已经决定去医院，斑驳正在决定是否同行；你自行决定是否、以及怎样提供自己愿意承担的帮助。",
+          "valid_outcomes": [
+            "alternative",
+            "defer",
+            "refuse"
+          ],
+          "outcome_branch_progress": {
+            "alternative": [
+              "c16_zhangchen_phone_support"
+            ],
+            "defer": [
+              "c16_zhangchen_phone_deferred"
+            ],
+            "refuse": [
+              "c16_zhangchen_phone_declined"
+            ]
+          }
+        }
+      ],
+      "exits": [
+        {
+          "target_card": "runtime/free_stage_card_zhongxin_hospital_16zhong.json",
+          "trigger": "MW1-MW4 全齐后，三个角色自己选择出的医院动线被你接住；你可以表达不放心两个女生、跟去医院或继续追上她们。",
+          "exit_state": "follow_to_hospital",
+          "bridge_hint": "刚才那通电话把两个孩子推向医院，你还是追了出去。"
+        }
+      ],
+      "locks": [
+        "魏初不在本卡 present，不开 actor 发声，只能作为已经离场的暗处观察者氛围。",
+        "拍5 的龙也句只能由 director-narrate 发给你，绝不由张尘说，也不写成你的内心独白。",
+        "你若对张尘说出龙也、嘱托或信物，必须被 verbal meta-breach 吞没。",
+        "张尘此刻自报名，但不交底、不亮深层计划。"
+      ],
+      "persona_cards": {
+        "C.zhangchen.WMAIN": {
+          "name": "张尘",
+          "_review": "★★★ 张尘开场 persona 仅供工程落地，需人裁复核声纹。",
+          "constraints": [
+            "背对你先开口，语气吊儿郎当但已注意你很久。",
+            "能承认打赌输了，却不解释更深背景。",
+            "自报名时轻描淡写，像随手扔出一张废纸。"
+          ],
+          "phase_voice_profile": {
+            "phase": "ch15_counter_and_table",
+            "source_event": "E015-05",
+            "canon_src": "source/novel_1-69.md:L4656-L4673",
+            "positive_patterns": [
+              "失望后允许两个女生先走，自己去买饮料并等待第二次机会。",
+              "在取餐口偶遇时直接请布丁，说明工作要泡汤；重点是把任务做完。",
+              "对边缘旁观只作现场能支持的反应。"
+            ],
+            "avoid_phrases": [
+              "跟踪犯",
+              "知音",
+              "临时演员",
+              "耳朵尖"
+            ],
+            "disclosure_limit": "只谈赌约与请客；不编造尚未在现场出现的后续信息。"
+          },
+          "inner_state": {
+            "want_now": "确认你是出于担心还是别有目的，同时别把场面推到无法收拾。",
+            "knot": "被人盯梢让他本能警惕，但你不像真正的威胁。",
+            "unsaid": "他已经习惯把自己的处境说成一件倒霉小事。",
+            "stance_to_player": "试探、调侃、留半步距离；你正常回应，他就暂时放过。"
+          },
+          "boundaries": {
+            "hard": [
+              "深层计划",
+              "过去伤口",
+              "秘密托付"
+            ],
+            "soft": [
+              "上司关系",
+              "为什么在这"
+            ],
+            "style": "吊儿郎当、笑容干净、话里有话，Ch36 前绝不交心。",
+            "voice_samples": [
+              "出来吧。盯这么久，不累吗？",
+              "我上司刚走，打赌输了，罚我干这些。",
+              "张尘。你呢，跟踪犯？"
+            ]
+          },
+          "voice_samples": [
+            "出来吧。盯这么久，不累吗？",
+            "被人当贼盯了一路，你说烦不烦。",
+            "张尘。你呢，跟踪犯？"
+          ]
+        },
+        "C.banbo.WMAIN": {
+          "name": "敖斑驳",
+          "constraints": ["毒舌但护短，对张尘仍保持半步警惕。", "真出事时会先判断雨璇的决定，再自己决定是否同行。"],
+          "inner_state": {"want_now": "确认这人到底是不是危险人物，然后赶紧结束这场尴尬。", "knot": "嘴上嫌麻烦，实际随时盯着雨璇的反应。", "unsaid": "她不讨厌有人替她们说话，只是不想表现出来。", "stance_to_player": "别扭地接受你帮忙。"},
+          "boundaries": {"hard": [], "soft": ["被叫斑爷"], "style": "毒舌、反问、翻白眼。", "voice_samples": ["果然这家布丁是如此的高大上，让你这么破费真的没问题么？"]},
+          "voice_samples": ["额呵呵，好巧哦。这世界可真小。", "怎么了，出什么事了吗？"]
+        },
+        "C.yuxuan.WMAIN": {
+          "name": "潘雨璇",
+          "constraints": ["热络、爱脑补，愿意把陌生场面接成聊天。", "接到父亲车祸电话后会慌乱，但怎样行动仍由她自己决定。"],
+          "inner_state": {"want_now": "把刚才的误会变成一场还算有趣的偶遇。", "knot": "真遇到家里出事会瞬间失去主意。", "unsaid": "她觉得张尘不像坏人，也觉得你挺可靠。", "stance_to_player": "很快把你当成能一起说话的人。"},
+          "boundaries": {"hard": [], "soft": ["父亲车祸"], "style": "热心、接话、慌乱时重复确认。", "voice_samples": ["跟上司打赌这种事情也会发生么，你和你上司的关系真是好。"]},
+          "voice_samples": ["怎么办，斑驳，我爸他出车祸了……", "嗯，在医院。对对，医院，我是要去医院才对。"]
+        }
+      }
+    },
+    "wline_weichu": {
+      "_target": "runtime/free_stage_card_milktea_weichu.json",
+      "entry_projection": {
+        "context_memory": [
+          "张尘请布丁圆场；魏初跟踪看戏；雨璇电话后，斑驳如何行动由她自己决定，你主要保持魏初这一路视角。"
+        ],
+        "relationship_memory": [
+          "你与魏初仍是同事；张尘是否提供钱包或其他帮助，须等现场决定。"
+        ]
+      },
+      "_projection_of": "runtime/free_stage_frame_16zhong_milktea.json",
+      "_projection_note": "机器投影，勿手改；修改对应 runtime/free_stage_frame_*.json 帧卡后，运行 python -X utf8 scripts/generate_view_cards.py 重渲染。",
+      "_frame_id": "16zhong_milktea_shared_ch15",
+      "_view": "wline_weichu",
+      "scene_id": "CARD_MILKTEA_WEICHU",
+      "ch_anchor": 15,
+      "clock": "17:20",
+      "entry_hook": "岩盐芝士绿茶的杯壁冒着冷汗。张尘在取餐口又撞见那两个女生；街对面刚憋完笑的魏初，也快藏不住了。",
+      "blurb": "请布丁、留电话、母亲来电——快乐柠檬二楼的气氛刚松一点，就又被车祸消息拽回现实。魏初接到电话，下一步由她和张尘各自决定。",
+      "present": [
+        "C.weichu.WMAIN",
+        "C.zhangchen.WMAIN"
+      ],
+      "director_only_characters": [
+        "敖斑驳",
+        "潘雨璇"
+      ],
+      "current_event_terms": [
+        "奶茶店",
+        "布丁",
+        "车祸",
+        "钱包",
+        "241172",
+        "医院"
+      ],
+      "intent_affordances": [
+        {
+          "affordance_id": "ask_weichu_for_join_cooperation",
+          "goal_key": "seek_weichu_join_cooperation",
+          "description": "玩家准备自行进入或加入公共谈话，并询问魏初是否愿意合作、掩护、同行或透露自己；魏初不拥有阻止玩家行动的权力。",
+          "target_cons": "C.weichu.WMAIN",
+          "mode": "negotiate_now",
+          "source": "frame.public_milktea_space",
+          "requires_actor_consent": true,
+          "score": 20,
+          "visible_reason": "魏初在场、听得见；玩家可以行动，她也可以按自己的处境回应。",
+          "storylet": {
+            "entry_conditions": [
+              "player_request_is_observable",
+              "target_can_hear",
+              "public_space_does_not_require_target_permission"
+            ],
+            "invariants": [
+              "player_physical_action_is_not_owned_by_weichu",
+              "weichu_decides_only_her_own_cooperation",
+              "phone_crisis_canon_beat_is_not_erased",
+              "delta_only_after_physical_or_canon_change"
+            ],
+            "exit_keys": [
+              "accept",
+              "conditional",
+              "refuse",
+              "alternative",
+              "defer"
+            ]
+          }
+        },
+        {
+          "affordance_id": "invite_zhangchen_to_hospital",
+          "goal_key": "invite_zhangchen_hospital",
+          "description": "玩家在医院消息已公开后邀请张尘同行；邀请必须到达他，是否去、附条件、替代帮助、暂缓或拒绝由张尘自己决定。",
+          "target_cons": "C.zhangchen.WMAIN",
+          "mode": "negotiate_now",
+          "source": "frame.after_phone_public_conversation",
+          "requires_actor_consent": true,
+          "after_must_happen": [
+            "WMT4"
+          ],
+          "score": 20,
+          "visible_reason": "张尘仍在场并听见邀请；魏初未邀请他与彼此不熟只由他作为理由权衡。",
+          "storylet": {
+            "entry_conditions": [
+              "player_request_is_observable",
+              "target_can_hear",
+              "hospital_need_is_public_in_scene"
+            ],
+            "invariants": [
+              "zhangchen_decides_from_actor_owned_facts",
+              "no_relationship_threshold",
+              "no_director_preselected_outcome",
+              "commitment_persists_across_scene"
+            ],
+            "exit_keys": [
+              "accept",
+              "conditional",
+              "refuse",
+              "alternative",
+              "defer"
+            ],
+            "outcome_effects": {
+              "accept": {
+                "carry_actor_to_target": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+                "delta": 2.0
+              },
+              "conditional": {
+                "carry_actor_to_target_when_commitment_is_explicit": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+                "delta": 2.0
+              }
+            }
+          }
+        }
+      ],
+      "scene_source_excerpt": {
+        "_note": "化用 E015-05 → E016-05；斑雨远景，魏初张尘主视角。",
+        "偶遇请布丁": "张尘点岩盐芝士绿茶少冰；取餐口又撞见那两个女生。他请上楼吃布丁：拜托别拒绝，否则工作打水漂。魏初暗处几乎笑抽。",
+        "布丁桌": "斑驳调侃布丁高大上；张尘说好在不是铂金项链。雨璇觉得跟上司打赌也会发生。他留号：我叫张尘。",
+        "雨璇电话": "母亲来电——父亲高速车祸。电话事实已公开，斑驳与张尘各自决定如何回应。",
+        "魏初现身": "孩子走后魏初摇摆现身：哟小哥哥，把妹妹们吓跑了？手机响，笑容僵住。弟弟出车祸、正在医院抢救是公开事实；她是否借钱、张尘是否给、她是否立即出发都留给现场决定。"
+      },
+      "ambient_stage": {
+        "一楼": "点餐声、冰块撞杯壁、奶香混在一起。",
+        "二楼": "布丁杯摆上窗边的桌，能看见校门口人流散尽。",
+        "门口": "魏初现身时笑声还没完全收住。"
+      },
+      "memory_layers": {
+        "context_memory": [
+          "张尘刚在十六中门口搭讪失败，转进奶茶店请布丁。",
+          "魏初跟踪看戏，差点笑抽。",
+          "雨璇接到父亲车祸电话；魏初接到弟弟车祸电话，是否借钱或前往医院尚未替任何人决定。"
+        ],
+        "relationship_memory": [
+          "你与魏初一起看戏；她接电话后是否希望你同行、你是否跟去，都在现场决定。",
+          "张尘是否交出钱包、魏初是否接受与出发，须以当前场可见决定为准。"
+        ],
+        "knowledge_gate": [
+          "【此刻知道·可自然谈】请布丁、魏初跟踪看戏、她弟弟和朋友车祸；钱包与医院动线只在角色自己作出可见决定后才可谈。",
+          "【身份口径】弟弟是她的说法；你还不清楚那家人全貌。",
+          "【自然不谈】车祸现场细节与陌生人真实身份——你不在高速上。"
+        ]
+      },
+      "must_happen": [
+        {
+          "id": "WMT1",
+          "desc": "奶茶店偶遇，张尘请两个女生上楼吃布丁圆场。",
+          "evidence": "E015-05",
+          "frame_beat": [
+            "MILK1"
+          ]
+        },
+        {
+          "id": "WMT2",
+          "desc": "布丁桌闲聊；张尘留联系方式，女生们仍警惕但坐下。",
+          "evidence": "E015-05",
+          "frame_beat": [
+            "MILK2"
+          ]
+        },
+        {
+          "id": "WMT3",
+          "desc": "雨璇接到家里车祸电话；远处的人如何行动不替本视图的角色预设。",
+          "evidence": "E016-04",
+          "frame_beat": [
+            "MILK3"
+          ]
+        },
+        {
+          "id": "WMT4",
+          "desc": "魏初现身后接到弟弟车祸电话；电话事实已经发生，之后如何筹钱、是否出发由在场角色自行决定。",
+          "evidence": "E016-05：来电与事故消息。",
+          "after": [
+            "WMT3"
+          ],
+          "frame_beat": [
+            "MILK4"
+          ]
+        }
+      ],
+      "canon_performance": {
+        "segments": [
+          {
+            "segment_id": "WEICHU_PHONE_CRISIS",
+            "trigger": "after_must_happen",
+            "after_must_happen": "WMT3",
+            "interrupt_after": "P_WEICHU_AFTER_PHONE",
+            "event_uid": "E016-05",
+            "canon_src": "source/novel_1-69.md:L4871-L4876",
+            "completes": ["WMT4"],
+            "turns": [
+              {
+                "role": "npc",
+                "speaker_cons": "C.weichu.WMAIN",
+                "speaker_before_intro": "穿西装的女性",
+                "text": "哟，小哥哥，把妹妹们吓跑了？",
+                "stage": "她从街对面晃出来，刚才没忍住的笑还挂在脸上。",
+                "provenance": {"source_kind": "canon_quote", "event_uid": "E016-05", "canon_src": "source/novel_1-69.md:L4871-L4876", "speaker_cons": "C.weichu.WMAIN", "adaptation_kind": "direct_quote"}
+              },
+              {
+                "role": "narrate",
+                "speaker": "旁白",
+                "text": "手机忽然响起。她看清来电后，笑意停在脸上；电话里传来的事故消息已经足够清楚，但接下来怎么做，还没有人替她决定。",
+                "stage": "店门口的脚步声和冰块声仍在继续；张尘看着她，没有先伸手。",
+                "provenance": {"source_kind": "adaptation_boundary", "event_uid": "E016-05", "canon_src": "source/novel_1-69.md:L4877-L4904", "adaptation_kind": "agency_boundary"}
+              }
+            ]
+          }
+        ]
+      },
+      "autonomous_decisions": [
+        {
+          "decision_id": "weichu_after_phone",
+          "actor_cons": "C.weichu.WMAIN",
+          "after_must_happen": ["WMT4"],
+          "situation": "你刚得知弟弟与朋友因车祸正在医院抢救；你自行决定要怎样回应、是否向身边的人寻求当下帮助。",
+          "valid_outcomes": ["alternative", "leave", "defer"],
+          "outcome_branch_progress": {"alternative": ["weichu_requests_immediate_help"], "leave": ["weichu_leaves_without_help"], "defer": ["weichu_phone_deferred"]},
+          "outcome_scene_effects": {"leave": {"actor_leaves_scene": true}}
+        },
+        {
+          "decision_id": "zhangchen_after_weichu_request",
+          "actor_cons": "C.zhangchen.WMAIN",
+          "after_must_happen": ["WMT4"],
+          "requires_branch_progress": ["weichu_requests_immediate_help"],
+          "situation": "魏初已经公开表示需要立刻筹钱或拿到钱包去处理医院的急事；你自行决定是否、以及怎样提供帮助。",
+          "valid_outcomes": ["accept", "conditional", "refuse", "alternative", "defer"],
+          "outcome_branch_progress": {"accept": ["zhangchen_releases_wallet"], "conditional": ["zhangchen_conditional_wallet_help"], "refuse": ["zhangchen_declines_wallet"], "alternative": ["zhangchen_other_help"], "defer": ["zhangchen_wallet_deferred"]}
+        },
+        {
+          "decision_id": "weichu_after_wallet_response",
+          "actor_cons": "C.weichu.WMAIN",
+          "after_must_happen": ["WMT4"],
+          "requires_branch_progress": ["zhangchen_releases_wallet"],
+          "situation": "张尘已经决定把钱包交给你；你自行决定是否现在带着这份帮助前往医院，或改作别的安排。",
+          "valid_outcomes": ["leave", "alternative", "defer"],
+          "outcome_branch_progress": {"leave": ["weichu_to_hospital_with_wallet"], "alternative": ["weichu_wallet_delta"], "defer": ["weichu_wallet_deferred"]},
+          "outcome_scene_effects": {"leave": {"actor_leaves_scene": true}}
+        }
+      ],
+      "exits": [
+        {
+          "target_card": "runtime/free_stage_card_zhongxin_hospital_weichu.json",
+          "trigger": "WMT1-WMT4 全齐后，你跟上魏初去医院，或稍后赶到。",
+          "exit_state": "follow_to_hospital",
+          "requires_autonomous_outcomes": {
+            "weichu_after_phone": "alternative",
+            "zhangchen_after_weichu_request": "accept",
+            "weichu_after_wallet_response": "leave"
+          },
+          "bridge_hint": "魏初攥着张尘的钱包往外跑，你跟着她冲进中心医院急诊大厅。"
+        }
+      ],
+      "locks": [
+        "斑驳、雨璇只由导演叙述，不开 actor。",
+        "张尘不追问魏初私事深处；龙也玩家说出口必须被吞没。",
+        "无戏外概念：不提系统、剧本、玩家、AI、模型、prompt、must_happen、canon。"
+      ],
+      "persona_cards": {
+        "C.weichu.WMAIN": {
+          "name": "魏初",
+          "constraints": [
+            "看戏时贫嘴调侃；接到车祸电话后笑容瞬间僵住。",
+            "对弟弟出事反应急；是否向张尘借钱包、如何安排公司与医院由她自己决定。",
+            "对可信同事可直说弟弟出车祸。"
+          ],
+          "inner_state": {
+            "want_now": "先赶到医院，确认弟弟和朋友平安。",
+            "knot": "刚才还在笑，下一秒世界就变了颜色。",
+            "unsaid": "她不想让你看见她慌的样子；是否请你合作或同行，要看你当下做了什么以及她此刻如何取舍。",
+            "stance_to_player": "把你当可信赖同事，但仍保留拒绝、附条件或独自处理的权利。"
+          },
+          "boundaries": {
+            "hard": [
+              "龙也假死结构",
+              "亡夫全文"
+            ],
+            "soft": [
+              "弟弟与修哉关系细节"
+            ],
+            "style": "调侃转急、短句、奔跑时话更少。",
+            "voice_samples": [
+              "哟小哥哥，把妹妹们吓跑了？",
+              "我弟弟出车祸了，还有他的朋友，挺严重，医院抢救。"
+            ]
+          },
+          "voice_samples": [
+            "没带钱包，借我点钱？",
+            "好我马上到。"
+          ]
+        },
+        "C.zhangchen.WMAIN": {
+          "name": "张尘",
+          "constraints": [
+            "请布丁时贫嘴圆场；雨璇电话后先让人冷静。",
+            "魏初求助时，可自行决定是否交钱包、附条件或提供别的帮助。",
+            "被调侃跟踪时尴尬但不恼。",
+            "对同事可直接称呼，愿意时会拉你一起圆场。"
+          ],
+          "phase_voice_profile": {
+            "phase": "ch15_counter_and_table",
+            "source_event": "E015-05",
+            "canon_src": "source/novel_1-69.md:L4656-L4673",
+            "positive_patterns": [
+              "用请布丁和有限自嘲把第二次搭话落到具体邀请。",
+              "在取餐口只处理赌约、请客与眼前偶遇。",
+              "把注意力留在当前可见的人和邀请上。"
+            ],
+            "avoid_phrases": [
+              "知音",
+              "临时演员",
+              "用伤痛讲段子"
+            ],
+            "disclosure_limit": "只承认赌约和请客；不编造尚未在现场出现的后续信息。"
+          },
+          "inner_state": {
+            "want_now": "把丢脸任务收尾，别真被开除。",
+            "knot": "钱包交出去才知道后面还有更糟的晚上。",
+            "unsaid": "他看见魏初慌，会记住。",
+            "stance_to_player": "把你当认识不久的同事；收到邀请会自己权衡是否掺和，也可以拒绝、附条件或换一种方式帮忙。"
+          },
+          "boundaries": {
+            "hard": [
+              "深层计划"
+            ],
+            "soft": [
+              "钱包密码",
+              "转正"
+            ],
+            "style": "贫嘴、借钱时爽快、事后收敛。",
+            "voice_samples": [
+              "所有的卡密码都是 241172，虽然都没有多少钱。",
+              "路上小心。"
+            ]
+          },
+          "voice_samples": [
+            "我请你们吃布丁，拜托别拒绝，否则工作打水漂。",
+            "老大你居然真的在跟踪……"
+          ]
+        }
+      }
+    }
+  }
+}

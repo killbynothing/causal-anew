@@ -1,0 +1,286 @@
+{
+  "天津·真纪家见张尘": {
+    "blurb": "真纪家的客厅里，一个陌生的银发青年正在等消息。魏初的「小弟」张尘被临时叫来帮忙——玩家第一次见这个陌生青年，不知他是魏初的心腹，更不知他与这一家的深层渊源。",
+    "scene_id": "OPENING_TIANJIN_ZHANGCHEN_001",
+    "available_exits": [
+      {
+        "place": "中心医院合流",
+        "route": "B",
+        "scene_id": "OPENING_HOSPITAL_001",
+        "ch_anchor": 17,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "15": {
+        "present": ["C.maki.WMAIN", "C.akito.WMAIN", "C.zhangchen.WMAIN", "C.weichu.WMAIN", "C.player.WMAIN"],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "天津站。傍晚。人群匇匇。秋人拎着单反，真纪提着行李，两人从出站口涌出的人流中挤出来。",
+            "stage": "天津站出口",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "秋人",
+            "text": "比开车那两位快多了……也不知道他们到哪了。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "导演",
+            "text": "真纪家的门打开，刘云天迎出来。客厅里还有一个人——坐在沙发上，穿着普通的青年。",
+            "stage": "真纪家客厅",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "刘云天",
+            "text": "这位是小初的同事，张尘。来帮忙的。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "请多指教，我是张尘。初姐让我先过来看看，有什么事随时说。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "玩家",
+            "text": "（玩家感知/反应空间）",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free",
+            "condition": "玩家第一次见张尘"
+          },
+          {
+            "speaker": "真纪",
+            "text": "云天，医院那边我要去，张尘你先——",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "初姐说了，她去医院，让我在家这边待命。你们要去的话，我可以开车送。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "导演",
+            "text": "电话铃声突然响起。魏初的声音从免提里传出。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "魏初",
+            "text": "他们两个都在急救室，伤得不轻。你们尽快过来，地址我发给你们。",
+            "stage": "电话",
+            "beat_type": "normal",
+            "improv": "locked",
+            "canon_ref": "ch16-L4881"
+          },
+          {
+            "speaker": "张尘",
+            "text": "[对电话] 老大你冷静，需要我做什么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "魏初",
+            "text": "[背景音嘈杂] ……先帮我盯着真纪那边，别让她一个人承受。",
+            "stage": "电话",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "导演",
+            "text": "张尘挂断电话，看向众人。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true
+          }
+        ]
+      }
+    }
+  },
+  "十六中校门口": {
+    "blurb": "放学时分，校门口人来人往。斑驳和雨璇正在聊天，一个银发青年来走过来问路——命运的齿轮开始转动。",
+    "scene_id": "OPENING_SHILIUZHONG_001",
+    "available_exits": [
+      {
+        "place": "等消息去医院",
+        "route": "C",
+        "scene_id": "OPENING_WAIT_HOSPITAL_001",
+        "ch_anchor": 16,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "15": {
+        "present": ["C.zhangchen.WMAIN", "C.banbo.WMAIN", "C.yuxuan.WMAIN", "C.player.WMAIN"],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "十六中校外路口，放学时分。人流涌动，学生三三两两走出校门。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "斑驳",
+            "text": "（和雨璇聊天）等下要去哪？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "雨璇",
+            "text": "（回应斑驳）随便吧……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "你们知道十六中怎么走吗？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "玩家",
+            "text": "（旁观者空间）",
+            "stage": "旁观位",
+            "beat_type": "player_choice",
+            "improv": "free"
+          },
+          {
+            "speaker": "张尘",
+            "text": "这算是，偶遇么？",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "我请你们吃布丁，要不要去。拜托你们。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "anchored",
+            "pause_after": true
+          },
+          {
+            "speaker": "导演",
+            "text": "车祸的消息传来——高速连环车祸，有人重伤。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true
+          }
+        ]
+      }
+    }
+  },
+  "等消息去医院": {
+    "blurb": "车祸的消息终于来了。一行人匇匇赶往中心医院——修哉和卡卡西在急救室里生死未卜。",
+    "scene_id": "OPENING_WAIT_HOSPITAL_001",
+    "available_exits": [
+      {
+        "place": "中心医院合流",
+        "route": "C",
+        "scene_id": "OPENING_HOSPITAL_001",
+        "ch_anchor": 17,
+        "kind": "agenda_soft_exit"
+      }
+    ],
+    "chapters": {
+      "16": {
+        "present": ["C.banbo.WMAIN", "C.yuxuan.WMAIN", "C.zhangchen.WMAIN", "C.player.WMAIN"],
+        "dialogue_flow": [
+          {
+            "speaker": "导演",
+            "text": "中心医院急诊大厅。一行人匇匇赶到。",
+            "stage": "-",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "斑驳",
+            "text": "我爸在急救室……",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "玩家",
+            "text": "（玩家决定下一步）",
+            "stage": "-",
+            "beat_type": "player_choice",
+            "improv": "free"
+          },
+          {
+            "speaker": "导演",
+            "text": "斑驳在医院找到受伤的修哉和卡卡西。",
+            "stage": "医院走廊",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "所有的卡密码都是241172，虽然都没有多少钱。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "canon_ref": "L4791",
+            "pause_after": true
+          },
+          {
+            "speaker": "张尘",
+            "text": "不过话说居然都是车祸呢，好巧，该不会是在同一个地方吧。",
+            "stage": "-",
+            "beat_type": "normal",
+            "improv": "locked",
+            "canon_ref": "L4802",
+            "pause_after": true
+          },
+          {
+            "speaker": "导演",
+            "text": "魏初赶到医院。斑驳和雨璇被警方问询。",
+            "stage": "医院",
+            "beat_type": "scene_intro",
+            "improv": "locked",
+            "scene_end": true
+          }
+        ]
+      }
+    }
+  }
+}

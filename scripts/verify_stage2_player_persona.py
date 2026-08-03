@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 DB = ROOT / "data" / "world_truth.db"
 CARD = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
 CONS = "C.ryuya.W1"
+CONS_WM = "C.ryuya.WMAIN"
 
 
 def check_player(conn: sqlite3.Connection) -> list[str]:
@@ -46,7 +47,7 @@ def check_player(conn: sqlite3.Connection) -> list[str]:
     return fails
 
 
-def fetch_persona_statements(conn: sqlite3.Connection) -> dict[str, list[str]]:
+def fetch_persona_statements(conn: sqlite3.Connection, cons: str) -> dict[str, list[str]]:
     rows = conn.execute(
         """
         SELECT ks.prop_id, p.statement
@@ -57,11 +58,13 @@ def fetch_persona_statements(conn: sqlite3.Connection) -> dict[str, list[str]]:
             ks.prop_id LIKE 'P.VOICE.%'
             OR ks.prop_id LIKE 'P.BOUNDARY.%'
             OR ks.prop_id LIKE 'P.MANNER.%'
+            OR ks.prop_id LIKE 'P.ARCH.%'
+            OR ks.prop_id LIKE 'P.ACT.%'
           )
         """,
-        (CONS,),
+        (cons,),
     ).fetchall()
-    out = {"voice": [], "boundary": [], "manner": [], "all": []}
+    out = {"voice": [], "boundary": [], "manner": [], "act": [], "all": []}
     for prop_id, statement in rows:
         text = str(statement or "").strip()
         if not text:
@@ -71,9 +74,18 @@ def fetch_persona_statements(conn: sqlite3.Connection) -> dict[str, list[str]]:
             out["voice"].append(text)
         elif prop_id.startswith("P.BOUNDARY."):
             out["boundary"].append(text)
+        elif prop_id.startswith("P.ACT."):
+            out["act"].append(text)
         else:
             out["manner"].append(text)
     return out
+
+
+def _prop_ok(conn: sqlite3.Connection, pid: str) -> bool:
+    row = conn.execute(
+        "SELECT statement FROM propositions WHERE prop_id=?", (pid,)
+    ).fetchone()
+    return bool(row and str(row[0] or "").strip())
 
 
 def check_persona_parity(conn: sqlite3.Connection) -> list[str]:
@@ -83,39 +95,50 @@ def check_persona_parity(conn: sqlite3.Connection) -> list[str]:
         return ["missing ryuya prologue card"]
     card = json.loads(CARD.read_text(encoding="utf-8"))
     pc = card["persona_cards"][CONS]
-    projected = fetch_persona_statements(conn)
-    if len(projected["voice"]) < 1:
-        fails.append("no P.VOICE.* for C.ryuya.W1")
+    projected = fetch_persona_statements(conn, CONS)
+    # Voice optional after thin retirement; boundary+manner required
     if len(projected["boundary"]) < 1:
         fails.append("no P.BOUNDARY.* for C.ryuya.W1")
     if len(projected["manner"]) < 1:
-        fails.append("no P.MANNER.* for C.ryuya.W1")
-
-    # Seed id lists on card must resolve in DB
-    for key in ("voice_seed_prop_ids",):
-        for pid in pc.get(key) or []:
+        fails.append("no P.MANNER/ARCH.* for C.ryuya.W1")
+    # Thin VOICE must be gone from schedule
+    thin_voice = conn.execute(
+        "SELECT COUNT(*) FROM knowledge_schedule WHERE prop_id LIKE 'P.VOICE.ryuya.W1.%'"
+    ).fetchone()[0]
+    if thin_voice:
+        fails.append(f"thin P.VOICE.ryuya.W1.* still scheduled ({thin_voice})")
+    # ARCH must hit both consciousnesses
+    for arch in ("P.ARCH.ryuya.mask", "P.ARCH.ryuya.brother_complex", "P.ARCH.ryuya.endure_dirt"):
+        for cons in (CONS, CONS_WM):
             row = conn.execute(
-                "SELECT statement FROM propositions WHERE prop_id=?", (pid,)
+                "SELECT 1 FROM knowledge_schedule WHERE cons_id=? AND prop_id=?",
+                (cons, arch),
             ).fetchone()
-            if not row or not str(row[0] or "").strip():
+            if not row:
+                fails.append(f"missing schedule {cons} <- {arch}")
+    # WMAIN must have manners
+    wm = fetch_persona_statements(conn, CONS_WM)
+    if len(wm["manner"]) < 1:
+        fails.append("no P.MANNER/ARCH.* for C.ryuya.WMAIN")
+
+    for key in ("voice_seed_prop_ids", "identity_seed_prop_ids"):
+        for pid in pc.get(key) or []:
+            if not _prop_ok(conn, pid):
                 fails.append(f"card {key} missing/empty prop {pid}")
 
     bounds = pc.get("boundaries") or {}
     for key in ("seed_hard_prop_ids", "seed_soft_prop_ids", "seed_manner_prop_ids"):
         for pid in bounds.get(key) or []:
-            row = conn.execute(
-                "SELECT statement FROM propositions WHERE prop_id=?", (pid,)
-            ).fetchone()
-            if not row or not str(row[0] or "").strip():
+            if not _prop_ok(conn, pid):
                 fails.append(f"card boundaries.{key} missing/empty prop {pid}")
 
-    # Nature text must not remain duplicated as full voice_samples on card
     if pc.get("voice_samples"):
         fails.append("card still has inline voice_samples; should be empty + seed ids")
 
     print(
         f"[ok] persona_core_parity ryuya: voice={len(projected['voice'])} "
-        f"boundary={len(projected['boundary'])} manner={len(projected['manner'])}"
+        f"boundary={len(projected['boundary'])} manner={len(projected['manner'])} "
+        f"act={len(projected['act'])} wm_manner={len(wm['manner'])}"
     )
     return fails
 

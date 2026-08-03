@@ -128,14 +128,27 @@ def _snr_for_path(pid, contract):
     return 1
 
 
-# --- f(Δ)：有效阈值随累积 δ 下降，但不低于 floor ---
-def effective_threshold(contract, delta_count):
-    base = contract.get("combine_threshold", 2)
-    soft = contract.get("softening", {}) or {}
-    floor = soft.get("floor", 1)
-    per = soft.get("per_delta", 3)
-    eff = base - (delta_count // per if per else 0)
-    return max(floor, eff)
+# --- f(Δ)：有效阈值随累积 δ / 跨周目 S 下降，但不低于 floor ---
+def effective_threshold(contract, delta_count, *, node_id=None, db_path=None, sediment_S=None):
+    try:
+        from pathlib import Path
+        from runtime.softening_params import effective_combine_threshold
+
+        root = Path(__file__).resolve().parents[1]
+        return effective_combine_threshold(
+            contract if isinstance(contract, dict) else {},
+            int(delta_count or 0),
+            node_id=node_id or NODE,
+            db_path=db_path or (root / "data" / "world_truth.db"),
+            sediment_S=sediment_S,
+        )
+    except Exception:
+        base = contract.get("combine_threshold", 2)
+        soft = contract.get("softening", {}) or {}
+        floor = soft.get("floor", 1)
+        per = soft.get("per_delta", 3)
+        eff = base - (delta_count // per if per else 0)
+        return max(floor, eff)
 
 
 # --- 本节点本轮已激活的不同路径 ---
@@ -205,7 +218,7 @@ def adjudicate(text, run_no, contract, ledger_path):
         after.add(pid)
 
     dc = _node_delta_count(ledger_path)        # 含历史所有周目（f(Δ) 用）
-    eff = effective_threshold(contract, dc)
+    eff = effective_threshold(contract, dc, node_id=NODE)
     n_after = len(after)
 
     if pid and n_after >= eff:

@@ -1068,6 +1068,30 @@ details[open] summary.group-title::before {
           <div style="font-size: 12px; color: var(--dim);">当前场景: <strong id="debugScene" style="color: #fff;">-</strong> · <strong id="debugCardPath" style="color: #fff; font-family: var(--font-mono);"></strong></div>
         </div>
 
+        <div class="debug-card" style="border-color: #ffe08a;">
+          <h3><span>📥</span> 本拍：输入 → 发生 → 显示 <button class="btn-copy-json" onclick="copyJson('debugBeatIo')">复制</button></h3>
+          <div class="human-view" id="debugBeatIoRead">（明确三栏：玩家输入了什么 / 引擎记了什么 / 玩家看见了什么。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugBeatIo" style="color: #ffe8a3;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #9b8cff;">
+          <h3><span>🧬</span> 装配投影（开场顶配） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
+          <div class="human-view" id="debugAssemblyRead">（开场两场：隔离包 / FSM·Rel / KGE / cos+emo / fronting / generate_cards / β阈值。后置空=顶配齐。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugAssembly" style="color: #c9beff;"></div>
+          </details>
+        </div>
+
+        <div class="debug-card" style="border-color: #74d99f;">
+          <h3><span>🧍</span> BodyFrame 身体帧 <button class="btn-copy-json" onclick="copyJson('debugBodyFrames')">复制</button></h3>
+          <div class="human-view" id="debugBodyFramesRead">（开局帧 + 拍间回写；holding / last_stage。）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugBodyFrames" style="color: #bdf4cd;"></div>
+          </details>
+        </div>
+
         <div class="debug-card">
           <h3><span>👁️‍🗨️</span> 导演层本拍（发生了才写） <button class="btn-copy-json" onclick="copyJson('debugTruthTurns')">复制</button></h3>
           <div class="human-view" id="debugNarrationRead" style="margin-bottom: 8px; opacity: 0.85;">（只显示本拍新写下的暗注/真相；开场梗概在左栏，不堆在这里。）</div>
@@ -2142,6 +2166,110 @@ function formatMemoryReceiptItems(items, kind, reasonKey = "activation_reason") 
   }).join("\n");
 }
 
+function decodeBeatIo(beatIo) {
+  if (!beatIo || typeof beatIo !== "object") {
+    return "本拍还没有输入/发生/显示投影。";
+  }
+  const input = beatIo.input || {};
+  const happened = beatIo.happened || {};
+  const displayed = beatIo.displayed || {};
+  const inputLines = [
+    `说话：${formatReceiptValue(input.speech) || "（空）"}`,
+    `动作：${formatReceiptValue(input.action) || "（空）"}`,
+    `内心：${formatReceiptValue(input.thought) || "（空·仅观测台）"}`,
+  ].join("\n");
+  const events = Array.isArray(happened.engine_events) ? happened.engine_events : [];
+  const eventLines = events.length
+    ? events.map((e) => `· ${formatReceiptValue(e.kind)} emitted=${!!e.emitted} n=${e.n ?? "-"}`).join("\n")
+    : "· （无额外引擎事件）";
+  const ledger = Array.isArray(happened.observation_ledger_this_turn)
+    ? happened.observation_ledger_this_turn
+    : [];
+  const ledgerLines = ledger.length
+    ? ledger.map((x) => `· [${formatReceiptValue(x.kind)}] ${formatReceiptValue(x.fact_text)}`).join("\n")
+    : "· （本拍观察账本无新行）";
+  const tx = Array.isArray(happened.world_transactions_this_turn)
+    ? happened.world_transactions_this_turn
+    : [];
+  const txLines = tx.length
+    ? tx.map((x) => `· ${formatReceiptValue(x.transaction_id)} → ${formatReceiptValue(x.outcome)}`).join("\n")
+    : "· （本拍无新世界交易）";
+  const visible = Array.isArray(displayed.player_visible_turns) ? displayed.player_visible_turns : [];
+  const visibleLines = visible.length
+    ? visible.slice(0, 12).map((t, i) => {
+        const who = formatReceiptValue(t.speaker) || t.role || "?";
+        const text = formatReceiptValue(t.text) || "";
+        const stage = formatReceiptValue(t.stage) || "";
+        return `${i + 1}. [${t.role || "?"}] ${who}：${text}${stage ? ` 〔${stage}〕` : ""}`;
+      }).join("\n")
+    : "（本拍没有玩家可见输出）";
+  const frames = happened.body_frames || {};
+  const frameLines = Object.keys(frames).length
+    ? Object.entries(frames).map(([bid, fr]) => {
+        const holding = fr?.holding ? `holding=${fr.holding}` : "hands=free";
+        const last = fr?.last_visible_stage ? ` last=${String(fr.last_visible_stage).slice(0, 40)}` : "";
+        return `· ${bid}: ${fr?.posture || "?"} / ${holding}${last}`;
+      }).join("\n")
+    : "· （无 BodyFrame）";
+  return [
+    `【输入】turn=${beatIo.turn_no ?? "-"}`,
+    inputLines,
+    "",
+    "【发生】",
+    `MH 完成：${(happened.must_happen_completed || []).join(", ") || "无"}`,
+    `分支：${(happened.branch_progress || []).join(" → ") || "无"}`,
+    "引擎事件：",
+    eventLines,
+    "世界交易：",
+    txLines,
+    "观察账本：",
+    ledgerLines,
+    "身体帧：",
+    frameLines,
+    "",
+    `【显示】可见 ${displayed.visible_count ?? visible.length} 条 / 导演层 ${displayed.truth_count ?? 0} 条`,
+    visibleLines,
+  ].join("\n");
+}
+
+function decodeAssemblyProjection(asm) {
+  if (!asm || typeof asm !== "object") {
+    return "装配投影未写入本拍 debug。";
+  }
+  const wired = (asm.wired_now || []).map((x) => `✅ ${x}`).join("\n") || "（空）";
+  const deferredList = asm.deferred_not_top_tier || [];
+  const deferred = deferredList.length
+    ? deferredList.map((x) => `⏸ ${x}`).join("\n")
+    : "（无——开场两场顶配清单已清空）";
+  const tier = asm.top_tier
+    ? "顶配齐（隔离×FSM/Rel×KGE×cos+emo×fronting×generate_cards×β阈值）"
+    : "未顶配";
+  return [
+    `范围：${asm.scope || "—"} · ${tier}`,
+    `在场：${(asm.present_cons || []).join(", ") || "—"}`,
+    `挂坠已交：${asm.pendant_accepted ? "是" : "否"} · 层C已播：${asm.pendant_layer_c_emitted ? "是" : "否"}`,
+    "",
+    "【当前已接线】",
+    wired,
+    "",
+    "【仍后置（诚实）】",
+    deferred,
+  ].join("\n");
+}
+
+function decodeBodyFrames(frames) {
+  if (!frames || !Object.keys(frames).length) return "本拍没有 BodyFrame。";
+  return Object.entries(frames).map(([bid, fr]) => {
+    return [
+      `▶ ${bid} (${fr?.cons_id || "?"})`,
+      `  posture=${fr?.posture || "—"} hands=${fr?.hands || "—"} holding=${fr?.holding || "null"}`,
+      `  last_action=${fr?.last_action_type || "—"}`,
+      `  last_stage=${fr?.last_visible_stage || "（空）"}`,
+      `  note=${fr?.note || "—"}`,
+    ].join("\n");
+  }).join("\n\n");
+}
+
 function decodeActorPackets(packets, nameMap) {
   const entries = Object.entries(packets || {});
   if (!entries.length) {
@@ -2204,6 +2332,26 @@ function decodeActorPackets(packets, nameMap) {
       conversation.same_turn_hear ? `已听见同伴：${formatReceiptValue(conversation.same_turn_hear)}` : "",
     ].filter(Boolean).join("\n");
 
+    const bf = packet?.body_frame_now || packet?.self_state?.body_frame_now || {};
+    const bodyFrameBody = Object.keys(bf).length
+      ? [
+          `posture：${formatReceiptValue(bf.posture) || "—"}`,
+          `hands：${formatReceiptValue(bf.hands) || "—"}`,
+          `holding：${formatReceiptValue(bf.holding) || "null"}`,
+          `last_action：${formatReceiptValue(bf.last_action_type) || "—"}`,
+          `last_stage：${formatReceiptValue(bf.last_visible_stage) || "（空）"}`,
+        ].join("\n")
+      : "（本拍包内无 BodyFrame）";
+
+    const core = packet?.self_core || {};
+    const facets = core.persona_facets || core.arch || {};
+    const seedActs = packet?.seed_acts || core.seed_acts || [];
+    const seedBody = [
+      `ARCH/分面：${Object.keys(facets).length ? JSON.stringify(facets).slice(0, 180) : "—"}`,
+      `习惯 ACT×${Array.isArray(seedActs) ? seedActs.length : 0}`,
+      `身份关系×${(packet?.identity_relations || []).length}`,
+    ].join("\n");
+
     const mem = packet?.self_memory || {};
     const working = mem.scene_working_memory || {};
     const workingBody = [
@@ -2259,6 +2407,8 @@ function decodeActorPackets(packets, nameMap) {
       `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
       `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
       receiptSection("投递场景（物理帧）", sceneBody),
+      receiptSection("BodyFrame（本拍身体）", bodyFrameBody, { empty: !Object.keys(bf).length }),
+      receiptSection("Seed 投影摘要", seedBody),
       receiptSection("本拍欲望 / 心结（真投递）", desireBody, { empty: !inner.want_now }),
       Object.keys(phaseVoice).length ? receiptSection("阶段声纹", phaseVoiceBody) : "",
       receiptSection("玩家言行（不含内心）", playerBody, { empty: !playerBits.length }),
@@ -2360,6 +2510,24 @@ function renderDebugDetails(payload) {
   document.getElementById("debugClock").textContent = payload?.clock || "-";
   renderNpcChips(payload);
   renderPlayerRoster(payload);
+
+  const beatIo = payload?.beat_io || null;
+  const beatIoEl = document.getElementById("debugBeatIo");
+  const beatIoRead = document.getElementById("debugBeatIoRead");
+  if (beatIoEl) beatIoEl.textContent = JSON.stringify(beatIo || {}, null, 2);
+  if (beatIoRead) beatIoRead.textContent = decodeBeatIo(beatIo);
+
+  const assembly = payload?.assembly_projection || null;
+  const asmEl = document.getElementById("debugAssembly");
+  const asmRead = document.getElementById("debugAssemblyRead");
+  if (asmEl) asmEl.textContent = JSON.stringify(assembly || {}, null, 2);
+  if (asmRead) asmRead.textContent = decodeAssemblyProjection(assembly);
+
+  const bodyFrames = payload?.body_frames || payload?.beat_io?.happened?.body_frames || {};
+  const bfEl = document.getElementById("debugBodyFrames");
+  const bfRead = document.getElementById("debugBodyFramesRead");
+  if (bfEl) bfEl.textContent = JSON.stringify(bodyFrames || {}, null, 2);
+  if (bfRead) bfRead.textContent = decodeBodyFrames(bodyFrames);
   
   const injuryEl = document.getElementById("debugPlayerInjury");
   const injuryVal = payload?.player_state?.injury || "-";

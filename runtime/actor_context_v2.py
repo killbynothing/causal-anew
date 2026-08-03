@@ -91,8 +91,16 @@ def _strip_secret_blocks(text: str, relation_stage: str = "S0") -> str:
 
 
 def fetch_persona_facets(cons_id: str, ch_anchor: int = 0) -> dict[str, list[dict[str, Any]]]:
-    """Load P.VOICE / P.BOUNDARY / P.MANNER facets scheduled to this consciousness."""
-    out: dict[str, list[dict[str, Any]]] = {"voice": [], "boundary": [], "manner": []}
+    """Load Seed persona facets scheduled to this consciousness.
+
+    Buckets: voice / boundary / manner (incl. P.ARCH.*) / act (P.ACT.*).
+    """
+    out: dict[str, list[dict[str, Any]]] = {
+        "voice": [],
+        "boundary": [],
+        "manner": [],
+        "act": [],
+    }
     if not DB_PATH.exists():
         return out
     try:
@@ -108,6 +116,8 @@ def fetch_persona_facets(cons_id: str, ch_anchor: int = 0) -> dict[str, list[dic
                 ks.prop_id LIKE 'P.VOICE.%'
                 OR ks.prop_id LIKE 'P.BOUNDARY.%'
                 OR ks.prop_id LIKE 'P.MANNER.%'
+                OR ks.prop_id LIKE 'P.ARCH.%'
+                OR ks.prop_id LIKE 'P.ACT.%'
               )
             ORDER BY ks.prop_id
             """,
@@ -128,11 +138,14 @@ def fetch_persona_facets(cons_id: str, ch_anchor: int = 0) -> dict[str, list[dic
                 out["voice"].append(row)
             elif prop_id.startswith("P.BOUNDARY."):
                 out["boundary"].append(row)
+            elif prop_id.startswith("P.ACT."):
+                out["act"].append(row)
             else:
+                # P.MANNER.* and P.ARCH.* → manner bucket (共性前缀+分面)
                 out["manner"].append(row)
         conn.close()
     except Exception:
-        return {"voice": [], "boundary": [], "manner": []}
+        return {"voice": [], "boundary": [], "manner": [], "act": []}
     return out
 
 
@@ -162,13 +175,23 @@ def resolve_persona_core(
         if row["prop_id"].endswith(".persona_md") and row["text"].strip():
             core_text = row["text"].strip()
             break
+    # Prefer explicit iron_law; else join all hard/soft boundary statements
+    iron = ""
     for row in facets["boundary"]:
         if row["prop_id"].endswith(".iron_law") and row["text"].strip():
-            constraint_text = row["text"].strip()
+            iron = row["text"].strip()
             break
-    voice_texts = [r["text"] for r in facets["voice"]]
     boundary_texts = [r["text"] for r in facets["boundary"]]
+    if iron:
+        constraint_text = iron
+    elif boundary_texts:
+        constraint_text = "\n".join(boundary_texts)
+    voice_texts = [r["text"] for r in facets["voice"]]
     manner_texts = [r["text"] for r in facets["manner"]]
+    act_texts = [r["text"] for r in facets.get("act") or []]
+    # If no file/persona_md core, compose thin core from ARCH+MANNER (not ACT)
+    if not core_text.strip() and manner_texts:
+        core_text = "\n".join(manner_texts)
     core_hash = hashlib.sha256(
         (core_text + "\n" + constraint_text + "\n" + "\n".join(voice_texts)).encode("utf-8")
     ).hexdigest()[:16]
@@ -183,8 +206,11 @@ def resolve_persona_core(
         "voice_samples": voice_texts,
         "boundaries": boundary_texts,
         "manners": manner_texts,
+        "acts": act_texts,
         "facets": facets,
-        "origin": "seed" if (voice_texts or boundary_texts or manner_texts) else "file",
+        "origin": "seed"
+        if (voice_texts or boundary_texts or manner_texts or act_texts)
+        else "file",
     }
 
 
@@ -207,9 +233,14 @@ def fetch_relevant_knowledge(
             FROM knowledge_schedule ks
             JOIN propositions p ON ks.prop_id = p.prop_id
             WHERE ks.cons_id = ? AND ks.learn_ch <= ?
-              -- 身份关系是常驻的社会语境，不是靠本拍关键词碰巧召回的
-              -- 长期知识。它由 fetch_identity_relations 单独投影。
+              -- 身份/握法/人格底色由专用投影装入，不进关键词召回池。
               AND ks.prop_id NOT LIKE 'REL.IDENTITY.%'
+              AND ks.prop_id NOT LIKE 'REL.HOLD.%'
+              AND ks.prop_id NOT LIKE 'P.VOICE.%'
+              AND ks.prop_id NOT LIKE 'P.BOUNDARY.%'
+              AND ks.prop_id NOT LIKE 'P.MANNER.%'
+              AND ks.prop_id NOT LIKE 'P.ARCH.%'
+              AND ks.prop_id NOT LIKE 'P.ACT.%'
             """,
             (cons_id, int(ch_anchor)),
         )
@@ -289,14 +320,11 @@ def fetch_interaction_dynamics(
 
 
 def fetch_identity_relations(cons_id: str, ch_anchor: int) -> list[dict[str, Any]]:
-    """Return source-bound, already-known identity facts as an always-present projection.
+    """Return source-bound identity labels + HOLD baselines as always-present projection.
 
-    ``REL.IDENTITY.*`` remains in the existing propositions/knowledge_schedule
-    model: the schedule decides *who knows it and from which chapter*.  It is
-    deliberately not an activation candidate; a widow does not need the player
-    to say a relative's name in order to know who that relative is.  This
-    function carries no disclosure permission — knowing a fact never forces an
-    actor to volunteer it.
+    ``REL.IDENTITY.*`` / ``REL.HOLD.*`` stay on propositions/knowledge_schedule:
+    the schedule decides *who knows it and from which chapter*.  Not keyword-
+    activated. Knowing never forces disclosure.
     """
     if not DB_PATH.exists():
         return []
@@ -311,7 +339,10 @@ def fetch_identity_relations(cons_id: str, ch_anchor: int) -> list[dict[str, Any
             JOIN propositions p ON ks.prop_id = p.prop_id
             WHERE ks.cons_id = ?
               AND ks.learn_ch <= ?
-              AND ks.prop_id LIKE 'REL.IDENTITY.%'
+              AND (
+                ks.prop_id LIKE 'REL.IDENTITY.%'
+                OR ks.prop_id LIKE 'REL.HOLD.%'
+              )
             ORDER BY ks.learn_ch, ks.prop_id
             """,
             (cons_id, int(ch_anchor)),
@@ -320,13 +351,14 @@ def fetch_identity_relations(cons_id: str, ch_anchor: int) -> list[dict[str, Any
             statement = str(statement or "").strip()
             if not statement:
                 continue
+            is_hold = str(prop_id).startswith("REL.HOLD.")
             rows.append(
                 {
                     "prop_id": str(prop_id),
                     "fact": statement,
                     "known_since_ch": int(learn_ch),
                     "source": str(source_desc or ""),
-                    "projection": "identity_relation",
+                    "projection": "relation_hold" if is_hold else "identity_relation",
                     "disclosure": "known_not_automatically_disclosed",
                 }
             )
@@ -372,9 +404,31 @@ def fetch_slow_memory(
         ) in cur.fetchall():
             if not text:
                 continue
-            # 未能追溯至 run=0 event 的慢环不具备章窗依据。宁可暂不投递，
-            # 也不能把后期/杜撰内容当作 Ch15 的角色心智。
+            owned_ch = int(available_ch) if available_ch is not None else None
+            # Authored Seed 慢环（如开场交坠体感）可无 src_event，但必须带 available_ch。
+            # 仍禁止：无章窗依据、又无 available_ch 的孤儿行。
             if not src_event or source_ch is None:
+                if owned_ch is None:
+                    continue
+                if owned_ch > int(ch_anchor):
+                    continue
+                src_ch = owned_ch
+                disclosure_ch = int(reveal_ch) if reveal_ch is not None else owned_ch
+                actor_text = str(text)
+                item = {
+                    "mem_id": mem_id,
+                    "run": int(run),
+                    "text": actor_text,
+                    "src_event": None,
+                    "source_ch": src_ch,
+                    "available_ch": owned_ch,
+                    "reveal_ch": disclosure_ch,
+                    "projection_mode": "authored_seed",
+                    "salience": float(salience or 0),
+                }
+                if include_anchor:
+                    item["_activation_anchor"] = str(anchor or "")
+                out.append(item)
                 continue
             src_ch = int(source_ch) if source_ch is not None else None
             owned_ch = int(available_ch) if available_ch is not None else src_ch

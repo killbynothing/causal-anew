@@ -114,13 +114,30 @@ def load_contract(node_id, contracts_dir):
                 "softening": {"floor": 1, "per_delta": 3, "never_soften": []}}
 
 
-def effective_threshold(contract, delta_count):
-    base = contract.get("combine_threshold", 2)
-    soft = contract.get("softening", {}) or {}
-    floor = soft.get("floor", 1)
-    per = soft.get("per_delta", 3)
-    eff = base - (delta_count // per if per else 0)
-    return max(floor, eff)
+def effective_threshold(contract, delta_count, *, node_id=None, db_path=None, sediment_S=None):
+    """Combine-threshold with β cross-run S and within-run δ count.
+
+    Empty sediment ⇒ S≡0 ⇒ same as legacy base (run=1 safe).
+    """
+    try:
+        from pathlib import Path
+        from runtime.softening_params import effective_combine_threshold
+
+        root = Path(__file__).resolve().parents[1]
+        return effective_combine_threshold(
+            contract if isinstance(contract, dict) else {},
+            int(delta_count or 0),
+            node_id=node_id or (contract or {}).get("node_id"),
+            db_path=db_path or (root / "data" / "world_truth.db"),
+            sediment_S=sediment_S,
+        )
+    except Exception:
+        base = contract.get("combine_threshold", 2)
+        soft = contract.get("softening", {}) or {}
+        floor = soft.get("floor", 1)
+        per = soft.get("per_delta", 3)
+        eff = base - (delta_count // per if per else 0)
+        return max(floor, eff)
 
 
 def _activated_paths(ledger, node, run_no):
@@ -232,7 +249,11 @@ def _slug(label):
 # ============================================================
 
 def decide(verdict, contract, ledger, node, run_no):
-    eff = effective_threshold(contract, _node_delta_count(ledger, node))
+    eff = effective_threshold(
+        contract,
+        _node_delta_count(ledger, node),
+        node_id=node,
+    )
     base = contract.get("combine_threshold", 2)
 
     # LLM 判不可行 / 触红线 → 剧情内收敛

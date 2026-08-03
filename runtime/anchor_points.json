@@ -2,6 +2,23 @@
   "schema_version": "free_stage.anchor_points.v1",
   "openings": [
     {
+      "id": "pline_ryuya_cafe",
+      "line": "line_prologue",
+      "label": "前夜｜龙也咖啡馆",
+      "scene": "天津街角咖啡馆",
+      "description": "出发前夜与龙也见面：闲聊、托付、交挂坠。",
+      "card_path": "runtime/free_stage_card_ryuya_prologue.json",
+      "player_templates": [
+        {
+          "id": "aqi",
+          "name": "阿七",
+          "label": "阿七｜两年咖啡馆朋友",
+          "identity": "与龙也是街角咖啡馆熟识的朋友；不知双意识与组织内情。",
+          "knowledge_anchor": "只知道眼前这场见面，不知道后续因果与挂坠神秘用途。"
+        }
+      ]
+    },
+    {
       "id": "aline_tiananmen",
       "line": "line_ceremony",
       "label": "A 线｜天安门初遇",

@@ -1,18 +1,16 @@
-# STATUS —— 当前真相（新的在最上）
+﻿# STATUS —— 当前真相（新的在最上）
 
-### 2026-08-03（阶段 2 完成·等人验「龙也还是龙也」）
+### 2026-08-03（前两场顶配三项补齐 · 等人验 · 医院因果暂定）
 
-- **✅ S2**：`B.player` / `C.player`（jump_capable=0）+ occupancy + `P.PLAYER.*`×3；开档姓名等仍在 run `player_profile`。
-- **✅ S3 前半（龙也竖切）**：`P.VOICE/BOUNDARY/MANNER.ryuya.W1.*` 入库；序幕卡 voice/boundaries 改 Seed ID；`resolve_persona_core` 优先读库。
-- **验证**：`--quick` **PASS 17**；`player_packet_projection` / `persona_core_parity` 绿；free_stage_smoke 绿。
-- **★★★ 可审**：`docs/plans/★★★预览_阶段2_玩家×龙也人格核_2026-08-03.md`
-- **报账**：零新剧情；龙也语句来自序幕卡/persona md/铁律；玩家基线来自已裁计划口径。
-- **⏭ 下一刀**：阶段 3（人格核量产到修哉/真纪/晴明/秋人 + 场卡入库）——等人验龙也后再开，或你说继续。
+- **你**：正在验两场；验完告诉我。
+- **医院因果**：脊柱暂定（视频→追杀→受伤入院）；与前两场无接驳。
+- **前两场顶配**：隔离包 + FSM/Rel/KGE/cos+emo **且** 三项补齐——`fronting_canon` 运行时竞选（序幕→W1）、`generate_cards` authored_overlay、β `S(node)`→导演 `effective_threshold`（空沉淀 S≡0，run=1 不变）。观测台 `deferred_not_top_tier=[]`。`--quick` 🟢。
+- **仍非本书长期线一次做完**：阶段4 S5 导演宪章入库、医院因果网落表、其它场 generate 全量人裁仍按登记簿。
 
-### 2026-08-03（阶段 1 S0–S1 完成·等人验微调）
+### 2026-08-03（三层分工备忘 · 卡保留）
 
-- **✅ S0/S1**：登记簿 + REL.IDENTITY×19 + 挂坠清污；GitHub `causal-anew`。
+- 文：`design/00_架构/三层分工备忘_…`
 
-### 2026-08-03（阶段 0 完成：M0–M5 · 到现在能玩的程度）
+### 2026-08-03（苏颖退出固定底 + β S6）
 
-- **✅ 人验**：序幕手感可接受；搬迁 + LFS + 私密仓。
+- `CC.SUYING_DEATH` 已删；`run_meta`/`delta_sediment`/settle 已落。

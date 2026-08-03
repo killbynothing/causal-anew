@@ -98,3 +98,28 @@ def flashback_trigger_hits(
     if flashback_done or prologue_active:
         return set()
     return (introduced_cons & RYUYA_FLASHBACK_TRIGGERS) & present_cons
+
+
+# 层 C：挂坠第一次被玩家用到时的短闪回（感官锚，不重演整场序幕）。
+PENDANT_LAYER_C_PARAS = (
+    "指尖碰到那枚挂坠的瞬间，雨声先回来了——天津街角，靠窗那张边漆磨白的旧桌。",
+    "有人把咖啡溅到袖口，又笑着让你坐下赔一杯。临别时，那枚古铜色挂坠被放进你手里。",
+)
+
+
+def build_pendant_layer_c_turns(*, turn_no: int = 0) -> list[dict[str, Any]]:
+    turns: list[dict[str, Any]] = []
+    for para in PENDANT_LAYER_C_PARAS:
+        turns.append(
+            {
+                "role": "narrate",
+                "speaker": "旁白",
+                "text": para,
+                "stage": "",
+                "turn": int(turn_no),
+                "audience": "player",
+                "player_visible": True,
+                "provenance": {"authored": "pendant_layer_c"},
+            }
+        )
+    return turns

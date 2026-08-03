@@ -34,16 +34,15 @@ CREATE TABLE IF NOT EXISTS coherence_matrix (
   note TEXT
 );
 
--- ---------- 种子：CC.SELF_REF_CHAIN 整批锁链（裁决 2026-06-15）----------
--- 链：苏颖之死 → 龙也愧疚 → 挂坠交付 → 玩家受托 → 回滚成立；链上任一环回滚即摧毁回滚自身。
+-- ---------- 种子：CC.SELF_REF_CHAIN（2026-08-03 人裁：苏颖退出固定底）----------
+-- 链：龙也罪疚/假死真相侧 → 挂坠交付 → 玩家受托 → 回滚成立。
+-- CC.SUYING_DEATH 已退役：玩家线与苏颖无关；P.GF_DEATH_TRUTH 仍可作正典知识，不作固定底。
 DELETE FROM causal_constants WHERE const_id IN ('CC.SUYING_DEATH','CC.RYUYA_DEATH','CC.PLAYER_ENTRUST');
 INSERT OR REPLACE INTO causal_constants (const_id, prop_id, lock_type, dependency_chain, canon_src) VALUES
- ('CC.SUYING_DEATH','P.GF_DEATH_TRUTH','self_reference',
-  '["E_SUYING_DEATH","E_RYUYA_GUILT","E_ANCHOR_DELIVER","E_PLAYER_ENTRUST","E_ROLLBACK_TRIGGER"]','Ch.41/60'),
  ('CC.RYUYA_DEATH','P.RYUYA_DEATH_TRUTH','self_reference',
-  '["E_SUYING_DEATH","E_RYUYA_GUILT","E_ANCHOR_DELIVER","E_PLAYER_ENTRUST","E_ROLLBACK_TRIGGER"]','Ch.60'),
+  '["E_RYUYA_GUILT","E_ANCHOR_DELIVER","E_PLAYER_ENTRUST","E_ROLLBACK_TRIGGER"]','Ch.60；2026-08-03去苏颖根'),
  ('CC.PLAYER_ENTRUST',NULL,'self_reference',
-  '["E_SUYING_DEATH","E_RYUYA_GUILT","E_ANCHOR_DELIVER","E_PLAYER_ENTRUST","E_ROLLBACK_TRIGGER"]','玩家受托=回滚前件');
+  '["E_RYUYA_GUILT","E_ANCHOR_DELIVER","E_PLAYER_ENTRUST","E_ROLLBACK_TRIGGER"]','玩家受托=回滚前件；2026-08-03去苏颖根');
 
 -- 运行时锚点信道初始化（run=0 基线）
 INSERT OR IGNORE INTO anchor_channel (run, snr, lt_filter, diversity) VALUES (0, 1.0, 0.0, '[]');

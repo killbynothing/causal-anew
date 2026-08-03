@@ -53,8 +53,8 @@ DEFAULT_DB_PATH = ROOT / "data" / "world_truth.db"
 DEFAULT_WHITELIST_PATH = ROOT / "scripts" / "card_db_consistency_whitelist.json"
 
 EVENT_UID_RE = re.compile(r"\bE\d{3}-\d{2}\b")
-# Allow dotted facets: P.VOICE.ryuya.W1.001 / P.PLAYER.ORDINARY_SHELL / P.BOUNDARY...
-PROP_ID_RE = re.compile(r"\bP(?:\.[A-Za-z0-9_]+)+\b")
+# Allow dotted facets: P.VOICE... / P.ARCH... / REL.IDENTITY... / REL.HOLD...
+PROP_ID_RE = re.compile(r"\b(?:P|REL)(?:\.[A-Za-z0-9_]+)+\b")
 
 ALLOW_MARKERS = (
     "可以谈论",

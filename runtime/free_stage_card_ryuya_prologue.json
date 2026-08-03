@@ -138,21 +138,19 @@
         "soft": [],
         "style": "",
         "seed_hard_prop_ids": [
-          "P.BOUNDARY.ryuya.W1.hard.001",
-          "P.BOUNDARY.ryuya.W1.hard.002",
-          "P.BOUNDARY.ryuya.W1.hard.003",
-          "P.BOUNDARY.ryuya.W1.hard.004",
-          "P.BOUNDARY.ryuya.W1.hard.005",
-          "P.BOUNDARY.ryuya.W1.iron_law"
+          "P.BOUNDARY.ryuya.W1.hard.spoilers",
+          "P.BOUNDARY.ryuya.W1.hard.entrust",
+          "P.BOUNDARY.ryuya.W1.hard.pendant"
         ],
-        "seed_soft_prop_ids": [
-          "P.BOUNDARY.ryuya.W1.soft.001"
-        ],
+        "seed_soft_prop_ids": [],
         "seed_manner_prop_ids": [
-          "P.MANNER.ryuya.W1.style",
-          "P.MANNER.ryuya.W1.constraint.001",
-          "P.MANNER.ryuya.W1.constraint.002",
-          "P.MANNER.ryuya.W1.persona_md"
+          "P.ARCH.ryuya.mask",
+          "P.ARCH.ryuya.brother_complex",
+          "P.ARCH.ryuya.endure_dirt",
+          "P.MANNER.ryuya.W1.guide",
+          "P.MANNER.ryuya.W1.voice_rule",
+          "P.MANNER.ryuya.W1.dual_self",
+          "P.ACT.ryuya.W1.pref"
         ]
       },
       "identity_seed_prop_ids": [
@@ -160,14 +158,18 @@
         "REL.IDENTITY.ryuya.maki_cousin",
         "REL.IDENTITY.ryuya.weichu_wife",
         "REL.IDENTITY.ryuya.zhangchen_entrust",
-        "REL.IDENTITY.ryuya.pendant_from_xiuzai"
+        "REL.IDENTITY.ryuya.pendant_from_xiuzai",
+        "REL.HOLD.ryuya.W1.to_player",
+        "REL.HOLD.ryuya.W1.to_dust",
+        "REL.HOLD.ryuya.W1.to_zhangchen",
+        "REL.HOLD.ryuya.to_xiuzai",
+        "REL.HOLD.ryuya.W1.to_WMAIN"
       ],
-      "voice_seed_prop_ids": [
-        "P.VOICE.ryuya.W1.001",
-        "P.VOICE.ryuya.W1.002",
-        "P.VOICE.ryuya.W1.003",
-        "P.VOICE.ryuya.W1.004"
-      ]
+      "voice_seed_prop_ids": [],
+      "slow_memory_activation_cues": {
+        "临别交坠/金属凉": ["挂坠", "项链", "金属", "交", "礼物", "临别"],
+        "12": ["挂坠", "项链", "金属", "交", "礼物", "临别"]
+      }
     }
   },
   "entry_hook": "天津好久没下过这么大的雨了。雨斜着擦过玻璃，街灯落在积水里，碎成一小片一小片的黄；整条街像被水汽捂住，只剩轮胎碾过水洼的闷响。靠窗旧桌的边漆磨白了；吧台后咖啡机闷闷响了一声，又安静下去。龙也已经在对面——像每次那样先抬了抬下巴，话还没出口，笑意却先到了。"

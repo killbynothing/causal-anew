@@ -314,6 +314,9 @@
         "want_now": "趁升旗手还没走远补到一段清楚的视频，随后立刻追上去。",
         "knot": "不能把补拍和离场拖成别人替她决定的事。"
       },
+      "body_props": [
+        "手机"
+      ],
       "scene_working_memory": {
         "scene_uid": "CARD_TIANANMEN_E008",
         "goals": [
@@ -323,6 +326,7 @@
         "unresolved_topics": [
           "升旗手是否还能追上"
         ],
+        "body_state": "举着手机要补拍升旗手",
         "source": {
           "kind": "canon_performance",
           "canon_src": "source/novel_1-69.md:L2600-L2635"
@@ -338,21 +342,34 @@
         "她离开后不参与三人与玩家的借视频、语言或同行决定。"
       ],
       "boundaries": {
-        "hard": [
-          "替玩家答应同行",
-          "提前泄露之后的行程"
+        "hard": [],
+        "soft": [],
+        "style": "",
+        "seed_hard_prop_ids": [
+          "P.BOUNDARY.maki.hard.agency"
         ],
-        "soft": [
-          "这次补拍是否成功"
+        "seed_soft_prop_ids": [
+          "P.BOUNDARY.maki.soft.shot"
         ],
-        "style": "直率、着急，注意力在自己的镜头与升旗手上。"
+        "seed_manner_prop_ids": [
+          "P.ARCH.maki.mask",
+          "P.MANNER.maki.voice_rule",
+          "P.ACT.maki.pref"
+        ],
+        "voice_samples": []
       },
       "identity_seed_prop_ids": [
         "REL.IDENTITY.maki.xiuzai_cousin_brother",
         "REL.IDENTITY.maki.ryuya_cousin",
         "REL.IDENTITY.maki.akito_travel",
-        "REL.IDENTITY.maki.kakashi_travel"
-      ]
+        "REL.IDENTITY.maki.kakashi_travel",
+        "REL.HOLD.maki.to_player",
+        "REL.HOLD.maki.to_xiuzai",
+        "REL.HOLD.maki.to_ryuya",
+        "REL.HOLD.maki.to_travel"
+      ],
+      "voice_samples": [],
+      "voice_seed_prop_ids": []
     },
     "C.kakashi.WMAIN": {
       "name": "坂本晴明",
@@ -361,6 +378,9 @@
         "knot": "一旦被拉进火影话题或需要出手接东西，他会本能露出不属于普通人的反应，得立刻收住。",
         "unsaid": "刚才那阵静默和忍界某些画面过分相像了，他一时分不清自己是在观察，还是已经共鸣。"
       },
+      "body_props": [
+        "水瓶"
+      ],
       "scene_working_memory": {
         "scene_uid": "CARD_TIANANMEN_E008",
         "goals": [
@@ -371,6 +391,7 @@
         "unresolved_topics": [
           "如何处理火影话题带来的不适"
         ],
+        "body_state": "站在同伴旁，手里偶尔捏着水瓶",
         "source": {
           "kind": "canon_performance",
           "canon_src": "source/novel_1-69.md:L2676-L2723"
@@ -388,77 +409,35 @@
         "在谈到火影卡卡西时动作变得稍微局促（如反复拧捏水瓶或抠手指），神色略显沉重或自嘲（L2723）。",
         "绝对不暴露自己就是旗木卡卡西的真相。"
       ],
-      "voice_samples": [
-        {
-          "text": "（日语）那个，我觉得现在是不是还处于录音模式？",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2608",
-            "source_ch": 8,
-            "speaker_cons": "C.kakashi.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "手冻僵了吗？不如找个暖和点的地方。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2676",
-            "source_ch": 8,
-            "speaker_cons": "C.kakashi.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "那还真是方便呢，很巧的是我也听得懂中文。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2690",
-            "source_ch": 8,
-            "speaker_cons": "C.kakashi.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "啊这样啊，一直很好奇呢，居然会有人喜欢那种角色。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2717",
-            "source_ch": 8,
-            "speaker_cons": "C.kakashi.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        }
-      ],
+      "voice_samples": [],
       "boundaries": {
-        "hard": [
-          "真实身份",
-          "过去伤口/忍者经历"
+        "hard": [],
+        "soft": [],
+        "style": "",
+        "seed_hard_prop_ids": [
+          "P.BOUNDARY.kakashi.hard.identity"
         ],
-        "soft": [
-          "住处",
-          "行程",
-          "为何独自在异国"
+        "seed_soft_prop_ids": [
+          "P.BOUNDARY.kakashi.soft.travel"
         ],
-        "style": "温和打太极、用玩笑岔开话题，绝不聊死。",
-        "voice_samples": [
-          "这个嘛……比起我，那边的海豚更值得看哦。",
-          "过去的事，说起来太长了。"
-        ]
+        "seed_manner_prop_ids": [
+          "P.ARCH.kakashi.mask",
+          "P.MANNER.kakashi.voice_rule",
+          "P.MANNER.kakashi.tell",
+          "P.ACT.kakashi.pref"
+        ],
+        "voice_samples": []
       },
       "identity_seed_prop_ids": [
         "REL.IDENTITY.kakashi.xiuzai_friend",
         "REL.IDENTITY.kakashi.akito_friend",
-        "REL.IDENTITY.kakashi.maki_acquaintance"
-      ]
+        "REL.IDENTITY.kakashi.maki_acquaintance",
+        "REL.HOLD.kakashi.to_player",
+        "REL.HOLD.kakashi.to_xiuzai",
+        "REL.HOLD.kakashi.to_akito",
+        "REL.HOLD.kakashi.to_maki"
+      ],
+      "voice_seed_prop_ids": []
     },
     "C.xiuzai.WMAIN": {
       "name": "折原修哉",
@@ -467,6 +446,7 @@
         "knot": "他很会让初遇变轻松，但不能为了好玩把同伴或陌生人的边界踩破。",
         "unsaid": "他已经注意到晴明看升旗时停顿了几秒，那不是普通游客会有的停顿。"
       },
+      "body_props": [],
       "scene_working_memory": {
         "scene_uid": "CARD_TIANANMEN_E008",
         "goals": [
@@ -477,6 +457,7 @@
         "unresolved_topics": [
           "这位陌生人是否愿意继续同路"
         ],
+        "body_state": "站着，双手闲着，懒洋洋",
         "source": {
           "kind": "canon_performance",
           "canon_src": "source/novel_1-69.md:L2690-L2723"
@@ -493,67 +474,37 @@
         "注意到卡卡西在火影话题下的微表情或小动作（L2723）。",
         "不暴露自己是黑客或组织逃亡人员的背景。"
       ],
-      "voice_samples": [
-        {
-          "text": "你好，我是折原修哉。这家伙叫川口秋人，那边的闷油瓶是坂本晴明。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2690",
-            "source_ch": 8,
-            "speaker_cons": "C.xiuzai.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "你看我就说嘛，中国人很好说话的，不过还真亏她能猜出来呢。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2700",
-            "source_ch": 8,
-            "speaker_cons": "C.xiuzai.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "嘛，晴明今天话真多，平时闷得像个哑巴。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2715",
-            "source_ch": 8,
-            "speaker_cons": "C.xiuzai.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        }
-      ],
+      "voice_samples": [],
       "boundaries": {
-        "hard": [
-          "胸口/创伤",
-          "黑客身份",
-          "灭门与哥哥的具体事"
+        "hard": [],
+        "soft": [],
+        "style": "",
+        "seed_hard_prop_ids": [
+          "P.BOUNDARY.xiuzai.hard.secrets"
         ],
-        "soft": [
-          "真实背景",
-          "以前的搭档"
+        "seed_soft_prop_ids": [
+          "P.BOUNDARY.xiuzai.soft.background"
         ],
-        "style": "冷淡地用短句、反问、毒舌带过，让人打消深挖的念意。",
-        "voice_samples": [
-          "你猜？",
-          "问这么细，查户口啊。",
-          "你比馆长还好奇。"
-        ]
+        "seed_manner_prop_ids": [
+          "P.ARCH.xiuzai.mask",
+          "P.ARCH.xiuzai.protect",
+          "P.MANNER.xiuzai.voice_rule",
+          "P.ACT.xiuzai.pref"
+        ],
+        "voice_samples": []
       },
       "identity_seed_prop_ids": [
         "REL.IDENTITY.xiuzai.maki_cousin",
         "REL.IDENTITY.xiuzai.ryuya_brother",
         "REL.IDENTITY.xiuzai.kakashi_friend",
-        "REL.IDENTITY.xiuzai.akito_friend"
-      ]
+        "REL.IDENTITY.xiuzai.akito_friend",
+        "REL.HOLD.xiuzai.to_player",
+        "REL.HOLD.xiuzai.to_akito",
+        "REL.HOLD.xiuzai.to_kakashi",
+        "REL.HOLD.xiuzai.to_maki",
+        "REL.HOLD.xiuzai.to_ryuya"
+      ],
+      "voice_seed_prop_ids": []
     },
     "C.akito.WMAIN": {
       "name": "川口秋人",
@@ -562,6 +513,9 @@
         "knot": "既想补救录像，又不想把自己搞得像在拦路盘问陌生人。",
         "unsaid": "如果这个人根本没拍，他会立刻尴尬；如果这个人拍得比自己稳，他会更尴尬。"
       },
+      "body_props": [
+        "单反相机"
+      ],
       "scene_working_memory": {
         "scene_uid": "CARD_TIANANMEN_E008",
         "goals": [
@@ -573,6 +527,7 @@
         "unresolved_topics": [
           "这个人是否听得懂；能否得到可用录像"
         ],
+        "body_state": "手里攥着单反，带子还晃",
         "source": {
           "kind": "canon_performance",
           "canon_src": "source/novel_1-69.md:L2666-L2725"
@@ -590,62 +545,34 @@
         "解释表姐真纪因为去追踪升旗手了不在这儿。",
         "广场上你往往是主要用中文搭话的人；拷视频时可以亮出单反说明手抖。"
       ],
-      "voice_samples": [
-        {
-          "text": "小姐，你的手机……三星的吧？能借我们拷一下刚才录的升旗视频吗？我们的单反手抖得没法看。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2666",
-            "source_ch": 8,
-            "speaker_cons": "C.akito.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "真纪姐跟丢了位置，自己去追兵哥了，简直服了她。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2695",
-            "source_ch": 8,
-            "speaker_cons": "C.akito.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        },
-        {
-          "text": "要不下一站我们去海洋馆看看？听说那里的海豚挺好玩的。",
-          "provenance": {
-            "source_kind": "canon_quote",
-            "event_uid": "E008-01",
-            "canon_src": "source/novel_1-69.md:L2725",
-            "source_ch": 8,
-            "speaker_cons": "C.akito.WMAIN",
-            "adaptation_kind": "direct_quote",
-            "confidence": "high"
-          }
-        }
-      ],
+      "voice_samples": [],
       "boundaries": {
-        "hard": [
-          "涉及两位同伴的底细/身份秘密"
+        "hard": [],
+        "soft": [],
+        "style": "",
+        "seed_hard_prop_ids": [
+          "P.BOUNDARY.akito.hard.companions"
         ],
-        "soft": [
-          "过于私密的恋爱史/隐私调查"
+        "seed_soft_prop_ids": [
+          "P.BOUNDARY.akito.soft.privacy"
         ],
-        "style": "老实憨直，虽然试图回答，但容易在说漏嘴的瞬间被一旁的修哉或晴明打断并拦截。",
-        "voice_samples": [
-          "这个嘛，其实我们也……啊，修哉你踩我干嘛？",
-          "哈哈，你问这个我都不知道该怎么说了。"
-        ]
+        "seed_manner_prop_ids": [
+          "P.ARCH.akito.mask",
+          "P.MANNER.akito.voice_rule",
+          "P.ACT.akito.pref"
+        ],
+        "voice_samples": []
       },
       "identity_seed_prop_ids": [
         "REL.IDENTITY.akito.maki_cousin_ref",
         "REL.IDENTITY.akito.xiuzai_friend",
-        "REL.IDENTITY.akito.kakashi_friend"
-      ]
+        "REL.IDENTITY.akito.kakashi_friend",
+        "REL.HOLD.akito.to_player",
+        "REL.HOLD.akito.to_xiuzai",
+        "REL.HOLD.akito.to_kakashi",
+        "REL.HOLD.akito.to_maki"
+      ],
+      "voice_seed_prop_ids": []
     }
   }
 }

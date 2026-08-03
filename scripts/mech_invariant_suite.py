@@ -60,12 +60,12 @@ class Suite:
                 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
                 import d1_compiler as d1, sqlite3
                 conn = sqlite3.connect(db_path); locked = d1.load_locked_consts(conn)
-                illegal = {"node_id": "TEST-REVIVE", "exit_states": [{"id": "revive", "negates": ["CC.SUYING_DEATH"]}]}
+                illegal = {"node_id": "TEST-REVIVE", "exit_states": [{"id": "revive", "negates": ["CC.RYUYA_DEATH"]}]}
                 raised = False
                 try: d1.validate(illegal, conn, locked)
                 except d1.CompileError as e: raised = (e.code == "E_SELF_REF")
                 conn.close()
-                self.check("复活苏颖契约必报 E_SELF_REF", raised)
+                self.check("回滚固定底(CC.RYUYA_DEATH)契约必报 E_SELF_REF", raised)
             except Exception as ex:
                 self.check("支柱一契约校验", False, f"(异常:{ex})")
         else:

@@ -113,6 +113,7 @@ from runtime.run_observation_ledger import (
     boost_importance as _ledger_boost,
     high_importance_facts as _ledger_high,
 )
+from runtime import opening_top_tier as ott
 
 H4_SYSTEM_PROMPT_BLOCK = """
 H4 语义防泄露补充规则：
@@ -665,6 +666,29 @@ def flashback_return_pendant_look(
     }
 
 
+def player_mentions_pendant(player_input: dict[str, Any] | str | None) -> bool:
+    if isinstance(player_input, dict):
+        blob = " ".join(
+            str(player_input.get(k) or "") for k in ("speech", "action", "thought")
+        )
+    else:
+        blob = str(player_input or "")
+    return any(k in blob for k in ("挂坠", "吊坠", "项链"))
+
+
+def pendant_layer_c_trigger_hits(
+    *,
+    pendant_accepted: bool,
+    already_emitted: bool,
+    prologue_active: bool,
+    player_input: dict[str, Any] | str | None,
+) -> bool:
+    """层 C：挂坠第一次被玩家「用到/看向」时播短闪回，不重演整场序幕。"""
+    if already_emitted or not pendant_accepted or prologue_active:
+        return False
+    return player_mentions_pendant(player_input)
+
+
 _TOPIC_STOPWORDS = frozenset("的了吗呢啊哦嗯是在有我你他她它们这那什么怎么和与就都还也")
 
 
@@ -741,6 +765,248 @@ def opening_soft_progress_hint(
     if str(card.get("scene_id") or "") == "OPENING_TIANANMEN_002" and "TM2" not in done:
         return "你注意到这个人手里好像拿着手机，之前可能录了什么。"
     return ""
+
+
+def resolve_body_id_for_cons(cons_id: str) -> str:
+    """Map consciousness → body_id via occupancy; fall back to B.<stem>.WMAIN."""
+    cons = str(cons_id or "").strip()
+    if not cons:
+        return ""
+    db = ROOT / "data" / "world_truth.db"
+    if db.exists():
+        try:
+            import sqlite3
+
+            conn = sqlite3.connect(str(db))
+            row = conn.execute(
+                "SELECT body_id FROM occupancy WHERE cons_id=? ORDER BY rowid LIMIT 1",
+                (cons,),
+            ).fetchone()
+            conn.close()
+            if row and row[0]:
+                return str(row[0])
+        except Exception:
+            pass
+    parts = cons.split(".")
+    if len(parts) >= 2:
+        return f"B.{parts[1]}.WMAIN"
+    return ""
+
+
+def _infer_holding_from_prose(note: str, props: str) -> str | None:
+    blob = f"{note} {props}"
+    upper = blob.upper()
+    if "挂坠" in blob or "PENDANT" in upper:
+        return "I.PENDANT_ANCHOR"
+    if "单反" in blob or "相机" in blob or "CAMERA" in upper:
+        return "I.CAMERA_DSLR"
+    if "手机" in blob or "PHONE" in upper:
+        return "I.PHONE"
+    if "水瓶" in blob:
+        return "I.WATER_BOTTLE"
+    return None
+
+
+def infer_action_type_from_stage(stage: str) -> str:
+    text = str(stage or "").strip()
+    if not text:
+        return ""
+    if any(k in text for k in ("递", "交", "放进", "接过", "握住", "塞进", "交到")):
+        return "object_handle"
+    if any(k in text for k in ("走", "站起", "坐下", "跟上", "离开", "追", "退步")):
+        return "locomote"
+    if any(k in text for k in ("扫视", "侧身", "警觉", "环顾")):
+        return "vigilance"
+    if any(k in text for k in ("拍肩", "搭肩", "勾肩")):
+        return "social_touch"
+    if any(k in text for k in ("转", "搓", "抠", "拧", "捏")):
+        return "fidget"
+    return "idle_micro"
+
+
+def _stage_claims_second_object(stage: str, current_holding: str | None) -> bool:
+    """True when stage tries to pick up another object while already holding one."""
+    if not current_holding or not str(stage or "").strip():
+        return False
+    text = str(stage)
+    # Handing away the current object is allowed.
+    if current_holding == "I.PENDANT_ANCHOR" and "挂坠" in text and any(
+        k in text for k in ("放进", "交到", "递", "交出去", "塞进")
+    ):
+        return False
+    if current_holding == "I.CAMERA_DSLR" and ("单反" in text or "相机" in text) and any(
+        k in text for k in ("放下", "垂下", "挎回")
+    ):
+        return False
+    take_verbs = ("拿起", "又拿", "再拿", "接过", "抓住", "举起另一", "抽出")
+    other_objects = ("杯子", "手机", "水瓶", "单反", "相机", "袋子", "伞")
+    if current_holding == "I.CAMERA_DSLR":
+        other_objects = tuple(x for x in other_objects if x not in {"单反", "相机"})
+    if current_holding == "I.PHONE":
+        other_objects = tuple(x for x in other_objects if x != "手机")
+    if current_holding == "I.WATER_BOTTLE":
+        other_objects = tuple(x for x in other_objects if x != "水瓶")
+    if current_holding == "I.PENDANT_ANCHOR":
+        other_objects = tuple(x for x in other_objects if x != "挂坠")
+    return any(v in text for v in take_verbs) and any(o in text for o in other_objects)
+
+
+def default_body_frame_for_persona(
+    *,
+    body_id: str,
+    cons_id: str,
+    persona: dict[str, Any] | None,
+    scene_id: str = "",
+) -> dict[str, Any]:
+    """Session BodyFrame seed from card prose / body_props (活化 §9.4)."""
+    persona = persona if isinstance(persona, dict) else {}
+    working = (
+        persona.get("scene_working_memory")
+        if isinstance(persona.get("scene_working_memory"), dict)
+        else {}
+    )
+    note = str(working.get("body_state") or "").strip()
+    props = " ".join(str(x) for x in (persona.get("body_props") or []) if str(x).strip())
+    holding = _infer_holding_from_prose(note, props)
+    posture = (
+        "seated"
+        if ("CAFE" in scene_id.upper() or "PROLOGUE" in scene_id.upper())
+        else "standing"
+    )
+    return {
+        "body_id": body_id,
+        "cons_id": cons_id,
+        "posture": posture,
+        "hands": f"holding:{holding}" if holding else "free",
+        "gaze": "player",
+        "holding": holding,
+        "fatigue": 0.0,
+        "last_visible_stage": "",
+        "last_action_type": "",
+        "note": note,
+    }
+
+
+def ensure_card_body_frames(
+    card: dict[str, Any], existing: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    """Ensure every present persona has a BodyFrame keyed by body_id."""
+    frames: dict[str, Any] = {}
+    if isinstance(existing, dict):
+        frames.update(copy.deepcopy(existing))
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    present = [str(c) for c in (card.get("present") or []) if str(c).strip()]
+    if not present:
+        present = [str(k) for k in personas.keys()]
+    scene_id = str(card.get("scene_id") or "")
+    for cons in present:
+        body_id = resolve_body_id_for_cons(cons)
+        if not body_id:
+            continue
+        if body_id in frames and isinstance(frames[body_id], dict):
+            frames[body_id]["cons_id"] = cons
+            continue
+        frames[body_id] = default_body_frame_for_persona(
+            body_id=body_id,
+            cons_id=cons,
+            persona=personas.get(cons) if isinstance(personas.get(cons), dict) else {},
+            scene_id=scene_id,
+        )
+    card["_body_frames"] = frames
+    return frames
+
+
+def body_frame_for_cons(card: dict[str, Any], cons_id: str) -> dict[str, Any] | None:
+    frames = card.get("_body_frames") if isinstance(card.get("_body_frames"), dict) else {}
+    body_id = resolve_body_id_for_cons(cons_id)
+    frame = frames.get(body_id)
+    return copy.deepcopy(frame) if isinstance(frame, dict) else None
+
+
+def apply_body_frame_holding(
+    frames: dict[str, Any],
+    *,
+    body_id: str,
+    holding: str | None,
+    note: str = "",
+    last_action_type: str = "object_handle",
+) -> None:
+    frame = frames.get(body_id)
+    if not isinstance(frame, dict):
+        return
+    frame["holding"] = holding
+    frame["hands"] = f"holding:{holding}" if holding else "free"
+    if note:
+        frame["note"] = note
+    if last_action_type:
+        frame["last_action_type"] = last_action_type
+
+
+def settle_body_frames_from_npc_turns(
+    frames: dict[str, Any],
+    card: dict[str, Any],
+    turns: list[dict[str, Any]],
+) -> list[str]:
+    """Write BodyFrame continuous state from visible stage; strip illegal second-object grabs.
+
+    Returns human-readable issue strings (also suitable for last_issues).
+    """
+    issues: list[str] = []
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    for item in turns:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("role") or "npc") not in {"npc", ""}:
+            # Canon / narrate may also carry stage for named speakers.
+            if str(item.get("role") or "") not in {"npc", "canon"}:
+                continue
+        speaker = item.get("speaker")
+        cons = str(item.get("cons") or "").strip() or _cons_from_speaker(card, speaker)
+        if not cons or cons not in personas:
+            continue
+        stage = str(item.get("stage") or "").strip()
+        if not stage:
+            continue
+        body_id = resolve_body_id_for_cons(cons)
+        if not body_id:
+            continue
+        frame = frames.get(body_id)
+        if not isinstance(frame, dict):
+            continue
+        holding_now = frame.get("holding")
+        if _stage_claims_second_object(stage, holding_now if isinstance(holding_now, str) else None):
+            issues.append(f"{cons}: busy hands blocked second object ({holding_now})")
+            item["stage"] = ""
+            continue
+        action_type = infer_action_type_from_stage(stage)
+        frame["last_visible_stage"] = stage
+        if action_type:
+            frame["last_action_type"] = action_type
+        # Pendant handoff: clear Ryuya holding when stage shows delivery.
+        if holding_now == "I.PENDANT_ANCHOR" and "挂坠" in stage and any(
+            k in stage for k in ("放进", "交到", "递", "塞进", "交出去")
+        ):
+            apply_body_frame_holding(
+                frames,
+                body_id=body_id,
+                holding=None,
+                note="挂坠已交到对方手里",
+                last_action_type="object_handle",
+            )
+        elif holding_now == "I.CAMERA_DSLR" and ("单反" in stage or "相机" in stage) and any(
+            k in stage for k in ("放下", "垂下", "挎回")
+        ):
+            apply_body_frame_holding(
+                frames,
+                body_id=body_id,
+                holding=None,
+                note="单反已放下",
+                last_action_type="object_handle",
+            )
+        frame["cons_id"] = cons
+    if isinstance(card, dict):
+        card["_body_frames"] = frames
+    return issues
 
 
 def build_actor_context_packet(
@@ -872,11 +1138,23 @@ def build_actor_context_packet(
             if not explicit_goals else {}
         )),
     }
+    if not isinstance(card.get("_body_frames"), dict):
+        ensure_card_body_frames(card)
+    body_frame_now = body_frame_for_cons(card, actor_cons)
+    if body_frame_now:
+        # Keep prose note in sync with structured frame (holding drives note when empty).
+        if body_frame_now.get("note"):
+            scene_working_memory["body_state"] = str(body_frame_now["note"])
+        elif body_frame_now.get("holding"):
+            scene_working_memory["body_state"] = f"持有 {body_frame_now['holding']}"
+        else:
+            scene_working_memory["body_state"] = scene_working_memory.get("body_state") or "双手空闲"
     activation_context = "\n".join(
         [
             query_text,
             json.dumps(physical_scene, ensure_ascii=False),
             json.dumps(scene_working_memory, ensure_ascii=False),
+            json.dumps(body_frame_now or {}, ensure_ascii=False),
         ]
     )
     activation = acv2.activate_memory_candidates(
@@ -890,6 +1168,33 @@ def build_actor_context_packet(
             item.pop("_activation_anchor", None)
     relevant_knowledge = activation["knowledge_activated"]
     slow_memory_top_k = activation["slow_memory_activated"]
+    kge_meta: dict[str, Any] = {}
+    if ott.is_opening_top_tier_scene(card):
+        emo_hint = ""
+        if isinstance(runtime_inner_state, dict):
+            emo_hint = str(runtime_inner_state.get("knot") or runtime_inner_state.get("want_now") or "")
+        scored = ott.score_slow_memory_cos_emo(
+            slow_memory_candidates, activation_context, emo_hint, top_k=2
+        )
+        slow_memory_top_k = ott.merge_slow_activations(slow_memory_top_k, scored, max_n=4)
+        try:
+            kge_meta = ott.kge_slice(actor_cons, ch_anchor)
+            # Prefer schedule-activated knowledge; append KGE knows not already present.
+            seen_pids = {str(x.get("prop_id")) for x in relevant_knowledge if isinstance(x, dict)}
+            for row in kge_meta.get("knows") or []:
+                pid = str(row.get("prop_id") or "")
+                if pid and pid not in seen_pids:
+                    relevant_knowledge.append(
+                        {
+                            "prop_id": pid,
+                            "statement": row.get("statement"),
+                            "tier": row.get("tier"),
+                            "source": "KnowledgeGateEngine",
+                        }
+                    )
+                    seen_pids.add(pid)
+        except Exception as exc:  # noqa: BLE001 — degrade soft; card gates remain
+            kge_meta = {"error": str(exc), "engine": "KnowledgeGateEngine"}
     scene_episode_candidates = [
         copy.deepcopy(item)
         for item in persona.get("scene_episode_history", [])
@@ -964,6 +1269,8 @@ def build_actor_context_packet(
         self_core["seed_boundaries"] = list(persona_core.get("boundaries") or [])
     if persona_core.get("manners"):
         self_core["seed_manners"] = list(persona_core.get("manners") or [])
+    if persona_core.get("acts"):
+        self_core["seed_acts"] = list(persona_core.get("acts") or [])
     # A phase profile is authored scene material, rather than a generic style
     # label.  It tells the actor what the character is trying to sound like in
     # this specific appearance, and keeps the receipt inspectable by the player.
@@ -1033,11 +1340,17 @@ def build_actor_context_packet(
         self_memory["known_friend_profile"] = copy.deepcopy(known_friend_profile)
     self_state = {
         "inner_state": copy.deepcopy(runtime_inner_state if isinstance(runtime_inner_state, dict) else persona.get("inner_state", {})),
-        "fsm": copy.deepcopy(persona.get("fsm", {})),
+        "fsm": copy.deepcopy(
+            (card.get("_session_fsm") or {}).get(actor_cons)
+            if isinstance(card.get("_session_fsm"), dict)
+            and isinstance((card.get("_session_fsm") or {}).get(actor_cons), dict)
+            else persona.get("fsm", {})
+        ),
         "offscreen": copy.deepcopy(persona.get("offscreen_state", {})),
         "body_props": [
             str(x).strip() for x in (persona.get("body_props") or []) if str(x).strip()
         ],
+        "body_frame_now": body_frame_now,
         # N3: this actor sees its own structured mind, never another
         # consciousness's.  A missing persisted mind is seeded only from the
         # already-projected persona/core material, not from a model guess.
@@ -1046,6 +1359,8 @@ def build_actor_context_packet(
         ),
     }
     disclosure_policy = acv2.build_disclosure_policy(persona, actor_cons, ch_anchor)
+    if kge_meta.get("disclosure_lines"):
+        disclosure_policy = list(disclosure_policy) + list(kge_meta["disclosure_lines"])
     director_instruction = acv2.build_director_instruction(
         card,
         actor_cons,
@@ -1162,6 +1477,7 @@ def build_actor_context_packet(
         "self_core": self_core,
         "self_memory": self_memory,
         "self_state": self_state,
+        "body_frame_now": body_frame_now,
         # Distinct from relation_stage (dynamic feeling) and episodes (what
         # happened): this is the actor's already-known social identity map.
         # The disclosure policy remains separate so this never instructs an
@@ -1171,6 +1487,11 @@ def build_actor_context_packet(
         "social_context": {
             "identity_relations": copy.deepcopy(identity_relations),
             "interaction_dynamics": copy.deepcopy(interaction_dynamics),
+            "rel_state": copy.deepcopy(
+                ((card.get("_session_rel_state") or {}).get(actor_cons))
+                if isinstance(card.get("_session_rel_state"), dict)
+                else None
+            ),
             "projection_policy": (
                 "身份常识与在场共处事实常驻于理解与行动；是否主动说出仍受 disclosure_policy 约束。"
             ),
@@ -1184,6 +1505,7 @@ def build_actor_context_packet(
             "scene_episode_candidates": scene_episode_candidates,
             "scene_episode_activated": activated_scene_episodes,
             "scene_episode_withheld": episode_activation["withheld"],
+            "kge": {k: kge_meta.get(k) for k in ("engine", "blocked_prop_ids", "error") if kge_meta},
             **activation,
         },
         "disclosure_policy": disclosure_policy,
@@ -3457,10 +3779,14 @@ def ensure_tiananmen_tm3_self_intro(
     branch_progress: list[str],
     player_input: str | dict[str, str],
 ) -> list[dict[str, Any]]:
-    """When the player opens a name exchange after language lands, force one authored self-intro.
+    """After language lands, force one authored Xiuzai self-intro for TM3.
 
-    Only Xiuzai reports the trio once. Strip other speakers' full roster intros so
-    three people do not each re-introduce everyone.
+    Isolation can schedule the wrong primary (e.g. Maki) and stamp every bubble
+    with that actor_cons, so a roster intro attributed to the wrong body does
+    not count as self_introduction. This gate rewrites that into Xiuzai's line.
+
+    Name-exchange remains a valid trigger; language receipt alone is enough too,
+    matching the authored TM3 beat after 「听得懂日语」.
     """
     if str(card.get("scene_id", "")) != "OPENING_TIANANMEN_002":
         return turns
@@ -3468,7 +3794,19 @@ def ensure_tiananmen_tm3_self_intro(
         return turns
     if "tiananmen_japanese_understood" not in branch_progress:
         return turns
-    if not player_opens_name_exchange(player_input):
+    language_receipt_now = "tiananmen_japanese_understood" in tiananmen_player_facts(
+        player_input, recent_history=history
+    )
+    misattributed_roster = any(
+        _turn_looks_like_name_roster_intro(str(item.get("text") or ""))
+        and _cons_from_speaker(card, str(item.get("speaker") or "")) != "C.xiuzai.WMAIN"
+        for item in turns
+    )
+    if not (
+        player_opens_name_exchange(player_input)
+        or language_receipt_now
+        or misattributed_roster
+    ):
         return turns
     if "C.xiuzai.WMAIN" in _npc_self_introduced_to_player_after_turn(card, history, turns, 0):
         # Already have Xiuzai self-intro; still drop duplicate roster speeches.
@@ -4175,6 +4513,7 @@ def build_speaker_plan(
     player_input: str,
     max_speakers: int = MAX_BID_SPEAKERS,
     completed: list[str] | None = None,
+    branch_progress: list[str] | None = None,
 ) -> dict[str, Any]:
     is_c16_gate = str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
     is_tiananmen = str(card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
@@ -4254,8 +4593,23 @@ def build_speaker_plan(
         preferred = intro_wave_pending[0]
         bids.sort(key=lambda x: (x.get("cons") != preferred, -float(x.get("score", 0.0) or 0.0)))
     beat_speaker_hints: list[str] = []
+    completed_set = set(completed or [])
+    branch_set = set(branch_progress or [])
+    if is_tiananmen and "TM3" not in completed_set and "TM2" in completed_set:
+        language_ok = "tiananmen_japanese_understood" in branch_set or (
+            "tiananmen_japanese_understood"
+            in tiananmen_player_facts(player_input, recent_history=history)
+        )
+        if language_ok and "C.xiuzai.WMAIN" in (card.get("persona_cards") or {}):
+            # TM3 authored spine: Xiuzai self-introduces the trio after language lands.
+            beat_speaker_hints.append("C.xiuzai.WMAIN")
+            bids.sort(
+                key=lambda x: (
+                    x.get("cons") not in beat_speaker_hints,
+                    -float(x.get("score", 0.0) or 0.0),
+                )
+            )
     if is_c16_gate and not direct_addressee and not has_public_speech:
-        completed_set = set(completed or [])
         next_beat = next(
             (
                 item for item in card.get("must_happen", [])
@@ -4314,7 +4668,7 @@ def build_speaker_plan(
             if (
                 not bid_text.strip()
                 or score > 0.0
-                or (subtle_c16_watch and item.get("cons") in beat_speaker_hints)
+                or (beat_speaker_hints and item.get("cons") in beat_speaker_hints)
             ):
                 speaker_item = {
                         "cons": item["cons"],
@@ -4634,6 +4988,38 @@ def privileged_leak_violations(turns: list[dict[str, str]], card: dict[str, Any]
                 fact_text = str(fact).strip()
                 if len(fact_text) > 6 and fact_text in text:
                     violations.append(f"Leak of {other_cons} privileged fact into speaker '{speaker_name}': '{fact_text}'")
+    return violations
+
+
+OPENING_TIANANMEN_SECRET_PATTERNS = (
+    re.compile(r"龙也"),
+    re.compile(r"托付"),
+    re.compile(r"挂坠"),
+    re.compile(r"枪击"),
+    re.compile(r"假死"),
+)
+
+
+def opening_scene_secret_leak_violations(
+    turns: list[dict[str, Any]], card: dict[str, Any]
+) -> list[str]:
+    """天安门开场：演员可见层不得提龙也/托付/挂坠/枪击等超前秘密。"""
+    if str(card.get("scene_id") or "") != "OPENING_TIANANMEN_002":
+        return []
+    violations: list[str] = []
+    for item in turns:
+        if not isinstance(item, dict):
+            continue
+        role = str(item.get("role") or "npc")
+        if role not in {"npc", "canon", ""}:
+            continue
+        text = f"{item.get('text', '')} {item.get('stage', '')}"
+        for pattern in OPENING_TIANANMEN_SECRET_PATTERNS:
+            if pattern.search(text):
+                violations.append(
+                    f"Tiananmen secret leak ({pattern.pattern}) by '{item.get('speaker', '')}'"
+                )
+                break
     return violations
 
 
@@ -6014,6 +6400,20 @@ class FreeStageSession:
             entry_context if isinstance(entry_context, EntryContext) else EntryContext.from_dict(entry_context)
         )
         self.card = load_card(self.card_path)
+        if ott.is_opening_top_tier_scene(self.card):
+            self.card = ott.apply_fronting_to_card(self.card)
+            try:
+                from scripts.generate_cards import stamp_opening_card_in_memory
+
+                self.card = stamp_opening_card_in_memory(self.card)
+            except Exception:
+                self.card = dict(self.card)
+                self.card["compiler"] = {
+                    "mode": "authored_overlay",
+                    "version": "2026-08-03",
+                    "degraded": True,
+                }
+                self.card["_compiler"] = dict(self.card["compiler"])
         # A card opened directly (tests, resume tools, local rehearsal) still
         # needs its default entrance projection.  Transitions replace this
         # with the explicit exit-state projection before the target is shown.
@@ -6031,6 +6431,9 @@ class FreeStageSession:
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
         self.private_inner_states: dict[str, dict[str, Any]] = {}
+        # Opening top-tier: session-scoped FSM + RelState (not Seed).
+        self.fsm_by_cons: dict[str, dict[str, Any]] = {}
+        self.rel_state_by_cons: dict[str, dict[str, Any]] = {}
         # N3 ActorMind is separate from legacy/private scene projection.
         # The latter may refresh a per-turn display context; this structure is
         # the only persistent psychological/relationship state and is updated
@@ -6080,13 +6483,16 @@ class FreeStageSession:
         }
         self.run_observation_ledger: list[dict[str, Any]] = []
         self._pendant_look_emitted = False
+        self._pendant_layer_c_emitted = False
         self._opening_soft_hint_fired = False
         # 开场梗概已播 / 托付闪回：延后到遇修哉或张尘再演两年前。
         self.ryuya_flashback_return: dict[str, Any] | None = None
         self._flashback_inputs_at_enter: int = 0
+        self.body_frames: dict[str, Any] = {}
         if load_existing:
             self._load()
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
+        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
 
 
     def _merged_opening_memories(self) -> dict[str, Any]:
@@ -6150,6 +6556,16 @@ class FreeStageSession:
         self.private_inner_states = {
             str(cons): dict(state)
             for cons, state in dict(data.get("private_inner_states", {})).items()
+            if isinstance(state, dict)
+        }
+        self.fsm_by_cons = {
+            str(cons): dict(state)
+            for cons, state in dict(data.get("fsm_by_cons", {})).items()
+            if isinstance(state, dict)
+        }
+        self.rel_state_by_cons = {
+            str(cons): dict(state)
+            for cons, state in dict(data.get("rel_state_by_cons", {})).items()
             if isinstance(state, dict)
         }
         self.actor_minds = {
@@ -6224,11 +6640,17 @@ class FreeStageSession:
             dict(item) for item in data.get("run_observation_ledger", []) if isinstance(item, dict)
         ]
         self._pendant_look_emitted = bool(data.get("pendant_look_emitted"))
+        self._pendant_layer_c_emitted = bool(data.get("pendant_layer_c_emitted"))
         stored_flashback_return = data.get("ryuya_flashback_return")
         self.ryuya_flashback_return = (
             dict(stored_flashback_return) if isinstance(stored_flashback_return, dict) else None
         )
         self._flashback_inputs_at_enter = int(data.get("_flashback_inputs_at_enter", 0) or 0)
+        stored_frames = data.get("body_frames")
+        self.body_frames = (
+            copy.deepcopy(stored_frames) if isinstance(stored_frames, dict) else {}
+        )
+        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
         self._replay_current_card_terminal_effects()
 
     def _state_payload(self) -> dict[str, Any]:
@@ -6258,6 +6680,8 @@ class FreeStageSession:
             "heart_stages": self.heart_stages,
             "consolidated_memory_by_card": self.consolidated_memory_by_card,
             "private_inner_states": self.private_inner_states,
+            "fsm_by_cons": getattr(self, "fsm_by_cons", {}) or {},
+            "rel_state_by_cons": getattr(self, "rel_state_by_cons", {}) or {},
             "actor_minds": self.actor_minds,
             "active_exit_state_by_card": self.active_exit_state_by_card,
             "stall": self.stall,
@@ -6288,8 +6712,10 @@ class FreeStageSession:
             "player_state": self.player_state,
             "run_observation_ledger": [dict(o) for o in self.run_observation_ledger],
             "pendant_look_emitted": bool(getattr(self, "_pendant_look_emitted", False)),
+            "pendant_layer_c_emitted": bool(getattr(self, "_pendant_layer_c_emitted", False)),
             "ryuya_flashback_return": self.ryuya_flashback_return,
             "_flashback_inputs_at_enter": int(getattr(self, "_flashback_inputs_at_enter", 0) or 0),
+            "body_frames": copy.deepcopy(getattr(self, "body_frames", {}) or {}),
         }
 
     def save(self) -> None:
@@ -6307,6 +6733,8 @@ class FreeStageSession:
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
         self.private_inner_states = {}
+        self.fsm_by_cons = {}
+        self.rel_state_by_cons = {}
         self.actor_minds = {}
         self.active_exit_state_by_card = {}
         self.stall = 0
@@ -6341,10 +6769,12 @@ class FreeStageSession:
         self._triggered_at_clocks: set[str] = set()
         self.run_observation_ledger = []
         self._pendant_look_emitted = False
+        self._pendant_layer_c_emitted = False
         self._opening_soft_hint_fired = False
         self.ryuya_flashback_return = None
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
+        self.body_frames = ensure_card_body_frames(self.card, {})
         self.world_cursor = _card_cursor(self.card, self.run_no)
         self.card_history = [self.card.get("scene_id", str(self.card_path))]
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
@@ -6527,6 +6957,14 @@ class FreeStageSession:
             if "古铜色金属挂坠项链" not in props:
                 props.append("古铜色金属挂坠项链")
             self.player_state["body_props"] = props
+            apply_body_frame_holding(
+                self.body_frames,
+                body_id="B.ryuya.WMAIN",
+                holding=None,
+                note="挂坠已交到对方手里",
+                last_action_type="object_handle",
+            )
+            ensure_card_body_frames(self.card, self.body_frames)
         self.run_observation_ledger = _ledger_append(
             self.run_observation_ledger,
             turn=turn_no,
@@ -6535,6 +6973,46 @@ class FreeStageSession:
             kind="pendant",
         )
         return committed_now
+
+    def _pendant_accepted(self) -> bool:
+        tx = self._world_transaction("ryuya_pendant_disposition") or {}
+        if str(tx.get("outcome") or "") == "accepted":
+            return True
+        props = [str(x) for x in (self.player_state.get("body_props") or [])]
+        return "古铜色金属挂坠项链" in props
+
+    def _maybe_emit_pendant_layer_c(
+        self, player_input: dict[str, Any] | str, *, turn_no: int
+    ) -> list[dict[str, Any]]:
+        """挂坠层 C：第一次被玩家用到/看向时播短闪回（不重演整场）。"""
+        if not pendant_layer_c_trigger_hits(
+            pendant_accepted=self._pendant_accepted(),
+            already_emitted=bool(getattr(self, "_pendant_layer_c_emitted", False)),
+            prologue_active=bool(self.card.get("prologue_active")),
+            player_input=player_input,
+        ):
+            return []
+        turns = ryuya_opening.build_pendant_layer_c_turns(turn_no=turn_no)
+        if not turns:
+            return []
+        self._pendant_layer_c_emitted = True
+        self.history.extend(turns)
+        self.run_observation_ledger = _ledger_append(
+            self.run_observation_ledger,
+            turn=turn_no,
+            scene_id=str(self.card.get("scene_id", "")),
+            fact_text="挂坠层C短闪回：雨声/旧桌/递坠",
+            kind="pendant_layer_c",
+        )
+        self._commit_world_transaction(
+            "ryuya_pendant_layer_c",
+            kind="pendant_layer_c",
+            outcome="emitted",
+            owner="player",
+            turn_no=turn_no,
+            public_effect="pendant_sensory_flashback_shown",
+        )
+        return turns
 
     def _ensure_opening_synopsis_and_pendant(self) -> list[dict[str, Any]]:
         """开场梗概 + 挂坠已给（不进序幕卡）。"""
@@ -6778,6 +7256,121 @@ class FreeStageSession:
             "eligible_entries": self.get_eligible_entries(),
         }
 
+    def _player_channels_snapshot(
+        self, player_input: dict[str, Any] | str | None = None
+    ) -> dict[str, Any]:
+        if player_input is None and self.inputs:
+            player_input = self.inputs[-1]
+        if isinstance(player_input, dict):
+            return {
+                "speech": str(player_input.get("speech") or "").strip(),
+                "action": str(player_input.get("action") or "").strip(),
+                "thought": str(player_input.get("thought") or "").strip(),
+                "raw_kind": "channels",
+            }
+        text = str(player_input or "").strip()
+        return {
+            "speech": text,
+            "action": "",
+            "thought": "",
+            "raw_kind": "text" if text else "empty",
+        }
+
+    def _assembly_projection_status(self, card: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Observatory: what the two-scene engine actually projects vs deferred."""
+        card = card if isinstance(card, dict) else self.card
+        present = [str(c) for c in (card.get("present") or []) if str(c).strip()]
+        opening = ott.is_opening_top_tier_scene(card)
+        if opening:
+            present_for = present or [
+                str(c) for c in (card.get("persona_cards") or {}) if str(c).strip()
+            ]
+            self.fsm_by_cons = ott.ensure_fsm_map(getattr(self, "fsm_by_cons", {}), present_for)
+            self.rel_state_by_cons = ott.ensure_rel_map(
+                getattr(self, "rel_state_by_cons", {}), present_for
+            )
+            return ott.assembly_top_tier_status(
+                present=present,
+                body_frame_bodies=sorted(str(k) for k in (self.body_frames or {})),
+                pendant_layer_c_emitted=bool(getattr(self, "_pendant_layer_c_emitted", False)),
+                pendant_look_emitted=bool(getattr(self, "_pendant_look_emitted", False)),
+                pendant_accepted=self._pendant_accepted(),
+                actor_isolation=True,
+                kge=True,
+                cos_emo=True,
+                fsm=bool(self.fsm_by_cons),
+                rel_state=bool(self.rel_state_by_cons),
+                fronting=bool(card.get("_fronting_runtime")),
+                generate_cards=(
+                    str((card.get("compiler") or card.get("_compiler") or {}).get("mode") or "")
+                    == "authored_overlay"
+                ),
+                beta_threshold=True,
+            )
+        return {
+            "scope": "opening_two_scenes",
+            "top_tier": False,
+            "wired_now": [
+                "Seed.ARCH/MANNER/BOUNDARY",
+                "Seed.REL.IDENTITY+HOLD",
+                "Seed.P.ACT",
+                "session.BodyFrame",
+                "want/inner(card→session)",
+                "slow_memory.cue",
+                "pendant_layer_c",
+                "tiananmen_secret_leak_gate",
+            ],
+            "deferred_not_top_tier": [
+                "非开场两场：顶配装配仅钉在序幕×天安门",
+            ],
+            "present_cons": present,
+            "body_frame_bodies": sorted(str(k) for k in (self.body_frames or {})),
+            "pendant_layer_c_emitted": bool(getattr(self, "_pendant_layer_c_emitted", False)),
+            "pendant_look_emitted": bool(getattr(self, "_pendant_look_emitted", False)),
+            "pendant_accepted": self._pendant_accepted(),
+        }
+
+    def _beat_io_projection(
+        self,
+        *,
+        turn_no: int,
+        player_input: dict[str, Any] | str | None,
+        player_visible_turns: list[dict[str, Any]] | None,
+        truth_turns: list[dict[str, Any]] | None,
+        emitted_events: list[dict[str, Any]] | None = None,
+    ) -> dict[str, Any]:
+        channels = self._player_channels_snapshot(player_input)
+        visible = [dict(x) for x in (player_visible_turns or []) if isinstance(x, dict)]
+        truth = [dict(x) for x in (truth_turns or []) if isinstance(x, dict)]
+        ledger_tail = [
+            dict(item)
+            for item in (self.run_observation_ledger or [])
+            if isinstance(item, dict) and int(item.get("turn", -1) or -1) == int(turn_no)
+        ]
+        world_tx_tail = [
+            dict(item)
+            for _, item in sorted(self.world_transactions.items())
+            if isinstance(item, dict) and int(item.get("turn", -1) or -1) == int(turn_no)
+        ]
+        return {
+            "turn_no": int(turn_no),
+            "input": channels,
+            "happened": {
+                "must_happen_completed": list(self.completed),
+                "branch_progress": list(self.branch_progress),
+                "world_transactions_this_turn": world_tx_tail,
+                "observation_ledger_this_turn": ledger_tail,
+                "engine_events": list(emitted_events or []),
+                "body_frames": copy.deepcopy(self.body_frames or {}),
+            },
+            "displayed": {
+                "player_visible_turns": visible,
+                "truth_turns": truth,
+                "visible_count": len(visible),
+                "truth_count": len(truth),
+            },
+        }
+
     def _pending_entry_target_path(self) -> Path:
         pending = normalize_pending_entry(self.pending_entry)
         if pending is None:
@@ -7014,6 +7607,16 @@ class FreeStageSession:
                 },
                 ambient_actor_registry=self.ambient_actor_registry,
             ),
+            "beat_io": self._beat_io_projection(
+                turn_no=0,
+                player_input=None,
+                player_visible_turns=turn_zero_player,
+                truth_turns=turn_zero_director,
+                emitted_events=[],
+            ),
+            "body_frames": copy.deepcopy(self.body_frames or {}),
+            "run_observation_ledger": [dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)],
+            "assembly_projection": self._assembly_projection_status(card),
         }
 
     def get_active_exit_state(self) -> str:
@@ -7313,6 +7916,10 @@ class FreeStageSession:
                 intro_turns.append(prologue_turn)
                 if "RP1" not in self.completed:
                     self.completed.append("RP1")
+            settle_body_frames_from_npc_turns(
+                self.body_frames, self.card, [*intro_turns, *canon_turns]
+            )
+            ensure_card_body_frames(self.card, self.body_frames)
             if self.autosave:
                 self.save()
             return [dict(item) for item in [*synopsis_turns, *intro_turns, *canon_turns]]
@@ -8081,6 +8688,8 @@ class FreeStageSession:
         for item in stage_turns:
             self.history.append(item)
 
+        layer_c_turns = self._maybe_emit_pendant_layer_c(parsed_input, turn_no=turn_no)
+
         # 托付的回应是可见事实，不能因为物件尚未摆上桌就被系统当作没说过。
         # RP3 前只先记账；RP3 落下的同拍再兑现为交付/婉拒，不让龙也重问。
         # 闪回例外：不要在演员发言前抢先标 RP4，否则会跳过递坠演出并立刻切场。
@@ -8526,6 +9135,7 @@ class FreeStageSession:
             self.history[:-1],
             player_input,
             completed=self.completed,
+            branch_progress=self.branch_progress,
         )
         current_scene_id = str(resolved_card.get("scene_id", self.card_path))
         stall_escalation = build_stall_escalation(
@@ -8541,6 +9151,19 @@ class FreeStageSession:
         # now makes the boundary observable and prevents a future runner from
         # silently reconstructing a broad shared prompt.
         performance_plan = list(speaker_plan.get("speakers", []) or []) + list(speaker_plan.get("stage_actors", []) or [])
+        self.body_frames = ensure_card_body_frames(resolved_card, getattr(self, "body_frames", {}) or {})
+        if ott.is_opening_top_tier_scene(resolved_card):
+            present_for = [
+                str(item.get("cons", "")).strip()
+                for item in performance_plan
+                if str(item.get("cons", "")).strip()
+            ]
+            self.fsm_by_cons = ott.ensure_fsm_map(getattr(self, "fsm_by_cons", {}), present_for)
+            self.rel_state_by_cons = ott.ensure_rel_map(
+                getattr(self, "rel_state_by_cons", {}), present_for
+            )
+            resolved_card["_session_fsm"] = copy.deepcopy(self.fsm_by_cons)
+            resolved_card["_session_rel_state"] = copy.deepcopy(self.rel_state_by_cons)
         actor_context_packets = {
             cons: build_actor_context_packet(
                 resolved_card,
@@ -8573,6 +9196,15 @@ class FreeStageSession:
                     "social_instruction": plan_item.get("social_instruction", ""),
                     "max_new_questions": 2 if plan_item.get("response_slot", "primary") == "primary" else 0,
                 }
+                if ott.is_opening_top_tier_scene(resolved_card):
+                    # Zero-LLM selftest double reads this; production LLMs ignore underscore keys.
+                    pkt["_playtest"] = {
+                        "completed": list(self.completed),
+                        "branch_progress": list(self.branch_progress),
+                        "must_happen_ids": card_must_happen_ids(resolved_card),
+                        "player_speech": speech,
+                        "player_action": action,
+                    }
                 # Continuity: he already sees own lines in observable_dialogue;
                 # still surface them so the model cannot "forget" and re-ask.
                 actor_name = str(((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("name") or "")
@@ -8665,6 +9297,8 @@ class FreeStageSession:
             if item.get("role") == "narrate" and item.get("turn") == turn_no
             and item.get("stage") == "环境对可见行为作出的即时反应。"
         ])
+        if layer_c_turns:
+            emitted.extend(dict(item) for item in layer_c_turns)
         actor_errors: list[str] = []
         turn_degradations: list[dict[str, Any]] = []
         committed_actor_decisions: list[dict[str, Any]] = []
@@ -8672,8 +9306,11 @@ class FreeStageSession:
         try:
             # Production: director may overlap wall-clock with the actor chain;
             # actors themselves are always sequential so secondary hears primary.
-            use_isolated_actor_runner = intent_resolution is not None or self.caller is None or bool(
-                self.config.get("actor_context_isolation", False)
+            use_isolated_actor_runner = (
+                intent_resolution is not None
+                or self.caller is None
+                or bool(self.config.get("actor_context_isolation", False))
+                or ott.is_opening_top_tier_scene(resolved_card)
             )
             if use_isolated_actor_runner and actor_context_packets:
                 packets_in_order = [
@@ -8767,6 +9404,37 @@ class FreeStageSession:
                     turn_degradations.extend(bio_degs)
             leak_issues = inner_state_leak_violations(turns, resolved_card)
             leak_issues.extend(privileged_leak_violations(turns, resolved_card))
+            leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
+            if ott.is_opening_top_tier_scene(resolved_card):
+                ch_now = int(resolved_card.get("ch_anchor", 0) or 0)
+                for item in turns:
+                    if not isinstance(item, dict):
+                        continue
+                    cons = _cons_from_speaker(resolved_card, item.get("speaker"))
+                    if not cons:
+                        continue
+                    for issue in ott.validate_turns_kge(
+                        cons, ch_now, [item], db_path=ROOT / "data" / "world_truth.db"
+                    ):
+                        if issue.get("severity") == "BLOCK":
+                            leak_issues.append(
+                                f"KGE:{cons}:{issue.get('violations')}"
+                            )
+                        else:
+                            turn_degradations.append(issue)
+                # Tick session FSM / RelState from this player beat.
+                for cons in list(getattr(self, "fsm_by_cons", {}) or {}):
+                    self.fsm_by_cons[cons] = ott.tick_fsm(
+                        self.fsm_by_cons[cons],
+                        player_speech=speech,
+                        player_action=action,
+                    )
+                for cons in list(getattr(self, "rel_state_by_cons", {}) or {}):
+                    self.rel_state_by_cons[cons] = ott.tick_rel(
+                        self.rel_state_by_cons[cons],
+                        player_speech=speech,
+                        player_action=action,
+                    )
             if leak_issues:
                 raise ValueError(f"Inner state leak detected: {'; '.join(leak_issues)}")
             allowed = set(card_must_happen_ids(resolved_card))
@@ -8968,6 +9636,20 @@ class FreeStageSession:
                 item.update({"role": "npc", "turn": turn_no})
                 self.history.append(item)
                 emitted.append(dict(item))
+            body_issues = settle_body_frames_from_npc_turns(
+                self.body_frames, resolved_card, turns
+            )
+            ensure_card_body_frames(resolved_card, self.body_frames)
+            if body_issues:
+                self.last_issues.extend(body_issues)
+                for msg in body_issues:
+                    turn_degradations.append(
+                        make_degradation(
+                            "body_frame",
+                            "busy_hands_block",
+                            msg,
+                        )
+                    )
             # A canon performance unlocked by this actor beat belongs after the
             # observed beat in the same visible turn.  It may chain only through
             # explicit auto_continue segments; it never asks the player to
@@ -8982,6 +9664,10 @@ class FreeStageSession:
                 remaining_canon -= 1
             if auto_canon_turns:
                 emitted.extend(auto_canon_turns)
+                settle_body_frames_from_npc_turns(
+                    self.body_frames, resolved_card, auto_canon_turns
+                )
+                ensure_card_body_frames(resolved_card, self.body_frames)
                 self.completed_by_card[scene_id] = list(self.completed)
             note_item = {
                 "role": "director_note",
@@ -9263,6 +9949,24 @@ class FreeStageSession:
                 },
                 ambient_actor_registry=self.ambient_actor_registry,
             ),
+            "beat_io": self._beat_io_projection(
+                turn_no=turn_no,
+                player_input=player_input,
+                player_visible_turns=player_visible_turns,
+                truth_turns=truth_turns,
+                emitted_events=[
+                    {
+                        "kind": "pendant_layer_c",
+                        "emitted": bool(layer_c_turns),
+                        "n": len(layer_c_turns or []),
+                    }
+                ],
+            ),
+            "body_frames": copy.deepcopy(self.body_frames or {}),
+            "run_observation_ledger": [
+                dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)
+            ],
+            "assembly_projection": self._assembly_projection_status(resolved_card),
         }
         self.debug_history.append(debug_payload)
 
@@ -10234,6 +10938,8 @@ def call_actor_packet(
             "observable_dialogue 里也有你自己的公开台词，以场上已发生为准；"
             "self_core.phase_voice_profile（若存在）是这个阶段的演法：优先遵从其中的正向行为取向与披露边界，不要滑向列出的失真说法；"
             "private_perceptions 是你独自感到的现场信息，可据此反应，但不要对旁人点破对方不知道的真相；"
+            "若 body_frame_now / self_state.body_frame_now 存在：写 stage 必须从当前身体帧可到达；"
+            "手 busy/holding 时不能再接第二件物；无可见变化则 stage 留空；"
             "不得代替导演推进正典事件。"
         ) + (
             " 你是 stage_only：只能给一个可见动作；text 必须为空，stage 必须非空，绝不能说话或提问。"
@@ -10716,6 +11422,42 @@ def fixed_selftest_actor(**kwargs: Any) -> str:
                 },
                 ensure_ascii=False,
             )
+        # Opening top-tier isolation: reuse legacy scene selftest script via _playtest.
+        playtest = packet.get("_playtest") if isinstance(packet.get("_playtest"), dict) else {}
+        scene_id = str(packet.get("scene") or "")
+        if scene_id in ("OPENING_TIANANMEN_002", "OPENING_TIANANMEN_001", "OPENING_RYUYA_PROLOGUE_001") or str(
+            packet.get("actor_cons") or ""
+        ).startswith("C.ryuya"):
+            slot = str((packet.get("conversation_contract") or {}).get("response_slot") or "primary")
+            if slot != "primary":
+                # One authored beat from primary only; secondaries must not re-emit
+                # the director-style multi-speaker script under isolation.
+                return json.dumps(
+                    {"turns": [], "mh_progress": [], "director_note": "selftest:silent_secondary"},
+                    ensure_ascii=False,
+                )
+            fake = {
+                "constraint_card": {
+                    "scene_id": scene_id or "OPENING_TIANANMEN_002",
+                    "must_happen": [
+                        {"id": mid} for mid in (playtest.get("must_happen_ids") or ["TM1", "TM2", "TM3", "TM4", "TM5"])
+                    ],
+                    "prologue_active": scene_id == "OPENING_RYUYA_PROLOGUE_001"
+                    or str(packet.get("actor_cons") or "").startswith("C.ryuya"),
+                },
+                "completed_must_happen": list(playtest.get("completed") or []),
+                "branch_progress": list(playtest.get("branch_progress") or []),
+            }
+            raw = fixed_selftest_actor(user_content=json.dumps(fake, ensure_ascii=False))
+            try:
+                payload = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                return raw
+            # mh_progress stays with the director call; isolated actors strip it anyway.
+            if isinstance(payload, dict):
+                payload["mh_progress"] = []
+                return json.dumps(payload, ensure_ascii=False)
+            return raw
         return json.dumps(
             {
                 "turns": [{"speaker": speaker, "text": "我听见了，继续跟着眼前的事。", "stage": ""}],

@@ -22,3 +22,7 @@ Thumbs.db
 # runtime play artifacts
 artifacts/
 
+
+# editor
+.obsidian/
+

@@ -1,5 +1,5 @@
 -- world_truth.db canonical SQL dump
--- generated_at_utc: 2026-07-28T03:54:52Z
+-- generated_at_utc: 2026-08-03T04:23:44Z
 -- source: data/world_truth.db
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
@@ -7296,7 +7296,7 @@ CREATE TABLE item_custody(
   run INTEGER, item_id TEXT, holder_body TEXT, from_event INTEGER, to_event INTEGER);
 CREATE TABLE items(item_id TEXT PRIMARY KEY, display_name TEXT, note TEXT);
 INSERT INTO "items" VALUES('I.PEN','钢笔/原子笔','LT核心大门钥匙系；魏初/刘云天物权链');
-INSERT INTO "items" VALUES('I.PENDANT_ANCHOR','挂坠（LT_ANCHOR天线）','玩家持有；龙也(W1前台)交付');
+INSERT INTO "items" VALUES('I.PENDANT_ANCHOR','挂坠（LT_ANCHOR天线）','LT_ANCHOR 信物挂坠；物定义在 Seed；持有关系由 run/item_custody 记载，不在 Seed note。来历：第一世界折原修哉交予龙也(W1)。');
 INSERT INTO "items" VALUES('I.DATADISK','革命一号数据盘','Ch.72拷贝事件');
 INSERT INTO "items" VALUES('I.PHOTO_FRAME','魏初茶几上的空相框','Ch.7伏笔，关联P.WEICHU_WIDOW');
 CREATE TABLE knowledge_runtime(
@@ -7570,6 +7570,25 @@ INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.W3','P.DUST_CREATOR',1,'与尘
 INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.W3','P.FIRST_WORLD_PROMISE',1,'斯德哥尔摩约定的一方');
 INSERT INTO "knowledge_schedule" VALUES('C.weichu.WMAIN','REL.IDENTITY.weichu.xiuzai',1,'source/novel_1-69.md:L8095-L8099；魏初自述“我是修哉的嫂子……这是他的哥哥……他是龙也，折原龙也”。');
 INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.IDENTITY.maki.ryuya_xiuzai',1,'source/novel_1-69.md:L6035-L6037,L6464-L6469；真纪自述“龙也是我的表弟，修哉的亲哥哥”，并称修哉为“如今唯一的弟弟”。');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.IDENTITY.ryuya.xiuzai_brother',0,'runtime/free_stage_card_ryuya_prologue.json; canon family (cf. source/novel_1-69.md maki/weichu cites)');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.IDENTITY.ryuya.maki_cousin',0,'runtime/free_stage_card_ryuya_prologue.json; canon family');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.IDENTITY.ryuya.weichu_wife',0,'runtime/free_stage_card_ryuya_prologue.json; canon marriage');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.IDENTITY.ryuya.zhangchen_entrust',0,'runtime/free_stage_card_ryuya_prologue.json (authored_opening)');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.IDENTITY.ryuya.pendant_from_xiuzai',0,'runtime/free_stage_card_ryuya_prologue.json (authored_opening+human_cut 2026-08-01)');
+INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.WMAIN','REL.IDENTITY.xiuzai.maki_cousin',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.WMAIN','REL.IDENTITY.xiuzai.ryuya_brother',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.WMAIN','REL.IDENTITY.xiuzai.kakashi_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.xiuzai.WMAIN','REL.IDENTITY.xiuzai.akito_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.IDENTITY.maki.xiuzai_cousin_brother',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.IDENTITY.maki.ryuya_cousin',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.IDENTITY.maki.akito_travel',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.IDENTITY.maki.kakashi_travel',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.kakashi.WMAIN','REL.IDENTITY.kakashi.xiuzai_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.kakashi.WMAIN','REL.IDENTITY.kakashi.akito_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.kakashi.WMAIN','REL.IDENTITY.kakashi.maki_acquaintance',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.maki_cousin_ref',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.xiuzai_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "knowledge_schedule" VALUES('C.akito.WMAIN','REL.IDENTITY.akito.kakashi_friend',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 CREATE TABLE node_contracts(node_id TEXT PRIMARY KEY, part INTEGER, contract TEXT);
 INSERT INTO "node_contracts" VALUES('NODE-013-SNIPER',1,'{"node_id": "NODE-013-SNIPER", "part": 1, "title": "露天咖啡厅街头狙击（暗杀主线开局·认识枢纽）", "tier": "canon_beat", "entry_conditions": ["E013-02", "E013-03"], "invariants": {"canon_locked": ["result|E013-02: 无辜少妇额头中弹身亡（死亡结果不可更改；呈现细节文本自由）", "result|E013-10: 卡卡西聚焦神威折弯大厦十层枪管，狙击手撤退（卡卡西不死、写轮眼/神威能力本次暴露）", "identity: 狙击手=世界政府本土武装（非郭家政本人）"], "player_freedom": "死局节点（政策B·完整干涉自由）：玩家是在场的普通人， 合法行动包括—— 帮修哉翻桌/撒面粉扩大粉尘迷雾遮蔽射线（make_cover）； 拉受惊旁观者（含柳絮等）到墙后减少暴露人头（pull_to_wall）； 目测或借秋人单反协助指认大厦十层射击窗口（spot_shooter）； 接手秋人相机拍摄狙击手轮廓留存证据（photo_evidence）； 红线——不可拥有超能力/写轮眼/神威； 不可替卡卡西完成折枪管（这是卡卡西的灵魂动作，抢戏=工具化，红线）； 超出普通人物理上限的行动→张尘式吐槽/现实物理收敛。\n"}, "exit_states": [{"id": "converged", "desc": "原著线（Worldline-0）—— 少妇死亡（E013-02）；卡卡西拉柳絮、独自跑开引杀手（E013-05~06）； 修哉抛洒面粉造迷雾（E013-07）；三人在墙后会合（E013-08）； 秋人探出相机拍照、修哉阻止报警（E013-09）； 卡卡西神威折弯枪管（E013-10）；危机解除、卡卡西搂柳絮安慰后撤离（E013-11）。 写轮眼/神威能力按原著烈度暴露，暗杀主线正式开局，后续追杀烈度基线建立。\n", "negates": []}, {"id": "branched_lowprofile", "branch_gate": "BG-SNIPER_COVERT", "desc": "玩家 make_cover + spot_shooter 叠加（combine_threshold=2）， 在卡卡西动用神威前即制造有效遮蔽并协助锁定射击窗口， 狙击手更早失去瞄准机会主动放弃 → 卡卡西少暴露一次完整写轮眼/神威范围。 δ种子 SNIPER_COVERT_SEED 写入δ账本 → 喂入后续追杀烈度参数（微降）。 结果大同（狙击手仍撤退），暴露程度有可量化差异。\n", "negates": []}], "convergence": ["玩家拉着众人乱跑/脱离掩护 → 修哉主动喝止并抛洒面粉制造迷雾（E013-07），把人逼回墙后（剧情内施压）\n", "玩家试图报警 → 修哉夺下秋人手机警告\"这会被查到的\"（E013-09）； 组织监听威胁浮现，外部压力中断报警链\n", "玩家试图冲向狙击手大楼 → E013-02/03 造成的街面恐慌人群+无掩护地带构成物理障碍； 修哉在墙后焦急呼喊（剧情内收敛，NPC主动事件驱动）\n"], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "make_cover", "desc": "帮修哉翻桌椅/传递面粉袋，扩大粉尘迷雾遮蔽狙击视线（E013-07 协力）", "type": "physical", "snr_cost": "low"}, {"id": "pull_to_wall", "desc": "拉受惊旁观者（柳絮等）到墙后，减少暴露人头", "type": "physical", "snr_cost": 0}, {"id": "spot_shooter", "desc": "协助目测+借秋人单反指引大厦十层射击窗口——凡人替代写轮眼的信息干涉； 与 make_cover 叠加可触发 branched_lowprofile\n", "type": "info", "snr_cost": "low"}, {"id": "photo_evidence", "desc": "接手秋人单反拍摄狙击手轮廓留证据（E013-09 侧线）； 社会层面信息积累，独立于收敛主线，不计入 combine_threshold\n", "type": "info", "snr_cost": "low"}], "combine_threshold": 2, "delta_hooks": ["SNIPER_COVERT_SEED"]}');
 INSERT INTO "node_contracts" VALUES('NODE-016-CRASH',1,'{"node_id": "NODE-016-CRASH", "part": 1, "title": "高速连环车祸与卡卡西救修哉", "tier": "canon_beat", "entry_conditions": ["E016-01", "E016-02", "E016-03"], "invariants": {"canon_locked": ["E016-03 卡卡西救出修哉、自身受伤（肋骨骨折）"], "player_freedom": "事前(B1抱走小狗)/事中(choiceA车内卸力)两个物理干预点；二者叠加=零伤害线"}, "exit_states": [{"id": "converged", "desc": "卡卡西重伤（Worldline-0）", "negates": []}, {"id": "branched_full", "branch_gate": "BG-CRASH_LIGHT", "negates": []}], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "B1_dog", "type": "physical", "snr_cost": "low"}, {"id": "choiceA_brace", "type": "physical", "snr_cost": 0}], "combine_threshold": 2}');
@@ -7959,6 +7978,25 @@ INSERT INTO "propositions" VALUES('K.C.akito.WMAIN.A3-01','修哉的大脑被保
 INSERT INTO "propositions" VALUES('K.C.akito.WMAIN.A4-01','**【脑内觉醒与世界线共振】**由于脊椎上凸起的针管留下的疤痕和世界线共振，脑内觉醒并读取了多维世界的记忆碎片和无数个不同的世界线结尾',0,'Ch.117:L320 / Ch.125:L388 / Ch.127:L13-20');
 INSERT INTO "propositions" VALUES('REL.IDENTITY.weichu.xiuzai','修哉是我亡夫龙也的弟弟。',0,'source/novel_1-69.md:L8095-L8099；魏初自述“我是修哉的嫂子……这是他的哥哥……他是龙也，折原龙也”。');
 INSERT INTO "propositions" VALUES('REL.IDENTITY.maki.ryuya_xiuzai','龙也是我的表弟，修哉是龙也的亲弟弟；我把修哉当作弟弟。',0,'source/novel_1-69.md:L6035-L6037,L6464-L6469；真纪自述“龙也是我的表弟，修哉的亲哥哥”，并称修哉为“如今唯一的弟弟”。');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.ryuya.xiuzai_brother','折原修哉是我亲弟弟。',0,'runtime/free_stage_card_ryuya_prologue.json; canon family (cf. source/novel_1-69.md maki/weichu cites)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.ryuya.maki_cousin','折原真纪是我表姐。',0,'runtime/free_stage_card_ryuya_prologue.json; canon family');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.ryuya.weichu_wife','魏初是我的妻子。',0,'runtime/free_stage_card_ryuya_prologue.json; canon marriage');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.ryuya.zhangchen_entrust','张尘不是家人；是我托对方日后若碰巧遇见可以照顾一下的人。',0,'runtime/free_stage_card_ryuya_prologue.json (authored_opening)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.ryuya.pendant_from_xiuzai','这枚古铜色挂坠是第一世界的修哉交给我的；临别要当面交给眼前这个朋友。',0,'runtime/free_stage_card_ryuya_prologue.json (authored_opening+human_cut 2026-08-01)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.xiuzai.maki_cousin','折原真纪是我表姐。',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.xiuzai.ryuya_brother','折原龙也是我哥哥；眼下不对生人展开。',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.xiuzai.kakashi_friend','坂本晴明是同学同旅，很安静，话很少。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.xiuzai.akito_friend','川口秋人是同学；相机跟得很勤。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.maki.xiuzai_cousin_brother','折原修哉是我表弟，我把他当弟弟看。',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.maki.ryuya_cousin','折原龙也是我表弟、修哉的亲哥哥；眼下不对外人展开。',0,'runtime/free_stage_card_tiananmen_v2.json; canon family');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.maki.akito_travel','川口秋人是这次同行的人。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.maki.kakashi_travel','坂本晴明是这次同行的人。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.kakashi.xiuzai_friend','折原修哉是这次同旅的同学；话散、不太住嘴。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.kakashi.akito_friend','川口秋人是同学；爱拍、有时太实诚。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.kakashi.maki_acquaintance','折原真纪是修哉的表姐，过去追着拍升旗的。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.maki_cousin_ref','折原真纪是修哉的表姐，我叫她表姐；过去追着拍升旗。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.xiuzai_friend','折原修哉是同学，爱摊开话题。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.akito.kakashi_friend','坂本晴明是同学，很安静。',0,'runtime/free_stage_card_tiananmen_v2.json (authored_tiananmen)');
 CREATE TABLE run_bonds (
       run INTEGER,
       character_id TEXT,

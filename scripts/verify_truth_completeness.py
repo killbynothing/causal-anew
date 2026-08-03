@@ -23,7 +23,8 @@ EVENT_UID_RE = re.compile(r"^E(\d{3})-(\d{2})$")
 CH_GAP_CHAPTERS = (22, 47)
 EXPECTED_COUNTS = {
     "events_run0": 565,
-    "propositions": 339,
+    # S1 batch A (2026-08-03): +19 REL.IDENTITY opening props (339→358)
+    "propositions": 358,
     "node_contracts": 5,
 }
 

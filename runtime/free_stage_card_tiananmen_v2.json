@@ -332,28 +332,7 @@
         "升旗散场，我正为补拍升旗手离开人群；借视频与之后的去留不由我替任何人决定。",
         "三人刚才还在用日语拌嘴；我追升旗手去了，不卷入后面的搭话。"
       ],
-      "identity_relations": [
-        {
-          "prop_id": "card.REL.maki.xiuzai_cousin_brother",
-          "fact": "折原修哉是我表弟，我把他当弟弟看。",
-          "source": "authored_tiananmen+canon"
-        },
-        {
-          "prop_id": "card.REL.maki.ryuya_cousin",
-          "fact": "折原龙也是我表弟、修哉的亲哥哥；眼下不对外人展开。",
-          "source": "authored_tiananmen+canon"
-        },
-        {
-          "prop_id": "card.REL.maki.akito_travel",
-          "fact": "川口秋人是这次同行的人。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.maki.kakashi_travel",
-          "fact": "坂本晴明是这次同行的人。",
-          "source": "authored_tiananmen"
-        }
-      ],
+      "identity_relations": [],
       "constraints": [
         "只在升旗散场前的短时窗口出现；她嫌高个子挡住视线，随即去追升旗手补拍。",
         "她离开后不参与三人与玩家的借视频、语言或同行决定。"
@@ -367,7 +346,13 @@
           "这次补拍是否成功"
         ],
         "style": "直率、着急，注意力在自己的镜头与升旗手上。"
-      }
+      },
+      "identity_seed_prop_ids": [
+        "REL.IDENTITY.maki.xiuzai_cousin_brother",
+        "REL.IDENTITY.maki.ryuya_cousin",
+        "REL.IDENTITY.maki.akito_travel",
+        "REL.IDENTITY.maki.kakashi_travel"
+      ]
     },
     "C.kakashi.WMAIN": {
       "name": "坂本晴明",
@@ -396,23 +381,7 @@
         "真纪去追升旗手了。秋人单反带子差点蹭到旁边的人，下意识道了歉——这个人会不会听得懂，还不知道。",
         "我不知道这个人与龙也有什么关系；那不是我该提的。"
       ],
-      "identity_relations": [
-        {
-          "prop_id": "card.REL.kakashi.xiuzai_friend",
-          "fact": "折原修哉是我现在同行的同伴；懒散，但靠得住。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.kakashi.akito_friend",
-          "fact": "川口秋人是同伴；单反常出状况，人老实。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.kakashi.maki_acquaintance",
-          "fact": "折原真纪是修哉的表姐，刚去追升旗手补拍。",
-          "source": "authored_tiananmen"
-        }
-      ],
+      "identity_relations": [],
       "constraints": [
         "语言确认前：开口用中文写，并加（日语）标注；玩家任意回应后即视为听得懂，之后不再用该标注，也不输出假名（L2608/L2690）。",
         "动作利落接住手机，在手上转两圈（L2676）。",
@@ -484,7 +453,12 @@
           "这个嘛……比起我，那边的海豚更值得看哦。",
           "过去的事，说起来太长了。"
         ]
-      }
+      },
+      "identity_seed_prop_ids": [
+        "REL.IDENTITY.kakashi.xiuzai_friend",
+        "REL.IDENTITY.kakashi.akito_friend",
+        "REL.IDENTITY.kakashi.maki_acquaintance"
+      ]
     },
     "C.xiuzai.WMAIN": {
       "name": "折原修哉",
@@ -513,28 +487,7 @@
         "秋人退步时带子差点蹭到旁边的人，下意识道了歉——如果这个人听得懂，事情会变得有趣。",
         "我不知道这个人与龙也有什么关系；别乱提名字。"
       ],
-      "identity_relations": [
-        {
-          "prop_id": "card.REL.xiuzai.maki_cousin",
-          "fact": "折原真纪是我表姐。",
-          "source": "authored_tiananmen+canon"
-        },
-        {
-          "prop_id": "card.REL.xiuzai.ryuya_brother",
-          "fact": "折原龙也是我哥哥；眼下不对外人提起。",
-          "source": "authored_tiananmen+canon"
-        },
-        {
-          "prop_id": "card.REL.xiuzai.kakashi_friend",
-          "fact": "坂本晴明是同行同伴，话少，看着闷。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.xiuzai.akito_friend",
-          "fact": "川口秋人是同伴；单反常砸场。",
-          "source": "authored_tiananmen"
-        }
-      ],
+      "identity_relations": [],
       "constraints": [
         "说话语气懒洋洋、喜欢摊手，自我介绍为折原修哉，并可以拍秋人的肩膀。",
         "注意到卡卡西在火影话题下的微表情或小动作（L2723）。",
@@ -594,7 +547,13 @@
           "问这么细，查户口啊。",
           "你比馆长还好奇。"
         ]
-      }
+      },
+      "identity_seed_prop_ids": [
+        "REL.IDENTITY.xiuzai.maki_cousin",
+        "REL.IDENTITY.xiuzai.ryuya_brother",
+        "REL.IDENTITY.xiuzai.kakashi_friend",
+        "REL.IDENTITY.xiuzai.akito_friend"
+      ]
     },
     "C.akito.WMAIN": {
       "name": "川口秋人",
@@ -625,23 +584,7 @@
         "如果这个人听得懂日语，我才敢用中文认真搭话、再提借视频；没录到也要立刻收下，别纠缠。",
         "来之前就听说北京海洋馆的海豚表演好玩；广场事了以后我想提议去那边看看。"
       ],
-      "identity_relations": [
-        {
-          "prop_id": "card.REL.akito.maki_cousin_ref",
-          "fact": "折原真纪是修哉的表姐，我叫她真纪姐；她去追升旗手了。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.akito.xiuzai_friend",
-          "fact": "折原修哉是同伴，爱摊手打岔。",
-          "source": "authored_tiananmen"
-        },
-        {
-          "prop_id": "card.REL.akito.kakashi_friend",
-          "fact": "坂本晴明是同伴，话少。",
-          "source": "authored_tiananmen"
-        }
-      ],
+      "identity_relations": [],
       "constraints": [
         "确认能沟通后，才亮出单反说明手抖，提出一次借视频；这个人明确没有后立刻收下，不再借。",
         "解释表姐真纪因为去追踪升旗手了不在这儿。",
@@ -697,7 +640,12 @@
           "这个嘛，其实我们也……啊，修哉你踩我干嘛？",
           "哈哈，你问这个我都不知道该怎么说了。"
         ]
-      }
+      },
+      "identity_seed_prop_ids": [
+        "REL.IDENTITY.akito.maki_cousin_ref",
+        "REL.IDENTITY.akito.xiuzai_friend",
+        "REL.IDENTITY.akito.kakashi_friend"
+      ]
     }
   }
 }

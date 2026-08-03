@@ -1,18 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-03（阶段 1 S0–S1 完成·等人验微调）
+
+- **✅ S0**：`data/seed_migration_registry_2026-08-01.csv`（807 唯一字段路径）；`registry_covers_cards` 绿。
+- **✅ S1 批 A**：开场 5 意识 `REL.IDENTITY`×19 @ learn_ch=0 入库；`I.PENDANT_ANCHOR` note 清 run 域；龙也/天安门卡 `identity_relations` 清空改挂 `identity_seed_prop_ids`。
+- **验证**：`--quick` **PASS 15 / FAIL 0**；`fetch_identity_relations(C.ryuya.W1,0)=5`。
+- **★★★ 可审**：`docs/plans/★★★预览_S1批A_身份挂坠_2026-08-03.md`（你微调后改 RELATIONS 重跑 migrate 即可）。
+- **报账**：零新剧情；语句均从既有场卡迁入。
+- **GitHub**：私密仓 https://github.com/fanqianhui0606-bit/causal-anew （`main`）。
+- **⏭ 下一刀（阶段 2）**：S2 玩家注册 + S3 前半龙也人格核竖切——等你验完阶段 1 再开，或你说继续。
+
 ### 2026-08-03（阶段 0 完成：M0–M5 · 到现在能玩的程度）
 
 - **✅ 人验**：龙也序幕手感可接受（用户确认「还可以」）。
-- **✅ M1**：库 SHA256 与旧仓一致；contracts/corpus/source + 细剖事件表 16 张；四支柱 **12/12**。
-- **✅ M2**：`verify.py` + 契约/四支柱/索引；缺资产验证器用 `need_file` SKIP（不删，红线 6）。
-- **✅ M3**：`runtime/` 全量；精选 scripts；最小 `c1_web_console/`（无日志；`config.json` 本地/gitignore）。`--quick` **PASS 12 / FAIL 0 / SKIP 166**。
-- **✅ M4**：零 LLM 一拍冒烟 + 真人序幕可玩（`play_logs/2026-08/m4_phase0_smoke.md`）。
-- **✅ M5**：旧仓 tag `archive/pre-move-2026-08-03` 已存在；旧仓内容未改。
-- **Git**：补 `GIT工作流_GIT_WORKFLOW.md` + `.gitattributes`（db→LFS）；分支名 `main`；远程新建私密仓（见本条更新后）。
-- **⏭ 下一刀**：阶段 1（S0 登记簿 → S1 批 A 身份/挂坠）。
-
-### 2026-08-03（M0 完成：新仓初始化 + 治理规则 + 长期路线图）
-
-- **✅ 人裁（搬迁 N1–N3）**：新仓桌面目录=`不如我们从头来过`；runtime 全搬；旧仓（`令人充满希望的进行啊`）整体封存只读、永不清磁盘（删除须出清单人审，暂无限期搁置）。
-- **✅ M0**：`git init`；`AGENTS.md`；`docs/plans/长期路线图_2026-08-03.md`；`docs/plans/INDEX.md`。
-- 旧仓全部人裁历史见旧仓 STATUS 与三文档，索引已在新仓 INDEX 备案。
+- **✅ M1–M5**：库原样搬迁；验证基建；runtime+最小控制台；冒烟；旧仓 tag 已在。
+- **Git**：`GIT工作流_GIT_WORKFLOW.md` + `.gitattributes`（db→LFS）；分支 `main`；远程 `causal-anew` 私密。

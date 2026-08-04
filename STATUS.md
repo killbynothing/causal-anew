@@ -8,6 +8,14 @@
 - **召回**：cue∪cos+emo＝语义相似度；不必另加 LLM「要不要想」裁判。装死可说硬闸属 M2 余量。
 - **你**：查库或重开序幕看候选；人格核保持薄，细节在记忆库。
 
+### 2026-08-04（双通道 companion lane · HOLD side · 等人验）
+
+- **双通道**：floor（对玩家，单气泡+hold/barge-in）× companion（side/backchannel，本拍自动出，虚线「侧聊」气泡）。
+- **选角**：`pick_side_actors`（修哉等 HOLD 拌嘴）+ backchannel（晴明短接）→ `companion_actors`；单 FTA 不对 companion 生效。
+- **演员**：`call_actor_packet` 对 side/backchannel 限 1 句；turn 打 `stream_lane` / `participation_mode`。
+- **验证**：`test_dual_lane_companion.py`；`--quick` 🟢。
+- **你**：天安门蹭到后——秋人道歉的同时，修哉应能侧聊、晴明短接，且不跟玩家抢「借视频 checklist」。
+
 ### 2026-08-04（情景记忆装配与执行 · 策划等人裁）
 
 - **产出**：`docs/plans/策划_情景记忆装配与执行_2026-08-04.md`（怎么安进包 + Loop M0–M6）。

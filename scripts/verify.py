@@ -1395,6 +1395,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_utterance_stream.py",
     },
     {
+        "id": "dual_lane_companion",
+        "desc": "双通道：HOLD side×companion lane×floor 分流",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_dual_lane_companion.py"],
+        "triggers": [
+            "runtime/social_participation.py",
+            "runtime/utterance_stream.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_dual_lane_companion.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_dual_lane_companion.py",
+    },
+    {
         "id": "solidified_facts_packet",
         "desc": "固化事实进包×物态可见×HOLD话轮×回滚硬闸",
         "tier": "quick",

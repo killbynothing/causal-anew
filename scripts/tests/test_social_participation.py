@@ -80,10 +80,17 @@ def test_speaker_plan_no_content_boost_reason():
 
 
 def test_habit_includes_single_fta_and_language():
-    hint = soc.hold_slot_social_hint_v2([], actor_cons="C.kakashi.WMAIN", participation_mode="backchannel")
-    assert "backchannel" in hint.lower() or "短接" in hint
-    assert "中文" in hint
-    assert "face-sensitive" in hint or "一个" in hint
+    speak = soc.hold_slot_social_hint_v2([], actor_cons="C.akito.WMAIN", participation_mode="speak")
+    assert "face-sensitive" in speak or "只推进一个" in speak
+    assert "中文" in speak
+    bc = soc.hold_slot_social_hint_v2([], actor_cons="C.kakashi.WMAIN", participation_mode="backchannel")
+    assert "backchannel" in bc.lower() or "短接" in bc
+    assert "中文" in bc
+    # Companion lane must not carry stranger single-FTA checklist.
+    assert "face-sensitive" not in bc
+    side = soc.hold_slot_social_hint_v2([], actor_cons="C.xiuzai.WMAIN", participation_mode="side")
+    assert "face-sensitive" not in side
+    assert "侧聊" in side or "同伴" in side or "损" in side or "side" in side.lower()
 
 
 if __name__ == "__main__":

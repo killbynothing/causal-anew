@@ -104,17 +104,35 @@ def participation_style(cons: str) -> str:
     return str((SOCIAL_PARTICIPATION.get(cons) or {}).get("participation_style") or "mixed")
 
 
-def habit_text(cons: str, *, relation_stage: str = "S1") -> str:
+def habit_text(
+    cons: str,
+    *,
+    relation_stage: str = "S1",
+    participation_mode: str = "speak",
+) -> str:
     row = SOCIAL_PARTICIPATION.get(cons) or {}
-    parts = [str(row.get("with_stranger") or "").strip()]
-    comp = str(row.get("with_companion") or "").strip()
-    if comp and comp != "n/a":
-        parts.append(comp)
-    bc = str(row.get("backchannel_ok") or "").strip()
-    if bc and participation_style(cons) in ("backchannel_preferred", "mixed"):
-        parts.append(bc)
-    if relation_stage in ("S0", "S1", "S2", "萍水相逢", "同行之人", "熟络旅伴"):
-        parts.append(SINGLE_FTA_RULE)
+    mode = str(participation_mode or "speak").strip()
+    parts: list[str] = []
+    if mode in ("side", "backchannel", "pass"):
+        # Companion lane: texture toward friends, not stranger FTA checklist.
+        comp = str(row.get("with_companion") or "").strip()
+        if comp and comp != "n/a":
+            parts.append(comp)
+        elif mode == "backchannel":
+            parts.append(str(row.get("backchannel_ok") or "").strip())
+        bc = str(row.get("backchannel_ok") or "").strip()
+        if mode == "backchannel" and bc and bc not in parts:
+            parts.append(bc)
+    else:
+        parts.append(str(row.get("with_stranger") or "").strip())
+        comp = str(row.get("with_companion") or "").strip()
+        if comp and comp != "n/a":
+            parts.append(comp)
+        bc = str(row.get("backchannel_ok") or "").strip()
+        if bc and participation_style(cons) in ("backchannel_preferred", "mixed"):
+            parts.append(bc)
+        if relation_stage in ("S0", "S1", "S2", "萍水相逢", "同行之人", "熟络旅伴"):
+            parts.append(SINGLE_FTA_RULE)
     return " ".join(p for p in parts if p)
 
 
@@ -126,7 +144,11 @@ def participation_mode_instruction(participation_mode: str, *, floor_order: int 
             "不要抢同伴的整段话轮，不要引入新话题。"
         )
     if mode == "side":
-        return "本拍你可对同伴侧说一句；不必对玩家展开长段。"
+        return (
+            "本拍你走同伴侧聊（side）：对熟人说一句——损、拦漏嘴、编排、圆场都行；"
+            "单 FTA 不对你生效。不要对玩家展开请求/自报姓名/借东西；"
+            "最多一句，像真人旁边拌嘴。"
+        )
     if mode == "pass":
         return "本拍你可以只做可见反应、不说话。"
     if floor_order > 0:
@@ -334,10 +356,108 @@ def pick_backchannel_actors(
                 "bid_reasons": list(bid.get("reasons") or []) + ["backchannel_eligible"],
                 "participation_mode": "backchannel",
                 "response_slot": "backchannel",
+                "stream_lane": "companion",
                 "floor_order": len(speakers) + len(out),
             }
         )
     return out
+
+
+def pick_side_actors(
+    speaker_plan: dict[str, Any],
+    card: dict[str, Any],
+    *,
+    history: list[dict[str, Any]] | None = None,
+    player_input: Any = None,
+    max_n: int = 1,
+) -> list[dict[str, Any]]:
+    """Companion-to-companion side remarks (HOLD banter); does not take player floor."""
+    del history, player_input  # reserved for later concern-aware side pick
+    speakers = list(speaker_plan.get("speakers") or [])
+    if not speakers:
+        return []
+    taken = {str(s.get("cons") or "") for s in speakers}
+    for row in list(speaker_plan.get("backchannel_actors") or []) + list(
+        speaker_plan.get("stage_actors") or []
+    ):
+        if isinstance(row, dict) and row.get("cons"):
+            taken.add(str(row.get("cons")))
+
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    present = [str(c) for c in (card.get("present") or []) if str(c) in personas]
+    bids = {
+        str(b.get("cons")): b
+        for b in (speaker_plan.get("bids") or [])
+        if isinstance(b, dict)
+    }
+    name_by = {
+        str(p.get("cons") or ""): str(p.get("name") or "")
+        for p in (speaker_plan.get("bids") or [])
+        if isinstance(p, dict)
+    }
+    for cons, persona in personas.items():
+        if isinstance(persona, dict) and cons not in name_by:
+            name_by[str(cons)] = str(persona.get("name") or cons)
+
+    # Prefer speak_preferred / mixed companions (e.g. 修哉损、秋人接); leave
+    # backchannel_preferred to pick_backchannel_actors.
+    ranked: list[tuple[float, str]] = []
+    for cons in present:
+        if cons in taken:
+            continue
+        row = SOCIAL_PARTICIPATION.get(cons) or {}
+        comp = str(row.get("with_companion") or "").strip()
+        if not comp or comp == "n/a":
+            continue
+        style = participation_style(cons)
+        if style == "backchannel_preferred":
+            continue
+        score = float((bids.get(cons) or {}).get("score") or 0.0)
+        if style == "speak_preferred":
+            score += 0.35
+        elif style == "mixed":
+            score += 0.15
+        ranked.append((score, cons))
+    ranked.sort(key=lambda x: (-x[0], x[1]))
+
+    out: list[dict[str, Any]] = []
+    for _score, cons in ranked[: max(0, int(max_n))]:
+        bid = bids.get(cons) or {}
+        out.append(
+            {
+                "cons": cons,
+                "name": name_by.get(cons, cons),
+                "bid": float(bid.get("score") or 0.0),
+                "reason": "companion_side",
+                "bid_reasons": list(bid.get("reasons") or []) + ["companion_side"],
+                "participation_mode": "side",
+                "response_slot": "side",
+                "stream_lane": "companion",
+                "addressee_kind": "companion",
+                "floor_order": len(speakers) + len(out) + 1,
+            }
+        )
+    return out
+
+
+def merge_companion_actors(speaker_plan: dict[str, Any], *, max_n: int = 2) -> list[dict[str, Any]]:
+    """Backchannel + side slots for the companion lane (cap total)."""
+    rows: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for key in ("side_actors", "backchannel_actors"):
+        for row in speaker_plan.get(key) or []:
+            if not isinstance(row, dict):
+                continue
+            cons = str(row.get("cons") or "").strip()
+            if not cons or cons in seen:
+                continue
+            seen.add(cons)
+            item = dict(row)
+            item.setdefault("stream_lane", "companion")
+            rows.append(item)
+            if len(rows) >= max_n:
+                return rows
+    return rows
 
 
 def hold_slot_social_hint_v2(
@@ -362,7 +482,11 @@ def hold_slot_social_hint_v2(
     if holds:
         snippets = "；".join(str(row.get("fact") or "").strip()[:80] for row in holds[:2])
         parts.append(f"你与同伴的相处：{snippets}。")
-    habit = habit_text(actor_cons, relation_stage=relation_stage)
+    habit = habit_text(
+        actor_cons,
+        relation_stage=relation_stage,
+        participation_mode=participation_mode,
+    )
     if habit:
         parts.append(habit)
     parts.append(participation_mode_instruction(participation_mode, floor_order=floor_order))

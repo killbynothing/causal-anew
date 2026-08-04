@@ -134,6 +134,28 @@ header {
   align-self: flex-start;
 }
 
+.bubble.companion {
+  align-self: flex-start;
+  max-width: 72%;
+  opacity: 0.92;
+}
+
+.bubble.companion .bubble-inner {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(155, 149, 132, 0.35);
+  padding: 10px 14px;
+}
+
+.bubble.companion .speaker-meta {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.bubble.companion .dialogue-text {
+  font-size: 13.5px;
+  color: #c8c2b4;
+}
+
 .bubble-inner {
   padding: 14px 18px;
   border-radius: 12px;
@@ -726,7 +748,8 @@ function appendBubble(role, speaker, content, stage, lang) {
     bubble.innerHTML = `<div class="bubble-inner">${escapeHtml(content)}</div>`;
   } else {
     const isPlayer = role === "player";
-    const metaHtml = `<div class="speaker-meta">${escapeHtml(speaker)}</div>`;
+    const isCompanion = role === "companion";
+    const metaHtml = `<div class="speaker-meta">${escapeHtml(isCompanion ? `${speaker} · 侧聊` : speaker)}</div>`;
     const stageHtml = stage ? `<div class="stage-direction">(${escapeHtml(stage)})</div>` : "";
 
     let dialogueHtml = "";
@@ -994,7 +1017,11 @@ function renderFreeStageTurns(turns) {
       appendBubble("director", item.speaker || "运行错误", item.text || "这一拍断开了。", null);
       return;
     }
-    appendBubble("npc", item.speaker || "在场者", item.text || "", item.stage || "", null);
+    const lane = item.stream_lane || (
+      ["backchannel", "side"].includes(item.participation_mode) ? "companion" : "floor"
+    );
+    const role = lane === "companion" ? "companion" : "npc";
+    appendBubble(role, item.speaker || "在场者", item.text || "", item.stage || "", null);
   });
 }
 

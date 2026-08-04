@@ -5029,6 +5029,14 @@ def build_speaker_plan(
         history=history,
         player_input=player_input,
     )
+    plan["side_actors"] = soc.pick_side_actors(
+        plan,
+        card,
+        history=history,
+        player_input=player_input,
+        max_n=1,
+    )
+    plan["companion_actors"] = soc.merge_companion_actors(plan, max_n=2)
     if subtle_c16_watch:
         plan["silent_observer_cons"] = "C.zhangchen.WMAIN"
         plan["player_signal_mode"] = "peripheral_watch_isolated"
@@ -5066,7 +5074,19 @@ def apply_visible_group_output_budget(
         if item.get("cons")
     }
     plan_slots.update(stage_slots)
-    grouped: dict[str, list[dict[str, Any]]] = {"primary": [], "secondary": [], "stage_only": []}
+    for key in ("backchannel_actors", "side_actors", "companion_actors"):
+        for item in speaker_plan.get(key) or []:
+            if isinstance(item, dict) and item.get("cons"):
+                plan_slots[str(item.get("cons"))] = str(
+                    item.get("response_slot") or item.get("participation_mode") or "backchannel"
+                )
+    grouped: dict[str, list[dict[str, Any]]] = {
+        "primary": [],
+        "secondary": [],
+        "stage_only": [],
+        "backchannel": [],
+        "side": [],
+    }
     for raw in turns:
         item = dict(raw)
         speaker = str(item.get("speaker", ""))
@@ -5079,7 +5099,7 @@ def apply_visible_group_output_budget(
     remaining_questions = 1
     changed = len(turns) > 2
     stage_only_text_stripped = False
-    for slot in ("primary", "secondary", "stage_only"):
+    for slot in ("primary", "secondary", "stage_only", "backchannel", "side"):
         rows = grouped[slot]
         if not rows:
             continue
@@ -5097,7 +5117,21 @@ def apply_visible_group_output_budget(
                 str(row.get("stage", "")).strip() for row in stage_rows if str(row.get("stage", "")).strip()
             )
             merged["response_slot"] = slot
+            merged["stream_lane"] = "floor"
             bounded.append(merged)
+            changed = changed or len(rows) > 1
+            continue
+        if slot in ("backchannel", "side"):
+            # Companion lane: keep first short line only; do not merge into floor speak.
+            kept = dict(rows[0])
+            kept["response_slot"] = slot
+            kept["participation_mode"] = slot
+            kept["stream_lane"] = "companion"
+            text = str(kept.get("text") or "").strip()
+            if len(text) > 48:
+                kept["text"] = text[:48]
+                changed = True
+            bounded.append(kept)
             changed = changed or len(rows) > 1
             continue
         merged = dict(rows[0])
@@ -5105,6 +5139,7 @@ def apply_visible_group_output_budget(
         merged["stage"] = " ".join(str(row.get("stage", "")).strip() for row in rows if str(row.get("stage", "")).strip())
         merged["text"], remaining_questions = _cap_question_marks(merged.get("text", ""), remaining_questions)
         merged["response_slot"] = slot
+        merged["stream_lane"] = "floor"
         bounded.append(merged)
         changed = changed or len(rows) > 1
 
@@ -6814,6 +6849,7 @@ class FreeStageSession:
         }
         self.run_observation_ledger: list[dict[str, Any]] = []
         self.utterance_pending_queue: list[dict[str, Any]] = []
+        self.companion_pending_queue: list[dict[str, Any]] = []
         self.stream_hold: bool = False
         self.stream_generation: int = 0
         self._pendant_look_emitted = False
@@ -6976,6 +7012,9 @@ class FreeStageSession:
         self.utterance_pending_queue = [
             dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
         ]
+        self.companion_pending_queue = [
+            dict(item) for item in data.get("companion_pending_queue", []) if isinstance(item, dict)
+        ]
         self.stream_hold = bool(data.get("stream_hold", False))
         self.stream_generation = int(data.get("stream_generation", 0) or 0)
         self._pendant_look_emitted = bool(data.get("pendant_look_emitted"))
@@ -7051,6 +7090,7 @@ class FreeStageSession:
             "player_state": self.player_state,
             "run_observation_ledger": [dict(o) for o in self.run_observation_ledger],
             "utterance_pending_queue": [dict(o) for o in self.utterance_pending_queue],
+            "companion_pending_queue": [dict(o) for o in getattr(self, "companion_pending_queue", [])],
             "stream_hold": bool(self.stream_hold),
             "stream_generation": int(self.stream_generation or 0),
             "pendant_look_emitted": bool(getattr(self, "_pendant_look_emitted", False)),
@@ -7111,6 +7151,7 @@ class FreeStageSession:
         self._triggered_at_clocks: set[str] = set()
         self.run_observation_ledger = []
         self.utterance_pending_queue = []
+        self.companion_pending_queue = []
         self.stream_hold = False
         self.stream_generation = 0
         self._pendant_look_emitted = False
@@ -8227,9 +8268,11 @@ class FreeStageSession:
             self.utterance_pending_queue,
             hold=self.stream_hold,
             generation=self.stream_generation,
+            companion_queue=getattr(self, "companion_pending_queue", []),
         )
 
     def _barge_in_stream(self) -> None:
+        # Barge-in only cuts the player-facing floor queue; companion lane already shown.
         if self.utterance_pending_queue:
             self.utterance_pending_queue.clear()
             self.stream_generation += 1
@@ -8253,6 +8296,7 @@ class FreeStageSession:
         turns: list[dict[str, Any]] = []
         if not self.stream_hold and self.utterance_pending_queue:
             item = dict(self.utterance_pending_queue.pop(0))
+            item.setdefault("stream_lane", "floor")
             self.history.append(item)
             turns.append(item)
             if self.autosave:
@@ -8273,6 +8317,7 @@ class FreeStageSession:
         *,
         turn_no: int,
         emitted: list[dict[str, Any]],
+        speaker_plan: dict[str, Any] | None = None,
     ) -> list[dict[str, Any]]:
         normalized: list[dict[str, Any]] = []
         for raw in turns:
@@ -8281,10 +8326,16 @@ class FreeStageSession:
             item = dict(raw)
             item.setdefault("role", "npc")
             item["turn"] = turn_no
+            if not item.get("stream_lane"):
+                item["stream_lane"] = ustream.lane_of_turn(item, speaker_plan)
             normalized.append(item)
-        first, rest = ustream.split_for_stream(normalized, turn_no=turn_no)
+        floor, companion = ustream.route_turns_by_lane(
+            normalized, speaker_plan, turn_no=turn_no,
+        )
         shown: list[dict[str, Any]] = []
+        first, rest = ustream.split_for_stream(floor, turn_no=turn_no)
         if first:
+            first["stream_lane"] = "floor"
             self.history.append(first)
             row = dict(first)
             emitted.append(row)
@@ -8292,6 +8343,12 @@ class FreeStageSession:
         if rest:
             self.utterance_pending_queue.extend(rest)
             self.stream_generation += 1
+        for item in companion:
+            item["stream_lane"] = "companion"
+            self.history.append(item)
+            row = dict(item)
+            emitted.append(row)
+            shown.append(row)
         return shown
 
     def _enqueue_stream_items(
@@ -8299,6 +8356,7 @@ class FreeStageSession:
         items: list[dict[str, Any]],
         *,
         turn_no: int,
+        speaker_plan: dict[str, Any] | None = None,
     ) -> None:
         queued = False
         for raw in items:
@@ -8311,8 +8369,13 @@ class FreeStageSession:
                 {**raw, "role": raw.get("role", "npc")},
                 turn_no=turn_no,
             )
-            self.utterance_pending_queue.append(item)
-            queued = True
+            lane = ustream.lane_of_turn(item, speaker_plan)
+            item["stream_lane"] = lane
+            if lane == "companion":
+                self.history.append(item)
+            else:
+                self.utterance_pending_queue.append(item)
+                queued = True
         if queued:
             self.stream_generation += 1
 
@@ -8331,6 +8394,7 @@ class FreeStageSession:
         if visible_batch:
             first, rest = ustream.split_for_stream(visible_batch, turn_no=turn_no)
             if first:
+                first.setdefault("stream_lane", "floor")
                 self.history.append(first)
                 immediate.append(dict(first))
             if rest:
@@ -8341,6 +8405,8 @@ class FreeStageSession:
     def _drain_utterance_queue_to_history(self) -> None:
         while self.utterance_pending_queue:
             self.history.append(dict(self.utterance_pending_queue.pop(0)))
+        while getattr(self, "companion_pending_queue", None):
+            self.history.append(dict(self.companion_pending_queue.pop(0)))
 
     def start(self) -> list[dict[str, Any]]:
         has_real_turns = any(item.get("role") in {"player", "npc"} and item.get("turn", 0) > 0 for item in self.history)
@@ -9680,10 +9746,16 @@ class FreeStageSession:
         # actor call.  M2 will consume these one by one; keeping this receipt
         # now makes the boundary observable and prevents a future runner from
         # silently reconstructing a broad shared prompt.
+        companion_pool = list(speaker_plan.get("companion_actors", []) or [])
+        if not companion_pool:
+            companion_pool = (
+                list(speaker_plan.get("backchannel_actors", []) or [])
+                + list(speaker_plan.get("side_actors", []) or [])
+            )
         performance_plan = (
             list(speaker_plan.get("speakers", []) or [])
             + list(speaker_plan.get("stage_actors", []) or [])
-            + list(speaker_plan.get("backchannel_actors", []) or [])
+            + companion_pool
         )
         self.body_frames = ensure_card_body_frames(resolved_card, getattr(self, "body_frames", {}) or {})
         if ott.is_opening_top_tier_scene(resolved_card):
@@ -9724,7 +9796,13 @@ class FreeStageSession:
                 )
                 part_mode = str(
                     plan_item.get("participation_mode")
-                    or ("backchannel" if plan_item.get("response_slot") == "backchannel" else "speak")
+                    or (
+                        "backchannel"
+                        if plan_item.get("response_slot") == "backchannel"
+                        else "side"
+                        if plan_item.get("response_slot") == "side"
+                        else "speak"
+                    )
                 )
                 floor_order = int(plan_item.get("floor_order") or 0)
                 if plan_item.get("response_slot") == "secondary" and floor_order == 0:
@@ -9734,9 +9812,14 @@ class FreeStageSession:
                     or plan_item.get("relation_stage")
                     or "S1"
                 )
+                stream_lane = str(
+                    plan_item.get("stream_lane")
+                    or ("companion" if part_mode in ("backchannel", "side") else "floor")
+                )
                 pkt["conversation_contract"] = {
                     "response_slot": plan_item.get("response_slot", "primary"),
                     "participation_mode": part_mode,
+                    "stream_lane": stream_lane,
                     "floor_order": floor_order,
                     "direct_addressee": speaker_plan.get("direct_addressee"),
                     "obligation_kind": (speaker_plan.get("conversation_contract") or {}).get("kind", "unowned"),
@@ -9744,7 +9827,7 @@ class FreeStageSession:
                     "social_instruction": plan_item.get("social_instruction", ""),
                     "max_new_questions": (
                         0
-                        if part_mode == "backchannel"
+                        if part_mode in ("backchannel", "side", "pass")
                         else (2 if plan_item.get("response_slot", "primary") == "primary" else 0)
                     ),
                 }
@@ -10192,7 +10275,9 @@ class FreeStageSession:
                 turns, speaker_plan, resolved_card, turn_no=turn_no,
             )
             stream_response_turns.extend(
-                self._push_stream_turns(turns, turn_no=turn_no, emitted=emitted)
+                self._push_stream_turns(
+                    turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,
+                )
             )
             body_issues = settle_body_frames_from_npc_turns(
                 self.body_frames, resolved_card, turns
@@ -11491,7 +11576,11 @@ def call_actor_packet(
     The director remains responsible for pacing and canonical progress.
     """
     load_contract = build_actor_load_contract(packet)
-    stage_only = str((packet.get("conversation_contract") or {}).get("response_slot", "")) == "stage_only"
+    contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
+    stage_only = str(contract.get("response_slot", "")) == "stage_only"
+    part_mode = str(contract.get("participation_mode") or "").strip()
+    slot = str(contract.get("response_slot", "") or "")
+    companion_lane = part_mode in ("backchannel", "side") or slot in ("backchannel", "side")
     decision_request = packet.get("decision_request") if isinstance(packet.get("decision_request"), dict) else None
     prompt_packet, context_assembly = assemble_actor_context(actor_packet_for_prompt(packet))
     request = {
@@ -11534,6 +11623,12 @@ def call_actor_packet(
         ) + (
             " 你是 stage_only：只能给一个可见动作；text 必须为空，stage 必须非空，绝不能说话或提问。"
             if stage_only else ""
+        ) + (
+            " 你是同伴短接（backchannel）：最多一句极短反应；不要对玩家提请求或自报姓名。"
+            if part_mode == "backchannel" or slot == "backchannel" else ""
+        ) + (
+            " 你是同伴侧聊（side）：对熟人一句拌嘴/圆场/拦漏嘴；不要对玩家展开；单 FTA 不对你生效。"
+            if part_mode == "side" or slot == "side" else ""
         ),
     }
     if decision_request is not None:
@@ -11616,9 +11711,8 @@ def call_actor_packet(
         actor_decisions.append(raw_decision)
     max_turns = int(os.getenv("FREE_STAGE_ACTOR_MAX_TURNS", "3"))
     slot = str((packet.get("conversation_contract") or {}).get("response_slot", "") or "")
-    if slot == "secondary":
-        max_turns = 1
-    elif slot == "stage_only":
+    part_mode = str((packet.get("conversation_contract") or {}).get("participation_mode", "") or "")
+    if slot in ("secondary", "stage_only", "backchannel", "side") or part_mode in ("backchannel", "side", "pass"):
         max_turns = 1
     if len(turns) > max_turns:
         # H06：主响应通常至多三句，次响应一句；防合唱膨胀。
@@ -11642,8 +11736,18 @@ def call_actor_packet(
         )
     # The model never controls identity labels: bind the visible speaker to the
     # consciousness that received this packet.
+    stream_lane = str(
+        (packet.get("conversation_contract") or {}).get("stream_lane")
+        or ("companion" if part_mode in ("backchannel", "side") or slot in ("backchannel", "side") else "floor")
+    )
     for turn in turns:
         turn["speaker"] = packet["actor_cons"]
+        turn["cons"] = packet["actor_cons"]
+        turn["participation_mode"] = part_mode or (
+            "backchannel" if slot == "backchannel" else "side" if slot == "side" else "speak"
+        )
+        turn["response_slot"] = slot or "primary"
+        turn["stream_lane"] = stream_lane
     if stage_only:
         stage_turns = [turn for turn in turns if str(turn.get("stage", "")).strip()]
         if any(str(turn.get("text", "")).strip() for turn in turns):
@@ -12031,6 +12135,26 @@ def fixed_selftest_actor(**kwargs: Any) -> str:
             packet.get("actor_cons") or ""
         ).startswith("C.ryuya"):
             slot = str((packet.get("conversation_contract") or {}).get("response_slot") or "primary")
+            part_mode = str(
+                (packet.get("conversation_contract") or {}).get("participation_mode") or ""
+            ).strip()
+            if slot in ("backchannel", "side") or part_mode in ("backchannel", "side"):
+                mode = part_mode or slot
+                line = (
+                    "行了行了，别把人吓跑。"
+                    if mode == "side" and "xiuzai" in str(packet.get("actor_cons") or "")
+                    else "嗯。"
+                    if mode == "backchannel"
+                    else "你小声点。"
+                )
+                return json.dumps(
+                    {
+                        "turns": [{"speaker": speaker, "text": line, "stage": ""}],
+                        "mh_progress": [],
+                        "director_note": f"selftest:companion_{mode}",
+                    },
+                    ensure_ascii=False,
+                )
             if slot != "primary":
                 # One authored beat from primary only; secondaries must not re-emit
                 # the director-style multi-speaker script under isolation.

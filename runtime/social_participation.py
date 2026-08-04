@@ -93,11 +93,37 @@ LANGUAGE_PRESENTATION = (
     "也无需写明具体语种——有意模糊他们在用什么语言。"
 )
 
+PARTICIPATION_MODES = frozenset({"speak", "backchannel", "side", "pass"})
+
+# Cons who default to Japanese among companions (side lane language mark).
+_JA_COMPANION_CONS = frozenset({
+    "C.xiuzai.WMAIN",
+    "C.akito.WMAIN",
+    "C.kakashi.WMAIN",
+    "C.ryuya.W1",
+    "C.ryuya.WMAIN",
+})
+
 SINGLE_FTA_RULE = (
     "对萍水相逢的陌生人（S0–S2）：占 floor 说话时，本拍只推进一个 face-sensitive 动作"
     "（道歉 / 发现语言 / 说明器材 / 一次请求 / 姓名相关之一），不要叠在同一句里。"
     "同伴之间的 side 对话不受此限。"
 )
+
+
+def normalize_participation_mode(mode: Any, *, default: str = "speak") -> str:
+    raw = str(mode or "").strip() or default
+    if raw not in PARTICIPATION_MODES:
+        raise ValueError(f"unsupported participation_mode: {raw}")
+    return raw
+
+
+def is_ja_companion_cons(cons: str) -> bool:
+    c = str(cons or "").strip()
+    if c in _JA_COMPANION_CONS:
+        return True
+    return c.startswith("C.ryuya.")
+
 
 
 def participation_style(cons: str) -> str:
@@ -458,6 +484,38 @@ def merge_companion_actors(speaker_plan: dict[str, Any], *, max_n: int = 2) -> l
             if len(rows) >= max_n:
                 return rows
     return rows
+
+
+def must_happen_director_env_hint(
+    card: dict[str, Any],
+    completed: list[str] | set[str] | None,
+    *,
+    stall: int = 0,
+    min_stall: int = 2,
+) -> dict[str, Any] | None:
+    """Late must_happen → director environment residue only (never assigns speakers/lines)."""
+    if int(stall) < int(min_stall):
+        return None
+    done = {str(x) for x in (completed or [])}
+    remaining = [
+        item
+        for item in (card.get("must_happen") or [])
+        if isinstance(item, dict) and str(item.get("id") or "").strip() not in done
+    ]
+    if not remaining:
+        return None
+    nxt = remaining[0]
+    beat_id = str(nxt.get("id") or "").strip()
+    desc = str(nxt.get("desc") or nxt.get("evidence") or beat_id).strip()
+    return {
+        "kind": "must_happen_environment_residue",
+        "beat_id": beat_id,
+        "stall": int(stall),
+        "hint": (
+            f"场上余波仍悬着（收据 {beat_id}）：{desc}。"
+            "只用环境、物态或非说话者的可见动作暗示，不要派谁说什么台词，也不要指定说话人。"
+        ),
+    }
 
 
 def hold_slot_social_hint_v2(

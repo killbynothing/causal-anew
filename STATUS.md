@@ -1,5 +1,11 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-04（折原修哉开场前深过去 · 筛查稿等人裁 · 不动库）
+
+- **产出**：`docs/plans/★★★筛查_折原修哉_开场前深过去_2026-08-04.md`（`C.xiuzai.WMAIN` 极细颗粒度版共 35 条经历记忆，已登记 INDEX.md）。
+- **报账**：27 条原著后文回溯蒸馏 + 6 条近期「刚到中国」前史 + 2 条 authored 开场现状；0 条推断。
+- **阶段**：只做 S1 筛查表。未写 migration 脚本、未跑 `--apply`、未修改 `world_truth.db`。等人裁后再推进 S2 正文拟定。
+
 ### 2026-08-04（龙也情景记忆入库 · 双意识底库）
 
 - **已做**：`migrate_ryuya_episodic_deep_past_2026-08-04.py --apply` → W1×13 + WMAIN×16（`available_ch=0`）；旧挂坠 mem#12 并入 `[W1-M13]`。
@@ -7,6 +13,13 @@
 - **报账**：W1-M12/M13=authored；其余原著蒸馏（anchor 带行号）；无新编情节。
 - **召回**：cue∪cos+emo＝语义相似度；不必另加 LLM「要不要想」裁判。装死可说硬闸属 M2 余量。
 - **你**：查库或重开序幕看候选；人格核保持薄，细节在记忆库。
+
+### 2026-08-04（社交开放项收口 · 日语 side×MH 环境余波×ActorDecision.mode）
+
+- **side 日语**：语言确认前 companion side 统一（日语）中文标；确认后剥标记（同 Kakashi surface 规则）。
+- **must_happen**：stall≥2 只出 `must_happen_director_env_hint` 给导演；C16 不再用 MH 文案竞价/选角。
+- **ActorDecision**：正式字段 `participation_mode`∈{speak,backchannel,side,pass}，校验入库。
+- **验证**：`test_dual_lane_companion.py` 增补；`--quick` 🟢。
 
 ### 2026-08-04（双通道 companion lane · HOLD side · 等人验）
 

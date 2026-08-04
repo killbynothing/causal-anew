@@ -4914,34 +4914,8 @@ def build_speaker_plan(
         preferred = intro_wave_pending[0]
         bids.sort(key=lambda x: (x.get("cons") != preferred, -float(x.get("score", 0.0) or 0.0)))
     beat_speaker_hints: list[str] = []
-    completed_set = set(completed or [])
-    if is_c16_gate and not direct_addressee and not has_public_speech:
-        next_beat = next(
-            (
-                item for item in card.get("must_happen", [])
-                if str(item.get("id") or "") not in completed_set
-            ),
-            None,
-        )
-        if isinstance(next_beat, dict):
-            beat_text = " ".join(
-                str(next_beat.get(key) or "")
-                for key in ("desc", "evidence", "director_intent")
-            )
-            for cons, persona in (card.get("persona_cards") or {}).items():
-                names = [str(persona.get("name") or "")]
-                names.extend(str(alias) for alias in (persona.get("aliases") or []) if alias)
-                names.extend(_actor_address_aliases(card, str(cons)))
-                if any(name and name in beat_text for name in names):
-                    beat_speaker_hints.append(str(cons))
-        if beat_speaker_hints:
-            bids.sort(
-                key=lambda x: (
-                    x.get("cons") not in beat_speaker_hints,
-                    -float(x.get("score", 0.0) or 0.0),
-                )
-            )
-    
+    # must_happen is a director receipt, never a speaker-assignment script.
+    # Late MH becomes environment residue via must_happen_director_env_hint in step().
     speakers = []
     if direct_addressee:
         direct_bid = next((item for item in bids if item.get("cons") == direct_addressee), None)
@@ -4966,15 +4940,12 @@ def build_speaker_plan(
             # Reciprocity is a next-turn social obligation, not permission for
             # every remaining person to introduce themselves in one bundle.
             break
-        if subtle_c16_watch and beat_speaker_hints and item.get("cons") not in beat_speaker_hints:
-            continue
         if len(speakers) < max_speakers:
             score = item.get("score", 0.0)
             # 玩家怠速（空输入或短输入）时 NPC 互聊：如果 player_input 为空，即便 score 小于等于 0 也允许发言推动
             if (
                 not bid_text.strip()
                 or score > 0.0
-                or (beat_speaker_hints and item.get("cons") in beat_speaker_hints)
             ):
                 speaker_item = {
                         "cons": item["cons"],
@@ -5213,15 +5184,33 @@ def localize_kakashi_surface(
 
     Never show kana. Do not invent canned translations. ``translate_japanese``
     kept for call-site compatibility.
+
+    Side lane (companion Japanese chat) uses the same mark rule as Kakashi:
+    before language confirm → （日语）中文；after → plain Chinese, no language name.
     """
     del translate_japanese
     localized = []
     for item in turns:
         row = dict(item)
         text = str(row.get("text", "")).strip()
+        mode = str(row.get("participation_mode") or row.get("response_slot") or "").strip()
+        cons = str(row.get("cons") or row.get("speaker_cons") or "").strip()
+        if not cons and card is not None:
+            cons = _cons_from_speaker(card, row.get("speaker")) or ""
+        # Companion side among JA speakers is treated as Japanese footing for mark rules.
+        side_ja = (
+            mode == "side"
+            and bool(text)
+            and soc.is_ja_companion_cons(cons)
+        )
         has_kana = bool(KANA_RE.search(text))
         already_marked = text.startswith(_JA_MARK_PREFIXES)
-        lang_ja = has_kana or already_marked or str(row.get("lang") or "").strip() == "ja"
+        lang_ja = (
+            has_kana
+            or already_marked
+            or str(row.get("lang") or "").strip() == "ja"
+            or side_ja
+        )
         provenance = row.get("provenance") if isinstance(row.get("provenance"), dict) else {}
         surface_zh = str(provenance.get("surface_zh") or "").strip()
 
@@ -8847,6 +8836,19 @@ class FreeStageSession:
     ) -> list[dict[str, Any]]:
         committed: list[dict[str, Any]] = []
         for raw in raw_decisions:
+            part_mode = str(raw.get("participation_mode") or "").strip()
+            if not part_mode:
+                pkt_preview = (actor_packets or {}).get(str(raw.get("actor_cons", "") or "").strip()) or {}
+                part_mode = str(
+                    ((pkt_preview.get("conversation_contract") or {}) if isinstance(pkt_preview, dict) else {}).get(
+                        "participation_mode"
+                    )
+                    or "speak"
+                )
+            try:
+                part_mode = soc.normalize_participation_mode(part_mode)
+            except ValueError:
+                part_mode = "speak"
             decision = ActorDecision(
                 actor_cons=str(raw.get("actor_cons", "") or "").strip(),
                 intent_id=str(raw.get("intent_id", "") or "").strip(),
@@ -8857,6 +8859,7 @@ class FreeStageSession:
                 uncertainty=str(raw.get("uncertainty", "") or "").strip(),
                 commitment=str(raw.get("commitment", "") or "").strip(),
                 revises_decision_id=str(raw.get("revises_decision_id", "") or "").strip(),
+                participation_mode=part_mode,
             )
             commit_actor_decision(resolution.feasibility, decision)
             row = decision.to_dict()
@@ -9740,6 +9743,16 @@ class FreeStageSession:
             current_scene_id in self._stall_escalation_fired_scenes,
         )
         speaker_plan = apply_stall_escalation_to_speaker_plan(speaker_plan, stall_escalation)
+        mh_env_hint = soc.must_happen_director_env_hint(
+            resolved_card,
+            self.completed,
+            stall=int(self.stall or 0),
+            min_stall=2,
+        )
+        if mh_env_hint:
+            speaker_plan["must_happen_environment_hint"] = mh_env_hint
+            # Environment residue for director / observatory — not actor dialogue script.
+            resolved_card["_must_happen_environment_hint"] = copy.deepcopy(mh_env_hint)
         if intent_resolution is not None:
             speaker_plan = ensure_decision_target_in_speaker_plan(speaker_plan, intent_resolution)
         # M1: materialize the exact per-consciousness projections before any
@@ -10513,6 +10526,10 @@ class FreeStageSession:
                 ],
             },
             "speaker_plan": speaker_plan,
+            "must_happen_environment_hint": (
+                speaker_plan.get("must_happen_environment_hint")
+                or resolved_card.get("_must_happen_environment_hint")
+            ),
             "situation_classify": resolved_card.get("_situation_classify") or {},
             "actor_context_packets": actor_context_packets,
             "context_receipts": context_receipts,
@@ -11596,10 +11613,12 @@ def call_actor_packet(
                     "speaker": "仅你自己",
                     "text": "台词可多句，勿省略",
                     "stage": "可见动作；没有明显动作时留空字符串",
+                    "participation_mode": "speak|backchannel|side|pass",
                 },
             ],
             "mh_progress": [],
             "director_note": "",
+            "participation_mode": "speak|backchannel|side|pass（须与 conversation_contract 一致）",
         },
         "instruction": (
             "你只扮演 actor_cons 所示角色；只输出 JSON；"
@@ -11743,11 +11762,22 @@ def call_actor_packet(
     for turn in turns:
         turn["speaker"] = packet["actor_cons"]
         turn["cons"] = packet["actor_cons"]
-        turn["participation_mode"] = part_mode or (
-            "backchannel" if slot == "backchannel" else "side" if slot == "side" else "speak"
-        )
+        declared = str(turn.get("participation_mode") or part_mode or "").strip()
+        try:
+            turn["participation_mode"] = soc.normalize_participation_mode(
+                declared
+                or ("backchannel" if slot == "backchannel" else "side" if slot == "side" else "speak")
+            )
+        except ValueError:
+            turn["participation_mode"] = (
+                "backchannel" if slot == "backchannel" else "side" if slot == "side" else "speak"
+            )
         turn["response_slot"] = slot or "primary"
-        turn["stream_lane"] = stream_lane
+        turn["stream_lane"] = stream_lane if turn["participation_mode"] in ("backchannel", "side") else (
+            stream_lane if stream_lane == "companion" else "floor"
+        )
+        if turn["participation_mode"] in ("backchannel", "side"):
+            turn["stream_lane"] = "companion"
     if stage_only:
         stage_turns = [turn for turn in turns if str(turn.get("stage", "")).strip()]
         if any(str(turn.get("text", "")).strip() for turn in turns):

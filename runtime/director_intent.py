@@ -21,6 +21,7 @@ _DIRECTOR_MOVE_KINDS = {"foreground", "bridge", "wait", "counteroffer"}
 _ACTOR_OUTCOMES = {
     "accept", "conditional", "refuse", "alternative", "defer", "evade", "leave"
 }
+_PARTICIPATION_MODES = {"speak", "backchannel", "side", "pass"}
 _FORBIDDEN_DIRECTOR_KEYS = {
     "actor_decision", "decision", "accepted", "accept", "refuse", "refused", "outcome",
 }
@@ -135,6 +136,8 @@ class ActorDecision:
     uncertainty: str = ""
     commitment: str = ""
     revises_decision_id: str = ""
+    # Social participation form (P4): speak | backchannel | side | pass.
+    participation_mode: str = "speak"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -237,6 +240,9 @@ def validate_actor_decision(decision: ActorDecision | Mapping[str, Any]) -> None
     sources = tuple(str(item).strip() for item in raw.get("reason_sources", ()) if str(item).strip())
     if not sources:
         raise ValueError("actor decision must cite actor-owned sources")
+    mode = str(raw.get("participation_mode", "") or "speak").strip() or "speak"
+    if mode not in _PARTICIPATION_MODES:
+        raise ValueError(f"unsupported participation_mode: {mode}")
     if any(source.startswith(("director_private", "director.")) for source in sources):
         raise ValueError("actor decision may not cite director-private knowledge")
     if outcome == "conditional" and not tuple(str(item).strip() for item in raw.get("conditions", ()) if str(item).strip()):

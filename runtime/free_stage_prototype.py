@@ -75,6 +75,7 @@ from runtime import runtime_state
 from runtime import entry_router
 from runtime import transition_service
 from runtime import actor_orchestrator
+from runtime import social_participation as soc
 from runtime import view_projection
 from runtime.context_assembly import assemble_actor_context
 from runtime import ryuya_opening
@@ -2618,19 +2619,8 @@ def build_solidified_visible_facts(
 
 
 OPENING_TRIO_SOCIAL_HABITS: dict[str, str] = {
-    "C.xiuzai.WMAIN": (
-        "你习惯半开玩笑编排场面、拦同伴漏嘴；"
-        "但你不是每一句都包办——该秋人开口时你让一让，晴明少说时你也不硬拽他抢麦。"
-    ),
-    "C.akito.WMAIN": (
-        "你实诚，单反拍砸了会尴尬；"
-        "若对方听得懂，你很自然想找补——比如开口借看一段升旗视频；"
-        "别总等别人替你把这句说完。"
-    ),
-    "C.kakashi.WMAIN": (
-        "你边界感强，少主动抢话头；"
-        "被点到、或需要短接一下场面时再开口，一两句就够。"
-    ),
+    cons: str((soc.SOCIAL_PARTICIPATION.get(cons) or {}).get("with_stranger") or "")
+    for cons in ("C.xiuzai.WMAIN", "C.akito.WMAIN", "C.kakashi.WMAIN")
 }
 
 
@@ -2639,38 +2629,27 @@ def hold_slot_social_hint(
     response_slot: str,
     *,
     actor_cons: str = "",
+    participation_mode: str = "",
+    floor_order: int = 0,
+    relation_stage: str = "S1",
 ) -> str:
-    """Project REL.HOLD × participation slot into a soft social hint (not a hard gate)."""
-    holds = [
-        row
-        for row in (identity_relations or [])
-        if isinstance(row, dict)
-        and (
-            str(row.get("prop_id") or "").startswith("REL.HOLD.")
-            or str(row.get("projection") or "") == "relation_hold"
-        )
-        and str(row.get("fact") or "").strip()
-    ]
-    habit = str(OPENING_TRIO_SOCIAL_HABITS.get(str(actor_cons) or "") or "").strip()
-    base_parts: list[str] = []
-    if holds:
-        snippets = "；".join(str(row.get("fact") or "").strip()[:80] for row in holds[:3])
-        base_parts.append(f"你与同伴的相处底色：{snippets}。")
-    if habit:
-        base_parts.append(habit)
-    base = " ".join(base_parts).strip()
-    slot = str(response_slot or "").strip()
-    if slot == "secondary":
-        extra = (
-            "本拍已有同伴先开口：你听见了。"
-            "像真人聊天那样接——短附和、补一句新细节、或自然拐到你自己眼前的事都可以；"
-            "不要换皮复述别人刚说完的同一句。"
-            "若你这拍没什么要补的，可以只做一个可见反应、少说话。"
-        )
-        return f"{base} {extra}".strip() if base else extra
-    if slot == "primary" and base:
-        return f"{base} 你是本拍主话轮时按自己的相处方式带场面；已报过的身份不必整场重报。"
-    return base
+    """Project REL.HOLD × participation habits (global; not a task script)."""
+    mode = participation_mode or (
+        "backchannel" if response_slot == "backchannel"
+        else "speak" if response_slot == "primary"
+        else "speak" if response_slot == "secondary"
+        else response_slot or "speak"
+    )
+    order = floor_order
+    if response_slot == "secondary" and order == 0:
+        order = 1
+    return soc.hold_slot_social_hint_v2(
+        identity_relations,
+        actor_cons=actor_cons,
+        participation_mode=mode,
+        floor_order=order,
+        relation_stage=relation_stage,
+    )
 
 
 def annotate_packets_with_spoken_turns(
@@ -4279,20 +4258,18 @@ def repair_same_turn_content_overlap(
 def advance_tiananmen_want_now(
     card: dict[str, Any],
     branch_progress: list[str] | set[str] | None,
+    *,
+    history: list[dict[str, Any]] | None = None,
+    player_input: Any = None,
+    introduced_cons: set[str] | None = None,
 ) -> dict[str, str]:
-    """Belief → drop intention → regenerate short-term want from long-term desire.
-
-    Video availability is a settled fact, not a desire.  Once recorded, the
-    ``borrow-video`` intention is dropped; want_now becomes the next intention
-    serving each role's stable long-term desire.
-    """
+    """Sync open-concern queues into persona want_now (one top concern per actor)."""
     if str(card.get("scene_id", "")) != "OPENING_TIANANMEN_002":
         return {}
     facts = set(branch_progress or [])
     video_settled = "tiananmen_video_offered" in facts or "tiananmen_video_unavailable" in facts
     language_ok = "tiananmen_japanese_understood" in facts
 
-    # Belief layer: write public scene facts once.
     layers = card.setdefault("memory_layers", {})
     if isinstance(layers, dict):
         scene_facts = list(layers.get("scene_facts") or [])
@@ -4309,60 +4286,30 @@ def advance_tiananmen_want_now(
             if fact not in existing:
                 scene_facts.append({"fact": fact, "source": "branch_progress:tiananmen_video_offered"})
         if language_ok:
-            fact = "玩家听得懂日语；语言发现已落地，（日语）标注不再需要。"
+            fact = "玩家听得懂日语；对玩家发言一律中文，不再加（日语）标注。"
             if fact not in existing:
                 scene_facts.append({"fact": fact, "source": "branch_progress:tiananmen_japanese_understood"})
         layers["scene_facts"] = scene_facts
 
-    long_term = {
-        "C.akito.WMAIN": "想给这趟中国行留下能带回去的东西，也想把尴尬圆过去。",
-        "C.xiuzai.WMAIN": "把初遇维持在好笑、不尴尬的档位，顺便把同伴看住。",
-        "C.kakashi.WMAIN": "先确认这个人安全，自己安静跟着同伴，不把注意力引到身上。",
-    }
-    # Intention ladder: highest settled belief wins; video intention drops after fact.
-    intention_ladder: dict[str, list[tuple[bool, str]]] = {
-        "C.akito.WMAIN": [
-            (video_settled, "视频这事已经是事实；少聊器材。下一意图是自然自报全名、一句来由，再找机会提自己想去的海洋馆。"),
-            (language_ok, "对方听得懂；当前意图是认真搭话，并试着借一次升旗视频找补。"),
-        ],
-        "C.xiuzai.WMAIN": [
-            (video_settled, "视频线已是事实；少聊摄影。下一意图是把场面编轻松，找空档自报全名折原修哉并一句来由。"),
-            (language_ok, "语言通了；当前意图是顺着搭话往前推，别让尴尬停在原地。"),
-        ],
-        "C.kakashi.WMAIN": [
-            (video_settled, "视频事已了；下一意图是安静跟着同伴，只有被点到才开口。"),
-            (language_ok, "对方听得懂；当前意图仍是先观察，必要时短句接住，不抢话头。"),
-        ],
-    }
-    updated: dict[str, str] = {}
+    updated = soc.sync_tiananmen_concern_queues(
+        card,
+        branch_progress=facts,
+        history=history,
+        player_input=player_input,
+        introduced_cons=introduced_cons,
+    )
     personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
-    for cons, steps in intention_ladder.items():
+    for cons in updated:
         persona = personas.get(cons)
         if not isinstance(persona, dict):
             continue
-        inner = persona.setdefault("inner_state", {})
-        if not isinstance(inner, dict):
-            continue
-        desire = str(inner.get("long_term_desire") or long_term.get(cons) or "").strip()
-        if desire:
-            inner["long_term_desire"] = desire
-        chosen = ""
-        for ready, intention in steps:
-            if ready:
-                chosen = intention
-                break
-        if chosen:
-            # want_now = current intention; long_term_desire stays stable beside it.
-            inner["want_now"] = chosen
-            inner["active_intention"] = chosen
-            updated[cons] = chosen
-            working = persona.get("scene_working_memory")
-            if isinstance(working, dict) and video_settled:
-                unresolved = list(working.get("unresolved_topics") or [])
-                unresolved = [x for x in unresolved if "录像" not in str(x) and "听得懂" not in str(x)]
-                if "这位陌生人是否愿意继续同路" not in unresolved:
-                    unresolved.append("这位陌生人是否愿意继续同路")
-                working["unresolved_topics"] = unresolved
+        working = persona.get("scene_working_memory")
+        if isinstance(working, dict) and video_settled:
+            unresolved = list(working.get("unresolved_topics") or [])
+            unresolved = [x for x in unresolved if "录像" not in str(x) and "听得懂" not in str(x)]
+            if "这位陌生人是否愿意继续同路" not in unresolved:
+                unresolved.append("这位陌生人是否愿意继续同路")
+            working["unresolved_topics"] = unresolved
     return updated
 
 
@@ -4887,7 +4834,6 @@ def build_speaker_plan(
     branch_progress: list[str] | None = None,
 ) -> dict[str, Any]:
     is_c16_gate = str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
-    is_tiananmen = str(card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
     subtle_c16_watch = False
     if is_c16_gate:
         # 十六中：整拍最多主+次两槽，禁止三人合唱撞词。
@@ -4966,45 +4912,6 @@ def build_speaker_plan(
         bids.sort(key=lambda x: (x.get("cons") != preferred, -float(x.get("score", 0.0) or 0.0)))
     beat_speaker_hints: list[str] = []
     completed_set = set(completed or [])
-    branch_set = set(branch_progress or [])
-    if is_tiananmen:
-        language_ok = "tiananmen_japanese_understood" in branch_set or (
-            "tiananmen_japanese_understood"
-            in tiananmen_player_facts(player_input, recent_history=history)
-        )
-        video_settled = (
-            "tiananmen_video_offered" in branch_set
-            or "tiananmen_video_unavailable" in branch_set
-        )
-        personas = card.get("persona_cards") or {}
-        if language_ok and not video_settled and "C.akito.WMAIN" in personas:
-            # Natural: camera botched + can communicate → Akito may ask to borrow a clip.
-            for bid_item in bids:
-                if bid_item.get("cons") == "C.akito.WMAIN":
-                    bid_item["score"] = float(bid_item.get("score", 0.0) or 0.0) + 0.55
-                    bid_item.setdefault("reasons", []).append("natural_video_ask_opening")
-            beat_speaker_hints.append("C.akito.WMAIN")
-            bids.sort(
-                key=lambda x: (
-                    x.get("cons") not in beat_speaker_hints,
-                    -float(x.get("score", 0.0) or 0.0),
-                )
-            )
-        elif (
-            language_ok
-            and "TM3" not in completed_set
-            and "TM2" in completed_set
-            and "C.xiuzai.WMAIN" in personas
-        ):
-            # After video line settles (or moves on), Xiuzai often carries the intro beat —
-            # without owning every line of the scene.
-            beat_speaker_hints.append("C.xiuzai.WMAIN")
-            bids.sort(
-                key=lambda x: (
-                    x.get("cons") not in beat_speaker_hints,
-                    -float(x.get("score", 0.0) or 0.0),
-                )
-            )
     if is_c16_gate and not direct_addressee and not has_public_speech:
         next_beat = next(
             (
@@ -5113,6 +5020,12 @@ def build_speaker_plan(
         "intro_wave_pending": intro_wave_pending,
         "beat_speaker_hints": beat_speaker_hints,
     }
+    plan["backchannel_actors"] = soc.pick_backchannel_actors(
+        plan,
+        card,
+        history=history,
+        player_input=player_input,
+    )
     if subtle_c16_watch:
         plan["silent_observer_cons"] = "C.zhangchen.WMAIN"
         plan["player_signal_mode"] = "peripheral_watch_isolated"
@@ -9428,8 +9341,16 @@ class FreeStageSession:
         ]
         resolved_card["_verbatim_field_window"] = build_verbatim_field_window(self.history, limit=8)
         if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
-            # Desire ladder: settled receipts rewrite want_now before packets.
-            want_updates = advance_tiananmen_want_now(resolved_card, self.branch_progress)
+            introduced_now = _npc_introduced_to_player_after_turn(
+                resolved_card, self.history, None, 0
+            )
+            want_updates = advance_tiananmen_want_now(
+                resolved_card,
+                self.branch_progress,
+                history=self.history,
+                player_input=player_input,
+                introduced_cons=introduced_now,
+            )
             for cons, want in want_updates.items():
                 state = self.private_inner_states.setdefault(cons, {})
                 if isinstance(state, dict):
@@ -9571,7 +9492,11 @@ class FreeStageSession:
         # actor call.  M2 will consume these one by one; keeping this receipt
         # now makes the boundary observable and prevents a future runner from
         # silently reconstructing a broad shared prompt.
-        performance_plan = list(speaker_plan.get("speakers", []) or []) + list(speaker_plan.get("stage_actors", []) or [])
+        performance_plan = (
+            list(speaker_plan.get("speakers", []) or [])
+            + list(speaker_plan.get("stage_actors", []) or [])
+            + list(speaker_plan.get("backchannel_actors", []) or [])
+        )
         self.body_frames = ensure_card_body_frames(resolved_card, getattr(self, "body_frames", {}) or {})
         if ott.is_opening_top_tier_scene(resolved_card):
             present_for = [
@@ -9609,18 +9534,43 @@ class FreeStageSession:
                     (item for item in performance_plan if item.get("cons") == cons),
                     {},
                 )
+                part_mode = str(
+                    plan_item.get("participation_mode")
+                    or ("backchannel" if plan_item.get("response_slot") == "backchannel" else "speak")
+                )
+                floor_order = int(plan_item.get("floor_order") or 0)
+                if plan_item.get("response_slot") == "secondary" and floor_order == 0:
+                    floor_order = 1
+                rel_stage = str(
+                    ((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("relation_stage")
+                    or plan_item.get("relation_stage")
+                    or "S1"
+                )
                 pkt["conversation_contract"] = {
                     "response_slot": plan_item.get("response_slot", "primary"),
+                    "participation_mode": part_mode,
+                    "floor_order": floor_order,
                     "direct_addressee": speaker_plan.get("direct_addressee"),
                     "obligation_kind": (speaker_plan.get("conversation_contract") or {}).get("kind", "unowned"),
                     "obligation_evidence": (speaker_plan.get("conversation_contract") or {}).get("evidence", ""),
                     "social_instruction": plan_item.get("social_instruction", ""),
-                    "max_new_questions": 2 if plan_item.get("response_slot", "primary") == "primary" else 0,
+                    "max_new_questions": (
+                        0
+                        if part_mode == "backchannel"
+                        else (2 if plan_item.get("response_slot", "primary") == "primary" else 0)
+                    ),
                 }
+                inner = (pkt.get("self_state") or {}).get("inner_state") or {}
+                pending = inner.get("pending_concerns") or []
+                if pending:
+                    pkt["conversation_contract"]["pending_concerns"] = pending
                 hold_hint = hold_slot_social_hint(
                     pkt.get("identity_relations"),
                     str(plan_item.get("response_slot") or "primary"),
                     actor_cons=str(cons),
+                    participation_mode=part_mode,
+                    floor_order=floor_order,
+                    relation_stage=rel_stage,
                 )
                 if hold_hint:
                     prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
@@ -9654,23 +9604,6 @@ class FreeStageSession:
                     pkt["conversation_contract"]["social_instruction"] = (
                         f"{prev_si} {continuity_hint}".strip() if prev_si else continuity_hint
                     )
-                # Inner drive — not an every-turn "push the quest" order.
-                if plan_item.get("response_slot", "primary") == "primary":
-                    advance_hint = (
-                        "你心里装着 want_now 里的事；聊别的时候它会时不时浮上来。"
-                        "当前话题双方没有新信息可加时，找一个自然接口把话往自己在意的事上带；"
-                        "不要空等，也不要生硬转折或复读上一拍。"
-                    )
-                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
-                    pkt["conversation_contract"]["social_instruction"] = (
-                        f"{prev_si} {advance_hint}".strip() if prev_si else advance_hint
-                    )
-                    soft = str(resolved_card.get("_opening_soft_inner_hint") or "").strip()
-                    if soft:
-                        prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
-                        pkt["conversation_contract"]["social_instruction"] = (
-                            f"{prev_si} {soft}".strip() if prev_si else soft
-                        )
                 intent_request = (
                     decision_request_for_actor(intent_resolution, cons)
                     if intent_resolution is not None else None

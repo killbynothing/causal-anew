@@ -1349,6 +1349,20 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_opening_two_scene_closeout.py",
     },
     {
+        "id": "social_participation",
+        "desc": "社交参与：意图队列×floor-only竞价×backchannel",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_social_participation.py"],
+        "triggers": [
+            "runtime/social_participation.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_social_participation.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_social_participation.py",
+    },
+    {
         "id": "solidified_facts_packet",
         "desc": "固化事实进包×物态可见×HOLD话轮×回滚硬闸",
         "tier": "quick",

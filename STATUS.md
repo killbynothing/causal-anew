@@ -1,5 +1,12 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-04（社交参与宪法落地 · 意图队列 × backchannel · 等人验）
+
+- **设计**：`design/00_架构/社交参与与自主决策备忘_…` 人裁为**全场**现行；`runtime/social_participation.py` 各角色社交习惯可用。
+- **运行时**：天安门 open concerns 顶格进 `want_now`（不 checklist）；撤竞价 content boost；`backchannel_actors`（晴明等短接）；语言呈现 locks 更新；撤 primary「推进 want」脚本。
+- **验证**：`test_social_participation.py` + 原 solidified 测；`--quick` 🟢。
+- **你**：重玩天安门——蹭到后应先道歉；语言通后另拍才借视频；晴明应有短接；一句不应叠四件事。
+
 ### 2026-08-04（自然话轮 × 姓名闸 × 社交习惯 · 等人验）
 
 - **姓名闸**：`hard_check` 对齐递进绑定（已自报可全名上台签）；短名不再因全名子串双重叉。

@@ -241,7 +241,7 @@ def test_hard_check_respects_progressive_name_binding():
     assert not any("pre-intro real name" in x for x in issues_ok), issues_ok
 
 
-def test_tiananmen_speaker_cap_not_hard_duo():
+def test_tiananmen_speaker_plan_floor_only_no_content_boost():
     from runtime.free_stage_prototype import build_speaker_plan, MAX_BID_SPEAKERS
 
     card = _mini_tiananmen_card()
@@ -253,14 +253,10 @@ def test_tiananmen_speaker_cap_not_hard_duo():
         branch_progress=["tiananmen_japanese_understood"],
     )
     assert int(plan.get("max_speakers") or 0) >= 3
-    assert int(plan.get("max_speakers") or 0) <= MAX_BID_SPEAKERS or MAX_BID_SPEAKERS >= 3
-    speakers = [str(s.get("cons")) for s in (plan.get("speakers") or [])]
     bids = plan.get("bids") or []
-    akito_bid = next((b for b in bids if b.get("cons") == "C.akito.WMAIN"), None)
-    assert akito_bid is not None
-    assert "natural_video_ask_opening" in (akito_bid.get("reasons") or []) or (
-        speakers and speakers[0] == "C.akito.WMAIN"
-    )
+    assert not any("natural_video_ask_opening" in (b.get("reasons") or []) for b in bids)
+    bc = plan.get("backchannel_actors") or []
+    assert any(str(x.get("cons")) == "C.kakashi.WMAIN" for x in bc) or len(plan.get("speakers") or []) >= 1
 
 
 def test_observatory_inner_does_not_fill_toxic_unsaid():
@@ -282,6 +278,6 @@ if __name__ == "__main__":
     test_object_use_memory_and_pendant_hidden()
     test_pre_speech_synthesized()
     test_hard_check_respects_progressive_name_binding()
-    test_tiananmen_speaker_cap_not_hard_duo()
+    test_tiananmen_speaker_plan_floor_only_no_content_boost()
     test_observatory_inner_does_not_fill_toxic_unsaid()
     print("PASS")

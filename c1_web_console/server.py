@@ -548,6 +548,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
             "pacing": card_pacing,
             "opening_id": getattr(session, "opening_id", ""),
             "player_profile": session.surface().get("player_profile", {}),
+            "stream": session._stream_status_payload() if hasattr(session, "_stream_status_payload") else {},
         }
         if req_data.get("debug"):
             res_data["debug_history"] = session.debug_history
@@ -560,6 +561,15 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         card_pacing = getattr(session, "card", {}).get("pacing", "standard") if hasattr(session, "card") else "standard"
         result["status"] = "ok"
         result["pacing"] = card_pacing
+        return result
+    if op == "stream_hold":
+        hold = bool(req_data.get("hold", True))
+        result = session.set_stream_hold(hold)
+        result["status"] = "ok"
+        return result
+    if op == "advance_utterance":
+        result = session.advance_utterance()
+        result["status"] = "ok"
         return result
     if op != "player_say":
         return {"status": "error", "error": f"unknown free_stage op: {op}"}

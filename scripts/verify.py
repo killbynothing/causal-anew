@@ -1363,6 +1363,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_social_participation.py",
     },
     {
+        "id": "utterance_stream",
+        "desc": "话轮流 B：单气泡×hold×barge-in×心想 delta",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_utterance_stream.py"],
+        "triggers": [
+            "runtime/utterance_stream.py",
+            "runtime/thought_delta.py",
+            "runtime/free_stage_prototype.py",
+            "c1_web_console/server.py",
+            "c1_web_console/player.html",
+            "scripts/tests/test_utterance_stream.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_utterance_stream.py",
+    },
+    {
         "id": "solidified_facts_packet",
         "desc": "固化事实进包×物态可见×HOLD话轮×回滚硬闸",
         "tier": "quick",

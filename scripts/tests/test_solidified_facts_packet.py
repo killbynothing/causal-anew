@@ -252,7 +252,7 @@ def test_tiananmen_speaker_plan_floor_only_no_content_boost():
         completed=["TM1", "TM2"],
         branch_progress=["tiananmen_japanese_understood"],
     )
-    assert int(plan.get("max_speakers") or 0) >= 3
+    assert int(plan.get("max_speakers") or 0) == MAX_BID_SPEAKERS
     bids = plan.get("bids") or []
     assert not any("natural_video_ask_opening" in (b.get("reasons") or []) for b in bids)
     bc = plan.get("backchannel_actors") or []

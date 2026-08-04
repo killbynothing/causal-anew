@@ -76,6 +76,8 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
+from runtime import utterance_stream as ustream
+from runtime.thought_delta import ingest_player_thought
 from runtime import view_projection
 from runtime.context_assembly import assemble_actor_context
 from runtime import ryuya_opening
@@ -1932,7 +1934,7 @@ def run_director_and_isolated_actors(
     )
 
 
-MAX_BID_SPEAKERS = 3
+MAX_BID_SPEAKERS = 1
 MAX_MH_PROGRESS_PER_TURN = 1
 
 
@@ -6810,6 +6812,9 @@ class FreeStageSession:
             "elapsed_minutes": 0,
         }
         self.run_observation_ledger: list[dict[str, Any]] = []
+        self.utterance_pending_queue: list[dict[str, Any]] = []
+        self.stream_hold: bool = False
+        self.stream_generation: int = 0
         self._pendant_look_emitted = False
         self._pendant_layer_c_emitted = False
         self._opening_soft_hint_fired = False
@@ -6967,6 +6972,11 @@ class FreeStageSession:
         self.run_observation_ledger = [
             dict(item) for item in data.get("run_observation_ledger", []) if isinstance(item, dict)
         ]
+        self.utterance_pending_queue = [
+            dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
+        ]
+        self.stream_hold = bool(data.get("stream_hold", False))
+        self.stream_generation = int(data.get("stream_generation", 0) or 0)
         self._pendant_look_emitted = bool(data.get("pendant_look_emitted"))
         self._pendant_layer_c_emitted = bool(data.get("pendant_layer_c_emitted"))
         stored_flashback_return = data.get("ryuya_flashback_return")
@@ -7039,6 +7049,9 @@ class FreeStageSession:
             "_fired_director_beats": sorted(self._fired_director_beats),
             "player_state": self.player_state,
             "run_observation_ledger": [dict(o) for o in self.run_observation_ledger],
+            "utterance_pending_queue": [dict(o) for o in self.utterance_pending_queue],
+            "stream_hold": bool(self.stream_hold),
+            "stream_generation": int(self.stream_generation or 0),
             "pendant_look_emitted": bool(getattr(self, "_pendant_look_emitted", False)),
             "pendant_layer_c_emitted": bool(getattr(self, "_pendant_layer_c_emitted", False)),
             "ryuya_flashback_return": self.ryuya_flashback_return,
@@ -7096,6 +7109,9 @@ class FreeStageSession:
         }
         self._triggered_at_clocks: set[str] = set()
         self.run_observation_ledger = []
+        self.utterance_pending_queue = []
+        self.stream_hold = False
+        self.stream_generation = 0
         self._pendant_look_emitted = False
         self._pendant_layer_c_emitted = False
         self._opening_soft_hint_fired = False
@@ -7324,7 +7340,6 @@ class FreeStageSession:
         if not turns:
             return []
         self._pendant_layer_c_emitted = True
-        self.history.extend(turns)
         self.run_observation_ledger = _ledger_append(
             self.run_observation_ledger,
             turn=turn_no,
@@ -8206,12 +8221,131 @@ class FreeStageSession:
             result["history"] = self.history
         return result
 
+    def _stream_status_payload(self) -> dict[str, Any]:
+        return ustream.stream_status(
+            self.utterance_pending_queue,
+            hold=self.stream_hold,
+            generation=self.stream_generation,
+        )
+
+    def _barge_in_stream(self) -> None:
+        if self.utterance_pending_queue:
+            self.utterance_pending_queue.clear()
+            self.stream_generation += 1
+        self.stream_hold = False
+
+    def set_stream_hold(self, hold: bool) -> dict[str, Any]:
+        self.stream_hold = bool(hold)
+        if self.autosave:
+            self.save()
+        return {
+            "session_id": self.session_id,
+            "turns": [],
+            "completed": self.completed,
+            "issues": self.last_issues,
+            "ended": self.ended,
+            "surface": self.surface(),
+            "stream": self._stream_status_payload(),
+        }
+
+    def advance_utterance(self) -> dict[str, Any]:
+        turns: list[dict[str, Any]] = []
+        if not self.stream_hold and self.utterance_pending_queue:
+            item = dict(self.utterance_pending_queue.pop(0))
+            self.history.append(item)
+            turns.append(item)
+            if self.autosave:
+                self.save()
+        return {
+            "session_id": self.session_id,
+            "turns": turns,
+            "completed": self.completed,
+            "issues": self.last_issues,
+            "ended": self.ended,
+            "surface": self.surface(),
+            "stream": self._stream_status_payload(),
+        }
+
+    def _push_stream_turns(
+        self,
+        turns: list[dict[str, Any]],
+        *,
+        turn_no: int,
+        emitted: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        normalized: list[dict[str, Any]] = []
+        for raw in turns:
+            if not isinstance(raw, dict):
+                continue
+            item = dict(raw)
+            item.setdefault("role", "npc")
+            item["turn"] = turn_no
+            normalized.append(item)
+        first, rest = ustream.split_for_stream(normalized, turn_no=turn_no)
+        shown: list[dict[str, Any]] = []
+        if first:
+            self.history.append(first)
+            row = dict(first)
+            emitted.append(row)
+            shown.append(row)
+        if rest:
+            self.utterance_pending_queue.extend(rest)
+            self.stream_generation += 1
+        return shown
+
+    def _enqueue_stream_items(
+        self,
+        items: list[dict[str, Any]],
+        *,
+        turn_no: int,
+    ) -> None:
+        queued = False
+        for raw in items:
+            if not isinstance(raw, dict):
+                continue
+            if not ustream.is_stream_visible_turn(raw):
+                self.history.append(dict(raw))
+                continue
+            item = ustream.normalize_stream_turn(
+                {**raw, "role": raw.get("role", "npc")},
+                turn_no=turn_no,
+            )
+            self.utterance_pending_queue.append(item)
+            queued = True
+        if queued:
+            self.stream_generation += 1
+
+    def _seed_opening_stream(self, turns: list[dict[str, Any]], *, turn_no: int = 0) -> list[dict[str, Any]]:
+        immediate: list[dict[str, Any]] = []
+        visible_batch: list[dict[str, Any]] = []
+        for raw in turns:
+            if not isinstance(raw, dict):
+                continue
+            item = dict(raw)
+            if ustream.is_stream_visible_turn(item):
+                visible_batch.append(ustream.normalize_stream_turn(item, turn_no=turn_no))
+            else:
+                self.history.append(item)
+                immediate.append(dict(item))
+        if visible_batch:
+            first, rest = ustream.split_for_stream(visible_batch, turn_no=turn_no)
+            if first:
+                self.history.append(first)
+                immediate.append(dict(first))
+            if rest:
+                self.utterance_pending_queue.extend(rest)
+                self.stream_generation += 1
+        return immediate
+
+    def _drain_utterance_queue_to_history(self) -> None:
+        while self.utterance_pending_queue:
+            self.history.append(dict(self.utterance_pending_queue.pop(0)))
+
     def start(self) -> list[dict[str, Any]]:
         has_real_turns = any(item.get("role") in {"player", "npc"} and item.get("turn", 0) > 0 for item in self.history)
         if not self.history and not has_real_turns:
             synopsis_turns = self._ensure_opening_synopsis_and_pendant()
             intro_turns = build_card_intro_turns(self.card)
-            self.history.extend(intro_turns)
             scene_id = self.card.get("scene_id")
             canon_turns: list[dict[str, Any]] = []
             for segment in canon_performance_segments(self.card):
@@ -8237,7 +8371,6 @@ class FreeStageSession:
                     canon_status="adaptation",
                     provenance={"authored_opening": "ryuya_friend_banter"},
                 )
-                self.history.append(prologue_turn)
                 intro_turns.append(prologue_turn)
                 if "RP1" not in self.completed:
                     self.completed.append("RP1")
@@ -8245,9 +8378,13 @@ class FreeStageSession:
                 self.body_frames, self.card, [*intro_turns, *canon_turns]
             )
             ensure_card_body_frames(self.card, self.body_frames)
+            shown = self._seed_opening_stream(
+                [*synopsis_turns, *intro_turns, *canon_turns],
+                turn_no=0,
+            )
             if self.autosave:
                 self.save()
-            return [dict(item) for item in [*synopsis_turns, *intro_turns, *canon_turns]]
+            return shown
         return []
 
     def _record_player_violation(self, violation: dict[str, Any]) -> None:
@@ -8974,6 +9111,56 @@ class FreeStageSession:
         action = parsed_input.get("action", "")
         thought = parsed_input.get("thought", "")
         suppress_visible_input = bool(violation and violation.get("handled") in {"blocked", "swallowed"})
+
+        scene_id_for_obs_early = str(self.card.get("scene_id", ""))
+        thought_deltas: list[dict[str, Any]] = []
+        if thought:
+            self.run_observation_ledger, thought_deltas = ingest_player_thought(
+                thought,
+                ledger=self.run_observation_ledger,
+                turn=len(self.inputs) + 1,
+                scene_id=scene_id_for_obs_early,
+                session_id=self.session_id,
+                run_id=self.run_no,
+            )
+
+        if (action or speech) and not suppress_visible_input:
+            self._barge_in_stream()
+
+        thought_only = (
+            bool(thought)
+            and not speech
+            and not action
+            and not suppress_visible_input
+        )
+        if thought_only:
+            turn_no_thought = len(self.inputs) + 1
+            self.inputs.append(player_input)
+            self.history.append({
+                "role": "player_thought",
+                "speaker": "玩家内心",
+                "text": thought,
+                "turn": turn_no_thought,
+            })
+            if self.autosave:
+                self.save()
+            return {
+                "session_id": self.session_id,
+                "turns": [],
+                "completed": self.completed,
+                "issues": self.last_issues,
+                "degradations": self.last_degradations,
+                "player_violations": self.player_violations,
+                "player_violation_warning_levels": self.player_violation_warning_levels,
+                "player_prophecies": self.player_prophecies,
+                "ended": self.ended,
+                "surface": self.surface(),
+                "opening_id": self.opening_id,
+                "player_profile": self.player_profile,
+                "thought_recorded": True,
+                "thought_deltas": thought_deltas,
+                "stream": self._stream_status_payload(),
+            }
             
         self.inputs.append(player_input)
         
@@ -9657,13 +9844,14 @@ class FreeStageSession:
             ),
         )
         emitted: list[dict[str, Any]] = []
+        stream_response_turns: list[dict[str, Any]] = []
         emitted.extend([
             item for item in self.history
             if item.get("role") == "narrate" and item.get("turn") == turn_no
             and item.get("stage") == "环境对可见行为作出的即时反应。"
         ])
         if layer_c_turns:
-            emitted.extend(dict(item) for item in layer_c_turns)
+            self._enqueue_stream_items(layer_c_turns, turn_no=turn_no)
         actor_errors: list[str] = []
         turn_degradations: list[dict[str, Any]] = []
         committed_actor_decisions: list[dict[str, Any]] = []
@@ -9997,13 +10185,14 @@ class FreeStageSession:
                     "stage": "",
                     "turn": turn_no
                 }
-                self.history.append(defense_item)
-                emitted.append(defense_item)
+                turns.insert(0, defense_item)
 
-            for item in turns:
-                item.update({"role": "npc", "turn": turn_no})
-                self.history.append(item)
-                emitted.append(dict(item))
+            turns = ustream.enrich_turns_with_companion_queue(
+                turns, speaker_plan, resolved_card, turn_no=turn_no,
+            )
+            stream_response_turns.extend(
+                self._push_stream_turns(turns, turn_no=turn_no, emitted=emitted)
+            )
             body_issues = settle_body_frames_from_npc_turns(
                 self.body_frames, resolved_card, turns
             )
@@ -10031,7 +10220,7 @@ class FreeStageSession:
                 auto_canon_turns.extend(self._emit_canon_burst(ready_segment, turn_no=turn_no))
                 remaining_canon -= 1
             if auto_canon_turns:
-                emitted.extend(auto_canon_turns)
+                self._enqueue_stream_items(auto_canon_turns, turn_no=turn_no)
                 settle_body_frames_from_npc_turns(
                     self.body_frames, resolved_card, auto_canon_turns
                 )
@@ -10079,8 +10268,9 @@ class FreeStageSession:
                 "turn": turn_no,
                 "fallback_error": str(exc)[:240],
             }
-            self.history.append(err_item)
-            emitted.append(err_item)
+            stream_response_turns.extend(
+                self._push_stream_turns([err_item], turn_no=turn_no, emitted=emitted)
+            )
             actor_errors.append(str(exc))
 
         director_only_turn = director_only_bridge_turn(director_only_hits, turn_no)
@@ -10360,7 +10550,11 @@ class FreeStageSession:
             self.save()
         result = {
             "session_id": self.session_id,
-            "turns": emitted,
+            "turns": stream_response_turns + [
+                dict(x) for x in emitted
+                if x.get("role") in {"director_note", "marker", "error"}
+                and dict(x) not in stream_response_turns
+            ],
             "completed": self.completed,
             "issues": self.last_issues,
             "degradations": self.last_degradations,
@@ -10371,6 +10565,7 @@ class FreeStageSession:
             "surface": self.surface(),
             "opening_id": self.opening_id,
             "player_profile": self.player_profile,
+            "stream": self._stream_status_payload(),
         }
         if "transition" in locals() and transition:
             result["transition"] = transition
@@ -11773,6 +11968,7 @@ def run_session(
     session = FreeStageSession(card_path=card_path, config=config, caller=caller, autosave=False)
     for idx, player_input in enumerate(inputs):
         session.step(player_input)
+        session._drain_utterance_queue_to_history()
     
     res = session.result()
     source_card = load_card(Path(card_path))

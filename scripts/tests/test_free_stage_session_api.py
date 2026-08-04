@@ -33,6 +33,7 @@ def test_step_session_matches_one_shot_selftest(tmp_path):
     )
     for item in inputs:
         session.step(item)
+        session._drain_utterance_queue_to_history()
     stepped = session.result()
 
     assert stepped["completed"] == one_shot["completed"]

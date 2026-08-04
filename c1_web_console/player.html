@@ -583,6 +583,10 @@ button:disabled {
   </div>
 </div>
 
+<div id="streamContinuePanel" style="text-align: center; margin: 8px 10% 0; display: none;">
+  <button id="btnContinueListen" type="button" style="padding: 8px 24px; font-size: 13.5px; border-radius: 20px; border: 1px solid rgba(0, 240, 255, 0.35); background: rgba(0, 240, 255, 0.08); color: var(--cyan); cursor: pointer;">继续听</button>
+</div>
+
 <footer style="display: flex; gap: 16px; align-items: flex-end; padding: 20px 10%;">
   <div id="threeChannelInput" style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
     <textarea id="chatInputSpeech" placeholder="💬 【你说】说出你的台词... 例：我把项链收好，问他接下来去哪。" style="height: 42px; min-height: 42px; resize: none; border-radius: 8px; background: rgba(0,0,0,0.4); border: 1px solid var(--line); color: var(--paper); padding: 10px 16px; font-size: 13.5px;" disabled></textarea>
@@ -605,6 +609,7 @@ const state = {
   runNo: 1,
   busy: false,
   playerProfile: null,
+  utteranceStream: { queueRemaining: 0, hold: false },
 };
 
 const chatContainer = document.getElementById('chatContainer');
@@ -913,6 +918,69 @@ function ensureFreeStageSessionId() {
   return sid;
 }
 
+function applyStreamStatus(stream) {
+  if (!stream || state.engine !== "free_stage") return;
+  state.utteranceStream.queueRemaining = Number(stream.queue_remaining || 0);
+  state.utteranceStream.hold = !!stream.stream_hold;
+  updateContinueButton();
+}
+
+function updateContinueButton() {
+  const panel = document.getElementById("streamContinuePanel");
+  const btn = document.getElementById("btnContinueListen");
+  if (!panel || !btn) return;
+  const show = state.engine === "free_stage" && state.utteranceStream.queueRemaining > 0;
+  panel.style.display = show ? "block" : "none";
+  btn.disabled = state.utteranceStream.hold || state.busy || state.utteranceStream.queueRemaining <= 0;
+}
+
+let streamHoldTimer = null;
+async function setStreamHold(hold) {
+  if (state.engine !== "free_stage") return;
+  state.utteranceStream.hold = !!hold;
+  updateContinueButton();
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      method: "POST",
+      body: JSON.stringify({
+        op: "stream_hold",
+        session_id: ensureFreeStageSessionId(),
+        hold: !!hold,
+      }),
+    });
+    applyStreamStatus(res.stream);
+  } catch (_) {}
+}
+
+function onPublicInputActivity() {
+  if (state.engine !== "free_stage" || !state.utteranceStream.queueRemaining) return;
+  setStreamHold(true);
+  clearTimeout(streamHoldTimer);
+  streamHoldTimer = setTimeout(() => setStreamHold(false), 900);
+}
+
+async function advanceUtteranceQueue() {
+  if (state.busy || state.utteranceStream.hold || state.utteranceStream.queueRemaining <= 0) return;
+  state.busy = true;
+  updateContinueButton();
+  try {
+    const res = await fetchAPI("/api/free_stage", {
+      method: "POST",
+      body: JSON.stringify({
+        op: "advance_utterance",
+        session_id: ensureFreeStageSessionId(),
+      }),
+    });
+    renderFreeStageTurns(res.turns);
+    applyStreamStatus(res.stream);
+  } catch (err) {
+    showToast("继续听失败");
+  } finally {
+    state.busy = false;
+    updateContinueButton();
+  }
+}
+
 function renderFreeStageTurns(turns) {
   (turns || []).forEach(item => {
     if (item.role === "player") {
@@ -1022,6 +1090,7 @@ async function startFreeStage() {
       locationVal.textContent = [res.surface.scene, res.surface.blurb].filter(Boolean).join(" · ");
     }
     renderFreeStageTurns(res.turns);
+    applyStreamStatus(res.stream);
     if (handleBriefPacingDecision(res)) {
       return;
     }
@@ -1069,6 +1138,8 @@ async function sendMessage() {
   
   if (!speech && !action && !thought) return;
   
+  const thoughtOnly = !!(thought && !speech && !action);
+  
   payload = { speech, action, thought };
   
   let parts = [];
@@ -1077,18 +1148,24 @@ async function sendMessage() {
   if (speech) parts.push(speech);
   val = parts.join(" ");
   
-  appendBubble("player", "你", val, null);
-  
-  chatInputSpeech.value = "";
-  chatInputAction.value = "";
-  chatInputThought.value = "";
+  if (thoughtOnly) {
+    appendBubble("player", "你", `【内心：${thought}】`, null);
+    chatInputThought.value = "";
+  } else {
+    appendBubble("player", "你", val, null);
+    chatInputSpeech.value = "";
+    chatInputAction.value = "";
+    chatInputThought.value = "";
+  }
   
   state.busy = true;
-  chatInput.disabled = true;
-  btnSend.disabled = true;
-  chatInput.classList.remove('active-turn');
-  chatInput.placeholder = "在场者思考中...";
-  showTypingIndicator();
+  if (!thoughtOnly) {
+    chatInput.disabled = true;
+    btnSend.disabled = true;
+    chatInput.classList.remove('active-turn');
+    chatInput.placeholder = "在场者思考中...";
+    showTypingIndicator();
+  }
   
   try {
     const endpoint = state.engine === "free_stage" ? '/api/free_stage' : '/api/scene';
@@ -1117,7 +1194,10 @@ async function sendMessage() {
       if (res.surface) {
         locationVal.textContent = [res.surface.scene, res.ended ? "本场结束" : ""].filter(Boolean).join(" · ");
       }
-      renderFreeStageTurns(res.turns);
+      if (!thoughtOnly) {
+        renderFreeStageTurns(res.turns);
+      }
+      applyStreamStatus(res.stream);
       if (res.transition && res.transition.consolidation_hint) {
         showToast(res.transition.consolidation_hint, "info");
       }
@@ -1165,6 +1245,10 @@ async function sendMessage() {
   }
 }
 
+[chatInputSpeech, chatInputAction].forEach(el => {
+  el.addEventListener("input", onPublicInputActivity);
+});
+
 [chatInputSpeech, chatInputAction, chatInputThought].forEach(el => {
   el.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1173,6 +1257,8 @@ async function sendMessage() {
     }
   });
 });
+
+document.getElementById("btnContinueListen")?.addEventListener("click", advanceUtteranceQueue);
 
 btnSend.addEventListener('click', sendMessage);
 

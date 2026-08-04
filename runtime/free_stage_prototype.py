@@ -1132,8 +1132,9 @@ def build_actor_context_packet(
     interaction_dynamics = acv2.fetch_interaction_dynamics(
         actor_cons, present_for_dynamics, ch_anchor,
     )
+    # Candidate pool (owned+章窗); activation Top-K is separate (cue∪cos+emo).
     slow_memory_candidates = acv2.fetch_slow_memory(
-        actor_cons, ch_anchor, run_no=run_no, top_k=5, include_anchor=True,
+        actor_cons, ch_anchor, run_no=run_no, top_k=64, include_anchor=True,
     )
 
     working_seed = persona.get("scene_working_memory") if isinstance(persona.get("scene_working_memory"), dict) else {}

@@ -372,9 +372,15 @@ def fetch_slow_memory(
     cons_id: str,
     ch_anchor: int,
     run_no: int = 1,
-    top_k: int = 5,
+    top_k: int = 64,
     include_anchor: bool = False,
 ) -> list[dict[str, Any]]:
+    """Load owned episodic candidates for one consciousness.
+
+    ``top_k`` caps the *candidate pool* after chapter gating (default 64).
+    Per-turn activation Top-K belongs to ``activate_memory_candidates`` /
+    cos+emo — do not confuse the two. Pass ``top_k<=0`` for no pool cap.
+    """
     if not DB_PATH.exists():
         return []
     out: list[dict[str, Any]] = []
@@ -461,7 +467,9 @@ def fetch_slow_memory(
     finally:
         if conn is not None:
             conn.close()
-    return out[:top_k]
+    if int(top_k) <= 0:
+        return out
+    return out[: int(top_k)]
 
 
 def activate_memory_candidates(

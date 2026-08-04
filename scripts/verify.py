@@ -1319,6 +1319,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_ryuya_prologue_packet_seed.py",
     },
     {
+        "id": "ryuya_episodic_deep_past",
+        "desc": "龙也双意识开场前情景记忆底库 + 候选池不截断（零 LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_ryuya_episodic_deep_past.py"],
+        "triggers": [
+            "scripts/migrate_ryuya_episodic_deep_past_2026-08-04.py",
+            "scripts/tests/test_ryuya_episodic_deep_past.py",
+            "runtime/actor_context_v2.py",
+            "runtime/free_stage_prototype.py",
+        ],
+        "need_db": True,
+        "need": [],
+        "need_file": "scripts/tests/test_ryuya_episodic_deep_past.py",
+    },
+    {
         "id": "tiananmen_cast_persona_parity",
         "desc": "天安门四人 Seed 投影 ⊇ 卡 seed id + ARCH/HOLD",
         "tier": "quick",

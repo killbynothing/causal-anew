@@ -1,5 +1,5 @@
 -- world_truth.db canonical SQL dump
--- generated_at_utc: 2026-08-03T09:24:29Z
+-- generated_at_utc: 2026-08-04T10:15:36Z
 -- source: data/world_truth.db
 PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
@@ -8217,7 +8217,6 @@ INSERT INTO "slow_memory" VALUES(4,0,'C.xiuzai.WMAIN','战区装甲车倾覆翻�
 INSERT INTO "slow_memory" VALUES(5,0,'C.xiuzai.WMAIN','在冰冷的生化容器中脑电波苏醒时，四周浓烈的防腐液气味与连接在大脑皮层上的电极刺微痛。','脑共鸣实验/电极微痛',0.95,'rebirth_confinement',NULL,NULL,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(6,0,'C.xiuzai.W3','第一世界瑞典斯德哥尔摩大火与尘叔告别时他掌心的温热，以及被关进意识舱时隔着毛玻璃看见的冲天火光。','大火别离/温热掌心',0.96,'separation_regret',NULL,NULL,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(7,0,'C.xiuzai.W3','人造人机体内部齿轮精细咬合与电流信号传导时酥麻的机械冰冷感。','机体运作/机械冷感',0.85,'mechanical_desync',NULL,NULL,NULL,NULL,NULL);
-INSERT INTO "slow_memory" VALUES(12,0,'C.ryuya.W1','临别把古铜色金属挂坠交到朋友手上时，指尖触到金属的凉。（开场私设：挂坠；原著无此物。）','临别交坠/金属凉',0.9,'hope_relief',NULL,0,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(13,0,'C.kakashi.WMAIN','肖羽警车里残留的刺鼻汽油与焦糊塑料味，夹杂着暴雨中闪击的雷光。','肖羽警车/焦糊味',0.9,'fear_tension',NULL,NULL,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(14,0,'C.kakashi.WMAIN','千代田大楼顶层雷切电弧爆裂在手掌上的酥麻感，与写轮眼过载时的针刺样剧痛。','雷切电弧/电击痛',0.95,'physical_pain',NULL,NULL,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(15,0,'C.kakashi.WMAIN','新宿街头第一次吃冷便当时，米饭冰凉酸涩且难以下咽的生硬口感。','冷便当/酸涩冷感',0.85,'loneliness',NULL,NULL,NULL,NULL,NULL);
@@ -8243,6 +8242,35 @@ INSERT INTO "slow_memory" VALUES(34,0,'C.zhouze.WMAIN','新宿据点内，因黑
 INSERT INTO "slow_memory" VALUES(35,0,'C.zhangchen.WMAIN','苏颖很漂亮，学习一般，爱八卦，人缘却特别好；她叫他“阿尘”的声音，是那段普通日常里最鲜明的一部分。','苏颖生前/鲜明日常',0.96,'warmth_grief_fork',5903,0,'有个爱说笑、在人群里总不缺朋友的女孩留下的日常碎片，偶尔会让他在笑声里短暂停一下。',59,NULL);
 INSERT INTO "slow_memory" VALUES(36,0,'C.zhangchen.WMAIN','世界政府的电话追逼把他压到近乎崩溃；他烦躁地挂断苏颖的来电，那成了最后一次听见她的声音。后来苏颖从十六中坠楼，而他知道是龙也把她推了下去。','苏颖最后来电/坠楼',1.0,'grief_guilt_rage',5903,0,'急促的电话铃、没来得及好好说完的一句话，和校门口冷雨贴在皮肤上的感觉，会让他的笑意忽然变薄。',59,NULL);
 INSERT INTO "slow_memory" VALUES(37,0,'C.zhangchen.WMAIN','他曾被带进一个封闭的地方，被逼着写完全不想写的东西；用了两年才找到逃出的办法，之后又在各处游荡逃命。','封闭囚禁/两年逃出',0.99,'captivity_despair',2904,0,'封闭房间的白光、写不完的纸页和长期睡不安稳的警觉，仍会让他本能地先找出口。',29,NULL);
+INSERT INTO "slow_memory" VALUES(38,0,'C.ryuya.W1','国中那一枪之后，我第一次清楚感到：有另一个意识。身体不受控地哭、道歉，虔诚得不像谎言；有人问「你知道自己做了什么吗」，我却在问——大脑里的另一个我，你究竟是谁。','[W1-M1]国中觉察另一意识|n108e:L806-815',0.96,'uncanny_possession',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(39,0,'C.ryuya.W1','这个世界的他给我留了一个空位，让不同世界的两个意识可以共同存在。他长期不夺回控制权，安静看着，说喜欢看大家愉悦的样子。','[W1-M2]留空位共驻|n108e:L1105-1139;L914-915',0.9,'coexistence_quiet',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(40,0,'C.ryuya.W1','我看见他重压张尘、亲手推下那位女友、坐在警车里漠视崩溃；当张尘踏入世界政府的那一刻，我悲伤得几乎让意识崩塌——却拦不住实行的那一侧。','[W1-M3]目睹推女友与警车|n108e:L932-945',0.95,'grief_powerless',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(41,0,'C.ryuya.W1','共驻之后，这具身体的少年史我也持有：母亲笑与暴并存、离婚夜耳贴门、打乱修哉几小时拼完的风景拼图、他仍跟在身后喊哥哥。那是身体的过去；开枪取乐的主叙不归我抢。','[W1-M4]身体史童年版|n108e:L759-788',0.85,'distant_familiar',NULL,0,'我有个弟弟。',1,NULL);
+INSERT INTO "slow_memory" VALUES(42,0,'C.ryuya.W1','与挚友之间有过那样的约定与怒斥：如果这是命运，接受它，然后摧毁它。偏离时我会扇他、吼他，最后仍把这句话交到他手里。','[W1-M5]接受摧毁约定|n70-87:Ch84:L4265-4377',0.98,'fury_to_entrust',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(43,0,'C.ryuya.W1','他跳转离开时有三秒「电梯」。后来我每一次跳转都麻木复读同一套提示，却必须轻声念完「电梯即将向上」才敢合眼——总想那三秒里他到底想了什么。','[W1-M6]电梯仪式|n108e:L5597-5608',0.97,'numb_ritual',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(44,0,'C.ryuya.W1','三万多次跳转寻他。睁眼先看自己年龄成了习惯；第30541次却是幼小双手握枪、对面血泊中的妇女。脑内第一次响起与我相同的声音：「你是谁，为什么可以控制我的身体。」我抓住这人格分裂的机会——只为找到张尘，这一次不想再失败。','[W1-M7]30541幼手握枪|n108e:L5630-5654',0.99,'obsession_edge',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(45,0,'C.ryuya.W1','修哉曾愤怒推开想把你从仪器上撤下的人；抢救回来的只是脑死亡的活标本。他关在白板与公式的办公室里，说约好了一定接你回来。一定要找到你，然后带你回家——那是我们跳转的执着原因。','[W1-M8]带你回家|n108e:L5656-5677',0.99,'devotion_guilt',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(46,0,'C.ryuya.W1','最初意识跳转有去无回。后来修哉完善了仪器；暗物质与WIMP被观测到的消息撼动全世界，也撑起「还能继续跳、还能找」的冷硬背景。热的只有执念。','[W1-M9]跳转技术脉络|n108e:L5679-5701',0.88,'cold_tech_hot_will',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(47,0,'C.ryuya.W1','达斯特只是阿尘在世界政府内的代号；计划因DUST被称作RTW-LT-DS。某次我只能送他到透明舱门前：「我大概只能送你到这里了。」整栋晃动时我说：无论如何一定要阻止。门合上，火光涌起，电梯上行。','[W1-M10]送舱一定要阻止|n108e:L1854-1882',0.97,'farewell_urgency',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(48,0,'C.ryuya.W1','（旁证烙印）后文有人向修哉点破：温和的那一侧恐怕来自其他世界，以意识跃迁进入这具身体；尘叔对此一清二楚。这支撑我与挚友线的互认——我不是这世界原生的那一层。','[W1-M11]尘叔清楚跃迁旁证|n108e:L5441-5464',0.86,'identity_confirm',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(49,0,'C.ryuya.W1','街角咖啡馆。我促成了那次「泼袖」——对方以为自己手滑，我没点破，只笑着让对方坐下赔一杯。之后隔三差五又碰巧遇见，不留正式联系方式，一来二去成了可以抬杠也会沉默的朋友。两年了。','[W1-M12]咖啡馆泼袖两年|authored_opening',0.92,'warm_acquaintance',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(50,0,'C.ryuya.W1','第一世界的修哉交给我的古铜色金属挂坠，此刻还在我身上。指尖知道那金属的凉。今夜临别前必须交到眼前这个朋友手里——还没交。','[W1-M13]挂坠在身未交|authored_opening',0.94,'hope_relief',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(51,0,'C.ryuya.WMAIN','记忆中母亲微笑与暴躁共同存在着。父亲面带愁容时，我才真正懂得「精神分裂」这个词。','[WM-M1]母精神分裂|n108e:L759-761',0.9,'cold_awakening',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(52,0,'C.ryuya.WMAIN','父母决定分开的夜，我耳朵贴门。修哉拼完风景拼图说「他们吵架了」——安静在他理解里反而像吵架。我走过去打乱那幅他几小时拼完、我要几星期的图。这大概就是嫉妒。打骂他，他仍只喊哥哥。','[WM-M2]打乱拼图|n108e:L771-782',0.93,'jealousy_kin',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(53,0,'C.ryuya.WMAIN','母亲被送去国外疗养，婚姻结束。她想带走修哉，他却留下跟我。不多喝酒的父亲那晚喝醉，重复叹息：希望龙也可以一直都是个正常的孩子。','[WM-M3]父醉希望正常|n108e:L784-787',0.91,'expectation_crush',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(54,0,'C.ryuya.WMAIN','国中那年真纪更黏修哉，我最后的安慰崩塌。我对父亲、表姐、弟弟说对不起——可开枪不是为了保护父亲，只是想看头被子弹崩碎、血浆飞溅。十几年用微笑对无数人撒谎。','[WM-M4]国中开枪取乐|n108e:L789-810',0.98,'kill_pleasure_mask',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(55,0,'C.ryuya.WMAIN','同一枪后，我无法控制身体：像有另一个人在操纵我哭、道歉。完全不像谎言。那是我第一次被另一意识上台——失控，且清醒地感到失控。','[WM-M5]身体被夺哭道歉|n108e:L812-815',0.97,'loss_of_control',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(56,0,'C.ryuya.WMAIN','为重获组织信任，我从日本辞职到中国定居、成了有家庭的人——做给家人和朋友看，等他们放松警惕。然后我亲自安排一出戏，杀了父亲。坦白时手不停摩擦掌心、发抖。擒拿术是父亲教的；他察觉政府与我替政府办事时，我不能让他的死毫无意义。','[WM-M6]弑父戏|n1-69:Ch60:L18886-18909',1.0,'guilt_exchange',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(57,0,'C.ryuya.WMAIN','对张尘：邀约攻占各种联系方式；在十六中正门亲手把他的女友推下去；自己坐在警车里看着他把学生揍出血、看着他崩溃——脸没有变过。','[WM-M7]推女友警车漠视|n1-69:L18721-18738;n108e:L942-943',1.0,'cold_execution',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(58,0,'C.ryuya.WMAIN','切断监控后我对张尘说：不认同肃清那套理念。也说，我有个亲生弟弟折原修哉，他是天才——嫉妒也不假，可当他喊我老哥，我下不了手去杀这样的天才。','[WM-M8]切监控谈修哉|n1-69:Ch60:L18854-18930',0.94,'helpless_kin',NULL,0,'我有个弟弟。',1,NULL);
+INSERT INTO "slow_memory" VALUES(59,0,'C.ryuya.WMAIN','真纪从小阿龙阿龙使唤我，我笑着做。人缘好时被人设计，想办法；不行就有修哉出主意脱身。我们从一开始就像在互相保护。','[WM-M9]与修哉互相保护|n1-69:L6233-6300',0.87,'warmth_duty',NULL,0,'我有个弟弟。',1,NULL);
+INSERT INTO "slow_memory" VALUES(60,0,'C.ryuya.WMAIN','我对真纪说过：阿修是测试过的真正天才。看着自己的手掌问——为什么他的天赋我一点都没有？又说：真好啊，那是我弟弟。','[WM-M10]看手掌说天才弟|n1-69:L6268-6280',0.92,'jealousy_love',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(61,0,'C.ryuya.WMAIN','警校后实习，修哉故意打架再报警帮我快速转正；我进警视厅涉外，上司佐佐木宪二。出国办案常带修哉当翻译。我说喜欢中国，怂恿一行人旅行；后来看上了一位中国姑娘——成了婚。（开场对玩家：只可淡说已婚，不露是谁。）','[WM-M11]涉外中国结婚|n1-69:L6316-6336',0.9,'career_china_marriage',NULL,0,'我结婚了。',1,NULL);
+INSERT INTO "slow_memory" VALUES(62,0,'C.ryuya.WMAIN','我向修哉解释过：父亲离婚不是感情不和，是怕工作危险连累家人；曾想让母亲带走孩子移民，我说什么也不肯走，修哉更不愿离开我。谁都没能拗过谁。','[WM-M12]解释离婚真因|n1-69:L6344-6352',0.88,'family_bind',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(63,0,'C.ryuya.WMAIN','世界级编程赛前，我劝修哉不要参赛，越吵越凶。劝不服，我毁了他的电脑和硬盘、删掉记录。他表面道歉，背着我重写寄出——这件事当时只有他跟真纪说过。','[WM-M13]毁硬盘劝赛|n1-69:L6382-6401',0.93,'hard_refusal',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(64,0,'C.ryuya.WMAIN','中国办案时遇见大四实习的她；回国后国际长途；有近一年忙到少联系，感情淡了却质变。后来移民结婚。我说：放在心底的感情才最不可能被淡忘。懒蛋粘我；有一阵子我情绪很低沉。（开场不露配偶姓名。）','[WM-M14]遇妻结婚懒蛋|n1-69:L8116-8173',0.91,'married_low_mood',NULL,0,'我结婚了。',1,NULL);
+INSERT INTO "slow_memory" VALUES(65,0,'C.ryuya.WMAIN','我有事没事爱唱那首歌。涉外外勤，佐佐木器重。婚后不久有一天我很懊恼地说：给佐佐木警部添麻烦了。','[WM-M15]歌与佐佐木麻烦|n1-69:L9560-9607',0.84,'unease_duty',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(66,0,'C.ryuya.WMAIN','懒蛋几乎只跟我亲。我说恐怕自己有什么动物的体质，常看它往身上蹭，就抱着它。','[WM-M16]懒蛋动物体质|n1-69:L6047-6048',0.8,'soft_habit',NULL,0,NULL,NULL,NULL);
 CREATE TABLE snapshots(
   snap_id INTEGER PRIMARY KEY, run INTEGER, node_id TEXT, created_at INTEGER, blob BLOB);
 CREATE TABLE source_manifest(
@@ -8279,6 +8307,6 @@ CREATE INDEX idx_run_meta_parent ON run_meta(parent_run);
 DELETE FROM "sqlite_sequence";
 INSERT INTO "sqlite_sequence" VALUES('occupancy',30);
 INSERT INTO "sqlite_sequence" VALUES('body_transfers',2);
-INSERT INTO "sqlite_sequence" VALUES('slow_memory',37);
+INSERT INTO "sqlite_sequence" VALUES('slow_memory',66);
 INSERT INTO "sqlite_sequence" VALUES('fronting_canon',6);
 COMMIT;

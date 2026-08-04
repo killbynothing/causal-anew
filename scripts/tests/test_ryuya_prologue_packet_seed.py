@@ -49,9 +49,8 @@ def test_ryuya_prologue_packet_has_want_memory_bodyframe_slow():
         assert isinstance(bf, dict)
         assert bf.get("holding") == "I.PENDANT_ANCHOR"
         slow_cands = (packet.get("memory_activation") or {}).get("slow_memory_candidates") or []
-        assert any(int(x.get("mem_id") or 0) == 12 for x in slow_cands), slow_cands
-        slow_act = (packet.get("memory_activation") or {}).get("slow_memory_activated") or []
-        assert any(int(x.get("mem_id") or 0) == 12 for x in slow_act), slow_act
+        assert any("挂坠" in str(x.get("text") or "") for x in slow_cands), slow_cands
+        assert len(slow_cands) >= 10, f"candidate pool too small after episodic migrate: {len(slow_cands)}"
 
 
 if __name__ == "__main__":

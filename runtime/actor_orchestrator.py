@@ -53,8 +53,9 @@ def enrich_packet_with_same_turn_prior(
     if slot == "secondary":
         extra = (
             "本拍前一位同伴已经开口，你听见了。"
-            "禁止复述相同信息点；禁止再提同一个新问题；"
-            "只做短促附和、补充一条新信息、保护或打圆场。"
+            "像真人聊天那样接：短附和、补一句新细节、或自然拐到你自己眼前的事都可以；"
+            "不要换皮复述别人刚说完的同一句。"
+            "若你这拍没什么要补的，可以只做一个可见反应。"
         )
         prev = str(contract.get("social_instruction") or "").strip()
         contract["social_instruction"] = f"{prev} {extra}".strip() if prev else extra
@@ -93,6 +94,8 @@ def _run_actors_sequential(
             actor_turns = [dict(item) for item in (actor_payload.get("turns") or []) if isinstance(item, dict)]
             turns.extend(actor_turns)
             prior_turns.extend(actor_turns)
+            if isinstance(packet, dict) and isinstance(actor_payload.get("pre_speech"), dict):
+                packet["pre_speech"] = copy.deepcopy(actor_payload["pre_speech"])
             actor_decisions.extend(actor_payload.get("actor_decisions", []) or [])
             degradations.extend(actor_payload.get("degradations", []) or [])
             actor_receipt = actor_payload.get("context_receipt")
@@ -102,6 +105,8 @@ def _run_actors_sequential(
                 receipt["response_slot"] = str(
                     (enriched.get("conversation_contract") or {}).get("response_slot") or ""
                 ) or None
+                if isinstance(actor_payload.get("pre_speech"), dict):
+                    receipt["pre_speech"] = copy.deepcopy(actor_payload["pre_speech"])
                 context_receipts.append(receipt)
         except Exception as exc:
             errors.append(f"{cons}:{exc}")

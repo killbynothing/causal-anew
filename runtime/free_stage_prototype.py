@@ -1003,6 +1003,16 @@ def settle_body_frames_from_npc_turns(
                 note="单反已放下",
                 last_action_type="object_handle",
             )
+        elif holding_now == "I.PHONE" and "手机" in stage and any(
+            k in stage for k in ("递", "还", "交", "塞", "放回", "还给")
+        ):
+            apply_body_frame_holding(
+                frames,
+                body_id=body_id,
+                holding=None,
+                note="手机已交还或递出",
+                last_action_type="object_handle",
+            )
         frame["cons_id"] = cons
     if isinstance(card, dict):
         card["_body_frames"] = frames
@@ -1046,6 +1056,15 @@ def build_actor_context_packet(
         # 玩家已经公开说出的否定/承诺，是现场所有人共同要面对的事实；
         # 它不是导演指令，也绝不能被人格模型当成可忽略的闲聊。
         physical_scene["玩家已确认的现场事实"] = visible_scene_facts
+    solidified = [str(item) for item in card.get("_solidified_visible_facts", []) if str(item).strip()]
+    if solidified:
+        physical_scene["场面已成立的事实"] = solidified
+    holding_map = build_visible_holding_map(card)
+    if holding_map:
+        physical_scene["场上可见物态"] = holding_map
+    object_use = extract_object_use_memory(card, history)
+    if object_use:
+        physical_scene["本场用过的物件"] = object_use
     language_obs = str(card.get("_language_discovery_observation") or "").strip()
     if language_obs:
         physical_scene["你刚听见的"] = language_obs
@@ -2375,6 +2394,340 @@ def _c16_intro_wave_pending(
     return [cons for cons in _c16_intro_npc_cons(card) if cons not in introduced]
 
 
+def _tiananmen_intro_wave_pending(
+    card: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> list[str]:
+    """After one name lands on Tiananmen, prefer remaining unbound trio members.
+
+    Xiuzai often roster-introduces everyone in one breath; if evidence only binds
+    him, Kakashi/Akito should still get a short reciprocity beat without waiting
+    for the player to ask again.
+    """
+    if str(card.get("scene_id") or "") != "OPENING_TIANANMEN_002":
+        return []
+    introduced = _npc_introduced_to_player_after_turn(card, history, None, 0)
+    if not introduced:
+        return []
+    # Keep the wave short: only the next unbound onstage trio member.
+    present = {str(c) for c in (card.get("present") or [])}
+    order = [c for c in MAIN_TRIO if c in present]
+    pending = [c for c in order if c not in introduced]
+    return pending[:1]
+
+
+def build_visible_holding_map(card: dict[str, Any]) -> list[str]:
+    """Director-visible object/possession state for every body on stage.
+
+    Pendant stays in BodyFrame for continuity but is not specially announced here.
+    """
+    frames = card.get("_body_frames") if isinstance(card.get("_body_frames"), dict) else {}
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    lines: list[str] = []
+    for body_id, frame in frames.items():
+        if not isinstance(frame, dict):
+            continue
+        cons = str(frame.get("cons_id") or "").strip()
+        who = str((personas.get(cons) or {}).get("name") or cons or body_id).strip() or str(body_id)
+        holding = frame.get("holding")
+        note = str(frame.get("note") or "").strip()
+        # 挂坠：连续态保留，可见物态列表不特提。
+        if holding == "I.PENDANT_ANCHOR":
+            continue
+        if holding:
+            label = {
+                "I.PHONE": "手机",
+                "I.CAMERA_DSLR": "单反",
+                "I.WATER_BOTTLE": "水瓶",
+            }.get(str(holding), str(holding))
+            line = f"{who}手中持有{label}"
+            if note and "挂坠" not in note:
+                line = f"{line}（{note}）"
+            lines.append(line)
+        elif note and any(mark in note for mark in ("已", "交", "还", "递", "放下")) and "挂坠" not in note:
+            lines.append(f"{who}：{note}")
+    return lines
+
+
+_OBJECT_USE_PATTERNS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("I.PHONE", "手机", ("手机",)),
+    ("I.CAMERA_DSLR", "单反", ("单反", "相机", "镜头")),
+)
+
+
+def extract_object_use_memory(
+    card: dict[str, Any],
+    history: list[dict[str, Any]] | None,
+) -> list[str]:
+    """Mine dialogue/stage for props characters have used or handled (not pendant)."""
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(line: str) -> None:
+        text = str(line or "").strip()
+        if not text or text in seen:
+            return
+        seen.add(text)
+        out.append(text)
+
+    frames = card.get("_body_frames") if isinstance(card.get("_body_frames"), dict) else {}
+    for frame in frames.values():
+        if not isinstance(frame, dict):
+            continue
+        holding = frame.get("holding")
+        cons = str(frame.get("cons_id") or "").strip()
+        who = str((personas.get(cons) or {}).get("name") or cons).strip()
+        if holding == "I.CAMERA_DSLR" and who:
+            _add(f"{who}本场带着单反（可被问及拍摄）。")
+        elif holding == "I.PHONE" and who:
+            _add(f"{who}本场正拿着手机。")
+
+    for item in history or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("player_visible") is False or str(item.get("audience") or "") == "director_only":
+            continue
+        role = str(item.get("role") or "").strip()
+        if role not in {"npc", "player", "bridge", "narrate", "canon", ""}:
+            continue
+        blob = f"{item.get('text') or ''} {item.get('stage') or ''}"
+        if "挂坠" in blob:
+            # 挂坠不进公开「用过的物件」列表。
+            continue
+        cons = str(item.get("cons") or item.get("speaker_cons") or "").strip()
+        if not cons and role == "npc":
+            cons = _cons_from_speaker(card, item.get("speaker")) or ""
+        who = str((personas.get(cons) or {}).get("name") or item.get("speaker") or cons or "有人").strip()
+        for item_id, label, keys in _OBJECT_USE_PATTERNS:
+            if not any(k in blob for k in keys):
+                continue
+            if role == "player":
+                _add(f"玩家言行涉及{label}。")
+            else:
+                if any(k in blob for k in ("拍", "摄", "录", "看", "递", "还", "拿", "举", "掏", "借")):
+                    _add(f"{who}本场用过/经手过{label}。")
+                else:
+                    _add(f"场上提到{label}（与{who}相关）。")
+    return out
+
+
+def synthesize_pre_speech(packet: dict[str, Any], raw: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Ensure think-then-speak receipt exists (model-authored preferred)."""
+    raw = raw if isinstance(raw, dict) else {}
+    if any(str(raw.get(k) or "").strip() for k in ("notice", "intention", "social_move", "think")):
+        return {
+            "notice": str(raw.get("notice") or raw.get("think") or "").strip(),
+            "intention": str(raw.get("intention") or "").strip(),
+            "social_move": str(raw.get("social_move") or "").strip(),
+            "synthesized": False,
+        }
+    inner = (packet.get("self_state") or {}).get("inner_state") or {}
+    contract = packet.get("conversation_contract") or {}
+    slot = str(contract.get("response_slot") or "primary")
+    holding = (packet.get("body_frame_now") or {}).get("holding")
+    notice_bits = []
+    scene = packet.get("physical_scene") or {}
+    if scene.get("场面已成立的事实"):
+        notice_bits.append("场面已有成立事实")
+    if scene.get("场上可见物态"):
+        notice_bits.append("看见物态往来")
+    if packet.get("same_turn_prior_speech"):
+        notice_bits.append("同伴本拍已先开口")
+    if holding and holding != "I.PENDANT_ANCHOR":
+        notice_bits.append(f"自己手里有{holding}")
+    move = "primary" if slot == "primary" else "continuer"
+    return {
+        "notice": "；".join(notice_bits) or "承接眼前可听可见",
+        "intention": str(inner.get("want_now") or contract.get("social_instruction") or "自然接话").strip()[:160],
+        "social_move": move,
+        "synthesized": True,
+    }
+
+
+def build_solidified_visible_facts(
+    card: dict[str, Any],
+    history: list[dict[str, Any]] | None,
+    *,
+    run_observation_ledger: list[dict[str, Any]] | None = None,
+    scene_receipts: list[dict[str, Any]] | None = None,
+    branch_progress: list[str] | None = None,
+    extra_facts: list[str] | None = None,
+) -> list[str]:
+    """Scene-common solidified facts that every present actor should see in-packet.
+
+    Emergence path: no output hard-gate; facts must be visible before speech.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+
+    def _add(text: str) -> None:
+        line = str(text or "").strip()
+        if not line or line in seen:
+            return
+        seen.add(line)
+        out.append(line)
+
+    for fact in extra_facts or []:
+        _add(str(fact))
+
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    for row in build_player_name_binding_ledger(card, history or []):
+        if row.get("knowledge_kind") != "referent_bound":
+            continue
+        name_form = str(row.get("name_form") or "").strip()
+        cons = str(row.get("cons") or "").strip()
+        who = str((personas.get(cons) or {}).get("name") or cons).strip()
+        evidence = str(row.get("evidence_kind") or "").strip()
+        if evidence == "self_introduction" and who:
+            _add(f"场上已成立：{who}已向玩家自报过身份（可称作「{name_form}」）。")
+        elif name_form:
+            _add(f"场上已成立：眼前人物可被称作「{name_form}」。")
+
+    introduced = _npc_self_introduced_to_player_after_turn(card, history, None, 0)
+    for cons in sorted(introduced):
+        who = str((personas.get(cons) or {}).get("name") or cons).strip()
+        if who:
+            _add(f"场上已成立：{who}已向玩家自报过身份。")
+
+    progress = {str(x) for x in (branch_progress or []) if str(x).strip()}
+    if "tiananmen_video_unavailable" in progress:
+        _add("场上已成立：玩家明确说自己没有录到升旗视频；不得再次向其索取视频。")
+    if "tiananmen_video_offered" in progress:
+        _add("场上已成立：玩家已答应可以借看升旗视频；本场已谈妥，不要再重复开口借。")
+
+    for obs in run_observation_ledger or []:
+        if not isinstance(obs, dict):
+            continue
+        text = str(obs.get("fact_text") or obs.get("text") or "").strip()
+        if text:
+            _add(f"本周目已观察：{text}")
+
+    for receipt in scene_receipts or []:
+        if not isinstance(receipt, dict):
+            continue
+        fact_id = str(receipt.get("fact_id") or "").strip()
+        kind = str(receipt.get("kind") or "").strip()
+        note = str(receipt.get("note") or receipt.get("summary") or "").strip()
+        if note:
+            _add(f"场次收据：{note}")
+        elif fact_id:
+            _add(f"场次收据：{fact_id}" + (f"（{kind}）" if kind else ""))
+
+    return out
+
+
+OPENING_TRIO_SOCIAL_HABITS: dict[str, str] = {
+    "C.xiuzai.WMAIN": (
+        "你习惯半开玩笑编排场面、拦同伴漏嘴；"
+        "但你不是每一句都包办——该秋人开口时你让一让，晴明少说时你也不硬拽他抢麦。"
+    ),
+    "C.akito.WMAIN": (
+        "你实诚，单反拍砸了会尴尬；"
+        "若对方听得懂，你很自然想找补——比如开口借看一段升旗视频；"
+        "别总等别人替你把这句说完。"
+    ),
+    "C.kakashi.WMAIN": (
+        "你边界感强，少主动抢话头；"
+        "被点到、或需要短接一下场面时再开口，一两句就够。"
+    ),
+}
+
+
+def hold_slot_social_hint(
+    identity_relations: list[dict[str, Any]] | None,
+    response_slot: str,
+    *,
+    actor_cons: str = "",
+) -> str:
+    """Project REL.HOLD × participation slot into a soft social hint (not a hard gate)."""
+    holds = [
+        row
+        for row in (identity_relations or [])
+        if isinstance(row, dict)
+        and (
+            str(row.get("prop_id") or "").startswith("REL.HOLD.")
+            or str(row.get("projection") or "") == "relation_hold"
+        )
+        and str(row.get("fact") or "").strip()
+    ]
+    habit = str(OPENING_TRIO_SOCIAL_HABITS.get(str(actor_cons) or "") or "").strip()
+    base_parts: list[str] = []
+    if holds:
+        snippets = "；".join(str(row.get("fact") or "").strip()[:80] for row in holds[:3])
+        base_parts.append(f"你与同伴的相处底色：{snippets}。")
+    if habit:
+        base_parts.append(habit)
+    base = " ".join(base_parts).strip()
+    slot = str(response_slot or "").strip()
+    if slot == "secondary":
+        extra = (
+            "本拍已有同伴先开口：你听见了。"
+            "像真人聊天那样接——短附和、补一句新细节、或自然拐到你自己眼前的事都可以；"
+            "不要换皮复述别人刚说完的同一句。"
+            "若你这拍没什么要补的，可以只做一个可见反应、少说话。"
+        )
+        return f"{base} {extra}".strip() if base else extra
+    if slot == "primary" and base:
+        return f"{base} 你是本拍主话轮时按自己的相处方式带场面；已报过的身份不必整场重报。"
+    return base
+
+
+def annotate_packets_with_spoken_turns(
+    packets: dict[str, Any],
+    turns: list[dict[str, Any]],
+    card: dict[str, Any],
+) -> None:
+    """Attach this-beat speech onto each actor packet for observer input→output."""
+    by_cons: dict[str, list[dict[str, str]]] = {}
+    for item in turns or []:
+        if not isinstance(item, dict):
+            continue
+        cons = str(item.get("cons") or item.get("speaker_cons") or "").strip()
+        if not cons:
+            cons = _cons_from_speaker(card, item.get("speaker")) or ""
+        if not cons:
+            continue
+        by_cons.setdefault(cons, []).append(
+            {
+                "text": str(item.get("text") or ""),
+                "stage": str(item.get("stage") or ""),
+            }
+        )
+    for cons, packet in (packets or {}).items():
+        if isinstance(packet, dict):
+            packet["spoken_this_turn"] = list(by_cons.get(str(cons), []))
+
+
+def fact_packet_coverage(
+    facts: list[str],
+    packets: dict[str, Any],
+) -> list[dict[str, Any]]:
+    """Observer helper: which solidified facts landed inside each packet scene."""
+    rows: list[dict[str, Any]] = []
+    for fact in facts or []:
+        text = str(fact or "").strip()
+        if not text:
+            continue
+        holders: list[str] = []
+        for cons, packet in (packets or {}).items():
+            if not isinstance(packet, dict):
+                continue
+            scene = packet.get("physical_scene") or {}
+            blob = json.dumps(scene, ensure_ascii=False)
+            if text in blob:
+                holders.append(str(cons))
+        rows.append({"fact": text, "in_packets": holders, "missing": not holders})
+    return rows
+
+
+def _opening_intro_wave_pending(
+    card: dict[str, Any],
+    history: list[dict[str, Any]],
+) -> list[str]:
+    return _c16_intro_wave_pending(card, history) or _tiananmen_intro_wave_pending(card, history)
+
+
 def build_player_observation_ledger(
     history: list[dict[str, Any]],
     *,
@@ -2718,7 +3071,7 @@ def project_initial_inner_state(cons: str, ch_anchor: int) -> dict[str, Any]:
         "C.kakashi.WMAIN": {
             "want_now": "在人群里维持一个普通游客的样子，别把注意力引到自己身上。",
             "knot": "本不该在这个世界、本不叫这个名字；越像个普通人跟着笑闹，越提醒自己是外来者。（不涉忍者身份细节）",
-            "unsaid": "他其实一进场就察觉了你的存在，故意躲着——不想让你为难，也不想被看穿。",
+            "unsaid": "",
             "stance_to_player": "温和有礼，但对身份/过去/镜头始终隔着一层日语的距离。",
             "_from_opening": True
         },
@@ -2801,6 +3154,21 @@ def project_initial_inner_state(cons: str, ch_anchor: int) -> dict[str, Any]:
         "stance_to_player": "中性",
         "_from_opening": True
     })
+
+
+def _merge_inner_for_observatory(
+    raw_inner: dict[str, Any] | None,
+    cons: str,
+    ch_anchor: int,
+) -> dict[str, Any]:
+    """Observatory merge: card/session wins; never fill unsaid/knot from defaults."""
+    raw = dict(raw_inner) if isinstance(raw_inner, dict) else {}
+    default_inner = project_initial_inner_state(cons, int(ch_anchor or 0))
+    merged = dict(raw)
+    for key in ("want_now", "stance_to_player"):
+        if not str(merged.get(key) or "").strip() and default_inner.get(key):
+            merged[key] = default_inner[key]
+    return merged
 
 
 def load_config() -> tuple[dict[str, Any], str]:
@@ -3889,7 +4257,10 @@ def repair_same_turn_content_overlap(
         if slot == "secondary" and text and primary_blob:
             # Overlap heuristic: shared contentful trigrams / key ask tokens.
             overlap_tokens = []
-            for token in ("借", "视频", "拷", "看看", "录到", "海洋馆", "名字", "自我介绍"):
+            for token in (
+                "借", "视频", "拷", "看看", "录到", "海洋馆", "名字", "自我介绍",
+                "折原修哉", "川口秋人", "坂本晴明", "听得懂", "日语", "中文",
+            ):
                 if token in text and token in primary_blob:
                     overlap_tokens.append(token)
             # Near-duplicate short replies
@@ -4518,12 +4889,13 @@ def build_speaker_plan(
     is_c16_gate = str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
     is_tiananmen = str(card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
     subtle_c16_watch = False
-    if is_c16_gate or is_tiananmen:
-        # H06 / 多方 turn-taking：整拍最多主+次两槽，禁止三人合唱撞词。
+    if is_c16_gate:
+        # 十六中：整拍最多主+次两槽，禁止三人合唱撞词。
         max_speakers = min(int(max_speakers), 2)
-        subtle_c16_watch = is_c16_gate and _c16_subtle_peripheral_watch(
+        subtle_c16_watch = _c16_subtle_peripheral_watch(
             player_input if isinstance(player_input, dict) else {"action": player_input}
         )
+    # 天安门：不卡死两人；默认上限 MAX_BID_SPEAKERS，可说可不说由竞价与串行决定。
     scene_state = build_bidding_scene_state(card, history)
     present = scene_state.get("present_characters", [])
     agent_states = {
@@ -4581,7 +4953,7 @@ def build_speaker_plan(
                 bid_item["score"] = float(bid_item.get("score", 0.0)) - 1.00
                 bid_item.setdefault("reasons", []).append("c16_attention_occupied")
     bids.sort(key=lambda x: x.get("score", 0.0), reverse=True)
-    intro_wave_pending = _c16_intro_wave_pending(card, history)
+    intro_wave_pending = _opening_intro_wave_pending(card, history)
     if intro_wave_pending and not direct_addressee and not has_public_speech:
         direct_addressee = intro_wave_pending[0]
         conversation_contract = {
@@ -4595,13 +4967,37 @@ def build_speaker_plan(
     beat_speaker_hints: list[str] = []
     completed_set = set(completed or [])
     branch_set = set(branch_progress or [])
-    if is_tiananmen and "TM3" not in completed_set and "TM2" in completed_set:
+    if is_tiananmen:
         language_ok = "tiananmen_japanese_understood" in branch_set or (
             "tiananmen_japanese_understood"
             in tiananmen_player_facts(player_input, recent_history=history)
         )
-        if language_ok and "C.xiuzai.WMAIN" in (card.get("persona_cards") or {}):
-            # TM3 authored spine: Xiuzai self-introduces the trio after language lands.
+        video_settled = (
+            "tiananmen_video_offered" in branch_set
+            or "tiananmen_video_unavailable" in branch_set
+        )
+        personas = card.get("persona_cards") or {}
+        if language_ok and not video_settled and "C.akito.WMAIN" in personas:
+            # Natural: camera botched + can communicate → Akito may ask to borrow a clip.
+            for bid_item in bids:
+                if bid_item.get("cons") == "C.akito.WMAIN":
+                    bid_item["score"] = float(bid_item.get("score", 0.0) or 0.0) + 0.55
+                    bid_item.setdefault("reasons", []).append("natural_video_ask_opening")
+            beat_speaker_hints.append("C.akito.WMAIN")
+            bids.sort(
+                key=lambda x: (
+                    x.get("cons") not in beat_speaker_hints,
+                    -float(x.get("score", 0.0) or 0.0),
+                )
+            )
+        elif (
+            language_ok
+            and "TM3" not in completed_set
+            and "TM2" in completed_set
+            and "C.xiuzai.WMAIN" in personas
+        ):
+            # After video line settles (or moves on), Xiuzai often carries the intro beat —
+            # without owning every line of the scene.
             beat_speaker_hints.append("C.xiuzai.WMAIN")
             bids.sort(
                 key=lambda x: (
@@ -5353,6 +5749,17 @@ def _maybe_emit_director_beats(
         fired.add(beat_id)
 
 
+def _speaker_label_leaks_unbound_name(speaker: str, cons: str) -> str | None:
+    """Exact speaker-label match only (no short-name substring of full name)."""
+    sp = str(speaker or "").strip()
+    if not sp:
+        return None
+    for name in sorted((n for n in real_names(cons) if n), key=len, reverse=True):
+        if sp == name:
+            return name
+    return None
+
+
 def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[str, Any] | None = None) -> list[str]:
     issues = []
 
@@ -5364,6 +5771,10 @@ def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[s
             if "MH2" in progress or "T3" in progress or "TM3" in progress:
                 intro_done_turns.add(item.get("turn", 0))
     min_intro_turn = min(intro_done_turns) if intro_done_turns else None
+    # Progressive referent binding: already-bound cons may legally show real speaker labels.
+    known_bound: set[str] = set()
+    if card is not None:
+        known_bound = _npc_introduced_to_player_after_turn(card, history, None, 0)
 
     for idx, item in enumerate(history):
         turn_no = item.get("turn", 0)
@@ -5422,10 +5833,14 @@ def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[s
                                 continue
                             issues.append(f"turn {idx+1}: pre-intro real name '{name}' leaked to player")
                 else:
-                    # 只闸玩家可见 speaker 标签；台词里同伴互称/正式自报是披露事件，不在此洗。
-                    for name in [n for c in MAIN_TRIO for n in real_names(c)]:
-                        if name and name in str(speaker or ""):
-                            issues.append(f"turn {idx+1}: pre-intro real name '{name}' leaked to player")
+                    # Speaker label only; dialogue mutual address / self-intro are disclosure events.
+                    # Bound referents may show full/short names before scene-level TM3.
+                    for cons in MAIN_TRIO:
+                        if cons in known_bound:
+                            continue
+                        leaked = _speaker_label_leaks_unbound_name(str(speaker or ""), cons)
+                        if leaked:
+                            issues.append(f"turn {idx+1}: pre-intro real name '{leaked}' leaked to player")
             
             if speaker in real_names("C.kakashi.WMAIN") + [pre_intro_name("C.kakashi.WMAIN")]:
                 # 禁假名；（日语）标注在语言确认前合法。
@@ -7434,10 +7849,7 @@ class FreeStageSession:
             if not isinstance(persona, dict):
                 continue
             raw_inner = persona.get("inner_state", {}) if isinstance(persona.get("inner_state"), dict) else {}
-            default_inner = project_initial_inner_state(cons, ch_anchor)
-            merged = {k: raw_inner.get(k, v) for k, v in default_inner.items()}
-            merged.update({k: v for k, v in raw_inner.items() if k not in merged})
-            inner_states[cons] = merged
+            inner_states[cons] = _merge_inner_for_observatory(raw_inner, str(cons), ch_anchor)
             boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
         run_no = int(self.world_cursor.get("run", 1) or 1)
         slow_mem_count = sum(
@@ -9042,6 +9454,15 @@ class FreeStageSession:
                 resolved_card["_language_discovery_observation"] = self._language_discovery_observation
             else:
                 resolved_card.pop("_language_discovery_observation", None)
+        # Solidified run/scene facts → every actor packet (emergence, not hard gate).
+        resolved_card["_solidified_visible_facts"] = build_solidified_visible_facts(
+            resolved_card,
+            self.history,
+            run_observation_ledger=getattr(self, "run_observation_ledger", None),
+            scene_receipts=getattr(self, "scene_receipts", None),
+            branch_progress=list(self.branch_progress),
+            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
+        )
         if (
             resolved_card.get("prologue_active")
             and "C.ryuya.W1" in (resolved_card.get("persona_cards") or {})
@@ -9196,6 +9617,17 @@ class FreeStageSession:
                     "social_instruction": plan_item.get("social_instruction", ""),
                     "max_new_questions": 2 if plan_item.get("response_slot", "primary") == "primary" else 0,
                 }
+                hold_hint = hold_slot_social_hint(
+                    pkt.get("identity_relations"),
+                    str(plan_item.get("response_slot") or "primary"),
+                    actor_cons=str(cons),
+                )
+                if hold_hint:
+                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
+                    pkt["conversation_contract"]["social_instruction"] = (
+                        f"{prev_si} {hold_hint}".strip() if prev_si else hold_hint
+                    )
+                    pkt["conversation_contract"]["hold_participation_hint"] = hold_hint
                 if ott.is_opening_top_tier_scene(resolved_card):
                     # Zero-LLM selftest double reads this; production LLMs ignore underscore keys.
                     pkt["_playtest"] = {
@@ -9303,6 +9735,9 @@ class FreeStageSession:
         turn_degradations: list[dict[str, Any]] = []
         committed_actor_decisions: list[dict[str, Any]] = []
         context_receipts: list[dict[str, Any]] = []
+        turns: list[dict[str, Any]] = []
+        progress: list[str] = []
+        new_progress: list[str] = []
         try:
             # Production: director may overlap wall-clock with the actor chain;
             # actors themselves are always sequential so secondary hears primary.
@@ -9797,10 +10232,11 @@ class FreeStageSession:
         for cons, persona in resolved_card.get("persona_cards", {}).items():
             if isinstance(persona, dict):
                 raw_inner = self.private_inner_states.get(cons) or persona.get("inner_state", {})
-                default_inner = project_initial_inner_state(cons, ch_anchor)
-                merged = {k: raw_inner.get(k, v) for k, v in default_inner.items()}
-                merged.update({k: v for k, v in raw_inner.items() if k not in merged})
-                inner_states[cons] = merged
+                inner_states[cons] = _merge_inner_for_observatory(
+                    raw_inner if isinstance(raw_inner, dict) else {},
+                    str(cons),
+                    int(ch_anchor or 0),
+                )
                 
                 # 优先读取卡里的 boundaries，否则从全局 persona_core 投影
                 boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
@@ -9823,6 +10259,18 @@ class FreeStageSession:
             dict(_resolved_layers.get("per_npc_knowledge_gate", {})),
             privileged_facts,
         )
+
+        annotate_packets_with_spoken_turns(actor_context_packets, turns, resolved_card)
+        solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
+        solidified_now = build_solidified_visible_facts(
+            resolved_card,
+            self.history,
+            run_observation_ledger=getattr(self, "run_observation_ledger", None),
+            scene_receipts=getattr(self, "scene_receipts", None),
+            branch_progress=list(self.branch_progress),
+            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
+        )
+        packet_coverage = fact_packet_coverage(solidified_pre_speak, actor_context_packets)
 
         debug_payload = {
             "schema_version": "free_stage.debug_payload.v3",
@@ -9966,6 +10414,11 @@ class FreeStageSession:
             "run_observation_ledger": [
                 dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)
             ],
+            "solidified_visible_facts": solidified_now,
+            "solidified_facts_in_packets": solidified_pre_speak,
+            "fact_packet_coverage": packet_coverage,
+            "visible_holding_map": build_visible_holding_map(resolved_card),
+            "object_use_memory": extract_object_use_memory(resolved_card, self.history),
             "assembly_projection": self._assembly_projection_status(resolved_card),
         }
         self.debug_history.append(debug_payload)
@@ -10915,6 +11368,11 @@ def call_actor_packet(
     request = {
         "actor_context_packet": prompt_packet,
         "output_contract": {
+            "pre_speech": {
+                "notice": "这一拍你注意到什么（环境/物态/同伴刚说的）",
+                "intention": "你打算怎么接（一句话，对内，不是台词）",
+                "social_move": "primary|continuer|assessment|increment|pivot",
+            },
             "turns": [
                 {
                     "speaker": "仅你自己",
@@ -10927,6 +11385,7 @@ def call_actor_packet(
         },
         "instruction": (
             "你只扮演 actor_cons 所示角色；只输出 JSON；"
+            "必须先填 pre_speech（先想），再写 turns（再说）；pre_speech 不是给玩家看的旁白；"
             "turns 只写你自己的一个响应槽；"
             "若你是主响应：通常 1-3 句。话少时可以只有一个字或一个动作；"
             "有事要说清楚时可以多说两句，但不要独白；心里有 want_now 时让它自然浮上来，不要空等玩家；"
@@ -10936,6 +11395,8 @@ def call_actor_packet(
             "若 conversation_contract.own_recent_lines 非空，那是你自己刚说过的话——"
             "你记得，禁止换皮复问同一问题，换新信息或等话题自然转到你在意的事；"
             "observable_dialogue 里也有你自己的公开台词，以场上已发生为准；"
+            "physical_scene.本场用过的物件 / 场上可见物态：你要知道自己和同伴用过或正拿着什么（手机、单反等），被问及时可自然应答；"
+            "挂坠若在包内身体帧里，按剧情需要处理，不要没事特提炫示；"
             "self_core.phase_voice_profile（若存在）是这个阶段的演法：优先遵从其中的正向行为取向与披露边界，不要滑向列出的失真说法；"
             "private_perceptions 是你独自感到的现场信息，可据此反应，但不要对旁人点破对方不知道的真相；"
             "若 body_frame_now / self_state.body_frame_now 存在：写 stage 必须从当前身体帧可到达；"
@@ -11070,10 +11531,21 @@ def call_actor_packet(
             turn["text"] = ""
     turns, spoiler_degradations = guard_turns(turns, channel="actor")
     degradations.extend(spoiler_degradations)
+    pre_speech = synthesize_pre_speech(packet, payload.get("pre_speech") if isinstance(payload, dict) else None)
+    if pre_speech.get("synthesized"):
+        degradations.append(
+            make_degradation(
+                "actor_packet",
+                "pre_speech_synthesized",
+                "演员未返回 pre_speech，已用 want_now/场面线索合成先想回执。",
+                detail=str(packet.get("actor_cons") or ""),
+            )
+        )
     return {
         "turns": turns, "mh_progress": [], "director_note": "",
         "actor_decisions": actor_decisions, "degradations": degradations,
         "context_receipt": context_receipt,
+        "pre_speech": pre_speech,
     }
 
 

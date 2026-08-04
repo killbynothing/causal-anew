@@ -568,6 +568,32 @@ header {
   color: var(--dim);
 }
 
+.pipeline-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.pipeline-step {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid rgba(0, 240, 255, 0.35);
+  background: rgba(0, 0, 0, 0.18);
+  font-size: 12px;
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  line-height: 1.45;
+}
+.pipeline-step-label {
+  color: var(--cyan);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  font-family: var(--font-title);
+}
+.coverage-ok { color: var(--green); }
+.coverage-miss { color: var(--yellow); }
+
 .raw-toggle {
   margin-top: 8px;
   font-size: 11px;
@@ -1055,6 +1081,45 @@ details[open] summary.group-title::before {
       <div id="degradationList" class="issues-list"></div>
     </div>
 
+    <details id="group-actor-pipeline" open>
+      <summary class="group-title">角色包流水线（输入 → 先想 → 再说）</summary>
+      <div class="group-content">
+        <div class="debug-card" style="border-color: #9b8cff;">
+          <h3>前两场已接线（装配展开） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
+          <div class="human-view" id="debugAssemblyRead">（FSM/Rel/KGE/慢环/fronting/β…）</div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div class="json-view" id="debugAssembly" style="color: #c9beff;"></div>
+          </details>
+        </div>
+        <div class="debug-card" style="border-color: #74d99f;">
+          <h3>本拍按角色 · 核 / 关系 / 记忆 / 先想 / 说出</h3>
+          <div class="pipeline-chips" id="pipelineChips"></div>
+          <div class="human-view" id="actorPipelineRead">（选一个角色看完整包。）</div>
+          <details class="raw-toggle"><summary>全部角色原始包 JSON</summary>
+          <div class="json-view" id="debugActorPackets" style="color: #bdf4cd;"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+
+    <details id="group-solidified" open>
+      <summary class="group-title">已固化（run 账本 × 是否进包）</summary>
+      <div class="group-content">
+        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
+          <h3>场面已成立 · 包内覆盖</h3>
+          <div class="human-view compact" id="solidifiedCoverageRead">（介绍完还介绍时：先看事实有没有、再看进没进本拍角色包。）</div>
+        </div>
+        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
+          <h3>玩家已确认（可见事实账本）</h3>
+          <div class="human-view compact" id="playerKnowableRead">（只从已发生的可见台词与动作累计。）</div>
+        </div>
+        <div class="debug-card">
+          <h3>场上可见物态 · run 观察账 · 场次收据</h3>
+          <div class="human-view compact" id="solidifiedLedgersRead">（手机/挂坠在谁手里；本周目观察；跨场收据。）</div>
+        </div>
+      </div>
+    </details>
+
     <!-- Group 1: ⚡ 本拍动态 (默认展开) -->
     <details id="group-live" open>
       <summary class="group-title">⚡ 本拍动态</summary>
@@ -1070,68 +1135,55 @@ details[open] summary.group-title::before {
 
         <div class="debug-card" style="border-color: #ffe08a;">
           <h3><span>📥</span> 本拍：输入 → 发生 → 显示 <button class="btn-copy-json" onclick="copyJson('debugBeatIo')">复制</button></h3>
-          <div class="human-view" id="debugBeatIoRead">（明确三栏：玩家输入了什么 / 引擎记了什么 / 玩家看见了什么。）</div>
+          <div class="human-view" id="debugBeatIoRead">（玩家输入 / 引擎记账 / 玩家可见。身体帧在「发生」里，不另开卡。）</div>
           <details class="raw-toggle"><summary>原始 JSON</summary>
           <div class="json-view" id="debugBeatIo" style="color: #ffe8a3;"></div>
           </details>
         </div>
 
-        <div class="debug-card" style="border-color: #9b8cff;">
-          <h3><span>🧬</span> 装配投影（开场顶配） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
-          <div class="human-view" id="debugAssemblyRead">（开场两场：隔离包 / FSM·Rel / KGE / cos+emo / fronting / generate_cards / β阈值。后置空=顶配齐。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugAssembly" style="color: #c9beff;"></div>
-          </details>
+
+        <!-- Must-Happen 契约进度 -->
+        <div class="debug-card">
+          <h3><span>🎯</span> Must-Happen / Stall</h3>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
+            <div>已满足: <span id="completedMustHappen" class="badge green">-</span></div>
+            <div>允许列表: <span id="allowedMustHappen" class="badge">-</span></div>
+          </div>
+          <div style="font-size: 12px; color: var(--dim);">Stall: <strong id="debugStall" style="color: var(--yellow);">0</strong></div>
         </div>
 
+        <!-- 退出与转场判定 -->
+        <div class="debug-card">
+          <h3><span>🧭</span> 退出与转场 <button class="btn-copy-json" onclick="copyJson('debugExit')">复制</button></h3>
+          <div class="human-view" id="debugExitRead"></div>
+          <details class="raw-toggle"><summary>原始 JSON</summary>
+          <div id="debugExit" class="json-view" style="color: var(--paper);"></div>
+          </details>
+        </div>
+      </div>
+    </details>
+
+    <!-- 本拍深检：默认折叠 -->
+    <details id="group-live-deep">
+      <summary class="group-title">🔬 本拍深检（身体帧 / 导演层）</summary>
+      <div class="group-content">
         <div class="debug-card" style="border-color: #74d99f;">
-          <h3><span>🧍</span> BodyFrame 身体帧 <button class="btn-copy-json" onclick="copyJson('debugBodyFrames')">复制</button></h3>
-          <div class="human-view" id="debugBodyFramesRead">（开局帧 + 拍间回写；holding / last_stage。）</div>
+          <h3><span>🧍</span> BodyFrame <button class="btn-copy-json" onclick="copyJson('debugBodyFrames')">复制</button></h3>
+          <div class="human-view" id="debugBodyFramesRead">（holding / last_stage；与 beat_io.happened 同源。）</div>
           <details class="raw-toggle"><summary>原始 JSON</summary>
           <div class="json-view" id="debugBodyFrames" style="color: #bdf4cd;"></div>
           </details>
         </div>
 
         <div class="debug-card">
-          <h3><span>👁️‍🗨️</span> 导演层本拍（发生了才写） <button class="btn-copy-json" onclick="copyJson('debugTruthTurns')">复制</button></h3>
-          <div class="human-view" id="debugNarrationRead" style="margin-bottom: 8px; opacity: 0.85;">（只显示本拍新写下的暗注/真相；开场梗概在左栏，不堆在这里。）</div>
-          <div class="human-view" id="debugTruthTurnsRead">（含「暗处注视」等导演-only真相；玩家左栏看不到。）</div>
+          <h3><span>👁️‍🗨️</span> 导演层本拍 <button class="btn-copy-json" onclick="copyJson('debugTruthTurns')">复制</button></h3>
+          <div class="human-view" id="debugNarrationRead" style="margin-bottom: 8px; opacity: 0.85;">（暗注/真相；梗概在左栏。）</div>
+          <div class="human-view" id="debugTruthTurnsRead">（导演-only；玩家左栏看不到。）</div>
           <details class="raw-toggle"><summary>原始 JSON</summary>
           <div class="json-view" id="debugTruthTurns" style="color: #e0e0e0;"></div>
           </details>
         </div>
 
-        <div class="debug-card" style="border-color: #74d99f;">
-          <h3><span>📨</span> 本拍演员投递回执 <button class="btn-copy-json" onclick="copyJson('debugActorPackets')">复制</button></h3>
-          <div class="human-view" id="debugActorPacketsRead">（第 0 拍显示预投递；发言后显示最终回执。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugActorPackets" style="color: #bdf4cd;"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
-          <h3><span>📒</span> 玩家已确认（本拍账本）</h3>
-          <div class="human-view compact" id="playerKnowableRead">（只从已发生的可见台词与动作累计；不含演员私有记忆或门控推断。）</div>
-        </div>
-
-        <!-- Must-Happen 契约进度 -->
-        <div class="debug-card">
-          <h3><span>🎯</span> Must-Happen 契约进度</h3>
-          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
-            <div>已满足: <span id="completedMustHappen" class="badge green">-</span></div>
-            <div>允许列表: <span id="allowedMustHappen" class="badge">-</span></div>
-          </div>
-          <div style="font-size: 12px; color: var(--dim);">Stall Count: <strong id="debugStall" style="color: var(--yellow);">0</strong></div>
-        </div>
-
-        <!-- 退出与转场判定 -->
-        <div class="debug-card">
-          <h3><span>🧭</span> 退出与转场判定 <button class="btn-copy-json" onclick="copyJson('debugExit')">复制</button></h3>
-          <div class="human-view" id="debugExitRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugExit" class="json-view" style="color: var(--paper);"></div>
-          </details>
-        </div>
       </div>
     </details>
 
@@ -1160,7 +1212,7 @@ details[open] summary.group-title::before {
 
     <!-- Group 2: 🧑 角色 (默认折叠) -->
     <details id="group-character">
-      <summary class="group-title">🧑 角色 (NPC 私有数据)</summary>
+      <summary class="group-title">🧑 角色深检副本（已并入上方流水线 · 默认不必开）</summary>
       <div class="group-content">
         <!-- NPC Chip 过滤器 -->
         <div class="npc-chips-container" id="npcChipsContainer">
@@ -1718,7 +1770,8 @@ function selectActiveNpc(cons, key) {
     el.classList.toggle("active", Boolean(match));
   });
   const characterGroup = document.getElementById("group-character");
-  if (characterGroup) characterGroup.open = true;
+  // 不自动展开角色深检副本；主视图在流水线。
+  void characterGroup;
   const clamped = Math.max(0, Math.min(state.currentBeat, state.debugHistory.length));
   renderDebugDetails(clamped > 0 ? state.debugHistory[clamped - 1] : state.initialDebug);
 }
@@ -1763,6 +1816,7 @@ function renderNpcChips(payload) {
 function initNpcChips() {
   const rightContainer = document.getElementById("npcChipsContainer");
   const leftContainer = document.getElementById("playerRosterRead");
+  const pipelineChips = document.getElementById("pipelineChips");
   const onClick = (e) => {
     const chip = e.target.closest(".npc-chip, .roster-chip");
     if (!chip) return;
@@ -1770,6 +1824,15 @@ function initNpcChips() {
   };
   if (rightContainer) rightContainer.addEventListener("click", onClick);
   if (leftContainer) leftContainer.addEventListener("click", onClick);
+  if (pipelineChips) {
+    pipelineChips.addEventListener("click", (e) => {
+      const chip = e.target.closest("[data-pipeline-cons]");
+      if (!chip) return;
+      window._selectedPipelineCons = chip.dataset.pipelineCons || "";
+      const clamped = Math.max(0, Math.min(state.currentBeat, state.debugHistory.length));
+      renderDebugDetails(clamped > 0 ? state.debugHistory[clamped - 1] : state.initialDebug);
+    });
+  }
 }
 
 function copyJson(elementId) {
@@ -2240,19 +2303,19 @@ function decodeAssemblyProjection(asm) {
   const deferredList = asm.deferred_not_top_tier || [];
   const deferred = deferredList.length
     ? deferredList.map((x) => `⏸ ${x}`).join("\n")
-    : "（无——开场两场顶配清单已清空）";
+    : "（无）开场两场顶配清单已清空；全书其它场/量产仍见登记簿。";
   const tier = asm.top_tier
     ? "顶配齐（隔离×FSM/Rel×KGE×cos+emo×fronting×generate_cards×β阈值）"
-    : "未顶配";
+    : "未顶配（非开场两场或接线未齐）";
   return [
     `范围：${asm.scope || "—"} · ${tier}`,
     `在场：${(asm.present_cons || []).join(", ") || "—"}`,
     `挂坠已交：${asm.pendant_accepted ? "是" : "否"} · 层C已播：${asm.pendant_layer_c_emitted ? "是" : "否"}`,
     "",
-    "【当前已接线】",
+    "【前两场已接线 · 可展开核对】",
     wired,
     "",
-    "【仍后置（诚实）】",
+    "【仍后置（仅非本场范围）】",
     deferred,
   ].join("\n");
 }
@@ -2270,162 +2333,213 @@ function decodeBodyFrames(frames) {
   }).join("\n\n");
 }
 
-function decodeActorPackets(packets, nameMap) {
+function pipelineStep(label, bodyText) {
+  const empty = !bodyText || bodyText === "—" || bodyText === "无" || bodyText.startsWith("（");
+  return [
+    `<div class="pipeline-step${empty ? " actor-receipt-empty" : ""}">`,
+    `<div class="pipeline-step-label">${escapeHtml(label)}</div>`,
+    `<div>${escapeHtml(bodyText || "—")}</div>`,
+    `</div>`,
+  ].join("");
+}
+
+function decodeActorPipelineCard(cons, packet, nameMap) {
+  const who = nameMap?.[cons] || packet?.self_core?.name || cons;
+  const scene = packet?.physical_scene || packet?.observable_scene || {};
+  const solidified = Array.isArray(scene["场面已成立的事实"]) ? scene["场面已成立的事实"] : [];
+  const sceneFacts = Array.isArray(scene["玩家已确认的现场事实"]) ? scene["玩家已确认的现场事实"] : [];
+  const holding = Array.isArray(scene["场上可见物态"]) ? scene["场上可见物态"] : [];
+  const used = Array.isArray(scene["本场用过的物件"]) ? scene["本场用过的物件"] : [];
+  const env = scene["刚刚发生的环境变化"];
+  const directorWorld = [
+    `在哪：${formatReceiptValue(scene.where) || "—"}`,
+    `何时：${formatReceiptValue(scene.when || scene.clock) || "—"}`,
+    solidified.length ? `场面已成立：\n${solidified.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "场面已成立：（空——尚无自报/借视频等成立事实）",
+    holding.length ? `可见物态：\n${holding.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "可见物态：（空——无人公开持物；挂坠不特提）",
+    used.length ? `本场用过的物件：\n${used.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "本场用过的物件：（空）",
+    sceneFacts.length ? `玩家已确认：\n${sceneFacts.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "",
+    env ? `环境变化：${formatReceiptValue(env)}` : "",
+  ].filter(Boolean).join("\n");
+
+  const core = packet?.self_core || {};
+  const phaseVoice = core.phase_voice_profile || {};
+  const manners = core.seed_manners || [];
+  const boundaries = (core.seed_boundaries || []).slice(0, 4);
+  const personaBody = [
+    `姓名：${formatReceiptValue(core.name) || who}`,
+    `关系阶段：${formatReceiptValue(core.relation_stage) || "—"}`,
+    manners.length ? `MANNER：${manners.slice(0, 4).map(formatReceiptValue).join(" / ")}` : "MANNER：—",
+    boundaries.length ? `BOUNDARY：${boundaries.map(formatReceiptValue).join(" / ")}` : "BOUNDARY：—",
+    `core摘录：${formatReceiptValue((core.core_excerpt || "").slice(0, 220)) || "—"}`,
+    Object.keys(phaseVoice).length
+      ? `阶段声纹：${formatReceiptValue(phaseVoice.phase) || "—"} · ${formatReceiptValue(phaseVoice.positive_patterns) || ""}`
+      : "",
+  ].filter(Boolean).join("\n");
+
+  const mem = packet?.self_memory || {};
+  const episodic = mem.episodic_recent || [];
+  const relationshipMem = mem.relationship_memory || [];
+  const holds = (packet?.identity_relations || []).filter(
+    (r) => String(r?.prop_id || "").startsWith("REL.HOLD.") || r?.projection === "relation_hold"
+  );
+  const idents = (packet?.identity_relations || []).filter(
+    (r) => String(r?.prop_id || "").startsWith("REL.IDENTITY.") || r?.projection === "identity_relation"
+  );
+  const slowAct = ((packet?.memory_activation || {}).slow_memory_activated || []).slice(0, 4);
+  const memoryBody = [
+    `情景记忆×${episodic.length}：${episodic.length ? episodic.slice(0, 5).map(formatReceiptValue).join(" / ") : "—"}`,
+    `关系记忆×${relationshipMem.length}：${relationshipMem.length ? relationshipMem.slice(0, 4).map(formatReceiptValue).join(" / ") : "—"}`,
+    `REL.IDENTITY×${idents.length}：${idents.length ? idents.slice(0, 4).map((r) => formatReceiptValue(r.fact)).join("；") : "—"}`,
+    `REL.HOLD×${holds.length}：${holds.length ? holds.slice(0, 4).map((r) => formatReceiptValue(r.fact)).join("；") : "—"}`,
+    `慢环已激活×${slowAct.length}：${slowAct.length ? slowAct.map((x) => formatReceiptValue(x.text || x.summary || x.mem_id)).join(" / ") : "—"}`,
+  ].join("\n");
+
+  const dialogue = packet?.observable_dialogue || [];
+  const dialogueBody = dialogue.length
+    ? dialogue.slice(-8).map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}${d.same_turn ? "〔本拍刚说〕" : ""}`).join("\n")
+    : "（尚无公开对话）";
+  const sameTurn = packet?.same_turn_prior_speech || [];
+  const sameTurnBody = sameTurn.length
+    ? sameTurn.map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}`).join("\n")
+    : "（你是本拍第一个开口，或尚未轮到听同伴）";
+  const player = packet?.observable_player || {};
+  const playerBits = [player.speech, player.action].map((x) => formatReceiptValue(x)).filter(Boolean);
+  const heardBody = [
+    playerBits.length ? `玩家：\n${playerBits.join("\n")}` : "玩家：（本拍无可听可见言行）",
+    `公开对话：\n${dialogueBody}`,
+    `本拍已听见同伴：\n${sameTurnBody}`,
+  ].join("\n\n");
+
+  const conversation = packet?.conversation_contract || {};
+  const contractBody = [
+    `响应槽：${formatReceiptValue(conversation.response_slot) || "—"}`,
+    `社交指令：${formatReceiptValue(conversation.social_instruction) || "—"}`,
+    conversation.hold_participation_hint ? `HOLD×话轮：${formatReceiptValue(conversation.hold_participation_hint)}` : "",
+    `本拍新问题上限：${formatReceiptValue(conversation.max_new_questions ?? "—")}`,
+  ].filter(Boolean).join("\n");
+
+  const want = packet?.self_state?.inner_state || {};
+  const bf = packet?.body_frame_now || {};
+  const packetSummary = [
+    `want_now：${formatReceiptValue(want.want_now) || "—"}`,
+    `knot：${formatReceiptValue(want.knot) || "—"}`,
+    `unsaid：${formatReceiptValue(want.unsaid) || "—"}`,
+    `BodyFrame holding：${formatReceiptValue(bf.holding) || "null"}`,
+    `身份关系×${(packet?.identity_relations || []).length}`,
+  ].join("\n");
+
+  const pre = packet?.pre_speech || {};
+  const thinkBody = Object.keys(pre).length
+    ? [
+        `注意到：${formatReceiptValue(pre.notice) || "—"}`,
+        `打算：${formatReceiptValue(pre.intention) || "—"}`,
+        `社会行动：${formatReceiptValue(pre.social_move) || "—"}`,
+        pre.synthesized ? "（本拍为合成回执：模型未返回 pre_speech）" : "（模型先想）",
+      ].join("\n")
+    : "（尚无先想回执）";
+
+  const spoken = packet?.spoken_this_turn || [];
+  const spokenBody = spoken.length
+    ? spoken.map((s, i) => {
+        const bits = [];
+        if (s.text) bits.push(formatReceiptValue(s.text));
+        if (s.stage) bits.push(`〔stage〕${formatReceiptValue(s.stage)}`);
+        return `${i + 1}. ${bits.join(" ")}`;
+      }).join("\n")
+    : "（本拍该角色未开口，或尚无投递）";
+
+  return [
+    `<div class="actor-receipt">`,
+    `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
+    `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
+    pipelineStep("1. 导演可见世界（环境 / 物态 / 场面事实）", directorWorld),
+    pipelineStep("2. 人格核（MANNER / BOUNDARY / 阶段声纹）", personaBody),
+    pipelineStep("3. 记忆与关系投影", memoryBody),
+    pipelineStep("4. 听见的（玩家 + 同伴 + 同拍）", heardBody),
+    pipelineStep("5. 会话义务 / 话轮", contractBody),
+    pipelineStep("6. 包摘要（进模型的关键状态）", packetSummary),
+    pipelineStep("7. 先想（pre_speech）", thinkBody),
+    pipelineStep("8. 再说（因此说出的话）", spokenBody),
+    `</div>`,
+  ].join("");
+}
+
+function decodeActorPackets(packets, nameMap, selectedCons) {
   const entries = Object.entries(packets || {});
   if (!entries.length) {
     return `<div class="actor-receipt-empty">本拍还没有演员投递。若刚切入闪回，首拍常是作者段（authored），不经 LLM——下一拍才有龙也投递回执。</div>`;
   }
-  const cards = entries.map(([cons, packet]) => {
-    const who = nameMap?.[cons] || packet?.self_core?.name || cons;
-    const scene = packet?.physical_scene || packet?.observable_scene || {};
-    const sceneFacts = Array.isArray(scene["玩家已确认的现场事实"]) ? scene["玩家已确认的现场事实"] : [];
-    const sceneBody = [
-      `在哪：${formatReceiptValue(scene.where) || "—"}`,
-      `何时：${formatReceiptValue(scene.when || scene.clock) || "—"}`,
-      sceneFacts.length ? `玩家已确认事实：${sceneFacts.map(formatReceiptValue).join("；")}` : "",
-      scene["刚刚发生的环境变化"] ? `环境变化：${formatReceiptValue(scene["刚刚发生的环境变化"])}` : "",
-    ].filter(Boolean).join("\n");
-
-    const inner = packet?.self_state?.inner_state || {};
-    const desireBody = [
-      `长期欲望：${formatReceiptValue(inner.long_term_desire) || "—"}`,
-      `当前意图：${formatReceiptValue(inner.active_intention || inner.want_now) || "—"}`,
-      `此刻想要（want_now）：${formatReceiptValue(inner.want_now) || "—"}`,
-      `心结（knot）：${formatReceiptValue(inner.knot) || "—"}`,
-      `未说出口（unsaid）：${formatReceiptValue(inner.unsaid) || "—"}`,
-    ].join("\n");
-
-    const player = packet?.observable_player || {};
-    const playerBits = [player.speech, player.action]
-      .map((x) => formatReceiptValue(x))
-      .filter(Boolean);
-    const playerBody = playerBits.length
-      ? playerBits.join("\n")
-      : "（本拍没有可听可见的玩家言行）";
-
-    const percepts = packet?.private_perceptions || [];
-    const perceptBody = percepts.length
-      ? percepts.map((p, i) => `${i + 1}. ${formatReceiptValue(p?.text ?? p) || ""}`).join("\n")
-      : "无";
-
-    const dialogue = packet?.observable_dialogue || [];
-    const dialogueBody = dialogue.length
-      ? dialogue
-          .slice(-8)
-          .map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}${d.same_turn ? "〔本拍刚说〕" : ""}`)
-          .join("\n")
-      : "（尚无公开对话）";
-
-    const sameTurn = packet?.same_turn_prior_speech || [];
-    const sameTurnBody = sameTurn.length
-      ? sameTurn.map((d) => `· ${formatReceiptValue(d.speaker) || "?"}：${formatReceiptValue(d.text) || ""}`).join("\n")
-      : "（你是本拍第一个开口，或尚未轮到听同伴）";
-
-    const conversation = packet?.conversation_contract || {};
-    const conversationBody = [
-      `响应槽：${formatReceiptValue(conversation.response_slot) || "—"}`,
-      `会话义务：${formatReceiptValue(conversation.obligation_kind) || "unowned"}`,
-      `判定依据：${formatReceiptValue(conversation.obligation_evidence) || "—"}`,
-      `被指向者：${formatReceiptValue(conversation.direct_addressee) || "—"}`,
-      `社交指令：${formatReceiptValue(conversation.social_instruction) || "—"}`,
-      `本拍新问题上限：${formatReceiptValue(conversation.max_new_questions ?? "—")}`,
-      conversation.same_turn_hear ? `已听见同伴：${formatReceiptValue(conversation.same_turn_hear)}` : "",
-    ].filter(Boolean).join("\n");
-
-    const bf = packet?.body_frame_now || packet?.self_state?.body_frame_now || {};
-    const bodyFrameBody = Object.keys(bf).length
-      ? [
-          `posture：${formatReceiptValue(bf.posture) || "—"}`,
-          `hands：${formatReceiptValue(bf.hands) || "—"}`,
-          `holding：${formatReceiptValue(bf.holding) || "null"}`,
-          `last_action：${formatReceiptValue(bf.last_action_type) || "—"}`,
-          `last_stage：${formatReceiptValue(bf.last_visible_stage) || "（空）"}`,
-        ].join("\n")
-      : "（本拍包内无 BodyFrame）";
-
-    const core = packet?.self_core || {};
-    const facets = core.persona_facets || core.arch || {};
-    const seedActs = packet?.seed_acts || core.seed_acts || [];
-    const seedBody = [
-      `ARCH/分面：${Object.keys(facets).length ? JSON.stringify(facets).slice(0, 180) : "—"}`,
-      `习惯 ACT×${Array.isArray(seedActs) ? seedActs.length : 0}`,
-      `身份关系×${(packet?.identity_relations || []).length}`,
-    ].join("\n");
-
-    const mem = packet?.self_memory || {};
-    const working = mem.scene_working_memory || {};
-    const workingBody = [
-      `目标：${formatReceiptValue(working.goals) || "—"}`,
-      `承诺：${formatReceiptValue(working.commitments) || "—"}`,
-      `未决：${formatReceiptValue(working.unresolved_topics) || "—"}`,
-      `身体：${formatReceiptValue(working.body_state) || "—"}`,
-      `来源：${formatReceiptValue(working?.source?.canon_src || working?.source?.event_uid) || "—"}`,
-    ].join("\n");
-
-    const episodic = mem.episodic_recent || [];
-    const relationshipMem = mem.relationship_memory || [];
-    const memoryBody = [
-      `情景记忆×${episodic.length}：${episodic.length ? episodic.slice(0, 4).map(formatReceiptValue).join(" / ") : "—"}`,
-      `关系记忆×${relationshipMem.length}：${relationshipMem.length ? relationshipMem.slice(0, 3).map(formatReceiptValue).join(" / ") : "—"}`,
-      `互动动态×${(packet?.interaction_dynamics || []).length}`,
-      `身份关系×${(packet?.identity_relations || []).length}`,
-    ].join("\n");
-
-    const phaseVoice = packet?.self_core?.phase_voice_profile || {};
-    const phaseVoiceBody = [
-      `阶段：${formatReceiptValue(phaseVoice.phase) || "—"}`,
-      `原著锚点：${formatReceiptValue(phaseVoice.source_event || phaseVoice.canon_src) || "—"}`,
-      `这一拍怎么说：${formatReceiptValue(phaseVoice.positive_patterns) || "—"}`,
-      `不该滑向：${formatReceiptValue(phaseVoice.avoid_phrases) || "—"}`,
-      `披露边界：${formatReceiptValue(phaseVoice.disclosure_limit) || "—"}`,
-    ].join("\n");
-
-    const activation = packet?.memory_activation || {};
-    const activatedBody = [
-      formatMemoryReceiptItems(activation.slow_memory_activated || [], "慢环"),
-      formatMemoryReceiptItems(activation.knowledge_activated || [], "知识"),
-      formatMemoryReceiptItems(activation.scene_episode_activated || [], "场景经历"),
-    ].filter((line) => line !== "无").join("\n") || "无：本拍没有长期记忆因现场线索而被激活。";
-    const withheldBody = [
-      formatMemoryReceiptItems(activation.slow_memory_withheld || [], "慢环", "reason"),
-      formatMemoryReceiptItems(activation.knowledge_withheld || [], "知识", "reason"),
-      formatMemoryReceiptItems(activation.scene_episode_withheld || [], "场景经历", "reason"),
-    ].filter((line) => line !== "无").join("\n") || "无";
-
-    const instr = packet?.director_instruction || [];
-    const instrBody = Array.isArray(instr)
-      ? (instr.length ? instr.map((x) => `· ${formatReceiptValue(x)}`).join("\n") : "（空）")
-      : formatReceiptValue(instr) || "（空）";
-
-    const policy = packet?.disclosure_policy || [];
-    const policySec = policy.length
-      ? receiptSection("披露策略", policy.slice(0, 3).map((x) => formatReceiptValue(x)).join("\n"))
-      : "";
-
-    return [
-      `<div class="actor-receipt">`,
-      `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
-      `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
-      receiptSection("投递场景（物理帧）", sceneBody),
-      receiptSection("BodyFrame（本拍身体）", bodyFrameBody, { empty: !Object.keys(bf).length }),
-      receiptSection("Seed 投影摘要", seedBody),
-      receiptSection("本拍欲望 / 心结（真投递）", desireBody, { empty: !inner.want_now }),
-      Object.keys(phaseVoice).length ? receiptSection("阶段声纹", phaseVoiceBody) : "",
-      receiptSection("玩家言行（不含内心）", playerBody, { empty: !playerBits.length }),
-      receiptSection("私有感知", perceptBody, { empty: !percepts.length }),
-      receiptSection("公开对话窗口", dialogueBody, { empty: !dialogue.length }),
-      receiptSection("本拍已听见的同伴（串行）", sameTurnBody, { empty: !sameTurn.length }),
-      receiptSection("会话义务", conversationBody),
-      receiptSection("场内工作记忆（本拍必需）", workingBody),
-      receiptSection("记忆装载量（首包应厚）", memoryBody),
-      receiptSection("本拍实收：已激活记忆", activatedBody, { empty: activatedBody.startsWith("无：") }),
-      receiptSection("候选未激活（未进入本拍提示）", withheldBody, { empty: withheldBody === "无" }),
-      receiptSection("导演本拍临时指令（不是长期记忆）", instrBody, { empty: instrBody === "（空）" }),
-      policySec,
-      `</div>`,
-    ].join("");
-  });
+  const filtered = selectedCons
+    ? entries.filter(([cons]) => cons === selectedCons)
+    : entries;
+  const cards = filtered.map(([cons, packet]) => decodeActorPipelineCard(cons, packet, nameMap));
   return `<div class="actor-receipt-list">${cards.join("")}</div>`;
+}
+
+function decodeSolidifiedCoverage(payload, nameMap) {
+  const coverage = payload?.fact_packet_coverage || [];
+  const facts = payload?.solidified_visible_facts || [];
+  if (!coverage.length && !facts.length) {
+    return "（尚无场面已成立事实。介绍发生后应出现自报/姓名绑定，并显示进了哪些角色包。）";
+  }
+  const lines = [];
+  if (coverage.length) {
+    lines.push("【本拍进包对照】（开口前写入包的事实）");
+    for (const row of coverage) {
+      const holders = (row.in_packets || []).map((c) => nameMap?.[c] || c);
+      const cls = row.missing ? "coverage-miss" : "coverage-ok";
+      const status = row.missing ? "未进任何包" : `已进：${holders.join("、")}`;
+      lines.push(`· ${row.fact}\n  → ${status}`);
+    }
+  }
+  if (facts.length) {
+    lines.push("", "【截至本拍结束 · 场面已成立】");
+    for (const f of facts) lines.push(`· ${f}`);
+  }
+  return lines.join("\n");
+}
+
+function decodeSolidifiedLedgers(payload) {
+  const holding = payload?.visible_holding_map || [];
+  const used = payload?.object_use_memory || [];
+  const runLedger = payload?.run_observation_ledger || [];
+  const receipts = payload?.scene_receipts || [];
+  const parts = [];
+  parts.push("【场上可见物态】（挂坠不特提）");
+  parts.push(holding.length ? holding.map((x) => `· ${x}`).join("\n") : "· （空）");
+  parts.push("", "【本场用过的物件】（对话/舞台提取）");
+  parts.push(used.length ? used.map((x) => `· ${x}`).join("\n") : "· （空）");
+  parts.push("", "【run 观察账】");
+  if (!runLedger.length) parts.push("· （空）");
+  else {
+    for (const row of runLedger.slice(-12)) {
+      const text = row.fact_text || row.text || JSON.stringify(row);
+      parts.push(`· [${row.kind || "?"}] ${text}`);
+    }
+  }
+  parts.push("", "【场次收据】");
+  if (!receipts.length) parts.push("· （空）");
+  else {
+    for (const row of receipts.slice(-12)) {
+      parts.push(`· ${row.fact_id || "?"} / ${row.kind || "?"} / t${row.turn ?? "?"}${row.note ? " · " + row.note : ""}`);
+    }
+  }
+  return parts.join("\n");
+}
+
+function renderPipelineChips(packets, nameMap, selectedCons) {
+  const box = document.getElementById("pipelineChips");
+  if (!box) return;
+  const entries = Object.entries(packets || {});
+  if (!entries.length) {
+    box.innerHTML = "";
+    return;
+  }
+  box.innerHTML = entries.map(([cons, packet]) => {
+    const who = nameMap?.[cons] || packet?.self_core?.name || cons;
+    const active = cons === selectedCons ? " active" : "";
+    return `<button type="button" class="npc-chip${active}" data-pipeline-cons="${escapeHtml(cons)}">${escapeHtml(who)}</button>`;
+  }).join("");
 }
 
 function decodeDirectorOnlyGate(gate) {
@@ -2627,8 +2741,18 @@ function renderDebugDetails(payload) {
 
   const actorPackets = payload?.actor_context_packets || {};
   document.getElementById("debugActorPackets").textContent = JSON.stringify(actorPackets, null, 2);
-  const actorPacketsRead = document.getElementById("debugActorPacketsRead");
-  if (actorPacketsRead) actorPacketsRead.innerHTML = decodeActorPackets(actorPackets, nameMap);
+  if (!window._selectedPipelineCons || !actorPackets[window._selectedPipelineCons]) {
+    window._selectedPipelineCons = Object.keys(actorPackets)[0] || "";
+  }
+  renderPipelineChips(actorPackets, nameMap, window._selectedPipelineCons);
+  const pipelineRead = document.getElementById("actorPipelineRead");
+  if (pipelineRead) {
+    pipelineRead.innerHTML = decodeActorPackets(actorPackets, nameMap, window._selectedPipelineCons || null);
+  }
+  const coverageRead = document.getElementById("solidifiedCoverageRead");
+  if (coverageRead) coverageRead.textContent = decodeSolidifiedCoverage(payload, nameMap);
+  const ledgersRead = document.getElementById("solidifiedLedgersRead");
+  if (ledgersRead) ledgersRead.textContent = decodeSolidifiedLedgers(payload);
 
   const contextReceipts = payload?.context_receipts || [];
   document.getElementById("debugContextReceipts").textContent = JSON.stringify(contextReceipts, null, 2);

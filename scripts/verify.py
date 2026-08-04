@@ -1349,6 +1349,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_opening_two_scene_closeout.py",
     },
     {
+        "id": "solidified_facts_packet",
+        "desc": "固化事实进包×物态可见×HOLD话轮×回滚硬闸",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_solidified_facts_packet.py"],
+        "triggers": [
+            "runtime/free_stage_prototype.py",
+            "runtime/actor_orchestrator.py",
+            "runtime/free_stage_card_ryuya_prologue.json",
+            "scripts/tests/test_solidified_facts_packet.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_solidified_facts_packet.py",
+    },
+    {
         "id": "beta_sediment_schema",
         "desc": "β run_meta/delta_sediment 表存在 + 权重定案 + settle 固定底闸/确定性",
         "tier": "quick",

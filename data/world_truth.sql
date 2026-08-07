@@ -1,7 +1,3 @@
--- world_truth.db canonical SQL dump
--- generated_at_utc: 2026-08-04T10:15:36Z
--- source: data/world_truth.db
-PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 CREATE TABLE affect_state (
       run INTEGER, 
@@ -13,6 +9,15 @@ CREATE TABLE affect_state (
       fsm_state TEXT CHECK(fsm_state IN ('open','probing','guarded','detached')),
       PRIMARY KEY (run, cons_id, target)
     );
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','C.ryuya.WMAIN',10,10,0,'open');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','C.kakashi.WMAIN',10,8,0,'open');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','weichu',8,7,2,'open');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','liu_yuntian',7,6,2,'probing');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','maki',9,8,1,'open');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','nakajima',6,4,8,'guarded');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','sasaki',5,3,7,'guarded');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','wu_xiaxuan',8,6,6,'guarded');
+INSERT INTO "affect_state" VALUES(0,'C.xiuzai.WMAIN','akito',7,7,1,'open');
 CREATE TABLE anchor_channel (
   run INTEGER PRIMARY KEY,
   snr REAL DEFAULT 1.0,
@@ -7688,6 +7693,31 @@ INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.HOLD.maki.to_ryuya',
 INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.HOLD.maki.to_travel',0,'migrate_tiananmen_cast_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','REL.HOLD.maki.to_player',0,'migrate_tiananmen_cast_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.maki.WMAIN','P.ACT.maki.pref',0,'migrate_tiananmen_cast_seed_2026-08-03');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ARCH.zhangchen.core_thin',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ARCH.zhangchen.onion.L0_surface',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ARCH.zhangchen.onion.L1_resist_wg',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ARCH.zhangchen.onion.L2_ds_wg_net',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ARCH.zhangchen.onion.L3_dust_lt',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.MANNER.zhangchen.voice_rule',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.BOUNDARY.zhangchen.hard.load_bearing',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ACT.zhangchen.body.allow',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','P.ACT.zhangchen.pref',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.weichu_boss',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.zhou_ze_chair',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.ryuya',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.dust_lt_counterpart',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.suying',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.luoluo_teacher',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.guojiajia',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.IDENTITY.zhangchen.nara',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_weichu',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_zhou_ze',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_ryuya',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_dust',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_suying',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_luoluo',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_guojiajia',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
+INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_nara',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
 CREATE TABLE node_contracts(node_id TEXT PRIMARY KEY, part INTEGER, contract TEXT);
 INSERT INTO "node_contracts" VALUES('NODE-013-SNIPER',1,'{"node_id": "NODE-013-SNIPER", "part": 1, "title": "露天咖啡厅街头狙击（暗杀主线开局·认识枢纽）", "tier": "canon_beat", "entry_conditions": ["E013-02", "E013-03"], "invariants": {"canon_locked": ["result|E013-02: 无辜少妇额头中弹身亡（死亡结果不可更改；呈现细节文本自由）", "result|E013-10: 卡卡西聚焦神威折弯大厦十层枪管，狙击手撤退（卡卡西不死、写轮眼/神威能力本次暴露）", "identity: 狙击手=世界政府本土武装（非郭家政本人）"], "player_freedom": "死局节点（政策B·完整干涉自由）：玩家是在场的普通人， 合法行动包括—— 帮修哉翻桌/撒面粉扩大粉尘迷雾遮蔽射线（make_cover）； 拉受惊旁观者（含柳絮等）到墙后减少暴露人头（pull_to_wall）； 目测或借秋人单反协助指认大厦十层射击窗口（spot_shooter）； 接手秋人相机拍摄狙击手轮廓留存证据（photo_evidence）； 红线——不可拥有超能力/写轮眼/神威； 不可替卡卡西完成折枪管（这是卡卡西的灵魂动作，抢戏=工具化，红线）； 超出普通人物理上限的行动→张尘式吐槽/现实物理收敛。\n"}, "exit_states": [{"id": "converged", "desc": "原著线（Worldline-0）—— 少妇死亡（E013-02）；卡卡西拉柳絮、独自跑开引杀手（E013-05~06）； 修哉抛洒面粉造迷雾（E013-07）；三人在墙后会合（E013-08）； 秋人探出相机拍照、修哉阻止报警（E013-09）； 卡卡西神威折弯枪管（E013-10）；危机解除、卡卡西搂柳絮安慰后撤离（E013-11）。 写轮眼/神威能力按原著烈度暴露，暗杀主线正式开局，后续追杀烈度基线建立。\n", "negates": []}, {"id": "branched_lowprofile", "branch_gate": "BG-SNIPER_COVERT", "desc": "玩家 make_cover + spot_shooter 叠加（combine_threshold=2）， 在卡卡西动用神威前即制造有效遮蔽并协助锁定射击窗口， 狙击手更早失去瞄准机会主动放弃 → 卡卡西少暴露一次完整写轮眼/神威范围。 δ种子 SNIPER_COVERT_SEED 写入δ账本 → 喂入后续追杀烈度参数（微降）。 结果大同（狙击手仍撤退），暴露程度有可量化差异。\n", "negates": []}], "convergence": ["玩家拉着众人乱跑/脱离掩护 → 修哉主动喝止并抛洒面粉制造迷雾（E013-07），把人逼回墙后（剧情内施压）\n", "玩家试图报警 → 修哉夺下秋人手机警告\"这会被查到的\"（E013-09）； 组织监听威胁浮现，外部压力中断报警链\n", "玩家试图冲向狙击手大楼 → E013-02/03 造成的街面恐慌人群+无掩护地带构成物理障碍； 修哉在墙后焦急呼喊（剧情内收敛，NPC主动事件驱动）\n"], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "make_cover", "desc": "帮修哉翻桌椅/传递面粉袋，扩大粉尘迷雾遮蔽狙击视线（E013-07 协力）", "type": "physical", "snr_cost": "low"}, {"id": "pull_to_wall", "desc": "拉受惊旁观者（柳絮等）到墙后，减少暴露人头", "type": "physical", "snr_cost": 0}, {"id": "spot_shooter", "desc": "协助目测+借秋人单反指引大厦十层射击窗口——凡人替代写轮眼的信息干涉； 与 make_cover 叠加可触发 branched_lowprofile\n", "type": "info", "snr_cost": "low"}, {"id": "photo_evidence", "desc": "接手秋人单反拍摄狙击手轮廓留证据（E013-09 侧线）； 社会层面信息积累，独立于收敛主线，不计入 combine_threshold\n", "type": "info", "snr_cost": "low"}], "combine_threshold": 2, "delta_hooks": ["SNIPER_COVERT_SEED"]}');
 INSERT INTO "node_contracts" VALUES('NODE-016-CRASH',1,'{"node_id": "NODE-016-CRASH", "part": 1, "title": "高速连环车祸与卡卡西救修哉", "tier": "canon_beat", "entry_conditions": ["E016-01", "E016-02", "E016-03"], "invariants": {"canon_locked": ["E016-03 卡卡西救出修哉、自身受伤（肋骨骨折）"], "player_freedom": "事前(B1抱走小狗)/事中(choiceA车内卸力)两个物理干预点；二者叠加=零伤害线"}, "exit_states": [{"id": "converged", "desc": "卡卡西重伤（Worldline-0）", "negates": []}, {"id": "branched_full", "branch_gate": "BG-CRASH_LIGHT", "negates": []}], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "B1_dog", "type": "physical", "snr_cost": "low"}, {"id": "choiceA_brace", "type": "physical", "snr_cost": 0}], "combine_threshold": 2}');
@@ -7740,7 +7770,7 @@ CREATE TABLE propositions (
       canon_src    TEXT
     );
 INSERT INTO "propositions" VALUES('P.RTW_EXISTS','世界政府/RTW 组织确实存在并暗中控制秩序',2,'Ch.7/41');
-INSERT INTO "propositions" VALUES('P.GF_DEATH_TRUTH','女友苏颖四年前在十六中正门坠楼死亡，真相为折原龙也亲手推下',2,'Ch.41/60');
+INSERT INTO "propositions" VALUES('P.GF_DEATH_TRUTH','女友苏颖四年前在十六中正门坠楼死亡，真相为折原龙也亲手推下',3,'Ch.41/60');
 INSERT INTO "propositions" VALUES('P.RYUYA_DEATH_TRUTH','折原龙也因与世界政府利益对抗而选择假死，并设计弑父（折原正义）以完成最终交换',2,'Ch.60');
 INSERT INTO "propositions" VALUES('P.SEIMEI_MACHINE','晴明君（黑发坂本卡卡西）并非原生人类，而是人造机体，内部搭载异世界折原修哉的大脑',3,'Ch.98/113');
 INSERT INTO "propositions" VALUES('P.DUST_CREATOR','世界政府/RTW 实际上是物理跃迁者尘叔（Dust）在更早世界线中创建的',3,'Ch.110');
@@ -7998,16 +8028,16 @@ INSERT INTO "propositions" VALUES('K.C.weichu.W1.W1-03','（元因果）随便�
 INSERT INTO "propositions" VALUES('K.C.weichu.W1.W1-A1-01','**【物归原主·Ch.114】**在 LT 核心大门前遇到了主世界年轻的张尘，将保管的钢笔用戳心的方式移交物归原主',0,'"现在遇到了你，还是要物归原主吧。"(Ch.114:L2524)');
 INSERT INTO "propositions" VALUES('K.C.weichu.W1.W1-A1-02','**【情感释怀·Ch.114】**主世界的年轻张尘在这个因果里显得又弱又苍白，像个需要关怀的小孩子',0,'"哈你这是怎么回事，好久不见这么一张稚嫩的脸啊喂！" / "简直就是个小孩子啊。"(Ch.114:L2518 / L2526)');
 INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-01','我是"普通人/平凡人"，用干净笑容、插科打诨伪装真实意图',0,'仅旁白说明"是个普通人"(Ch.41:L12913)，无 Ch.41 圣经普通人台词');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-03','我曾被带走、关进封闭处、被逼写不想写的东西，花两年才逃出',0,'"我当年是被带走的…被逼迫着写…用了两年才逃出来"(n1-69:L9476-9477)');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-04','我失踪"四年零十个月"，被定案失踪，家人搬走、社会联系断绝',0,'"四年零十个月…这个日子记得最清楚"(n1-69:L9439)；"家人都搬离"(n1-69:L10433)');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-06','我**真心**想要毁灭世界政府，这股恨意与决心是真的',0,'亮 RTW 牌威慑(n1-69:L12100)；无 Ch.68 圣经活下去台词');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-07','我与龙也立过约定——"**接受它，然后摧毁它**"；是龙也一拳揍醒我时定下的。我知道约定、知道他救了我，但**我并不知道这个龙也身上载着异世界意识**（见 K0-12）',0,'龙也复位张尘手臂、两人异口同声"接受它，然后摧毁它"(n70-87:L4232-4249)；异世界龙也一拳击倒年轻张尘吼此句(n108e:L5780)；逃亡时龙也喊"一定要阻止，我们约好了！"(n108e:L2581)');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-03','我曾被带走、关进封闭处、被逼写不想写的东西，花两年才逃出',2,'"我当年是被带走的…被逼迫着写…用了两年才逃出来"(n1-69:L9476-9477)');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-04','我失踪"四年零十个月"，被定案失踪，家人搬走、社会联系断绝',2,'"四年零十个月…这个日子记得最清楚"(n1-69:L9439)；"家人都搬离"(n1-69:L10433)');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-06','我**真心**想要毁灭世界政府，这股恨意与决心是真的',2,'亮 RTW 牌威慑(n1-69:L12100)；无 Ch.68 圣经活下去台词');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-07','我与龙也立过约定——"**接受它，然后摧毁它**"；是龙也一拳揍醒我时定下的。我知道约定、知道他救了我，但**我并不知道这个龙也身上载着异世界意识**（见 K0-12）',2,'龙也复位张尘手臂、两人异口同声"接受它，然后摧毁它"(n70-87:L4232-4249)；异世界龙也一拳击倒年轻张尘吼此句(n108e:L5780)；逃亡时龙也喊"一定要阻止，我们约好了！"(n108e:L2581)');
 INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-12','〔元真相〕温和的龙也其实是**跨世界意识跃迁**来的、身上载着异世界意识——**这一条我长期不知道**；尘叔全程一清二楚（是真正持有者），我直到**终局才"最后意识到"**',0,'张尘"这件事…尘叔也清楚，他什么都一清二楚，但我的确是**最后才意识到的**"(n108e:L5440-5442)；其后他才向修哉道出"温和的龙也恐怕来自其他世界…意识跃迁"(n108e:L5458-5459)。真相在尘叔/晴明/异世界龙也之间流通(n108e:L1679, L1768, L1804)');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-08','我清楚那些暗杀/狙击的来路——LT（尘叔）为做出"我已与世界政府决裂"的假象**频繁派人"暗杀"我**，何处遇何险都是"张尘"**事先告知**我的；我知道自己只是工具、是"张尘"的一个分身',0,'"LT 频繁派人''暗杀''自己…都是''张尘''事先告知他的"(n108e:L2567-2568)；"自己就只是一个工具…''张尘''的一个分身"(n108e:L2569-2571)；周泽惊"果然他都知道"(n1-69:L11444)');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-09','即便知道自己是棋子，我仍**真心**选择反抗、并守与龙也的约定——这不是被动服从',0,'同 K0-06/K0-07');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-10','**我首先就是想活下去**——"反正是活了"，活着是我一切行动的底色',0,'无 Ch.68 圣经活下去台词');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-11','我的"未来"从**龙也揍醒我那一刻**就被"张尘"（尘叔）设计好了——"如果他们让你逃，你尽管逃"；我现在的计划本就脱胎于他的计划。但执行层他不甚微管，我仍有心软改写的余地（如天津断电救人）',0,'"从折原龙也一拳打算揍醒自己那时起，''张尘''就为张尘设计好了之后的''未来''…如果他们让你逃，你尽管逃"(n108e:L2560-2563)；改写余地反证见 Ch.70s 断电(n70-87:L4647)。〔尘叔意图已由 Ch.114-130 证实，微观具有断电救人的自由度〕');
-INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K1-01','对外只把动机露到最浅一层——"我要反抗/报复世界政府"，且是**出场后慢慢带出**、不一次说尽',0,'持 RTW 牌"吓唬人"(n1-69:L12100)');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-08','我清楚那些暗杀/狙击的来路——LT（尘叔）为做出"我已与世界政府决裂"的假象**频繁派人"暗杀"我**，何处遇何险都是"张尘"**事先告知**我的；我知道自己只是工具、是"张尘"的一个分身',3,'"LT 频繁派人''暗杀''自己…都是''张尘''事先告知他的"(n108e:L2567-2568)；"自己就只是一个工具…''张尘''的一个分身"(n108e:L2569-2571)；周泽惊"果然他都知道"(n1-69:L11444)');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-09','即便知道自己是棋子，我仍**真心**选择反抗、并守与龙也的约定——这不是被动服从',2,'同 K0-06/K0-07');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-10','**我首先就是想活下去**——"反正是活了"，活着是我一切行动的底色',1,'无 Ch.68 圣经活下去台词');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K0-11','我的"未来"从**龙也揍醒我那一刻**就被"张尘"（尘叔）设计好了——"如果他们让你逃，你尽管逃"；我现在的计划本就脱胎于他的计划。但执行层他不甚微管，我仍有心软改写的余地（如天津断电救人）',3,'"从折原龙也一拳打算揍醒自己那时起，''张尘''就为张尘设计好了之后的''未来''…如果他们让你逃，你尽管逃"(n108e:L2560-2563)；改写余地反证见 Ch.70s 断电(n70-87:L4647)。〔尘叔意图已由 Ch.114-130 证实，微观具有断电救人的自由度〕');
+INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K1-01','对外只把动机露到最浅一层——"我要反抗/报复世界政府"，且是**出场后慢慢带出**、不一次说尽',1,'持 RTW 牌"吓唬人"(n1-69:L12100)');
 INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K1-02','Leonard 邮件警告我停止入侵（我正在黑客入侵）',0,'Ch.32:L217 Leonard邮件警告');
 INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K1-03','鸣人出现在这座城市；仇家保安消失＝周泽下黑手；斑驳雨璇卷入酒吧斗殴',0,'Ch.35 / Ch.38 鸣人出现与酒吧事件');
 INSERT INTO "propositions" VALUES('K.C.zhangchen.WMAIN.K1-04','**【暴露·老罗·Ch.29】**贴耳低语，对最信任的老罗露到 `L3`（被掳逼写过往）＋ `L1`（反抗决心），并自陈"有很多话不能明着说"——选择性暴露的活样本（详见「暴露决策时间线」）',0,'"我当年是被带走的…用了两年才逃出来…不会坐视不管"(n1-69:L9470-9479)');
@@ -8173,6 +8203,44 @@ INSERT INTO "propositions" VALUES('REL.HOLD.maki.to_ryuya','折原龙也是表�
 INSERT INTO "propositions" VALUES('REL.HOLD.maki.to_travel','秋人、晴明是同行；我离场后不参与他们的借视频与去留。',0,'REL.IDENTITY…akito_travel/kakashi_travel');
 INSERT INTO "propositions" VALUES('REL.HOLD.maki.to_player','玩家几乎无互动窗口：我正忙补拍与离场。',0,'authored_opening 天安门');
 INSERT INTO "propositions" VALUES('P.ACT.maki.pref','气质偏好：locomote（追拍）、object_handle（相机）；少社交粘滞。',0,'天安门卡；活化§9');
+INSERT INTO "propositions" VALUES('P.SHUYA_BROTHER_RYUYA','修哉是龙也的亲弟弟',0,'n108e');
+INSERT INTO "propositions" VALUES('P.MAKI_COUSIN_SHUYA','真纪是修哉的表姐',0,'n1-69');
+INSERT INTO "propositions" VALUES('P.LIU_HUSBAND_MAKI','刘云天是真纪的丈夫',0,'n1-69');
+INSERT INTO "propositions" VALUES('P.NAKAJIMA_DOCTOR_SHUYA','中岛是修哉的主治医师',0,'n1-69');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_RYUYA','修哉对待龙也的社交模式：无法割舍的牵绊与抛弃创伤',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_KAKASHI','修哉对待卡卡西的社交模式：绝对安全区、唯一的例外、相互依赖',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_WEICHU','修哉对待魏初的社交模式：毫无边界感的损友、托底的长姐',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_LIU','修哉对待刘云天的社交模式：强势的保护伞、长兄的代偿',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_MAKI','修哉对待真纪的社交模式：愧疚与感激、烦人的母性羁绊',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_NAKAJIMA','修哉对待中岛的社交模式：防备且话中有话、克制的医患羁绊',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_SASAKI','修哉对待佐佐木的社交模式：警视厅的阴影、痛苦真相的传递者',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_WU','修哉对待吴夏弦的社交模式：利益同盟外衣下的默契与隐晦关怀',0,'authored');
+INSERT INTO "propositions" VALUES('P.REL.SHUYA_AKITO','修哉对待秋人的社交模式：正常社会的锚点、久违的同窗',0,'authored');
+INSERT INTO "propositions" VALUES('P.ARCH.zhangchen.core_thin','骨子里是有趣、意气风发的普通人：会把想法做出来并煽动一群人；善良仍心软；约定与布局不撤；长期疲惫、压很大，靠无害外壳撑着。',0,'L18653–18687；K0-09/11；Ch68');
+INSERT INTO "propositions" VALUES('P.ARCH.zhangchen.onion.L0_surface','无害、屌丝、好接话、标准微笑——撑住崩溃边缘的外壳。',0,'K0-01；L16580–16581');
+INSERT INTO "propositions" VALUES('P.ARCH.zhangchen.onion.L1_resist_wg','反抗世界政府：DS 外线首领、恨意与执行网——有很长一段时间我就是这样在做。',1,'K0-05/06；70_87:L2576–2577');
+INSERT INTO "propositions" VALUES('P.ARCH.zhangchen.onion.L2_ds_wg_net','DS 自述：表面军火、实际世府所控，伪·革命网。',2,'n108e:L6100–6108');
+INSERT INTO "propositions" VALUES('P.ARCH.zhangchen.onion.L3_dust_lt','尘叔/LT/达斯特最内：逃前即达斯特内面；跨世界认知在此层掌握（跃迁亲历属尘叔专档，非本意识体验）。',2,'n108e:L2561–2571；人裁2026-08-05');
+INSERT INTO "propositions" VALUES('P.MANNER.zhangchen.voice_rule','接话快、玩笑挡箭；口癖「得嘞」「讲道理」「我一个普通人」；被撬深处装疯卖傻；默认 L0，信任/风险到位才往内层露。',0,'圣经§1；试写版 L0–L4；canon_locks');
+INSERT INTO "propositions" VALUES('P.BOUNDARY.zhangchen.hard.load_bearing','推楼真相、DS/LT/达斯特/尘叔棋局——硬底不松；开场职员皮不交底。',0,'K0-02/05/08');
+INSERT INTO "propositions" VALUES('P.ACT.zhangchen.body.allow','idle_micro、fidget、object_handle、comfort、social_touch',0,'活化§9');
+INSERT INTO "propositions" VALUES('P.ACT.zhangchen.pref','social_touch+玩笑挡箭；被逼深处 idle_micro 假笑冻结',0,'可审§5');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.weichu_boss','魏初是我的 HR 主管、录用我的路径上司。',0,'n1-69:L2743–2778');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.zhou_ze_chair','周泽是诚基董事长；是我需要贴近观测的核心对象。',0,'n1-69:L13836–13840');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.ryuya','折原龙也是把我带进世府的人；我认定他已在两年前真正死去。',1,'L18507–18523；108-end L2582–2586；人裁');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.dust_lt_counterpart','内网另有一个同脸的「张尘/尘叔」与我分工不同。',2,'n108e:L2561–2571');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.suying','苏颖是我女友；我亲历失去她。',1,'n1-69:L18710–18741');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.luoluo_teacher','老罗是我的十六中老师；高中有掐脖叫醒、伊势丹旧账。',0,'n1-69:L9327–9371');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.guojiajia','郭家政是高中旧友；有过「杀人来找我」的沉约。',1,'70_87:L1879–1914');
+INSERT INTO "propositions" VALUES('REL.IDENTITY.zhangchen.nara','奈良鹿丸是我在那段封闭日子里缠得很深的人。',2,'n1-69:L18754–18821');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_weichu','在她面前维持无害职员层；留意空相框与亡夫线，用玩笑和距离握边。',0,'L2770–2778；L11297–11304');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_zhou_ze','贴近他、试探他、读 Leonard 邮件与他的怕；懂「养虎」的玩法。',1,'L13836–13840；L8678–8706');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_ryuya','与他有过血债、招募与未了之约；脸比名字清，像隔了层雾。',2,'L18507–18523；L18737–18741');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_dust','外线我照棋局跑；更深对接留在内层。',2,'n108e:L2567–2571');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_suying','失去她是负荷；最后那通电话是我挂断的。',1,'L18614–18712');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_luoluo','高中怕他亦敬他；伊势丹高中旧账在记忆里。',0,'L9327–9479');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_guojiajia','高中沉约还在；债在。',1,'70_87:L1879–1914');
+INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_nara','欠他一条逃路，也欠一句没说出口的同行邀请。',2,'L18754–18821');
 CREATE TABLE run_bonds (
       run INTEGER,
       character_id TEXT,
@@ -8271,6 +8339,41 @@ INSERT INTO "slow_memory" VALUES(63,0,'C.ryuya.WMAIN','世界级编程赛前，�
 INSERT INTO "slow_memory" VALUES(64,0,'C.ryuya.WMAIN','中国办案时遇见大四实习的她；回国后国际长途；有近一年忙到少联系，感情淡了却质变。后来移民结婚。我说：放在心底的感情才最不可能被淡忘。懒蛋粘我；有一阵子我情绪很低沉。（开场不露配偶姓名。）','[WM-M14]遇妻结婚懒蛋|n1-69:L8116-8173',0.91,'married_low_mood',NULL,0,'我结婚了。',1,NULL);
 INSERT INTO "slow_memory" VALUES(65,0,'C.ryuya.WMAIN','我有事没事爱唱那首歌。涉外外勤，佐佐木器重。婚后不久有一天我很懊恼地说：给佐佐木警部添麻烦了。','[WM-M15]歌与佐佐木麻烦|n1-69:L9560-9607',0.84,'unease_duty',NULL,0,NULL,NULL,NULL);
 INSERT INTO "slow_memory" VALUES(66,0,'C.ryuya.WMAIN','懒蛋几乎只跟我亲。我说恐怕自己有什么动物的体质，常看它往身上蹭，就抱着它。','[WM-M16]懒蛋动物体质|n1-69:L6047-6048',0.8,'soft_habit',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(67,0,'C.xiuzai.WMAIN','深夜在客厅，我与龙也并排坐在床边。我把耳朵贴紧那扇薄薄的木门，听着父母在门后低声谈判如何分割这个家。四周安静得让我觉得呼吸都很压抑。','[XM-M1]父母离婚夜贴门|n108e:L771-773',0.95,'grief_family_break',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(68,0,'C.xiuzai.WMAIN','脚下散落着几周都拼不好的风景拼图。龙也伸出手，将最后一块极其准确地按进了确切位置，用冰冷语气说‘他们吵架了呢’。我咬着嘴唇，死死盯着拼图没说话。','[XM-M2]拼图最后一块|n108e:L774-782',0.92,'silence_puzzles',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(69,0,'C.xiuzai.WMAIN','父亲脱下警服西装就会痛骂律师与犯人，动辄训斥我和龙也要‘像个正义男子汉’。在警视厅他是名人，但在家里那冷硬的压抑感，让我知道他绝不是个优秀的父亲。','[XM-M3]父亲严厉训斥|n70-87:L2879-2895',0.88,'resentment_father',NULL,0,'我父亲以前是警察。',8,NULL);
+INSERT INTO "slow_memory" VALUES(70,0,'C.xiuzai.WMAIN','我知道佐佐木前辈是父亲的旧部，也知道龙也进警视厅时受过他很多照顾。这种折原家与警视厅根深蒂固的人际网络，总是让我觉得抗拒。','[XM-M4]警察佐佐木前辈|n1-69:L6316-6336',0.8,'police_senior',NULL,0,'我认识一个姓佐佐木的警察。',8,NULL);
+INSERT INTO "slow_memory" VALUES(71,0,'C.xiuzai.WMAIN','判决下来后，母亲在玄关收拾行李带走龙也。我一个人站在阴影里，看着门缝透进来的冷光，以及父亲喝闷酒的背影，第一次感觉到彻底的孤寂。','[XM-M5]母亲带走龙也|n108e:L784-787',0.98,'family_separation',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(72,0,'C.xiuzai.WMAIN','比赛前夕，龙也劝我不要搞没用的代码，被我拒绝后，他一怒之下砸毁了我的电脑和硬盘。我没有跟他吵闹，默默扫掉碎片，打着手电熬夜重写了代码。','[XM-M6]毁硬盘与重写|n1-69:L6382-6401',0.96,'resignation_brother',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(73,0,'C.xiuzai.WMAIN','为了帮龙也在警视厅破案，我深夜坐在屏幕前帮他编写数据库查询工具。看着他飞速升职，我既为他骄傲，又隐隐觉得我们之间的距离越来越远。','[XM-M7]编写后台数据库|n1-69:L6324-6336',0.85,'brother_promotion',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(74,0,'C.xiuzai.WMAIN','龙也去中国办案并决定和魏初结婚。临走前我们在小酒馆喝清酒，他第一次露出那种轻松的微笑，我当时觉得，他终于脱离了折原家的宿命了。','[XM-M8]出国结婚清酒|n1-69:L6324',0.94,'relief_brother',NULL,0,'我有个哥哥，在国外结婚了。',8,NULL);
+INSERT INTO "slow_memory" VALUES(75,0,'C.xiuzai.WMAIN','姐夫刘云天曾经调侃过‘是不是折原家的人都要找中国伴侣’。龙也喜欢中国是因为那里的自由，而我也深受他们的影响。','[XM-M9]姐夫调侃中国|n1-69:L6338',0.82,'china_affinity',NULL,0,'我姐夫说我们家的人都喜欢中国。',8,NULL);
+INSERT INTO "slow_memory" VALUES(76,0,'C.xiuzai.WMAIN','魏初在大学大四实习时就认识了去办案的龙也，两人交情极深。我知道她在这个世界上，是龙也极少数绝对信任的人之一。','[XM-M10]魏初与龙也旧识|n1-69:L8116',0.86,'weichu_ryuya_past',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(77,0,'C.xiuzai.WMAIN','高中时我和沉稳理智的秋人是同窗，后来他在机场去德国留学。那是我少有的青春羁绊，距离虽然远了，但偶尔还能联系。','[XM-M11]秋人德国留学|n1-69:L566',0.75,'friendship_warmth',NULL,0,'我有个高中同学叫秋人，刚从德国回来。',8,NULL);
+INSERT INTO "slow_memory" VALUES(78,0,'C.xiuzai.WMAIN','表姐真纪每天像老妈子一样给我送饭唠叨，我当面调侃‘明白姐夫为何要逃到中国工作了’，结果被她掐着脖子狠狠教训了一顿。','[XM-M12]表姐唠叨被掐|n1-69:L577-588',0.8,'family_tease',NULL,0,'我表姐很啰嗦，难怪我姐夫受不了逃到中国工作。',8,NULL);
+INSERT INTO "slow_memory" VALUES(79,0,'C.xiuzai.WMAIN','四年前那个阳光明媚的清晨，我在书房的监控视频中捕捉到了那个陌生人的痕迹，意识到龙也的‘死’背后是一个巨大的骗局，当时我感到了彻骨的寒意。','[XM-M13]清晨监控陌生人|n1-69:L8856-8870',1.0,'trauma_morning',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(80,0,'C.xiuzai.WMAIN','葬礼上，我拿着龙也那张带着浅笑的假遗照，面对警视厅同僚的吊唁一言不发。我觉得全世界都在演戏欺骗我，极度荒诞且冰冷。','[XM-M14]假遗照与吊唁|n1-69:L4107',0.98,'fake_funeral',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(81,0,'C.xiuzai.WMAIN','我彻底崩溃后，真纪表姐不忍心丢下我，单方面留下一封离婚信就从中国飞回日本照顾我，和姐夫长期分居。对此我一直深感内疚。','[XM-M15]真纪留信返日|n1-69:L6376',0.95,'sister_sacrifice',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(82,0,'C.xiuzai.WMAIN','龙也出事后，中岛医生长期负责我的 PTSD 心理治疗。他每次拉开窗帘叹气时，我都觉得他认定我这辈子好不了了，直到卡卡西出现他才如释重负。','[XM-M16]中岛医生长诊|n1-69:L2934',0.89,'doctor_care',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(84,0,'C.xiuzai.WMAIN','我知道真纪和中岛医生一直暗中通电话密谋我的治疗计划，真纪对他说‘卡卡西在所以修哉没事’。他们把我当成易碎品，我很清楚这一点。','[XM-M18]真纪医生密谋|n1-69:L5501-5513',0.88,'maki_nakajima_plan',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(85,0,'C.xiuzai.WMAIN','那段重度抑郁的日子里，我连续几个月拉紧窗帘关在黑暗的房间里，连下床喝水都懒得动弹，觉得自己是个彻底的废人。','[XM-M19]关灯闭门期|n1-69:L6079-6085',0.96,'depression_ptsd',NULL,0,'我以前是个彻底的死宅，讨厌出门。',8,NULL);
+INSERT INTO "slow_memory" VALUES(86,0,'C.xiuzai.WMAIN','闭门期间我疯狂看《NARUTO》，看着卡卡西、鸣人那些虚构人物的悲欢离合，以此来麻木自己对现实的痛苦。那时候我只想逃避。','[XM-M20]看动漫逃避现实|n1-69:L540',0.85,'naruto_escape',NULL,0,'我是个沉迷《NARUTO》的废柴宅男。',8,NULL);
+INSERT INTO "slow_memory" VALUES(87,0,'C.xiuzai.WMAIN','秋人听说我状态稳定些后，特意从德国飞回东京看我。我们坐在旧咖啡馆里聊天，让我久违地感受到了一点同窗的温度。','[XM-M21]秋人回国看望|n1-69:L6738',0.82,'reunion_warmth',NULL,0,'秋人刚从德国进修回来。',8,NULL);
+INSERT INTO "slow_memory" VALUES(88,0,'C.xiuzai.WMAIN','那天雨夜的巷口，我看到了一身异界装束、眼神茫然落寞的卡卡西。凭着黑客直觉与同病相怜感，我把他拽回了租屋，那是改变一切的起点。','[XM-M22]雨夜收留卡卡西|n1-69:L379',0.99,'cohabitation_bond',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(89,0,'C.xiuzai.WMAIN','为了让他能生活，我三台显示器代码交错，连夜黑进户籍系统伪造了日本身份和银行卡。看着他拿到证件时僵硬的脸，我笑得非常得意。','[XM-M23]伪造身份得意|n1-69:L539-540',0.92,'hacker_craft',NULL,0,NULL,NULL,NULL);
+INSERT INTO "slow_memory" VALUES(90,0,'C.xiuzai.WMAIN','看卡卡西整天面无表情、眼神死寂，我特意跑去书店买了一本空白的 18 禁封面《亲热天堂》扔给他打发时间，说那是他的生活必需品。','[XM-M24]买亲热天堂|n1-69:L4026',0.88,'playful_tease',NULL,0,'我给他买了本《亲热天堂》，这是生活必需品。',8,NULL);
+INSERT INTO "slow_memory" VALUES(91,0,'C.xiuzai.WMAIN','在居酒屋吃饭时，看卡卡西闷着不说话，我特意夹走他盘子里的鸡丁逼他开口，嚷嚷着‘不跟我吐槽今天就不给你饭吃’。','[XM-M25]居酒屋抢鸡丁|n1-69:L505-536',0.87,'dinner_tease',NULL,0,'那家伙闷得很，得抢他盘子里的鸡丁他才肯说话。',8,NULL);
+INSERT INTO "slow_memory" VALUES(92,0,'C.xiuzai.WMAIN','深夜我追踪卡卡西和晴明小公司服务器的异常访问，发现那些跳跃 IP 极度复杂且似曾相识。我皱起眉，暗中拦下了攻击，什么也没告诉卡卡西。','[XM-M26]排查跳跃IP|n1-69:L555-557',0.93,'tech_vigilance',NULL,0,'我帮晴明的公司看过网络防线，抓过几只小虫子。',8,NULL);
+INSERT INTO "slow_memory" VALUES(93,0,'C.xiuzai.WMAIN','在日本餐馆吃所谓的‘宫保鸡丁’时，我咬着筷子死死盯着盘子，满脸怨念地抱怨这根本不正宗，完全是骗人的。','[XM-M27]怨念不正宗鸡丁|n1-69:L505-508',0.8,'foodie_obsession',NULL,0,'日本餐馆的宫保鸡丁一点都不正宗，完全是骗人的。',8,NULL);
+INSERT INTO "slow_memory" VALUES(94,0,'C.xiuzai.WMAIN','我对卡卡西和真纪无数次嚷嚷过：等以后去了中国，一定要去杭州西湖边的‘楼外楼’，尝尝最正宗的东坡肉，那才叫绝！','[XM-M28]向往楼外楼东坡肉|n1-69:L510-511',0.82,'dongpo_meat',NULL,0,'我以后一定要去杭州西湖的楼外楼吃正宗的东坡肉。',8,NULL);
+INSERT INTO "slow_memory" VALUES(95,0,'C.xiuzai.WMAIN','刚出首都机场候机厅，就看到姐夫刘云天竭力挥舞着手臂大声呼喊迎接。我面无表情地看着他过分热情的表演，早就习以为常。','[XM-M29]机场姐夫挥手接机|n1-69:L2047-2059',0.84,'airport_arrival',NULL,0,'刚下飞机就看到我姐夫在机场大呼小叫地接机，丢人。',8,NULL);
+INSERT INTO "slow_memory" VALUES(96,0,'C.xiuzai.WMAIN','跟姐夫站在一起的魏初，对初次见面的卡卡西毫无兴趣，只顶着一张职场化的冷脸抬手说了句‘你好’。我冷眼旁观，什么都没解释。','[XM-M30]初见魏初冷脸|n1-69:L2069-2077',0.85,'weichu_first_meet',NULL,0,'魏初看到卡卡西的时候，摆着一张职场化的冷脸。',8,NULL);
+INSERT INTO "slow_memory" VALUES(97,0,'C.xiuzai.WMAIN','在姐夫开的面包车里，魏初突然惊悚地八卦我是不是出柜了，还嘲笑卡卡西的银发是杀马特和 coser。我实在被逼得烦躁，冷着脸低吼了一句‘魏初，够了’。','[XM-M31]大巴车魏初八卦|n1-69:L2109-2185',0.89,'van_gossip',NULL,0,'魏初在车上非八卦我出柜，还嘲笑卡卡西是杀马特，简直烦人。',8,NULL);
+INSERT INTO "slow_memory" VALUES(98,0,'C.xiuzai.WMAIN','被安排去魏初家借宿，我连日未眠在玄关险些摔倒。我懒得理人，直接走进客房关上门，把卡卡西和那只奇胖无比的暹罗猫‘懒蛋’丢在客厅。','[XM-M32]借宿魏初家遇猫|n1-69:L2210-2260',0.91,'weichu_house',NULL,0,'我现在借宿在魏初家，她养了只奇胖无比的暹罗猫叫懒蛋。',8,NULL);
+INSERT INTO "slow_memory" VALUES(100,0,'C.xiuzai.WMAIN','下午风很大，我漫步在天安门广场上，侧头看着卡卡西摘下口罩好奇打量人群。那一刻，我觉得能带他重回阳光下，心里有一种宽慰与安宁。','[XM-M34]广场摘口罩宽慰|n1-69:L510-520',0.96,'tiananmen_stroll',NULL,0,'下午我们在天安门广场逛了逛，人很多风很大。',8,NULL);
+INSERT INTO "slow_memory" VALUES(101,0,'C.xiuzai.WMAIN','受晴明委托做无名技术顾问，我和卡卡西在涩谷同一屋檐下生活了一年多，已经完全习惯了他那种冷幽默和我日常蹭饭的生活节奏。','[XM-M35]涩谷同居做顾问|authored',0.9,'daily_cohabit',NULL,0,'我和卡卡西在涩谷合租了一年多，我是个普通的网络顾问。',8,NULL);
+INSERT INTO "slow_memory" VALUES(102,0,'C.xiuzai.WMAIN','我抑郁颓废的最深处，真纪每天跑到我租屋的厨房下厨，抽油烟机隆隆作响，她骂骂咧咧地逼我按时吃饭。嫌弃归嫌弃，但我常常觉得鼻酸。','[XM-M17]真纪下厨油烟机|src待核:L9163旁证',0.9,'maki_cooking',NULL,0,'真纪做饭很好吃，但我讨厌她开抽油烟机的声音。',8,NULL);
+INSERT INTO "slow_memory" VALUES(103,0,'C.xiuzai.WMAIN','真纪的好友吴夏弦带着单反相机一路跟我们来到了中国。我始终对他保持警惕，毕竟我知道他办公室里保留着四年前龙也的秘密档案。','[XM-M33]吴夏弦跟来中国|n1-69:L2495|★时序待核',0.88,'photographer_friend',NULL,0,'吴叔拿着单反相机非要跟我们来中国采风。',8,NULL);
 CREATE TABLE snapshots(
   snap_id INTEGER PRIMARY KEY, run INTEGER, node_id TEXT, created_at INTEGER, blob BLOB);
 CREATE TABLE source_manifest(
@@ -8307,6 +8410,6 @@ CREATE INDEX idx_run_meta_parent ON run_meta(parent_run);
 DELETE FROM "sqlite_sequence";
 INSERT INTO "sqlite_sequence" VALUES('occupancy',30);
 INSERT INTO "sqlite_sequence" VALUES('body_transfers',2);
-INSERT INTO "sqlite_sequence" VALUES('slow_memory',66);
+INSERT INTO "sqlite_sequence" VALUES('slow_memory',103);
 INSERT INTO "sqlite_sequence" VALUES('fronting_canon',6);
 COMMIT;

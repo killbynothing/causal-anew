@@ -1334,6 +1334,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_ryuya_episodic_deep_past.py",
     },
     {
+        "id": "zhangchen_seed_knife1",
+        "desc": "张尘刀1 Seed（薄核/REL/ACT）+ 闲聊不灌深 K0（零 LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_zhangchen_seed_knife1.py"],
+        "triggers": [
+            "scripts/migrate_zhangchen_seed_knife1_2026-08-07.py",
+            "scripts/tests/test_zhangchen_seed_knife1.py",
+            "runtime/actor_context_v2.py",
+            "runtime/personas/C.zhangchen.WMAIN.md",
+            "runtime/interaction_dynamics.json",
+        ],
+        "need_db": True,
+        "need": [],
+        "need_file": "scripts/tests/test_zhangchen_seed_knife1.py",
+    },
+    {
         "id": "tiananmen_cast_persona_parity",
         "desc": "天安门四人 Seed 投影 ⊇ 卡 seed id + ARCH/HOLD",
         "tier": "quick",

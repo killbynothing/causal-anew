@@ -169,6 +169,26 @@
         "learn_ch": 1,
         "source": "Ch.2 初见"
       }
+    },
+    "C.zhangchen.WMAIN": {
+      "C.weichu.WMAIN": {
+        "fact": "录用我的主管；我在她面前维持无害职员层，买咖啡耍宝，不交底。",
+        "shared_public": "部门新人与人力主管；他爱贫嘴，她偶尔被逗到。",
+        "learn_ch": 9,
+        "source": "E009-01；REL.HOLD.zhangchen.to_weichu"
+      },
+      "C.zhouze.WMAIN": {
+        "fact": "诚基董事长，是我要贴近观测的核心；懂养虎博弈，不在职员皮里说破。",
+        "shared_public": "公司里的董事长；我未必当场同场。",
+        "learn_ch": 9,
+        "source": "L13836–13840；REL.HOLD.zhangchen.to_zhou_ze"
+      },
+      "C.leonard.WMAIN": {
+        "fact": "周泽盘上的技术刀；邮件漏洞侧写是观测入口之一。",
+        "shared_public": "公司技术侧相关人物。",
+        "learn_ch": 9,
+        "source": "可审§5；Leonard 线"
+      }
     }
   }
 }

@@ -220,6 +220,12 @@ def fetch_relevant_knowledge(
     query_text: str = "",
     top_k: int = 8,
 ) -> list[dict[str, Any]]:
+    """Keyword-activate scheduled K.* into a small Top-K.
+
+    Idle turns (no term hit) must **not** fill the packet with deep spoilers
+    sorted only by learn_ch — that dumps captivity/DS/pact into every hire beat.
+    Zero-relevance fallback keeps at most two spoiler_tier==0 surface facts.
+    """
     if not DB_PATH.exists():
         return []
     query_terms = [t for t in re.split(r"\s+", query_text) if len(t) >= 2]
@@ -229,7 +235,8 @@ def fetch_relevant_knowledge(
         cur = conn.cursor()
         cur.execute(
             """
-            SELECT ks.prop_id, p.statement, ks.learn_ch, COALESCE(ks.source_desc, '')
+            SELECT ks.prop_id, p.statement, ks.learn_ch, COALESCE(ks.source_desc, ''),
+                   COALESCE(p.spoiler_tier, 0)
             FROM knowledge_schedule ks
             JOIN propositions p ON ks.prop_id = p.prop_id
             WHERE ks.cons_id = ? AND ks.learn_ch <= ?
@@ -244,7 +251,7 @@ def fetch_relevant_knowledge(
             """,
             (cons_id, int(ch_anchor)),
         )
-        for prop_id, statement, learn_ch, source_desc in cur.fetchall():
+        for prop_id, statement, learn_ch, source_desc, spoiler_tier in cur.fetchall():
             if not statement:
                 continue
             relevance = 0.0
@@ -259,13 +266,21 @@ def fetch_relevant_knowledge(
                     "learn_ch": int(learn_ch),
                     "source": str(source_desc or ""),
                     "relevance": relevance,
+                    "spoiler_tier": int(spoiler_tier or 0),
                 }
             )
         conn.close()
     except Exception:
         return []
-    rows.sort(key=lambda item: (-item["relevance"], item["learn_ch"]))
-    return rows[:top_k]
+    matched = [r for r in rows if r["relevance"] > 0]
+    if matched:
+        matched.sort(key=lambda item: (-item["relevance"], item["learn_ch"], item["prop_id"]))
+        return matched[:top_k]
+    # No cue hit: surface mask only (tier 0), never flood deep K0/P.* spoilers.
+    surface = [r for r in rows if int(r.get("spoiler_tier") or 0) <= 0]
+    surface.sort(key=lambda item: (item["learn_ch"], item["prop_id"]))
+    idle_cap = min(2, int(top_k or 0))
+    return surface[:idle_cap]
 
 
 def load_interaction_dynamics() -> dict[str, Any]:

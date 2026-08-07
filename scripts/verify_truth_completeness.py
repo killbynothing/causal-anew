@@ -23,8 +23,9 @@ EVENT_UID_RE = re.compile(r"^E(\d{3})-(\d{2})$")
 CH_GAP_CHAPTERS = (22, 47)
 EXPECTED_COUNTS = {
     "events_run0": 565,
-    # 2026-08-03 tiananmen cast +39 → 434
-    "propositions": 434,
+    # 2026-08-03 tiananmen cast +39 → 447
+    # 2026-08-07 zhangchen knife1 +25 → 472
+    "propositions": 472,
     "node_contracts": 5,
 }
 

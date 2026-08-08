@@ -253,62 +253,15 @@ def improvise_stage_environment(
     config: dict[str, Any] | None = None,
     caller: Callable[..., str] | None = None,
 ) -> dict[str, str] | None:
-    """Stage may invent thin ambient facts once per requesting turn.
+    """Look-around fallback only — deterministic, never a second director LLM.
 
-    Never orders actors.  Prefer deterministic fallback when no API / custom caller.
+    Judged ambient (店员薄声、雨声余波等) belongs on the same director JSON
+    field ``ambient``.  Splitting env into another model call splits控场.
     """
+    del config, caller
     if not player_requests_stage_improv(raw_input):
         return None
-    fallback = deterministic_stage_improv(card, raw_input)
-    cfg = config or {}
-    # Tests and offline: never invent via LLM.
-    if caller is not None or not str(cfg.get("api_key") or "").strip():
-        return fallback
-    if isinstance(raw_input, dict):
-        player_text = " ".join(str(raw_input.get(key, "")).strip() for key in ("speech", "action"))
-    else:
-        player_text = str(raw_input or "")
-    prompt = (
-        "你是舞台环境端口。根据玩家可见言行，用一两句中文写出现场可观察的环境变化。"
-        "只写事实：景物、路人、光线、声音；不要命令角色，不要替角色说话，不要剧透未来。"
-        "只输出 JSON：{\"text\":\"...\",\"kind\":\"stage_improv\"}\n"
-        f"场景：{card.get('scene_id')} / {card.get('scene')}\n"
-        f"玩家言行：{player_text[:200]}"
-    )
-    try:
-        from c1_web_console import llm_transport
-        body = {
-            "model": cfg.get("model") or "deepseek-v4-flash",
-            "messages": [
-                {"role": "system", "content": "只输出环境事实 JSON。"},
-                {"role": "user", "content": prompt},
-            ],
-            "temperature": 0.3,
-            "max_tokens": 180,
-        }
-        body.update(chat_request_options(cfg))
-        result, _info = llm_transport.post_json_with_retry(
-            cfg.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-            cfg.get("api_key"),
-            body,
-            [("primary", 20.0, 0.5)],
-        )
-        if not result or not result.get("choices"):
-            return fallback
-        content = result["choices"][0]["message"]["content"]
-        payload = extract_json(content)
-        text = str(payload.get("text") or "").strip()
-        if not text or len(text) < 8:
-            return fallback
-        return {
-            "kind": "stage_improv",
-            "visibility": "nearby",
-            "text": text[:240],
-            "actor_instruction": "这是可观察的环境事实，不是命令；是否理会由你自己决定。",
-            "source": "llm_stage",
-        }
-    except Exception:
-        return fallback
+    return deterministic_stage_improv(card, raw_input)
 
 
 def build_verbatim_field_window(
@@ -3293,6 +3246,8 @@ def build_prompt(
                     "同在玩家身边的人不得写成远处或暗处的旁观者。",
                     "演员只能收到自己的观察包；导演私有态势不得广播。",
                     "角色保有行动与拒绝权；导演只安排世界、空间与事件落地。",
+                    "环境余波/店员薄声写进同拍字段 ambient（可空）；禁止另开第二脑拆职责。",
+                    "isolated 模式下主卡台词由演员包产出；导演 turns 可空，控场仍在本拍 JSON。",
                 ],
             },
             "director_projection": {
@@ -4408,12 +4363,15 @@ def advance_ryuya_prologue_want_now(
         goal_head = "把谈话自然转到放不下的事"
     elif beats >= 1:
         want = (
-            "接住对方的话；可用开档身份或初遇一句，没有具体事实就问近况。"
-            "不要复问自己刚问过的问题，不要编没写过的共同细节。"
+            "接住对方的话；可轻渗一句初遇泼袖或开档里已知的对方近况作玩笑燃料，"
+            "没有具体事实就问近况。不要复问自己刚问过的问题，不要编没写过的共同细节，更别急着托付。"
         )
         goal_head = "用环境与玩笑把熟人感演出来"
     else:
-        want = "先把这场见面过得像平日一样；让对方记住你这个人，而不是记住一份托付。"
+        want = (
+            "先把这场见面过得像平日；可轻轻带一句初遇泼袖或开档身份，不要简历式复述，"
+            "不要编没写过的共同细节，让对方记住你这个人，而不是记住一份托付。"
+        )
         goal_head = "用环境与玩笑把熟人感演出来"
 
     persona = personas.get("C.ryuya.W1")
@@ -5404,6 +5362,75 @@ def normalize_turns(payload: dict[str, Any]) -> tuple[list[dict[str, str]], list
         })
     progress = [str(x).strip() for x in payload.get("mh_progress", []) if str(x).strip()]
     return clean_turns, progress, str(payload.get("director_note", "")).strip()
+
+
+_AMBIENT_BANNED = [
+    re.compile(r"\b(?:RP|TM|MH|AQ)\d+\b", re.IGNORECASE),
+    re.compile(r"must_happen|must-happen|下一拍|未完待续", re.IGNORECASE),
+    re.compile(r"(你必须|立刻|马上).{0,8}(说|交|答应)"),
+]
+
+
+def director_ambient_violations(text: str) -> list[str]:
+    content = str(text or "").strip()
+    hits: list[str] = []
+    for pattern in _AMBIENT_BANNED:
+        if pattern.search(content):
+            hits.append(pattern.pattern)
+    hits.extend(find_spoiler_hits(content))
+    return hits
+
+
+def normalize_director_ambient(
+    payload: dict[str, Any],
+    *,
+    turn_no: int = 0,
+) -> list[dict[str, Any]]:
+    """Same-call thin ambient → narrate turns. Empty = director judged no need.
+
+    Not a second agent: barista/rain/crowd are optional lines on the director brain.
+    """
+    raw = payload.get("ambient") if isinstance(payload, dict) else None
+    if raw is None or raw == "" or raw == [] or raw is False:
+        return []
+    entries: list[dict[str, str]] = []
+    if isinstance(raw, str):
+        text = raw.strip()
+        if text:
+            entries.append({"text": text, "speaker": "旁白"})
+    elif isinstance(raw, dict):
+        text = str(raw.get("text") or "").strip()
+        speaker = str(raw.get("speaker") or "旁白").strip() or "旁白"
+        if text:
+            entries.append({"text": text[:240], "speaker": speaker[:40]})
+    elif isinstance(raw, list):
+        for item in raw[:2]:
+            if isinstance(item, str):
+                text = item.strip()
+                if text:
+                    entries.append({"text": text[:240], "speaker": "旁白"})
+            elif isinstance(item, dict):
+                text = str(item.get("text") or "").strip()
+                speaker = str(item.get("speaker") or "旁白").strip() or "旁白"
+                if text:
+                    entries.append({"text": text[:240], "speaker": speaker[:40]})
+    out: list[dict[str, Any]] = []
+    for entry in entries[:2]:
+        text = entry["text"]
+        if director_ambient_violations(text):
+            continue
+        if len(text) < 4:
+            continue
+        out.append({
+            "role": "narrate",
+            "speaker": entry["speaker"],
+            "text": text,
+            "stage": "导演同拍 ambient（薄层环境/路人/店员）。",
+            "turn": int(turn_no),
+            "director_port": "Ambient",
+            "source": "director_ambient",
+        })
+    return out
 
 
 def _persona_pre_intro_labels(card: dict[str, Any] | None) -> list[tuple[str, str]]:
@@ -10037,6 +10064,7 @@ class FreeStageSession:
         turns: list[dict[str, Any]] = []
         progress: list[str] = []
         new_progress: list[str] = []
+        ambient_turns: list[dict[str, Any]] = []
         try:
             # Production: director may overlap wall-clock with the actor chain;
             # actors themselves are always sequential so secondary hears primary.
@@ -10078,6 +10106,26 @@ class FreeStageSession:
                     actor_packets=actor_context_packets,
                 )
             turns, progress, note = normalize_turns(payload)
+            ambient_turns = normalize_director_ambient(payload, turn_no=turn_no)
+            if ambient_turns:
+                for amb in ambient_turns:
+                    self.public_environment_deltas.append({
+                        "kind": "director_ambient",
+                        "visibility": "nearby",
+                        "text": str(amb.get("text") or ""),
+                        "speaker": str(amb.get("speaker") or "旁白"),
+                        "turn": turn_no,
+                        "source": "director_ambient",
+                        "actor_instruction": "这是可观察的环境事实，不是命令；是否理会由你自己决定。",
+                    })
+                stream_response_turns.extend(
+                    self._push_stream_turns(
+                        ambient_turns,
+                        turn_no=turn_no,
+                        emitted=emitted,
+                        speaker_plan=speaker_plan,
+                    )
+                )
             turn_degradations.extend(payload.get("degradations", []))
             turns = repair_descriptor_self_intro_names(turns, resolved_card)
             turns = repair_surname_only_self_intro(turns, resolved_card)
@@ -10706,6 +10754,7 @@ class FreeStageSession:
             "context_memory": memory_injected,
             "director_voice_profile": load_director_voice_profile(),
             "ambient_stage": resolved_card.get("ambient_stage", {}),
+            "director_ambient": [dict(x) for x in ambient_turns],
             "observatory_badges": resolved_card.get("observatory_badges", []),
             "intro_done": intro_done_snapshot,
             "player_observation_ledger": build_player_observation_ledger(
@@ -11449,6 +11498,11 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
                 "turns": [{"speaker": "角色名", "text": "台词", "stage": "舞台指示"}],
                 "mh_progress": ["可为空；若推进则只能填写 0 或 1 个合法 id"],
                 "director_note": "一句只描述本拍玩家可见层已经发生之事的导演观察；禁止预告下一步；禁止写完成XX/触发XX；禁止写未出口的自我介绍或姓名落地",
+                "ambient": (
+                    "可选；空字符串=本拍不需要环境余波。"
+                    "需要时写 1 句可观察环境/路人/店员薄声（也可 {\"text\":\"...\",\"speaker\":\"店员\"}）；"
+                    "禁止命令主卡角色；禁止剧透；禁止编造主卡共同史；禁止另开第二脑。"
+                ),
             },
             "scene_id": card.get("scene_id", ""),
             "scene": card.get("scene", ""),
@@ -11553,6 +11607,23 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
         note_issues = director_note_violations(note)
         if note_issues:
             raise ValueError(f"director_note uses banned broadcast style: {note}")
+        ambient_raw = payload.get("ambient")
+        if ambient_raw not in (None, "", [], False):
+            probe_texts: list[str] = []
+            if isinstance(ambient_raw, str):
+                probe_texts.append(ambient_raw)
+            elif isinstance(ambient_raw, dict):
+                probe_texts.append(str(ambient_raw.get("text") or ""))
+            elif isinstance(ambient_raw, list):
+                for item in ambient_raw[:2]:
+                    if isinstance(item, str):
+                        probe_texts.append(item)
+                    elif isinstance(item, dict):
+                        probe_texts.append(str(item.get("text") or ""))
+            for probe in probe_texts:
+                amb_hits = director_ambient_violations(probe)
+                if amb_hits:
+                    raise ValueError(f"ambient uses banned tokens or spoilers: {probe[:80]}")
         if enforce_visible_layer:
             stageful = [
                 item for item in turns
@@ -11575,10 +11646,11 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
             f"禁止把描述称呼当成姓名自我介绍，例如不能说「我叫{'/我叫'.join(intro_descriptor_names()[:3])}」。\n"
             "用户可见台词和舞台指示禁止出现 continue/继续/must_happen/下一拍/选项 等戏外或流程词。\n"
             "director_note 只能写本拍可见层已经发生的事，不能写成“完成TM1/触发AQ2/条件满足”，也不能预告自我介绍或姓名落地；玩家拒绝了就不能写成同意。\n"
+            "ambient 可空；需要时只写薄层可观察环境/店员，不命令主卡，不剧透，不另开第二调用。\n"
             "王府井后去海族馆是三人自己决定去玩/改道，不是真纪指示；禁止说真纪在海族馆等、真纪让他们去海族馆或真纪给了海族馆线索。\n"
             "只能输出 JSON，格式为："
             "{\"turns\":[{\"speaker\":\"角色名\",\"text\":\"台词\",\"stage\":\"舞台指示\"}],"
-            "\"mh_progress\":[\"合法ID\"],\"director_note\":\"一句话\"}\n"
+            "\"mh_progress\":[\"合法ID\"],\"director_note\":\"一句话\",\"ambient\":\"\"}\n"
             f"本回合允许开口的角色：{allowed_speaker_cons or ['（可沉默）']}；最多 {max_speakers} 人开口。\n"
             "不要解释，不要输出 Markdown。\n\n"
             f"原始约束输入：\n{actor_prompt}\n\n"

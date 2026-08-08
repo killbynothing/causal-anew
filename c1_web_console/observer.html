@@ -2443,9 +2443,14 @@ function renderBeatActorPanels(payload, nameMap) {
     if (cogEl) cogEl.innerHTML = `<div class="actor-receipt-empty">尚无 Agent 环回执。</div>`;
     if (directorSide) {
       const mhEnv = payload?.must_happen_environment_hint || payload?.speaker_plan?.must_happen_environment_hint;
-      directorSide.textContent = mhEnv
-        ? `MH 环境余波：${formatReceiptValue(typeof mhEnv === "string" ? mhEnv : JSON.stringify(mhEnv).slice(0, 240))}`
-        : "（无导演侧指令摘要）";
+      const amb = payload?.director_ambient || [];
+      const ambLine = amb.length
+        ? `同拍 ambient：${amb.map((a) => `${a.speaker || "旁白"}「${(a.text || "").slice(0, 80)}」`).join(" · ")}`
+        : "";
+      const parts = [];
+      if (mhEnv) parts.push(`MH 环境余波：${formatReceiptValue(typeof mhEnv === "string" ? mhEnv : JSON.stringify(mhEnv).slice(0, 240))}`);
+      if (ambLine) parts.push(ambLine);
+      directorSide.textContent = parts.length ? parts.join("\n") : "（无导演侧指令摘要 / ambient）";
     }
     return;
   }
@@ -2454,9 +2459,13 @@ function renderBeatActorPanels(payload, nameMap) {
   if (cogEl) cogEl.innerHTML = decoded.cogHtml;
   if (directorSide) {
     const mhEnv = payload?.must_happen_environment_hint || payload?.speaker_plan?.must_happen_environment_hint;
+    const amb = payload?.director_ambient || [];
     const bits = [`【给该角色的 director_instruction】\n${decoded.directorLines}`];
     if (mhEnv) {
       bits.push(`【MH 环境余波·导演侧】\n${formatReceiptValue(typeof mhEnv === "string" ? mhEnv : JSON.stringify(mhEnv).slice(0, 240))}`);
+    }
+    if (amb.length) {
+      bits.push(`【同拍 ambient】\n${amb.map((a) => `· ${a.speaker || "旁白"}：${a.text || ""}`).join("\n")}`);
     }
     directorSide.textContent = bits.join("\n\n");
   }
@@ -2805,7 +2814,19 @@ function renderDebugDetails(payload) {
       || role === "marker"
     );
   });
-  if (narrationEl) narrationEl.textContent = decodeNarrationFeed(thisBeatDirector, nameMap);
+  const ambientVisible = (payload?.director_ambient || []).map((item) => ({
+    role: "narrate",
+    speaker: item.speaker || "旁白",
+    text: item.text || "",
+    turn: item.turn || payload?.turn_no || 1,
+    source: "director_ambient",
+  }));
+  if (narrationEl) {
+    narrationEl.textContent = decodeNarrationFeed(
+      [...ambientVisible, ...thisBeatDirector],
+      nameMap,
+    );
+  }
 
   document.getElementById("completedMustHappen").textContent = (payload?.must_happen_progress?.completed || []).join(", ") || "无";
   document.getElementById("allowedMustHappen").textContent = (payload?.must_happen_progress?.allowed || []).join(", ") || "无";

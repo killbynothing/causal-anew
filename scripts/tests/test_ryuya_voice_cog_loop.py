@@ -230,6 +230,56 @@ def test_prologue_exit_defaults_deferred_without_receipt():
         assert out.get("ended") or sess.ended or True  # handoff may rewrite card
 
 
+def test_normalize_director_ambient_same_call():
+    from runtime.free_stage_prototype import normalize_director_ambient
+
+    assert normalize_director_ambient({"ambient": ""}) == []
+    rows = normalize_director_ambient(
+        {"ambient": {"text": "柜台那边问了一句要不要续杯。", "speaker": "店员"}},
+        turn_no=2,
+    )
+    assert len(rows) == 1
+    assert rows[0]["role"] == "narrate"
+    assert rows[0]["speaker"] == "店员"
+    assert "续杯" in rows[0]["text"]
+    assert rows[0]["source"] == "director_ambient"
+    # Banned MH id → drop
+    assert normalize_director_ambient({"ambient": "完成 RP2 之后雨更大了"}) == []
+
+
+def test_idle_want_seeps_first_meet_and_profile():
+    from runtime.free_stage_prototype import advance_ryuya_prologue_want_now
+
+    card = json.loads(
+        (ROOT / "runtime" / "free_stage_card_ryuya_prologue.json").read_text(encoding="utf-8")
+    )
+    want0 = advance_ryuya_prologue_want_now(card, flash_beats=0, completed=[])
+    text0 = want0.get("C.ryuya.W1") or ""
+    assert "泼袖" in text0 or "开档" in text0
+    assert "托付" in text0  # still warns not to rush
+    want1 = advance_ryuya_prologue_want_now(card, flash_beats=1, completed=["RP1"])
+    text1 = want1.get("C.ryuya.W1") or ""
+    assert "泼袖" in text1 or "开档" in text1
+    concerns0 = cogloop.ryuya_prologue_concerns(flash_beats=0, completed=[])
+    assert "泼袖" in concerns0[0]["text"] or "开档" in concerns0[0]["text"]
+
+
+def test_stage_improv_is_deterministic_not_second_brain():
+    from runtime.free_stage_prototype import improvise_stage_environment
+
+    card = json.loads(
+        (ROOT / "runtime" / "free_stage_card_ryuya_prologue.json").read_text(encoding="utf-8")
+    )
+    out = improvise_stage_environment(
+        card,
+        {"action": "看看窗外雨"},
+        config={"api_key": "should-not-be-used"},
+        caller=None,
+    )
+    assert out and out.get("source") == "deterministic_fallback"
+    assert "雨" in (out.get("text") or "") or "咖啡" in (out.get("text") or "")
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -240,4 +290,7 @@ if __name__ == "__main__":
     test_prologue_invent_shared_past_repaired()
     test_prologue_hard_check_early_checklist_and_mystic()
     test_prologue_exit_defaults_deferred_without_receipt()
+    test_normalize_director_ambient_same_call()
+    test_idle_want_seeps_first_meet_and_profile()
+    test_stage_improv_is_deterministic_not_second_brain()
     print("PASS")

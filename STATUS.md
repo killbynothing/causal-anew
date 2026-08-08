@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-08（导演同拍 ambient · 不拆第二脑 · idle 轻渗）
+
+- **裁决**：环境/店员薄声 = 导演**同拍**可选字段 `ambient`；**不**再拆 env LLM / 店员 Agent。控场仍是一脑。
+- **实现**：`normalize_director_ambient` → narrate；orchestrator 透传；观测台 ③ 显示；look-around 只留确定性兜底。
+- **idle**：want/concern 轻渗初遇泼袖 + 开档身份，禁简历复述、禁编共史。
+- **文档**：社交备忘 P8.1；GA 介绍 §5；龙也缺口计划 G4。
+- **验**：`test_ryuya_voice_cog_loop` 增补；`--quick` 应绿。
+- **报账**：机制层；未编新正典。
+- **你**：硬刷新观测台，新开咖啡场：点贵的/环顾应能出薄 ambient；开场闲聊应能带初识，不急托付。
+
 ### 2026-08-08（咖啡闪回顶配硬闸 · 对齐旧设计）
 
 - **Decide/Reflect**：已做（序幕样板）。Decide=拍前顶格 concern；Reflect=拍后私想写回观测台。不是全量 GA。

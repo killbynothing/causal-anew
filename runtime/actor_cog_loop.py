@@ -69,7 +69,7 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "banter",
-                "text": "接住对方的话，用环境与玩笑把熟人感演出来",
+                "text": "接住对方；可轻渗初遇泼袖或开档近况，勿编共史、勿急托付",
                 "band": "idle",
             },
             {
@@ -81,7 +81,7 @@ def ryuya_prologue_concerns(
     return [
         {
             "id": "presence",
-            "text": "先把这场见面过得像平日；让对方记住你这个人",
+            "text": "平日见面；可轻轻带初遇泼袖或开档身份，勿简历式复述",
             "band": "idle",
         }
     ]

@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-08（声纹闲聊补库 × 已婚淡提 × Agent 闭环）
+
+- **判断**：不扩共史硬闸；用 soft anchors + Decide/Reflect 回灌压瞎编。
+- **声纹**：`P.VOICE.ryuya.W1.ex_casual`（L14633/39/50）+ `ex_married_soft`（L1728）；cadence 改闲聊优先；`migrate_ryuya_voice_cafe_2026-08-08.py --apply`。
+- **婚姻**：HOLD 放宽——可淡提「结婚了/已婚」，不提妻名；定情/信物 cue → Decide 顶格轻挡。
+- **闭环**：`prior_reflect_by_cons` 进下一拍；`stated_public_facts` 防托付重宣；托付已出口则 want 软推到交坠。
+- **验**：`test_ryuya_voice_cog_loop` 🟢。
+- **报账**：声纹原著行号；未编新剧情；§5.1 仿写仍不迁。
+- **你**：重启/硬刷新后新开咖啡场；调侃定情信物应能淡提已婚；托付后应少复读。
+
 ### 2026-08-08（导演同拍 ambient · 不拆第二脑 · idle 轻渗）
 
 - **裁决**：环境/店员薄声 = 导演**同拍**可选字段 `ambient`；**不**再拆 env LLM / 店员 Agent。控场仍是一脑。

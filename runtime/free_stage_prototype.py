@@ -4347,12 +4347,14 @@ def advance_ryuya_prologue_want_now(
         want = (
             "托付已经说清；必须当面把挂坠交到对方手里——"
             "这是第一世界的修哉交给你、今夜一定要给出去的东西。等对方接或不接，再道别。"
+            "禁止把托付再宣读一遍。"
         )
         goal_head = "当面交挂坠，再道别"
     elif "RP2" in done or beats >= 4:
         want = (
             "该把压在心里的事说清楚了：碰巧遇见折原修哉（我亲弟弟）和张尘，能照顾就照顾一下；"
             "点名用全名。对方须答应不要把你的名字告诉他们，说了会有危险，会死人。说完再给挂坠。"
+            "只说托付口径，不要补宿舍楼、外貌小传等没写过的特征。"
         )
         goal_head = "当面说清托付与禁名"
     elif beats >= 2 or early_deepen:
@@ -4365,12 +4367,14 @@ def advance_ryuya_prologue_want_now(
         want = (
             "接住对方的话；可轻渗一句初遇泼袖或开档里已知的对方近况作玩笑燃料，"
             "没有具体事实就问近况。不要复问自己刚问过的问题，不要编没写过的共同细节，更别急着托付。"
+            "若对方拿定情/信物/结婚调侃：可淡提「我结婚了」，不提妻名，玩笑拨开。"
         )
         goal_head = "用环境与玩笑把熟人感演出来"
     else:
         want = (
             "先把这场见面过得像平日；可轻轻带一句初遇泼袖或开档身份，不要简历式复述，"
             "不要编没写过的共同细节，让对方记住你这个人，而不是记住一份托付。"
+            "若对方拿定情/信物调侃：可淡提已婚，不提妻名。"
         )
         goal_head = "用环境与玩笑把熟人感演出来"
 
@@ -6896,6 +6900,8 @@ class FreeStageSession:
         self.ryuya_flashback_return: dict[str, Any] | None = None
         self._flashback_inputs_at_enter: int = 0
         self.body_frames: dict[str, Any] = {}
+        self.prior_reflect_by_cons: dict[str, dict[str, Any]] = {}
+        self.private_reflections: list[dict[str, Any]] = []
         if load_existing:
             self._load()
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
@@ -7066,6 +7072,19 @@ class FreeStageSession:
             copy.deepcopy(stored_frames) if isinstance(stored_frames, dict) else {}
         )
         self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
+        raw_prior = data.get("prior_reflect_by_cons")
+        self.prior_reflect_by_cons = (
+            {
+                str(k): dict(v)
+                for k, v in dict(raw_prior or {}).items()
+                if isinstance(v, dict)
+            }
+            if isinstance(raw_prior, dict)
+            else {}
+        )
+        self.private_reflections = [
+            dict(item) for item in data.get("private_reflections", []) if isinstance(item, dict)
+        ][-20:]
         self._replay_current_card_terminal_effects()
 
     def _state_payload(self) -> dict[str, Any]:
@@ -7135,6 +7154,8 @@ class FreeStageSession:
             "ryuya_flashback_return": self.ryuya_flashback_return,
             "_flashback_inputs_at_enter": int(getattr(self, "_flashback_inputs_at_enter", 0) or 0),
             "body_frames": copy.deepcopy(getattr(self, "body_frames", {}) or {}),
+            "prior_reflect_by_cons": copy.deepcopy(getattr(self, "prior_reflect_by_cons", {}) or {}),
+            "private_reflections": list(getattr(self, "private_reflections", []) or [])[-20:],
         }
 
     def save(self) -> None:
@@ -9987,11 +10008,36 @@ class FreeStageSession:
                     }
                 # ActorCogLoop Decide: top concern + pending (maps to observer step 7.5).
                 flash_beats_for_cog = int(resolved_card.get("_ryuya_flash_beats") or 0)
+                stated_facts = (
+                    cogloop.prologue_stated_public_facts(self.history)
+                    if resolved_card.get("prologue_active")
+                    else []
+                )
+                # Soft want sync: if托付已出口但 RP3 收据滞后，先把 desire 推到交坠带。
+                if (
+                    resolved_card.get("prologue_active")
+                    and stated_facts
+                    and any("已当面提过" in f for f in stated_facts)
+                    and "RP3" not in self.completed
+                    and "RP4" not in self.completed
+                ):
+                    advance_ryuya_prologue_want_now(
+                        resolved_card,
+                        flash_beats=max(flash_beats_for_cog, 4),
+                        completed=[*self.completed, "RP3"],
+                    )
+                prior_map = getattr(self, "prior_reflect_by_cons", None)
+                if not isinstance(prior_map, dict):
+                    prior_map = {}
+                    self.prior_reflect_by_cons = prior_map
                 cogloop.attach_cog_loop_to_packet(
                     pkt,
                     scene_id=str(resolved_card.get("scene_id") or ""),
                     flash_beats=flash_beats_for_cog,
                     completed=self.completed,
+                    prior_reflect=prior_map.get(str(cons)),
+                    stated_facts=stated_facts,
+                    player_speech=speech,
                 )
                 decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
                 if decide.get("pending_concerns") is not None:
@@ -10647,6 +10693,11 @@ class FreeStageSession:
                 reflect_log.append({"turn_no": turn_no, **reflect})
                 if len(reflect_log) > 40:
                     del reflect_log[:-40]
+                prior_map = getattr(self, "prior_reflect_by_cons", None)
+                if not isinstance(prior_map, dict):
+                    prior_map = {}
+                    self.prior_reflect_by_cons = prior_map
+                prior_map[str(cons)] = {"turn_no": turn_no, **reflect}
         solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
         solidified_now = build_solidified_visible_facts(
             resolved_card,
@@ -11828,6 +11879,10 @@ def call_actor_packet(
             "self_core.phase_voice_profile（若存在）是这个阶段的演法：优先遵从其中的正向行为取向与披露边界，不要滑向列出的失真说法；"
             "self_core.voice_samples（若非空）是正典声纹参考：模仿口吻与节奏，禁止复述或整句照抄；"
             "cog_loop.decide（若存在）是本拍自主决定：只服务 top_concern，不要一次勾完 pending_concerns；"
+            "cog_loop.prior_reflect / conversation_contract.prior_reflect_thought（若存在）是你上一拍的私下结论——"
+            "本拍必须接着它想，不要当没发生过；"
+            "conversation_contract.stated_public_facts（若存在）是你已当面说过的事：禁止换皮重宣；"
+            "cog_loop.shared_past_anchors（若存在）是与对方仅有的共史锚点：锚点外的宿舍楼/旧约等不要补编；"
             "private_perceptions 是你独自感到的现场信息，可据此反应，但不要对旁人点破对方不知道的真相；"
             "若 body_frame_now / self_state.body_frame_now 存在：写 stage 必须从当前身体帧可到达；"
             "手 busy/holding 时不能再接第二件物；无可见变化则 stage 留空；"

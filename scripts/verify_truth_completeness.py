@@ -26,7 +26,8 @@ EXPECTED_COUNTS = {
     # 2026-08-03 tiananmen cast +39 → 447
     # 2026-08-07 zhangchen knife1 +25 → 472
     # 2026-08-08 ryuya P.VOICE +8 → 480
-    "propositions": 480,
+    # 2026-08-08 cafe voice +2 (ex_casual/ex_married_soft) → 482
+    "propositions": 482,
     "node_contracts": 5,
 }
 

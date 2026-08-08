@@ -170,7 +170,9 @@
         "P.VOICE.ryuya.W1.cadence",
         "P.VOICE.ryuya.W1.address",
         "P.VOICE.ryuya.W1.ex_belief",
-        "P.VOICE.ryuya.W1.ex_farewell"
+        "P.VOICE.ryuya.W1.ex_farewell",
+        "P.VOICE.ryuya.W1.ex_casual",
+        "P.VOICE.ryuya.W1.ex_married_soft"
       ],
       "slow_memory_activation_cues": {
         "临别交坠/金属凉": [

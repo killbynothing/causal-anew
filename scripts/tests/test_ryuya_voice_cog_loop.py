@@ -280,6 +280,55 @@ def test_stage_improv_is_deterministic_not_second_brain():
     assert "雨" in (out.get("text") or "") or "咖啡" in (out.get("text") or "")
 
 
+def test_reflect_closes_into_next_decide():
+    pkt: dict = {
+        "actor_cons": "C.ryuya.W1",
+        "self_state": {"inner_state": {"want_now": "交挂坠"}},
+        "conversation_contract": {"participation_mode": "speak"},
+    }
+    prior = {
+        "thought": "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。",
+        "band": "pendant",
+        "turn_no": 3,
+    }
+    stated = [
+        "已当面提过：折原修哉（弟弟）与张尘——照顾一下；勿再当第一次介绍。",
+        "已当面说过禁名：不要把龙也的名字告诉他们。",
+    ]
+    cogloop.attach_cog_loop_to_packet(
+        pkt,
+        scene_id="OPENING_RYUYA_PROLOGUE_001",
+        flash_beats=3,
+        completed=["RP1", "RP2"],
+        prior_reflect=prior,
+        stated_facts=stated,
+        player_speech="这是定情信物吗",
+    )
+    loop = pkt.get("cog_loop") or {}
+    assert (loop.get("prior_reflect") or {}).get("thought")
+    assert loop.get("stated_public_facts")
+    decide = loop.get("decide") or {}
+    # marriage cue or no-reannounce should top
+    assert decide.get("top_concern_id") in {"married_soft", "no_reannounce", "hand_pendant", "entrust"}
+    assert "prior_reflect" in ((pkt.get("self_state") or {}).get("inner_state") or {})
+
+
+def test_voice_cafe_samples_in_db():
+    con = sqlite3.connect(str(DB))
+    cur = con.cursor()
+    n = cur.execute(
+        "SELECT COUNT(*) FROM propositions WHERE prop_id IN "
+        "('P.VOICE.ryuya.W1.ex_casual','P.VOICE.ryuya.W1.ex_married_soft')"
+    ).fetchone()[0]
+    hold = cur.execute(
+        "SELECT statement FROM propositions WHERE prop_id='REL.HOLD.ryuya.to_weichu'"
+    ).fetchone()[0]
+    con.close()
+    assert n >= 2
+    assert "淡提" in hold or "结婚了" in hold
+    assert "不提妻名" in hold or "不提" in hold
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -293,4 +342,6 @@ if __name__ == "__main__":
     test_normalize_director_ambient_same_call()
     test_idle_want_seeps_first_meet_and_profile()
     test_stage_improv_is_deterministic_not_second_brain()
+    test_reflect_closes_into_next_decide()
+    test_voice_cafe_samples_in_db()
     print("PASS")

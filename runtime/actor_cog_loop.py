@@ -108,44 +108,8 @@ def decide_from_concerns(
         "pending_concerns": [c.get("text") for c in pending if c.get("text")],
         "participation_mode": mode,
         "intention": str(want_now or top.get("text") or "").strip(),
-        "rule": "单拍只服务顶格 concern；禁止一次勾完 pending",
+        "rule": "单拍只服务顶格 concern；禁止一次勾完 pending；须承接 prior_reflect 与已说出口的事实",
     }
-
-
-def attach_cog_loop_to_packet(
-    packet: dict[str, Any],
-    *,
-    scene_id: str = "",
-    flash_beats: int = 0,
-    completed: list[str] | set[str] | None = None,
-) -> dict[str, Any]:
-    """Stamp cog_loop.decide onto an actor packet (prologue-aware)."""
-    cons = str(packet.get("actor_cons") or "")
-    contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
-    mode = str(contract.get("participation_mode") or "speak").strip() or "speak"
-    want = ""
-    inner = ((packet.get("self_state") or {}).get("inner_state") or {})
-    if isinstance(inner, dict):
-        want = str(inner.get("want_now") or "").strip()
-
-    concerns: list[dict[str, str]] = []
-    if "ryuya" in cons and ("prologue" in str(scene_id).lower() or "OPENING_RYUYA" in str(scene_id)):
-        concerns = ryuya_prologue_concerns(flash_beats=flash_beats, completed=completed)
-    elif want:
-        concerns = [{"id": "want", "text": want, "band": "scene"}]
-
-    decide = decide_from_concerns(concerns, want_now=want, participation_mode=mode)
-    packet["cog_loop"] = {
-        "decide": decide,
-        "reflect": packet.get("cog_loop", {}).get("reflect") if isinstance(packet.get("cog_loop"), dict) else None,
-    }
-    # Surface pending for observer / future RelState without checklisting want_now.
-    if isinstance(inner, dict):
-        inner = dict(inner)
-        inner["pending_concerns"] = list(decide.get("pending_concerns") or [])
-        inner["top_concern"] = decide.get("top_concern")
-        packet.setdefault("self_state", {})["inner_state"] = inner
-    return packet
 
 
 def build_reflect_thought(
@@ -163,18 +127,23 @@ def build_reflect_thought(
     player = str(player_speech or "").strip()
     refused = any(k in player for k in ("不", "拒绝", "不要", "算了", "没空"))
     spoken = " / ".join(t for t in spoken_texts if t)[:160]
+    marriage_cue = any(k in player for k in ("定情", "信物", "结婚", "老婆", "妻子", "婚"))
 
     thought = ""
     if "RP4" in done:
         thought = "挂坠已经交出去了；分别要像平常一样，别拖成仪式。"
     elif "RP3" in done:
-        thought = "托付说清了；下一拍必须把挂坠交到对方手里。"
+        thought = "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。"
     elif "RP2" in done:
         thought = "托付的口已经开了；还要看对方是否接住禁名与照顾的事。"
+    elif marriage_cue:
+        thought = "对方在拿信物/婚姻开玩笑；我心里有妻子，可淡说已婚，不提名字，用玩笑拨开，别卖惨。"
     elif refused and band in ("entrust", "pendant", "deepen"):
         thought = "对方这一拍在回避；不要纠缠，可换轻松话题，临别前再试。"
     elif spoken and band in ("entrust", "pendant"):
         thought = f"这一拍我推的是「{decide.get('top_concern') or band}」；对方反应还要再看。"
+    elif spoken and band in ("idle", "deepen"):
+        thought = "这一拍仍是熟人闲聊；别编没写过的共史，心里那件事先压着。"
     if not thought:
         return None
     return {
@@ -193,3 +162,132 @@ def stamp_reflect_on_packet(packet: dict[str, Any], reflect: dict[str, Any] | No
     loop = dict(loop)
     loop["reflect"] = reflect
     packet["cog_loop"] = loop
+
+
+def inject_prior_reflect(
+    packet: dict[str, Any],
+    prior: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Close the loop: last beat's private conclusion enters this beat's Decide fuel."""
+    if not isinstance(packet, dict) or not isinstance(prior, dict):
+        return packet
+    thought = str(prior.get("thought") or "").strip()
+    if not thought:
+        return packet
+    loop = packet.get("cog_loop") if isinstance(packet.get("cog_loop"), dict) else {}
+    loop = dict(loop)
+    loop["prior_reflect"] = {
+        "thought": thought,
+        "band": prior.get("band"),
+        "top_concern_id": prior.get("top_concern_id"),
+        "turn_no": prior.get("turn_no"),
+    }
+    packet["cog_loop"] = loop
+    contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
+    contract = dict(contract)
+    contract["prior_reflect_thought"] = thought
+    packet["conversation_contract"] = contract
+    inner = ((packet.get("self_state") or {}).get("inner_state") or {})
+    if isinstance(inner, dict):
+        inner = dict(inner)
+        inner["prior_reflect"] = thought
+        packet.setdefault("self_state", {})["inner_state"] = inner
+    return packet
+
+
+def prologue_stated_public_facts(history: list[dict[str, Any]]) -> list[str]:
+    """Facts this actor already said aloud — soft continuity, not a hard gate."""
+    facts: list[str] = []
+    blob = ""
+    for item in history or []:
+        if not isinstance(item, dict) or item.get("role") != "npc":
+            continue
+        speaker = str(item.get("speaker") or "")
+        if "龙也" not in speaker and "ryuya" not in str(item.get("speaker_cons") or ""):
+            continue
+        blob += str(item.get("text") or "")
+    if "折原修哉" in blob and "张尘" in blob:
+        facts.append("已当面提过：折原修哉（弟弟）与张尘——照顾一下；勿再当第一次介绍。")
+    if any(k in blob for k in ("名字不能说", "不要把", "会有危险", "会死人", "别告诉")):
+        facts.append("已当面说过禁名：不要把龙也的名字告诉他们。")
+    if any(k in blob for k in ("挂坠", "项链", "临别")):
+        facts.append("挂坠话题已出口或在交涉中。")
+    if any(k in blob for k in ("结婚", "已婚", "老婆", "妻子", "好女孩")):
+        facts.append("已婚一事已淡提过；勿反复卖惨。")
+    return facts
+
+
+def attach_cog_loop_to_packet(
+    packet: dict[str, Any],
+    *,
+    scene_id: str = "",
+    flash_beats: int = 0,
+    completed: list[str] | set[str] | None = None,
+    prior_reflect: dict[str, Any] | None = None,
+    stated_facts: list[str] | None = None,
+    player_speech: str = "",
+) -> dict[str, Any]:
+    """Stamp cog_loop.decide onto an actor packet (prologue-aware)."""
+    cons = str(packet.get("actor_cons") or "")
+    contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
+    mode = str(contract.get("participation_mode") or "speak").strip() or "speak"
+    want = ""
+    inner = ((packet.get("self_state") or {}).get("inner_state") or {})
+    if isinstance(inner, dict):
+        want = str(inner.get("want_now") or "").strip()
+
+    concerns: list[dict[str, str]] = []
+    if "ryuya" in cons and ("prologue" in str(scene_id).lower() or "OPENING_RYUYA" in str(scene_id)):
+        concerns = ryuya_prologue_concerns(flash_beats=flash_beats, completed=completed)
+        # Soft cue: marriage joke → insert a touch concern above idle chatter.
+        if any(k in str(player_speech or "") for k in ("定情", "信物", "结婚", "老婆", "妻子")):
+            concerns = [
+                {
+                    "id": "married_soft",
+                    "text": "可淡提已婚并玩笑拨开，不提妻名、不卖惨",
+                    "band": "idle",
+                },
+                *concerns,
+            ]
+        if stated_facts:
+            # If entrust already spoken, force pendant/close band even if MH lagging.
+            joined = "\n".join(stated_facts)
+            if "已当面提过" in joined and "RP3" not in {str(x) for x in (completed or [])}:
+                concerns = [
+                    {
+                        "id": "no_reannounce",
+                        "text": "托付口径已说过；禁止重宣，看对方是否接住，再交挂坠",
+                        "band": "pendant",
+                    },
+                    *concerns,
+                ]
+    elif want:
+        concerns = [{"id": "want", "text": want, "band": "scene"}]
+
+    decide = decide_from_concerns(concerns, want_now=want, participation_mode=mode)
+    packet["cog_loop"] = {
+        "decide": decide,
+        "reflect": packet.get("cog_loop", {}).get("reflect") if isinstance(packet.get("cog_loop"), dict) else None,
+    }
+    if stated_facts:
+        packet["cog_loop"]["stated_public_facts"] = list(stated_facts)
+        contract = dict(contract)
+        contract["stated_public_facts"] = list(stated_facts)
+        packet["conversation_contract"] = contract
+    # Soft cafe anchors (not a hard invent gate): feed Decide/instruction.
+    if "ryuya" in cons and ("prologue" in str(scene_id).lower() or "OPENING_RYUYA" in str(scene_id)):
+        packet["cog_loop"]["shared_past_anchors"] = [
+            "雨夜咖啡馆",
+            "靠窗旧桌",
+            "初遇泼袖赔一杯",
+            "两年偶遇熟人",
+        ]
+    if isinstance(inner, dict):
+        inner = dict(inner)
+        inner["pending_concerns"] = list(decide.get("pending_concerns") or [])
+        inner["top_concern"] = decide.get("top_concern")
+        packet.setdefault("self_state", {})["inner_state"] = inner
+    if prior_reflect:
+        inject_prior_reflect(packet, prior_reflect)
+    return packet
+

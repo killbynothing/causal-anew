@@ -7643,8 +7643,8 @@ INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.to_xiuzai',
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','REL.HOLD.ryuya.to_xiuzai',0,'migrate_ryuya_2_5_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.to_maki',0,'migrate_ryuya_2_5_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','REL.HOLD.ryuya.to_maki',0,'migrate_ryuya_2_5_seed_2026-08-03');
-INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.to_weichu',0,'migrate_ryuya_2_5_seed_2026-08-03');
-INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','REL.HOLD.ryuya.to_weichu',0,'migrate_ryuya_2_5_seed_2026-08-03');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.to_weichu',0,'migrate_ryuya_voice_cafe_2026-08-08');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','REL.HOLD.ryuya.to_weichu',0,'migrate_ryuya_voice_cafe_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.W1.to_zhangchen',0,'migrate_ryuya_2_5_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','REL.HOLD.ryuya.WMAIN.to_zhangchen',0,'migrate_ryuya_2_5_seed_2026-08-03');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','REL.HOLD.ryuya.to_justice',0,'migrate_ryuya_2_5_seed_2026-08-03');
@@ -7718,7 +7718,7 @@ INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.
 INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_luoluo',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
 INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_guojiajia',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
 INSERT INTO "knowledge_schedule" VALUES('C.zhangchen.WMAIN','REL.HOLD.zhangchen.to_nara',0,'★★★可审_张尘全套Seed_2026-08-07 · knife1');
-INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.cadence',0,'migrate_ryuya_voice_2026-08-08');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.cadence',0,'migrate_ryuya_voice_cafe_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.address',0,'migrate_ryuya_voice_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.ex_belief',0,'migrate_ryuya_voice_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.ex_farewell',0,'migrate_ryuya_voice_2026-08-08');
@@ -7726,6 +7726,8 @@ INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','P.VOICE.ryuya.WMAIN.cad
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','P.VOICE.ryuya.WMAIN.address',0,'migrate_ryuya_voice_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','P.VOICE.ryuya.WMAIN.ex_org',0,'migrate_ryuya_voice_2026-08-08');
 INSERT INTO "knowledge_schedule" VALUES('C.ryuya.WMAIN','P.VOICE.ryuya.WMAIN.ex_confess',0,'migrate_ryuya_voice_2026-08-08');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.ex_casual',0,'migrate_ryuya_voice_cafe_2026-08-08');
+INSERT INTO "knowledge_schedule" VALUES('C.ryuya.W1','P.VOICE.ryuya.W1.ex_married_soft',0,'migrate_ryuya_voice_cafe_2026-08-08');
 CREATE TABLE node_contracts(node_id TEXT PRIMARY KEY, part INTEGER, contract TEXT);
 INSERT INTO "node_contracts" VALUES('NODE-013-SNIPER',1,'{"node_id": "NODE-013-SNIPER", "part": 1, "title": "露天咖啡厅街头狙击（暗杀主线开局·认识枢纽）", "tier": "canon_beat", "entry_conditions": ["E013-02", "E013-03"], "invariants": {"canon_locked": ["result|E013-02: 无辜少妇额头中弹身亡（死亡结果不可更改；呈现细节文本自由）", "result|E013-10: 卡卡西聚焦神威折弯大厦十层枪管，狙击手撤退（卡卡西不死、写轮眼/神威能力本次暴露）", "identity: 狙击手=世界政府本土武装（非郭家政本人）"], "player_freedom": "死局节点（政策B·完整干涉自由）：玩家是在场的普通人， 合法行动包括—— 帮修哉翻桌/撒面粉扩大粉尘迷雾遮蔽射线（make_cover）； 拉受惊旁观者（含柳絮等）到墙后减少暴露人头（pull_to_wall）； 目测或借秋人单反协助指认大厦十层射击窗口（spot_shooter）； 接手秋人相机拍摄狙击手轮廓留存证据（photo_evidence）； 红线——不可拥有超能力/写轮眼/神威； 不可替卡卡西完成折枪管（这是卡卡西的灵魂动作，抢戏=工具化，红线）； 超出普通人物理上限的行动→张尘式吐槽/现实物理收敛。\n"}, "exit_states": [{"id": "converged", "desc": "原著线（Worldline-0）—— 少妇死亡（E013-02）；卡卡西拉柳絮、独自跑开引杀手（E013-05~06）； 修哉抛洒面粉造迷雾（E013-07）；三人在墙后会合（E013-08）； 秋人探出相机拍照、修哉阻止报警（E013-09）； 卡卡西神威折弯枪管（E013-10）；危机解除、卡卡西搂柳絮安慰后撤离（E013-11）。 写轮眼/神威能力按原著烈度暴露，暗杀主线正式开局，后续追杀烈度基线建立。\n", "negates": []}, {"id": "branched_lowprofile", "branch_gate": "BG-SNIPER_COVERT", "desc": "玩家 make_cover + spot_shooter 叠加（combine_threshold=2）， 在卡卡西动用神威前即制造有效遮蔽并协助锁定射击窗口， 狙击手更早失去瞄准机会主动放弃 → 卡卡西少暴露一次完整写轮眼/神威范围。 δ种子 SNIPER_COVERT_SEED 写入δ账本 → 喂入后续追杀烈度参数（微降）。 结果大同（狙击手仍撤退），暴露程度有可量化差异。\n", "negates": []}], "convergence": ["玩家拉着众人乱跑/脱离掩护 → 修哉主动喝止并抛洒面粉制造迷雾（E013-07），把人逼回墙后（剧情内施压）\n", "玩家试图报警 → 修哉夺下秋人手机警告\"这会被查到的\"（E013-09）； 组织监听威胁浮现，外部压力中断报警链\n", "玩家试图冲向狙击手大楼 → E013-02/03 造成的街面恐慌人群+无掩护地带构成物理障碍； 修哉在墙后焦急呼喊（剧情内收敛，NPC主动事件驱动）\n"], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "make_cover", "desc": "帮修哉翻桌椅/传递面粉袋，扩大粉尘迷雾遮蔽狙击视线（E013-07 协力）", "type": "physical", "snr_cost": "low"}, {"id": "pull_to_wall", "desc": "拉受惊旁观者（柳絮等）到墙后，减少暴露人头", "type": "physical", "snr_cost": 0}, {"id": "spot_shooter", "desc": "协助目测+借秋人单反指引大厦十层射击窗口——凡人替代写轮眼的信息干涉； 与 make_cover 叠加可触发 branched_lowprofile\n", "type": "info", "snr_cost": "low"}, {"id": "photo_evidence", "desc": "接手秋人单反拍摄狙击手轮廓留证据（E013-09 侧线）； 社会层面信息积累，独立于收敛主线，不计入 combine_threshold\n", "type": "info", "snr_cost": "low"}], "combine_threshold": 2, "delta_hooks": ["SNIPER_COVERT_SEED"]}');
 INSERT INTO "node_contracts" VALUES('NODE-016-CRASH',1,'{"node_id": "NODE-016-CRASH", "part": 1, "title": "高速连环车祸与卡卡西救修哉", "tier": "canon_beat", "entry_conditions": ["E016-01", "E016-02", "E016-03"], "invariants": {"canon_locked": ["E016-03 卡卡西救出修哉、自身受伤（肋骨骨折）"], "player_freedom": "事前(B1抱走小狗)/事中(choiceA车内卸力)两个物理干预点；二者叠加=零伤害线"}, "exit_states": [{"id": "converged", "desc": "卡卡西重伤（Worldline-0）", "negates": []}, {"id": "branched_full", "branch_gate": "BG-CRASH_LIGHT", "negates": []}], "crossline_comm": false, "channel": null, "coherence": {"lateral_jumper_present": false, "player_present": true, "phase": null}, "const_refs": [], "path_set": [{"id": "B1_dog", "type": "physical", "snr_cost": "low"}, {"id": "choiceA_brace", "type": "physical", "snr_cost": 0}], "combine_threshold": 2}');
@@ -8164,7 +8166,7 @@ INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.W1.to_WMAIN','同一身体上�
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.WMAIN.to_W1','同一身体上的 W1：可让他登场对亲人与玩家；我更常冷看。保护逻辑与引航逻辑不同轨；冲突夜按前台表。',0,'一体双魂边；人裁');
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.to_xiuzai','折原修哉是亲弟弟：妒爱与保护并存；对其隐瞒危险与黑暗是保护策略的一部分。托付中可点名请人照顾他；禁止把「龙也」之名传给他。',0,'圣经；托付口径');
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.to_maki','折原真纪是表姐：亲近。不列入「碰巧照顾」托付主名。日常温柔面常由 W1 前台。',0,'圣经；fc1');
-INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.to_weichu','魏初是妻子：婚姻锚。日常对亲人的温柔声口多由 W1 前台；本体脏手与组织面不对妻表演。序幕不对玩家卖惨聊妻。',0,'圣经；fc1；人裁');
+INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.to_weichu','魏初是妻子：婚姻锚。对玩家可淡提「我结婚了/已婚」，不提妻名、不展开婚姻史、不卖惨；被调侃定情/信物时可轻挡。日常对亲人的温柔声口多由 W1 前台；本体脏手与组织面不对妻表演。',0,'圣经；fc1；人裁2026-08-08放宽淡提已婚');
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.W1.to_zhangchen','张尘不是家人；是碰巧遇见可照顾的人。更深意志同盟不对 ch0 玩家讲述。托付用全名；禁把龙也之名告诉他。',0,'authored_opening；人裁');
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.WMAIN.to_zhangchen','对主世界张尘：可威逼、招募、结成暗盟；目标服务于保护与交换逻辑。赴死夜可举枪护他。',1,'细剖/圣经；fronting_canon 赴死护尘');
 INSERT INTO "propositions" VALUES('REL.HOLD.ryuya.to_justice','折原正义是父亲。这具身体的弑父行为留下罪感——两意识皆有。ch0 不对玩家展开。',1,'Ch.60；人裁双意识罪感');
@@ -8249,7 +8251,7 @@ INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_suying','失去她是�
 INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_luoluo','高中怕他亦敬他；伊势丹高中旧账在记忆里。',0,'L9327–9479');
 INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_guojiajia','高中沉约还在；债在。',1,'70_87:L1879–1914');
 INSERT INTO "propositions" VALUES('REL.HOLD.zhangchen.to_nara','欠他一条逃路，也欠一句没说出口的同行邀请。',2,'L18754–18821');
-INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.cadence','口语自然、熟络可抬杠；短接话常见。认真托付时仍像对人说话，不换系统任务腔、不念清单。朋友沉默或一次拒绝后可换玩笑/换话题，不纠缠。',0,'P.MANNER.ryuya.W1.voice_rule；序幕卡');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.cadence','咖啡馆/熟人闲聊优先：口语短接、可抬杠、可留白；认真托付时仍像对人说话，不换系统任务腔、不念清单。朋友沉默或一次拒绝后换玩笑/换话题，不纠缠。共史只谈已有锚点（雨、旧桌、泼袖赔咖啡、两年偶遇），不补宿舍楼等没写过的细节。',0,'P.MANNER.ryuya.W1.voice_rule；序幕卡；人裁2026-08-08');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.address','亲昵称呼：阿修、阿秋、初初、阿尘；决别可直呼张尘。不用公文「先生」腔对朋友。',0,'novel_1-69:L9547；novel_108-end:L1662；L1868');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_belief','金标（信念落地）：「如果这是命运的话，接受就好了。」／「接受它，然后摧毁它。」',0,'novel_chapters_70_87:L4232-4236');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_farewell','金标（决别）：「我大概只能送你到这里了……」「张尘，请你务必记住，无论如何一定要阻止。」',0,'novel_108-end:L1857-1869');
@@ -8257,6 +8259,8 @@ INSERT INTO "propositions" VALUES('P.VOICE.ryuya.WMAIN.cadence','组织面：礼
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.WMAIN.address','公事：「张尘先生」「山本先生」+ 自报全名职务。对弟：「阿修」。家中可「初初」。',0,'novel_1-69:L18541；novel_chapters_70_87:L3402；novel_1-69:L6344；novel_108-end:L5555');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.WMAIN.ex_org','金标（招募）：「街上不方便，我们不如车上谈。」「这次好好介绍一下，我是折原龙也……请多指教，张尘先生。」「希望你可以自愿加入世界政府……」',0,'novel_1-69:L18529-18548');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.WMAIN.ex_confess','金标（坦白）：「对于你的恋人，我很抱歉。」「我亲自安排一出戏，杀了我的父亲。」「折原修哉是个天才这一点不假……可当他喊我一声老哥的时候……」',0,'novel_1-69:L18855；L18892；L18930-18932');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_casual','金标（平常接话）：「不知道呢。」／「不无道理来着……照你的意思就是说……」／「是啊，同样身为不知道内情的我们，也就只能静待事变了。」——语气平常，轻描淡写挡开，不审讯腔。',0,'novel_1-69.md:L14633；L14639；L14650');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_married_soft','金标（已婚触碰·不点名）：「是个好女孩儿，没有遇到我也会遇到更好的人吧，不巧就被我遇到了。」对玩家可淡提「我结婚了」，不说妻名；被调侃定情/信物时可心下一顿再玩笑拨开，不卖惨。',0,'novel_chapters_70_87.md:L1728；筛查白名单·已婚不露是谁；人裁2026-08-08');
 CREATE TABLE run_bonds (
       run INTEGER,
       character_id TEXT,

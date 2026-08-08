@@ -618,6 +618,34 @@ header {
   background: rgba(255, 179, 71, 0.1);
   vertical-align: middle;
 }
+.cog-loop-dock {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  border-radius: 10px;
+  background: linear-gradient(180deg, rgba(255, 179, 71, 0.12), rgba(192, 132, 252, 0.06));
+}
+.cog-loop-dock h3 {
+  margin: 0 0 8px;
+  color: #ffb347;
+  font-family: var(--font-title);
+  font-size: 13px;
+  letter-spacing: 0.03em;
+}
+.cog-loop-dock .cog-loop-meta {
+  color: var(--dim);
+  font-size: 11px;
+  margin-bottom: 8px;
+  font-family: var(--font-mono);
+}
+.cog-loop-dock .cog-loop-body {
+  white-space: pre-wrap;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--paper);
+  min-height: 3.2em;
+}
 .coverage-ok { color: var(--green); }
 .coverage-miss { color: var(--yellow); }
 
@@ -1108,8 +1136,15 @@ details[open] summary.group-title::before {
       <div id="degradationList" class="issues-list"></div>
     </div>
 
+    <!-- 不进折叠：避免只看见分组标题以为「没改」 -->
+    <div class="cog-loop-dock" id="cogLoopDock">
+      <h3>Agent 环 · Decide / VOICE / Reflect（龙也序幕）</h3>
+      <div class="cog-loop-meta" id="cogLoopMeta">连上 session 并推进一拍后，这里钉住本拍顶格决定与私想。</div>
+      <div class="cog-loop-body" id="cogLoopDockBody">（尚无本拍 Decide——先发一拍或点选龙也流水线）</div>
+    </div>
+
     <details id="group-actor-pipeline" open>
-      <summary class="group-title">角色包流水线（Decide → 先想 → 说出 → Reflect）</summary>
+      <summary class="group-title">角色包流水线（Decide → 先想 → 说出 → Reflect）· 点开看 10 步</summary>
       <div class="group-content">
         <div class="debug-card" style="border-color: #9b8cff;">
           <h3>前两场已接线（装配展开） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
@@ -2536,6 +2571,43 @@ function decodePrivateReflections(list) {
   }).join("\n");
 }
 
+function renderCogLoopDock(payload, nameMap) {
+  const dockBody = document.getElementById("cogLoopDockBody");
+  const dockMeta = document.getElementById("cogLoopMeta");
+  if (!dockBody) return;
+  const packets = payload?.actor_context_packets || {};
+  const cons =
+    window._selectedPipelineCons && packets[window._selectedPipelineCons]
+      ? window._selectedPipelineCons
+      : Object.keys(packets).find((k) => k.includes("ryuya")) || Object.keys(packets)[0] || "";
+  const packet = cons ? packets[cons] : null;
+  if (!packet) {
+    dockBody.textContent = "（本拍尚无演员包——闪回首拍若是 authored 旁白，下一拍才有 Decide）";
+    if (dockMeta) dockMeta.textContent = "等待 actor_context_packets…";
+    return;
+  }
+  const who = nameMap?.[cons] || packet?.self_core?.name || cons;
+  const decide = packet?.cog_loop?.decide || {};
+  const reflect = packet?.cog_loop?.reflect || {};
+  const voices = Array.isArray(packet?.self_core?.voice_samples)
+    ? packet.self_core.voice_samples.length
+    : 0;
+  const lines = [
+    `角色：${who}（${cons}）`,
+    `VOICE金标：${voices ? `×${voices}` : "未投影"}`,
+    `Decide band：${formatReceiptValue(decide.band) || "—"}`,
+    `Decide top：${formatReceiptValue(decide.top_concern) || "—"}`,
+    `Decide intention：${formatReceiptValue(decide.intention) || "—"}`,
+    reflect.thought
+      ? `Reflect：${formatReceiptValue(reflect.thought)}`
+      : "Reflect：（本拍未写回）",
+  ];
+  dockBody.textContent = lines.join("\n");
+  if (dockMeta) {
+    dockMeta.textContent = `钉在折叠外 · 完整 10 步在下方「角色包流水线」里`;
+  }
+}
+
 function decodeActorPackets(packets, nameMap, selectedCons) {
   const entries = Object.entries(packets || {});
   if (!entries.length) {
@@ -2821,10 +2893,13 @@ function renderDebugDetails(payload) {
   if (pipelineRead) {
     pipelineRead.innerHTML = decodeActorPackets(actorPackets, nameMap, window._selectedPipelineCons || null);
   }
+  renderCogLoopDock(payload, nameMap);
   const reflectRead = document.getElementById("privateReflectionsRead");
   if (reflectRead) {
     reflectRead.textContent = decodePrivateReflections(payload?.private_reflections);
   }
+  const pipelineGroup = document.getElementById("group-actor-pipeline");
+  if (pipelineGroup) pipelineGroup.open = true;
   const coverageRead = document.getElementById("solidifiedCoverageRead");
   if (coverageRead) coverageRead.textContent = decodeSolidifiedCoverage(payload, nameMap);
   const ledgersRead = document.getElementById("solidifiedLedgersRead");
@@ -3437,18 +3512,31 @@ document.getElementById("btnConfirmNewRun").addEventListener("click", confirmNew
 newRunOpening.addEventListener("change", renderNewRunPlayers);
 
 window.addEventListener("DOMContentLoaded", () => {
-  // 恢复并监听折叠状态
-  ["group-live", "group-scene-static", "group-character", "group-memory", "group-contract"].forEach(id => {
+  // 恢复并监听折叠状态（流水线强制展开，不读旧 closed）
+  const pipelineForce = document.getElementById("group-actor-pipeline");
+  if (pipelineForce) {
+    pipelineForce.open = true;
+    localStorage.removeItem("details_group-actor-pipeline");
+  }
+  ["group-live", "group-scene-static", "group-character", "group-memory", "group-contract", "group-actor-pipeline", "group-solidified"].forEach(id => {
     const details = document.getElementById(id);
     if (details) {
-      const saved = localStorage.getItem(`details_${id}`);
-      if (saved === "open") {
-        details.setAttribute("open", "");
-      } else if (saved === "closed") {
-        details.removeAttribute("open");
+      if (id === "group-actor-pipeline") {
+        details.open = true;
+      } else {
+        const saved = localStorage.getItem(`details_${id}`);
+        if (saved === "open") {
+          details.setAttribute("open", "");
+        } else if (saved === "closed") {
+          details.removeAttribute("open");
+        }
       }
-      
       details.addEventListener("toggle", () => {
+        if (id === "group-actor-pipeline") {
+          // 仍允许手动收，但下次进页再强制开一次
+          localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
+          return;
+        }
         localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
       });
     }

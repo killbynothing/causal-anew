@@ -1050,8 +1050,8 @@ details[open] summary.group-title::before {
 
 <header>
   <div class="brand">
-    <div class="logo">存在的意义<span>·因果观测台</span><span class="cog-loop-badge" title="龙也序幕样板">Agent环 · Decide/VOICE/Reflect</span></div>
-    <div class="subline">观测优先：同一会话里，同时看玩家可见层与导演真相层。右侧流水线第 7 / 10 步即 Decide / Reflect。</div>
+    <div class="logo">存在的意义<span>·因果观测台</span></div>
+    <div class="subline">左栏玩家可见 · 右栏本拍后台：库→装配→导演→角色Agent→结算</div>
   </div>
   <div class="control-stack">
     <input type="text" id="sessionInput" placeholder="Session ID">
@@ -1136,315 +1136,131 @@ details[open] summary.group-title::before {
       <div id="degradationList" class="issues-list"></div>
     </div>
 
-    <!-- 不进折叠：避免只看见分组标题以为「没改」 -->
-    <div class="cog-loop-dock" id="cogLoopDock">
-      <h3>Agent 环 · Decide / VOICE / Reflect（龙也序幕）</h3>
-      <div class="cog-loop-meta" id="cogLoopMeta">连上 session 并推进一拍后，这里钉住本拍顶格决定与私想。</div>
-      <div class="cog-loop-body" id="cogLoopDockBody">（尚无本拍 Decide——先发一拍或点选龙也流水线）</div>
+    <div class="debug-card" style="border-color: var(--cyan); margin-bottom: 10px;">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+        <div>钟点 <strong id="debugClock" style="color:var(--cyan)">-</strong></div>
+        <div>伤势 <strong id="debugPlayerInjury" style="color:var(--red)">-</strong></div>
+        <div style="grid-column:1/-1">场景 <strong id="debugScene">-</strong> · <span id="debugCardPath" style="font-family:var(--font-mono);color:var(--dim)"></span></div>
+      </div>
     </div>
 
-    <details id="group-actor-pipeline" open>
-      <summary class="group-title">角色包流水线（Decide → 先想 → 说出 → Reflect）· 点开看 10 步</summary>
+    <details id="group-beat-1" open>
+      <summary class="group-title">① 本拍输入 · 场面事实</summary>
       <div class="group-content">
-        <div class="debug-card" style="border-color: #9b8cff;">
-          <h3>前两场已接线（装配展开） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
-          <div class="human-view" id="debugAssemblyRead">（FSM/Rel/KGE/慢环/fronting/β…）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugAssembly" style="color: #c9beff;"></div>
-          </details>
+        <div class="debug-card" style="border-color:#ffe08a;">
+          <h3>输入 → 发生 → 显示</h3>
+          <div class="human-view" id="debugBeatIoRead">（玩家本拍输入 / 引擎记账 / 左栏可见。）</div>
         </div>
-        <div class="debug-card" style="border-color: #ffb347;">
-          <h3>本拍按角色 · VOICE / Decide / 先想 / 说出 / Reflect</h3>
-          <div class="pipeline-chips" id="pipelineChips"></div>
-          <div class="human-view" id="actorPipelineRead">（选龙也看第 2 步 VOICE、第 7 步 Decide、第 10 步 Reflect。）</div>
-          <div class="human-view compact" id="privateReflectionsRead" style="margin-top:8px;border-left:2px solid #c084fc;padding-left:10px;">（本场 Reflect 私想累计：尚无）</div>
-          <details class="raw-toggle"><summary>全部角色原始包 JSON</summary>
-          <div class="json-view" id="debugActorPackets" style="color: #bdf4cd;"></div>
-          </details>
-        </div>
-      </div>
-    </details>
-
-    <details id="group-solidified" open>
-      <summary class="group-title">已固化（run 账本 × 是否进包）</summary>
-      <div class="group-content">
-        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
-          <h3>场面已成立 · 包内覆盖</h3>
-          <div class="human-view compact" id="solidifiedCoverageRead">（介绍完还介绍时：先看事实有没有、再看进没进本拍角色包。）</div>
-        </div>
-        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.35);">
-          <h3>玩家已确认（可见事实账本）</h3>
-          <div class="human-view compact" id="playerKnowableRead">（只从已发生的可见台词与动作累计。）</div>
+        <div class="debug-card" style="border-color:rgba(0,240,255,0.35);">
+          <h3>场面已成立 · 是否进包</h3>
+          <div class="human-view compact" id="solidifiedCoverageRead">—</div>
         </div>
         <div class="debug-card">
-          <h3>场上可见物态 · run 观察账 · 场次收据</h3>
-          <div class="human-view compact" id="solidifiedLedgersRead">（手机/挂坠在谁手里；本周目观察；跨场收据。）</div>
+          <h3>玩家已确认 · 物态 / run 账 / 收据</h3>
+          <div class="human-view compact" id="playerKnowableRead">—</div>
+          <div class="human-view compact" id="solidifiedLedgersRead" style="margin-top:8px;">—</div>
         </div>
       </div>
     </details>
 
-    <!-- Group 1: ⚡ 本拍动态 (默认展开) -->
-    <details id="group-live" open>
-      <summary class="group-title">⚡ 本拍动态</summary>
+    <details id="group-beat-2" open>
+      <summary class="group-title">② 库 → 角色包装配</summary>
       <div class="group-content">
-        <div class="debug-card" style="border-color: var(--cyan);">
-          <h3><span>⌛</span> 本拍时空</h3>
-          <div style="margin-bottom: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 12px;">
-            <div>当前钟点: <strong id="debugClock" style="color: var(--cyan);">-</strong></div>
-            <div>玩家伤势: <strong id="debugPlayerInjury" style="color: var(--red);">-</strong></div>
+        <div class="pipeline-chips" id="pipelineChips"></div>
+        <div class="debug-card" style="border-color:#74d99f;">
+          <h3>本拍角色包（库投影进包）</h3>
+          <div class="human-view" id="actorAssembleRead">（选角色：VOICE / BOUNDARY / MANNER / REL / 慢环 / K / 场面事实。）</div>
+        </div>
+        <div class="debug-card" style="border-color:#9b8cff;">
+          <h3>开场装配展开</h3>
+          <div class="human-view" id="debugAssemblyRead">（FSM / Rel / KGE / fronting / β…）</div>
+        </div>
+      </div>
+    </details>
+
+    <details id="group-beat-3" open>
+      <summary class="group-title">③ 话轮 · 导演</summary>
+      <div class="group-content">
+        <div class="debug-card" style="border-color:#a8a8ff;">
+          <h3>谁开口（speaker_plan）</h3>
+          <div class="human-view" id="debugSpeakerPlanRead">—</div>
+        </div>
+        <div class="debug-card">
+          <h3>Must-Happen / Stall</h3>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:12px;">
+            <div>已满足 <span id="completedMustHappen" class="badge green">-</span></div>
+            <div>允许 <span id="allowedMustHappen" class="badge">-</span></div>
+            <div>Stall <strong id="debugStall" style="color:var(--yellow)">0</strong></div>
           </div>
-          <div style="font-size: 12px; color: var(--dim);">当前场景: <strong id="debugScene" style="color: #fff;">-</strong> · <strong id="debugCardPath" style="color: #fff; font-family: var(--font-mono);"></strong></div>
+          <div class="human-view compact" id="directorSideRead">（导演指令摘要 / MH 环境余波；序幕不把 RP id 灌进角色包。）</div>
         </div>
-
-        <div class="debug-card" style="border-color: #ffe08a;">
-          <h3><span>📥</span> 本拍：输入 → 发生 → 显示 <button class="btn-copy-json" onclick="copyJson('debugBeatIo')">复制</button></h3>
-          <div class="human-view" id="debugBeatIoRead">（玩家输入 / 引擎记账 / 玩家可见。身体帧在「发生」里，不另开卡。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugBeatIo" style="color: #ffe8a3;"></div>
-          </details>
-        </div>
-
-
-        <!-- Must-Happen 契约进度 -->
         <div class="debug-card">
-          <h3><span>🎯</span> Must-Happen / Stall</h3>
-          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px;">
-            <div>已满足: <span id="completedMustHappen" class="badge green">-</span></div>
-            <div>允许列表: <span id="allowedMustHappen" class="badge">-</span></div>
-          </div>
-          <div style="font-size: 12px; color: var(--dim);">Stall: <strong id="debugStall" style="color: var(--yellow);">0</strong></div>
-        </div>
-
-        <!-- 退出与转场判定 -->
-        <div class="debug-card">
-          <h3><span>🧭</span> 退出与转场 <button class="btn-copy-json" onclick="copyJson('debugExit')">复制</button></h3>
-          <div class="human-view" id="debugExitRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugExit" class="json-view" style="color: var(--paper);"></div>
-          </details>
+          <h3>导演层本拍（玩家不见）</h3>
+          <div class="human-view" id="debugNarrationRead">—</div>
+          <div class="human-view" id="debugTruthTurnsRead" style="margin-top:6px;">—</div>
         </div>
       </div>
     </details>
 
-    <!-- 本拍深检：默认折叠 -->
-    <details id="group-live-deep">
-      <summary class="group-title">🔬 本拍深检（身体帧 / 导演层）</summary>
+    <details id="group-beat-4" open>
+      <summary class="group-title">④ Agent：Decide → 先想 → 说出 → Reflect</summary>
       <div class="group-content">
-        <div class="debug-card" style="border-color: #74d99f;">
-          <h3><span>🧍</span> BodyFrame <button class="btn-copy-json" onclick="copyJson('debugBodyFrames')">复制</button></h3>
-          <div class="human-view" id="debugBodyFramesRead">（holding / last_stage；与 beat_io.happened 同源。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugBodyFrames" style="color: #bdf4cd;"></div>
-          </details>
-        </div>
-
-        <div class="debug-card">
-          <h3><span>👁️‍🗨️</span> 导演层本拍 <button class="btn-copy-json" onclick="copyJson('debugTruthTurns')">复制</button></h3>
-          <div class="human-view" id="debugNarrationRead" style="margin-bottom: 8px; opacity: 0.85;">（暗注/真相；梗概在左栏。）</div>
-          <div class="human-view" id="debugTruthTurnsRead">（导演-only；玩家左栏看不到。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugTruthTurns" style="color: #e0e0e0;"></div>
-          </details>
-        </div>
-
-      </div>
-    </details>
-
-    <!-- Group 1b: 本场常驻（默认折叠） -->
-    <details id="group-scene-static">
-      <summary class="group-title">📌 本场常驻（场景帧 / 群演）</summary>
-      <div class="group-content">
-        <div class="debug-card">
-          <h3><span>🧩</span> 场景帧与基线不变量 <button class="btn-copy-json" onclick="copyJson('debugSceneFrame')">复制</button></h3>
-          <div class="human-view" id="debugSceneFrameRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugSceneFrame"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: #66ccff;">
-          <h3><span>👥</span> 可调用群演池 (ambient_stage) <button class="btn-copy-json" onclick="copyJson('debugAmbient')">复制</button></h3>
-          <div class="human-view" id="debugAmbientRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugAmbient" class="json-view" style="color: #9dd7ff;"></div>
-          </details>
-        </div>
-
-      </div>
-    </details>
-
-    <!-- Group 2: 🧑 角色 (默认折叠) -->
-    <details id="group-character">
-      <summary class="group-title">🧑 角色深检副本（已并入上方流水线 · 默认不必开）</summary>
-      <div class="group-content">
-        <!-- NPC Chip 过滤器 -->
-        <div class="npc-chips-container" id="npcChipsContainer">
-          <span style="color: var(--dim); font-size: 12px;">（接入 session 后显示本场角色）</span>
-        </div>
-
-        <!-- NPC 私有内心流 (V2) -->
-        <div class="debug-card" style="border-color: #9dffb5;">
-          <h3><span>👁️</span> NPC 私有内心流 (V2) <button class="btn-copy-json" onclick="copyJson('debugInnerStates')">复制</button></h3>
-          <div class="human-view" id="debugInnerStatesRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugInnerStates" style="color: #9dffb5;"></div>
-          </details>
-        </div>
-
-        <!-- NPC 拒绝权边界 (V1) -->
-        <div class="debug-card" style="border-color: #ff9bdf;">
-          <h3><span>🛡️</span> NPC 拒绝权边界 (V1) <button class="btn-copy-json" onclick="copyJson('debugBoundaries')">复制</button></h3>
-          <div class="human-view" id="debugBoundariesRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugBoundaries" style="color: #ff9bdf;"></div>
-          </details>
-        </div>
-
-        <!-- 角色私有开场/离屏记忆 -->
-        <div class="debug-card" style="border-color: #ffb066;">
-          <h3><span>🗂️</span> 角色私有记忆 (开场/离屏) <button class="btn-copy-json" onclick="copyJson('debugPerNpcMemory')">复制</button></h3>
-          <div class="human-view" id="debugPerNpcMemoryRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugPerNpcMemory" style="color: #ffcf99;"></div>
-          </details>
-        </div>
-
-        <!-- 知识门控监测 -->
-        <div class="debug-card">
-          <h3><span>🛡️</span> 知识门控与个人特权 <button class="btn-copy-json" onclick="copyJson('debugKnowledge')">复制</button></h3>
-          <div class="human-view" id="debugKnowledgeRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugKnowledge" style="color: #9dd7ff;"></div>
-          </details>
+        <div class="debug-card" style="border-color:#ffb347;">
+          <h3>本拍认知环</h3>
+          <div class="human-view" id="actorCogRead">（Decide → pre_speech → spoken → Reflect）</div>
+          <div class="human-view compact" id="privateReflectionsRead" style="margin-top:8px;border-left:2px solid #c084fc;padding-left:10px;">—</div>
         </div>
       </div>
     </details>
 
-    <!-- Group 3: 🧠 记忆与因果 (默认折叠) -->
-    <details id="group-memory">
-      <summary class="group-title">🧠 记忆与因果</summary>
+    <details id="group-beat-5" open>
+      <summary class="group-title">⑤ 结算写回</summary>
       <div class="group-content">
-        <!-- 场级注入记忆 -->
         <div class="debug-card">
-          <h3><span>🧠</span> 场级注入记忆 <button class="btn-copy-json" onclick="copyJson('debugMemory')">复制</button></h3>
-          <div class="human-view" id="debugMemoryRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugMemory" style="color: #ffda66;"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: #e6c27a;">
-          <h3><span>🧾</span> 场景固化：事实骨架 → 导演摘要 <button class="btn-copy-json" onclick="copyJson('debugSceneConsolidation')">复制</button></h3>
-          <div class="human-view" id="debugSceneConsolidationRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugSceneConsolidation" style="color: #f0d69a;"></div>
-          </details>
-        </div>
-
-        <!-- 结构化四字段总览 -->
-        <div class="debug-card" style="border-color: #ffb066;">
-          <h3><span>📊</span> 结构化四字段总览 <button class="btn-copy-json" onclick="copyJson('debugStructuredMem')">复制</button></h3>
-          <div class="human-view" id="debugStructuredMemRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugStructuredMem" style="color: #ffb066;"></div>
-          </details>
-        </div>
-
-        <!-- 分支进化轨迹 -->
-        <div class="debug-card">
-          <h3><span>🌿</span> 分支进化轨迹 <button class="btn-copy-json" onclick="copyJson('debugBranch')">复制</button></h3>
-          <div class="human-view" id="debugBranchRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugBranch" style="color: var(--cyan);"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: rgba(116, 217, 159, 0.5);">
-          <h3><span>🧾</span> 跨场事实收据</h3>
-          <div class="human-view compact" id="debugSceneReceiptsRead">（只显示场次、归属与来源类别；不展示玩家私密原文。）</div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Group 4: 🌐 世界态势 (默认折叠) -->
-    <details id="group-world">
-      <summary class="group-title">🌐 世界态势（离屏线默认折叠）</summary>
-      <div class="group-content">
-        <div class="debug-card" style="border-color: #79b8ff;">
-          <h3><span>🌐</span> 当前世界态势 <button class="btn-copy-json" onclick="copyJson('debugWorldState')">复制</button></h3>
-          <div class="human-view" id="debugWorldStateRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugWorldState" class="json-view" style="color: #9dd7ff;"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: rgba(0, 240, 255, 0.5);">
-          <h3><span>📏</span> 本拍上下文与缓存收据 <button class="btn-copy-json" onclick="copyJson('debugContextReceipts')">复制</button></h3>
-          <div class="human-view compact" id="debugContextReceiptsRead">（仅显示体积、哈希、usage 与缓存证据；不保存 prompt 或私密正文。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugContextReceipts" style="color: #b9e8ff;"></div>
-          </details>
-        </div>
-
-        <div class="debug-card" style="border-color: rgba(255, 218, 102, 0.55);">
-          <h3><span>🧭</span> 上下文预算审计 <button class="btn-copy-json" onclick="copyJson('debugContextBudgetAudit')">复制</button></h3>
-          <div class="human-view compact" id="debugContextBudgetAuditRead">（纯观测：不截断、不限流、不改变模型输入。）</div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugContextBudgetAudit" style="color: #ffe8a3;"></div>
-          </details>
-        </div>
-        <div class="debug-card" style="border-color: #9b8cff;">
-          <h3><span>⌁</span> 时间 × 地点 × 意图 <button class="btn-copy-json" onclick="copyJson('debugWorldCoordinates')">复制</button></h3>
-          <div class="human-view" id="debugWorldCoordinatesRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugWorldCoordinates" class="json-view" style="color: #c9beff;"></div>
-          </details>
-        </div>
-        <div class="debug-card" style="border-color: #74d99f;">
-          <h3><span>W1</span> 五内核运行时状态 <button class="btn-copy-json" onclick="copyJson('debugRuntimeKernels')">复制</button></h3>
-          <div class="human-view" id="debugRuntimeKernelsRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div id="debugRuntimeKernels" class="json-view" style="color: #bdf4cd;"></div>
-          </details>
-        </div>
-      </div>
-    </details>
-
-    <!-- Group 5: 🎭 工程诊断 (默认折叠) -->
-    <details id="group-contract">
-      <summary class="group-title">🛠️ 工程诊断与契约</summary>
-      <div class="group-content">
-        <!-- 契约校验 / 防泄漏报告 -->
-        <div class="debug-card">
-          <h3><span>⚠️</span> 契约校验 / 防泄漏报告</h3>
+          <h3>契约 / 防泄漏</h3>
           <div id="debugIssues" class="issues-list"></div>
         </div>
-
-        <!-- 竞价计划 -->
-        <div class="debug-card" style="border-color: #a8a8ff;">
-          <h3><span>📢</span> 竞价与发言计划 (speaker_plan) <button class="btn-copy-json" onclick="copyJson('debugSpeakerPlan')">复制</button></h3>
-          <div class="human-view" id="debugSpeakerPlanRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugSpeakerPlan" style="color: #b5b5ff;"></div>
-          </details>
+        <div class="debug-card">
+          <h3>退出与转场</h3>
+          <div class="human-view" id="debugExitRead">—</div>
         </div>
-
-        <div class="debug-card" style="border-color: #74d99f;">
-          <h3><span>🎬</span> 导演-only 接管闸 <button class="btn-copy-json" onclick="copyJson('debugDirectorOnlyGate')">复制</button></h3>
-          <div class="human-view" id="debugDirectorOnlyGateRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugDirectorOnlyGate" style="color: #bdf4cd;"></div>
-          </details>
+        <div class="debug-card">
+          <h3>分支 / 跨场收据</h3>
+          <div class="human-view" id="debugBranchRead">—</div>
+          <div class="human-view compact" id="debugSceneReceiptsRead" style="margin-top:6px;">—</div>
         </div>
+      </div>
+    </details>
 
-        <!-- 导演之眼声纹 (director_voice_profile) -->
-        <div class="debug-card" style="border-color: #ff9999;">
-          <h3><span>🎙️</span> 导演之眼声纹 (director_voice_profile) <button class="btn-copy-json" onclick="copyJson('debugDirectorVoice')">复制</button></h3>
-          <div class="human-view" id="debugDirectorVoiceRead"></div>
-          <details class="raw-toggle"><summary>原始 JSON</summary>
-          <div class="json-view" id="debugDirectorVoice" style="color: #ffb3b3;"></div>
-          </details>
-        </div>
+    <details id="group-eng">
+      <summary class="group-title">工程原件（JSON / 旧面板）</summary>
+      <div class="group-content">
+        <div class="npc-chips-container" id="npcChipsContainer" style="margin-bottom:8px;"></div>
+        <div class="debug-card"><h3>beat_io JSON</h3><div class="json-view" id="debugBeatIo"></div></div>
+        <div class="debug-card"><h3>assembly JSON</h3><div class="json-view" id="debugAssembly"></div></div>
+        <div class="debug-card"><h3>actor_context_packets</h3><div class="json-view" id="debugActorPackets"></div></div>
+        <div class="debug-card"><h3>speaker_plan</h3><div class="json-view" id="debugSpeakerPlan"></div></div>
+        <div class="debug-card"><h3>BodyFrame</h3><div class="human-view" id="debugBodyFramesRead"></div><div class="json-view" id="debugBodyFrames"></div></div>
+        <div class="debug-card"><h3>truth_turns</h3><div class="json-view" id="debugTruthTurns"></div></div>
+        <div class="debug-card"><h3>scene_frame</h3><div class="human-view" id="debugSceneFrameRead"></div><div class="json-view" id="debugSceneFrame"></div></div>
+        <div class="debug-card"><h3>ambient_stage</h3><div class="human-view" id="debugAmbientRead"></div><div id="debugAmbient" class="json-view"></div></div>
+        <div class="debug-card"><h3>inner_states</h3><div class="human-view" id="debugInnerStatesRead"></div><div class="json-view" id="debugInnerStates"></div></div>
+        <div class="debug-card"><h3>boundaries</h3><div class="human-view" id="debugBoundariesRead"></div><div class="json-view" id="debugBoundaries"></div></div>
+        <div class="debug-card"><h3>per_npc_memory</h3><div class="human-view" id="debugPerNpcMemoryRead"></div><div class="json-view" id="debugPerNpcMemory"></div></div>
+        <div class="debug-card"><h3>knowledge gate</h3><div class="human-view" id="debugKnowledgeRead"></div><div class="json-view" id="debugKnowledge"></div></div>
+        <div class="debug-card"><h3>memory_injected</h3><div class="human-view" id="debugMemoryRead"></div><div class="json-view" id="debugMemory"></div></div>
+        <div class="debug-card"><h3>scene_consolidation</h3><div class="human-view" id="debugSceneConsolidationRead"></div><div class="json-view" id="debugSceneConsolidation"></div></div>
+        <div class="debug-card"><h3>structured_mem</h3><div class="human-view" id="debugStructuredMemRead"></div><div class="json-view" id="debugStructuredMem"></div></div>
+        <div class="debug-card"><h3>branch JSON</h3><div class="json-view" id="debugBranch"></div></div>
+        <div class="debug-card"><h3>exit JSON</h3><div id="debugExit" class="json-view"></div></div>
+        <div class="debug-card"><h3>world_state</h3><div class="human-view" id="debugWorldStateRead"></div><div id="debugWorldState" class="json-view"></div></div>
+        <div class="debug-card"><h3>world_coordinates</h3><div class="human-view" id="debugWorldCoordinatesRead"></div><div id="debugWorldCoordinates" class="json-view"></div></div>
+        <div class="debug-card"><h3>context_receipts</h3><div class="human-view compact" id="debugContextReceiptsRead"></div><div class="json-view" id="debugContextReceipts"></div></div>
+        <div class="debug-card"><h3>context_budget</h3><div class="human-view compact" id="debugContextBudgetAuditRead"></div><div class="json-view" id="debugContextBudgetAudit"></div></div>
+        <div class="debug-card"><h3>runtime kernels</h3><div class="human-view" id="debugRuntimeKernelsRead"></div><div id="debugRuntimeKernels" class="json-view"></div></div>
+        <div class="debug-card"><h3>director_only_gate</h3><div class="human-view" id="debugDirectorOnlyGateRead"></div><div class="json-view" id="debugDirectorOnlyGate"></div></div>
+        <div class="debug-card"><h3>director_voice</h3><div class="human-view" id="debugDirectorVoiceRead"></div><div class="json-view" id="debugDirectorVoice"></div></div>
+        <div id="actorPipelineRead" style="display:none"></div>
       </div>
     </details>
   </div>
@@ -2542,27 +2358,51 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
       }).join("\n")
     : "（本拍该角色未开口，或尚无投递）";
 
-  return [
-    `<div class="actor-receipt">`,
-    `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
-    `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
-    pipelineStep("1. 导演可见世界（环境 / 物态 / 场面事实）", directorWorld),
-    pipelineStep("2. 人格核（MANNER / BOUNDARY / VOICE）", personaBody, "voice"),
-    pipelineStep("3. 记忆与关系投影", memoryBody),
-    pipelineStep("4. 听见的（玩家 + 同伴 + 同拍）", heardBody),
-    pipelineStep("5. 会话义务 / 话轮", contractBody),
-    pipelineStep("6. 包摘要（want / concern / BodyFrame）", packetSummary),
-    pipelineStep("7. Decide（ActorCogLoop）", decideBody, "decide"),
-    pipelineStep("8. 先想（pre_speech）", thinkBody),
-    pipelineStep("9. 再说（因此说出的话）", spokenBody),
-    pipelineStep("10. Reflect（私有写回）", reflectBody, "reflect"),
-    `</div>`,
-  ].join("");
+  return {
+    who,
+    cons,
+    assembleHtml: [
+      `<div class="actor-receipt">`,
+      `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
+      `<div class="actor-receipt-id">${escapeHtml(cons)} · 库投影</div>`,
+      pipelineStep("场面事实进包", directorWorld),
+      pipelineStep("人格核（MANNER / BOUNDARY / VOICE）", personaBody, "voice"),
+      pipelineStep("记忆 / REL / 慢环", memoryBody),
+      pipelineStep("听见的（玩家 + 同伴）", heardBody),
+      pipelineStep("会话义务", contractBody),
+      pipelineStep("want / BodyFrame", packetSummary),
+      `</div>`,
+    ].join(""),
+    cogHtml: [
+      `<div class="actor-receipt">`,
+      `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
+      `<div class="actor-receipt-id">${escapeHtml(cons)} · Agent 环</div>`,
+      pipelineStep("Decide", decideBody, "decide"),
+      pipelineStep("先想（pre_speech）", thinkBody),
+      pipelineStep("说出", spokenBody),
+      pipelineStep("Reflect", reflectBody, "reflect"),
+      `</div>`,
+    ].join(""),
+    directorLines: (() => {
+      const di = packet?.director_instruction;
+      if (Array.isArray(di)) return di.map(formatReceiptValue).join("\n");
+      if (di && typeof di === "object") {
+        const base = di.base_instruction;
+        const stall = di.stall_escalation;
+        const parts = [];
+        if (Array.isArray(base)) parts.push(base.map(formatReceiptValue).join("\n"));
+        else if (base) parts.push(formatReceiptValue(base));
+        if (stall) parts.push(`stall_escalation：${formatReceiptValue(JSON.stringify(stall).slice(0, 200))}`);
+        return parts.join("\n\n") || "—";
+      }
+      return formatReceiptValue(di) || "—";
+    })(),
+  };
 }
 
 function decodePrivateReflections(list) {
   const rows = Array.isArray(list) ? list : [];
-  if (!rows.length) return "本场 Reflect 私想累计：（尚无——闲聊拍常不写；托付/交坠/拒绝后才有）";
+  if (!rows.length) return "Reflect 累计：（尚无——闲聊拍常不写；托付/交坠/拒绝后才有）";
   return rows.slice(-8).map((r, i) => {
     const who = formatReceiptValue(r.cons_id || "?");
     const thought = formatReceiptValue(r.thought || "");
@@ -2571,52 +2411,58 @@ function decodePrivateReflections(list) {
   }).join("\n");
 }
 
-function renderCogLoopDock(payload, nameMap) {
-  const dockBody = document.getElementById("cogLoopDockBody");
-  const dockMeta = document.getElementById("cogLoopMeta");
-  if (!dockBody) return;
+function pickPipelineCons(packets) {
+  if (window._selectedPipelineCons && packets[window._selectedPipelineCons]) {
+    return window._selectedPipelineCons;
+  }
+  return Object.keys(packets).find((k) => k.includes("ryuya")) || Object.keys(packets)[0] || "";
+}
+
+function renderBeatActorPanels(payload, nameMap) {
   const packets = payload?.actor_context_packets || {};
-  const cons =
-    window._selectedPipelineCons && packets[window._selectedPipelineCons]
-      ? window._selectedPipelineCons
-      : Object.keys(packets).find((k) => k.includes("ryuya")) || Object.keys(packets)[0] || "";
-  const packet = cons ? packets[cons] : null;
-  if (!packet) {
-    dockBody.textContent = "（本拍尚无演员包——闪回首拍若是 authored 旁白，下一拍才有 Decide）";
-    if (dockMeta) dockMeta.textContent = "等待 actor_context_packets…";
+  const assembleEl = document.getElementById("actorAssembleRead");
+  const cogEl = document.getElementById("actorCogRead");
+  const directorSide = document.getElementById("directorSideRead");
+  const cons = pickPipelineCons(packets);
+  window._selectedPipelineCons = cons;
+  if (!cons || !packets[cons]) {
+    if (assembleEl) {
+      assembleEl.innerHTML = `<div class="actor-receipt-empty">本拍无演员包（闪回首拍常是 authored，下一拍才装配）。</div>`;
+    }
+    if (cogEl) cogEl.innerHTML = `<div class="actor-receipt-empty">尚无 Agent 环回执。</div>`;
+    if (directorSide) {
+      const mhEnv = payload?.must_happen_environment_hint || payload?.speaker_plan?.must_happen_environment_hint;
+      directorSide.textContent = mhEnv
+        ? `MH 环境余波：${formatReceiptValue(typeof mhEnv === "string" ? mhEnv : JSON.stringify(mhEnv).slice(0, 240))}`
+        : "（无导演侧指令摘要）";
+    }
     return;
   }
-  const who = nameMap?.[cons] || packet?.self_core?.name || cons;
-  const decide = packet?.cog_loop?.decide || {};
-  const reflect = packet?.cog_loop?.reflect || {};
-  const voices = Array.isArray(packet?.self_core?.voice_samples)
-    ? packet.self_core.voice_samples.length
-    : 0;
-  const lines = [
-    `角色：${who}（${cons}）`,
-    `VOICE金标：${voices ? `×${voices}` : "未投影"}`,
-    `Decide band：${formatReceiptValue(decide.band) || "—"}`,
-    `Decide top：${formatReceiptValue(decide.top_concern) || "—"}`,
-    `Decide intention：${formatReceiptValue(decide.intention) || "—"}`,
-    reflect.thought
-      ? `Reflect：${formatReceiptValue(reflect.thought)}`
-      : "Reflect：（本拍未写回）",
-  ];
-  dockBody.textContent = lines.join("\n");
-  if (dockMeta) {
-    dockMeta.textContent = `钉在折叠外 · 完整 10 步在下方「角色包流水线」里`;
+  const decoded = decodeActorPipelineCard(cons, packets[cons], nameMap);
+  if (assembleEl) assembleEl.innerHTML = decoded.assembleHtml;
+  if (cogEl) cogEl.innerHTML = decoded.cogHtml;
+  if (directorSide) {
+    const mhEnv = payload?.must_happen_environment_hint || payload?.speaker_plan?.must_happen_environment_hint;
+    const bits = [`【给该角色的 director_instruction】\n${decoded.directorLines}`];
+    if (mhEnv) {
+      bits.push(`【MH 环境余波·导演侧】\n${formatReceiptValue(typeof mhEnv === "string" ? mhEnv : JSON.stringify(mhEnv).slice(0, 240))}`);
+    }
+    directorSide.textContent = bits.join("\n\n");
   }
 }
 
 function decodeActorPackets(packets, nameMap, selectedCons) {
   const entries = Object.entries(packets || {});
   if (!entries.length) {
-    return `<div class="actor-receipt-empty">本拍还没有演员投递。若刚切入闪回，首拍常是作者段（authored），不经 LLM——下一拍才有龙也投递回执。</div>`;
+    return `<div class="actor-receipt-empty">本拍还没有演员投递。</div>`;
   }
   const filtered = selectedCons
     ? entries.filter(([cons]) => cons === selectedCons)
     : entries;
-  const cards = filtered.map(([cons, packet]) => decodeActorPipelineCard(cons, packet, nameMap));
+  const cards = filtered.map(([cons, packet]) => {
+    const d = decodeActorPipelineCard(cons, packet, nameMap);
+    return `${d.assembleHtml}${d.cogHtml}`;
+  });
   return `<div class="actor-receipt-list">${cards.join("")}</div>`;
 }
 
@@ -2884,22 +2730,21 @@ function renderDebugDetails(payload) {
   if (spRead) spRead.textContent = decodeSpeakerPlan(speakerPlan, nameMap);
 
   const actorPackets = payload?.actor_context_packets || {};
-  document.getElementById("debugActorPackets").textContent = JSON.stringify(actorPackets, null, 2);
+  const packetsEl = document.getElementById("debugActorPackets");
+  if (packetsEl) packetsEl.textContent = JSON.stringify(actorPackets, null, 2);
   if (!window._selectedPipelineCons || !actorPackets[window._selectedPipelineCons]) {
-    window._selectedPipelineCons = Object.keys(actorPackets)[0] || "";
+    window._selectedPipelineCons = pickPipelineCons(actorPackets);
   }
   renderPipelineChips(actorPackets, nameMap, window._selectedPipelineCons);
+  renderBeatActorPanels(payload, nameMap);
   const pipelineRead = document.getElementById("actorPipelineRead");
   if (pipelineRead) {
     pipelineRead.innerHTML = decodeActorPackets(actorPackets, nameMap, window._selectedPipelineCons || null);
   }
-  renderCogLoopDock(payload, nameMap);
   const reflectRead = document.getElementById("privateReflectionsRead");
   if (reflectRead) {
     reflectRead.textContent = decodePrivateReflections(payload?.private_reflections);
   }
-  const pipelineGroup = document.getElementById("group-actor-pipeline");
-  if (pipelineGroup) pipelineGroup.open = true;
   const coverageRead = document.getElementById("solidifiedCoverageRead");
   if (coverageRead) coverageRead.textContent = decodeSolidifiedCoverage(payload, nameMap);
   const ledgersRead = document.getElementById("solidifiedLedgersRead");
@@ -3512,34 +3357,28 @@ document.getElementById("btnConfirmNewRun").addEventListener("click", confirmNew
 newRunOpening.addEventListener("change", renderNewRunPlayers);
 
 window.addEventListener("DOMContentLoaded", () => {
-  // 恢复并监听折叠状态（流水线强制展开，不读旧 closed）
-  const pipelineForce = document.getElementById("group-actor-pipeline");
-  if (pipelineForce) {
-    pipelineForce.open = true;
-    localStorage.removeItem("details_group-actor-pipeline");
-  }
-  ["group-live", "group-scene-static", "group-character", "group-memory", "group-contract", "group-actor-pipeline", "group-solidified"].forEach(id => {
+  [
+    "group-beat-1",
+    "group-beat-2",
+    "group-beat-3",
+    "group-beat-4",
+    "group-beat-5",
+    "group-eng",
+  ].forEach((id) => {
     const details = document.getElementById(id);
-    if (details) {
-      if (id === "group-actor-pipeline") {
-        details.open = true;
-      } else {
-        const saved = localStorage.getItem(`details_${id}`);
-        if (saved === "open") {
-          details.setAttribute("open", "");
-        } else if (saved === "closed") {
-          details.removeAttribute("open");
-        }
-      }
-      details.addEventListener("toggle", () => {
-        if (id === "group-actor-pipeline") {
-          // 仍允许手动收，但下次进页再强制开一次
-          localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
-          return;
-        }
-        localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
-      });
+    if (!details) return;
+    const saved = localStorage.getItem(`details_${id}`);
+    if (id === "group-eng") {
+      if (saved === "open") details.setAttribute("open", "");
+      else details.removeAttribute("open");
+    } else if (saved === "closed") {
+      details.removeAttribute("open");
+    } else {
+      details.setAttribute("open", "");
     }
+    details.addEventListener("toggle", () => {
+      localStorage.setItem(`details_${id}`, details.open ? "open" : "closed");
+    });
   });
 
   // 初始化 NPC Chips 切换过滤

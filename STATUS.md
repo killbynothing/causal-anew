@@ -1,5 +1,26 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-08（咖啡闪回顶配硬闸 · 对齐旧设计）
+
+- **Decide/Reflect**：已做（序幕样板）。Decide=拍前顶格 concern；Reflect=拍后私想写回观测台。不是全量 GA。
+- **「可后置」纠偏**：公司线/WMAIN BOUNDARY **不是**这场；龙也现玩场=咖啡馆。闲聊封顶 / 禁编共史 / 收据默认 / 导演不灌 MH **本场要做**——已做。
+- **硬闸**：`repair_ryuya_prologue_invent`；`hard_check` 拦 mystic+早清单+FUTURE；闪回无收据→`deferred`（沉默≠答应）；`build_director_instruction` 序幕不列 RP id；`soft_beat_budget` 到顶硬推 deepen。
+- **对接**：导演=环境/MH 收据；角色 agent=独立 packet+Decide；事实=`solidified`/`run_observation_ledger`/当面收据。
+- **你**：人验抽咖啡场（G4）；其余 R4 卫生 / G5·G6 不挡本场。
+
+### 2026-08-08（龙也声纹入库 × ActorCogLoop × 观测台 · 咖啡场可演）
+
+- **声纹**：`migrate_ryuya_voice_2026-08-08.py --apply` → `P.VOICE` W1×4 + WMAIN×4；§5.1 闲聊仿写未迁；MANNER.voice_rule 保留。
+- **Agent 环**：`runtime/actor_cog_loop.py` — 序幕 Decide（顶格 concern + pending）→ Enact（LLM）→ Reflect 写回；指令注入 voice_samples / cog_loop.decide。
+- **观测台**：`observer.html` 流水线扩为 10 步（VOICE / Decide / Reflect）；`debug_payload.private_reflections`。
+- **验**：`ryuya_voice_cog_loop` + `--quick` 🟢；registry / persona_parity / truth_completeness 已跟数字。
+- **报账**：VOICE 句带原著行号；Decide/Reflect 为机制层，不编新剧情。
+- **你**：硬刷新观测台，新开两年前咖啡场看右侧 Decide/VOICE/Reflect。
+
+### 2026-08-08（龙也相对齐全 × Agent 环缺口入计划）
+
+- **判断**：龙也 Seed 相对最齐；缺口计划已立（随后本刀部分销账）。
+
 ### 2026-08-07（张尘刀1 Seed 入库 · 召回防灌 · API 探针）
 
 - **已做**：`migrate_zhangchen_seed_knife1_2026-08-07.py --apply` → 薄核 7 + ACT 2 + REL 8×2；`interaction_dynamics` 魏初/周泽/Leonard；旧深 K0 `spoiler_tier` 降级；修 `C.zhangchen.WMAIN.md`（删「哥哥龙也」串戏）。

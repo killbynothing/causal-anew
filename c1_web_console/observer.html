@@ -2365,11 +2365,15 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
   const phaseVoice = core.phase_voice_profile || {};
   const manners = core.seed_manners || [];
   const boundaries = (core.seed_boundaries || []).slice(0, 4);
+  const voiceSamples = Array.isArray(core.voice_samples) ? core.voice_samples.slice(0, 4) : [];
   const personaBody = [
     `姓名：${formatReceiptValue(core.name) || who}`,
     `关系阶段：${formatReceiptValue(core.relation_stage) || "—"}`,
     manners.length ? `MANNER：${manners.slice(0, 4).map(formatReceiptValue).join(" / ")}` : "MANNER：—",
     boundaries.length ? `BOUNDARY：${boundaries.map(formatReceiptValue).join(" / ")}` : "BOUNDARY：—",
+    voiceSamples.length
+      ? `VOICE金标×${voiceSamples.length}：\n${voiceSamples.map((x) => "· " + formatReceiptValue(x).slice(0, 120)).join("\n")}`
+      : "VOICE金标：（库无 P.VOICE 或未投影）",
     `core摘录：${formatReceiptValue((core.core_excerpt || "").slice(0, 220)) || "—"}`,
     Object.keys(phaseVoice).length
       ? `阶段声纹：${formatReceiptValue(phaseVoice.phase) || "—"} · ${formatReceiptValue(phaseVoice.positive_patterns) || ""}`
@@ -2420,13 +2424,30 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
 
   const want = packet?.self_state?.inner_state || {};
   const bf = packet?.body_frame_now || {};
+  const pending = Array.isArray(want.pending_concerns) ? want.pending_concerns : [];
   const packetSummary = [
     `want_now：${formatReceiptValue(want.want_now) || "—"}`,
+    `顶格 concern：${formatReceiptValue(want.top_concern) || "—"}`,
+    pending.length
+      ? `pending（本拍不催）：\n${pending.map((x) => "· " + formatReceiptValue(x)).join("\n")}`
+      : "pending：（空）",
     `knot：${formatReceiptValue(want.knot) || "—"}`,
     `unsaid：${formatReceiptValue(want.unsaid) || "—"}`,
     `BodyFrame holding：${formatReceiptValue(bf.holding) || "null"}`,
     `身份关系×${(packet?.identity_relations || []).length}`,
   ].join("\n");
+
+  const cog = packet?.cog_loop || {};
+  const decide = cog.decide || {};
+  const decideBody = Object.keys(decide).length
+    ? [
+        `mode：${formatReceiptValue(decide.participation_mode) || "—"}`,
+        `band：${formatReceiptValue(decide.band) || "—"}`,
+        `top：${formatReceiptValue(decide.top_concern) || "—"}`,
+        `intention：${formatReceiptValue(decide.intention) || "—"}`,
+        `rule：${formatReceiptValue(decide.rule) || "—"}`,
+      ].join("\n")
+    : "（尚无 Decide 回执——非序幕样板或未接线）";
 
   const pre = packet?.pre_speech || {};
   const thinkBody = Object.keys(pre).length
@@ -2437,6 +2458,15 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
         pre.synthesized ? "（本拍为合成回执：模型未返回 pre_speech）" : "（模型先想）",
       ].join("\n")
     : "（尚无先想回执）";
+
+  const reflect = cog.reflect || {};
+  const reflectBody = Object.keys(reflect).length
+    ? [
+        `想法：${formatReceiptValue(reflect.thought) || "—"}`,
+        `band：${formatReceiptValue(reflect.band) || "—"}`,
+        reflect.evidence ? `证据：${formatReceiptValue(reflect.evidence)}` : "",
+      ].filter(Boolean).join("\n")
+    : "（本拍无 Reflect 写回）";
 
   const spoken = packet?.spoken_this_turn || [];
   const spokenBody = spoken.length
@@ -2453,13 +2483,15 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
     `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
     `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
     pipelineStep("1. 导演可见世界（环境 / 物态 / 场面事实）", directorWorld),
-    pipelineStep("2. 人格核（MANNER / BOUNDARY / 阶段声纹）", personaBody),
+    pipelineStep("2. 人格核（MANNER / BOUNDARY / VOICE）", personaBody),
     pipelineStep("3. 记忆与关系投影", memoryBody),
     pipelineStep("4. 听见的（玩家 + 同伴 + 同拍）", heardBody),
     pipelineStep("5. 会话义务 / 话轮", contractBody),
-    pipelineStep("6. 包摘要（进模型的关键状态）", packetSummary),
-    pipelineStep("7. 先想（pre_speech）", thinkBody),
-    pipelineStep("8. 再说（因此说出的话）", spokenBody),
+    pipelineStep("6. 包摘要（want / concern / BodyFrame）", packetSummary),
+    pipelineStep("7. Decide（ActorCogLoop）", decideBody),
+    pipelineStep("8. 先想（pre_speech）", thinkBody),
+    pipelineStep("9. 再说（因此说出的话）", spokenBody),
+    pipelineStep("10. Reflect（私有写回）", reflectBody),
     `</div>`,
   ].join("");
 }

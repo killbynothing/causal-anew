@@ -1571,13 +1571,15 @@ persona_cards.C.ryuya.W1.slow_memory_activation_cues.12[],free_stage_card_ryuya_
 persona_cards.C.ryuya.W1.slow_memory_activation_cues.临别交坠/金属凉,free_stage_card_ryuya_prologue.json,Mixed,see_leaf,?,registered,
 persona_cards.C.ryuya.W1.slow_memory_activation_cues.临别交坠/金属凉[],free_stage_card_ryuya_prologue.json,Mixed,see_leaf,?,registered,
 persona_cards.C.ryuya.W1.voice_samples,free_stage_card_ryuya_prologue.json,Seed,persona_core,C,registered,
-persona_cards.C.ryuya.W1.voice_seed_prop_ids,free_stage_card_ryuya_prologue.json,Mixed,see_leaf,?,registered,
+persona_cards.C.ryuya.W1.voice_seed_prop_ids,free_stage_card_ryuya_prologue.json,Seed,persona_core,C,registered,P.VOICE named facets 2026-08-08
+persona_cards.C.ryuya.W1.voice_seed_prop_ids[],free_stage_card_ryuya_prologue.json,Seed,persona_core,C,registered,P.VOICE prop_id list
 player_night_lines,free_stage_card_ryuya_prologue.json,Storylet,node_contracts,D,registered,
 player_night_lines[],free_stage_card_ryuya_prologue.json,Storylet,node_contracts,D,registered,
 player_night_lines_note,free_stage_card_ryuya_prologue.json,Storylet,node_contracts,D,registered,
 present,free_stage_card_ryuya_prologue.json,Storylet,node_contracts/meta,D,registered,
 present[],free_stage_card_ryuya_prologue.json,Unclassified,TBD,?,registered,
 prologue_active,free_stage_card_ryuya_prologue.json,Storylet,node_contracts/meta,D,registered,
+soft_beat_budget,free_stage_card_ryuya_prologue.json,Storylet,node_contracts/meta,D,registered,闲聊拍数上限；到顶硬推 deepen
 scene,free_stage_card_ryuya_prologue.json,Storylet,node_contracts/meta,D,registered,
 scene_frame,free_stage_card_ryuya_prologue.json,Storylet,node_contracts,D,registered,
 scene_frame.when,free_stage_card_ryuya_prologue.json,Storylet,node_contracts,D,registered,

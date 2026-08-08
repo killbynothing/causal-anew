@@ -25,7 +25,8 @@ EXPECTED_COUNTS = {
     "events_run0": 565,
     # 2026-08-03 tiananmen cast +39 → 447
     # 2026-08-07 zhangchen knife1 +25 → 472
-    "propositions": 472,
+    # 2026-08-08 ryuya P.VOICE +8 → 480
+    "propositions": 480,
     "node_contracts": 5,
 }
 

@@ -22,6 +22,11 @@ Thumbs.db
 # runtime play artifacts
 artifacts/
 
+# third-party reference clones (do not commit)
+docs/refs/generative_agents/
+docs/refs/_ga_broken_partial/
+docs/refs/_ga_trash_*/
+
 
 # editor
 .obsidian/

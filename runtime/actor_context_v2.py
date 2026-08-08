@@ -40,6 +40,21 @@ BIOGRAPHY_PATTERNS = (
     re.compile(r"从小"),
 )
 
+# Cafe flashback: invented co-history beyond authored 泼袖/雨/旧桌.
+RYUYA_PROLOGUE_INVENT_PATTERNS = (
+    re.compile(r"你还记得我们"),
+    re.compile(r"我们每次"),
+    re.compile(r"你常点"),
+    re.compile(r"上次你点"),
+    re.compile(r"你最爱喝"),
+    re.compile(r"我们约好"),
+    re.compile(r"你答应过我"),
+    re.compile(r"你上次说"),
+    re.compile(r"记得那次你"),
+    re.compile(r"你总是点"),
+    re.compile(r"和你第一次见面是在"),
+)
+
 EDITORIAL_MARKERS = ("待裁", "推断", "焊死", "机制", "字段名", "剧情推断")
 
 
@@ -580,6 +595,7 @@ def build_director_instruction(
     scene = normalize_scene_frame(card)
     speech = str((player_input or {}).get("speech", "")).strip()
     action = str((player_input or {}).get("action", "")).strip()
+    prologue = bool(card.get("prologue_active"))
     live_mh = [
         str(item.get("id", ""))
         for item in card.get("must_happen", [])
@@ -599,16 +615,26 @@ def build_director_instruction(
         f"你是{name}，留在「{scene.get('where', card.get('scene', '现场'))}」。",
         "本拍必须给出可观察动作；沉默时也要维持姿态、视线或物件互动。",
     ]
-    if live_mh:
+    # Cafe flashback: MH stays director/receipt-side. Naming RP ids in the actor
+    # packet reintroduces quest-push; want_now + cog_loop.decide carry intent.
+    if live_mh and not prologue:
         goals.append(f"导演关注节拍（不可自行宣布完成）：{', '.join(live_mh[:3])}")
     inner = persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {}
     if inner.get("want_now"):
         goals.append(f"你此刻想要：{inner['want_now']}")
+    if prologue:
+        must_not = (
+            "must_not_assume：不得编造未在 packet 出现的共同细节（点单口味/长共史/「你答应过我」等）；"
+            "共同经历只轻提泼袖/雨/旧桌；不得宣读托付/挂坠任务清单；不得替其他角色代言；"
+            "挂坠无超自然/系统说明。"
+        )
+    else:
+        must_not = "must_not_assume：不得编造未在 packet 出现的亲属/童年/旧职经历；不得替其他角色代言。"
     return [
         f"turn={turn_no}",
         f"what_changed：{'；'.join(changed) if changed else '开场延续，无新玩家输入'}",
         f"acting_goal：{' '.join(goals)}",
-        "must_not_assume：不得编造未在 packet 出现的亲属/童年/旧职经历；不得替其他角色代言。",
+        must_not,
     ]
 
 
@@ -654,6 +680,77 @@ def repair_biography_text(text: str, packet: dict[str, Any]) -> tuple[str, list[
         }
     ]
     return repaired, degradations
+
+
+def _packet_allowed_memory_blob(packet: dict[str, Any]) -> str:
+    allowed: list[str] = []
+    for field in ("opening_lorebook", "episodic_recent"):
+        for item in packet.get("self_memory", {}).get(field, []) or []:
+            allowed.append(str(item))
+    for item in packet.get("known_fact_ids", []) or []:
+        allowed.append(str(item))
+    for item in packet.get("self_memory", {}).get("slow_memory_top_k", []) or []:
+        if isinstance(item, dict):
+            allowed.append(str(item.get("text", "")))
+        else:
+            allowed.append(str(item))
+    for item in packet.get("observable_dialogue", []) or []:
+        if isinstance(item, dict):
+            allowed.append(str(item.get("text", "")))
+        else:
+            allowed.append(str(item))
+    scene = packet.get("scene") if isinstance(packet.get("scene"), dict) else {}
+    for item in scene.get("facts") or []:
+        if isinstance(item, dict):
+            allowed.append(str(item.get("fact", "")))
+        else:
+            allowed.append(str(item))
+    return "\n".join(allowed)
+
+
+def ryuya_prologue_invent_violations(text: str, packet: dict[str, Any]) -> list[str]:
+    """Flag invented cafe co-past not grounded in the actor packet."""
+    if not text or not any(p.search(text) for p in RYUYA_PROLOGUE_INVENT_PATTERNS):
+        return []
+    blob = _packet_allowed_memory_blob(packet)
+    # Authored cafe anchors are always legal even if pattern-adjacent.
+    authored_ok = ("泼袖" in text or "袖" in text) and ("咖啡" in text or "赔" in text)
+    if authored_ok and ("泼袖" in blob or "赔一杯" in blob or "袖" in blob):
+        return []
+    violations = []
+    for pat in RYUYA_PROLOGUE_INVENT_PATTERNS:
+        m = pat.search(text)
+        if not m:
+            continue
+        # Allow if the matched claim fragment already appears in packet memory.
+        window = text[max(0, m.start() - 4) : m.end() + 24]
+        if window and window in blob:
+            continue
+        if m.group(0) in blob:
+            continue
+        violations.append(pat.pattern)
+    return violations
+
+
+def repair_ryuya_prologue_invent(
+    text: str, packet: dict[str, Any]
+) -> tuple[str, list[dict[str, Any]]]:
+    violations = ryuya_prologue_invent_violations(text, packet)
+    if not violations:
+        return text, []
+    repaired = text
+    for pat in RYUYA_PROLOGUE_INVENT_PATTERNS:
+        repaired = pat.sub("", repaired)
+    repaired = re.sub(r"\s{2,}", " ", repaired).strip(" ，。；")
+    if not repaired:
+        repaired = "雨还是这么大。靠窗这张旧桌——还是老地方。"
+    return repaired, [
+        {
+            "kind": "ryuya_prologue_invent_repaired",
+            "patterns": violations,
+            "original_excerpt": text[:120],
+        }
+    ]
 
 
 def classify_excerpt_audience(excerpt_key: str, text: str) -> str:

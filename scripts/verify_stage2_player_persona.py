@@ -101,12 +101,18 @@ def check_persona_parity(conn: sqlite3.Connection) -> list[str]:
         fails.append("no P.BOUNDARY.* for C.ryuya.W1")
     if len(projected["manner"]) < 1:
         fails.append("no P.MANNER/ARCH.* for C.ryuya.W1")
-    # Thin VOICE must be gone from schedule
+    # Old thin numeric VOICE (001–004) must stay retired; new named P.VOICE is required.
     thin_voice = conn.execute(
-        "SELECT COUNT(*) FROM knowledge_schedule WHERE prop_id LIKE 'P.VOICE.ryuya.W1.%'"
+        "SELECT COUNT(*) FROM knowledge_schedule WHERE prop_id GLOB 'P.VOICE.ryuya.W1.[0-9]*'"
     ).fetchone()[0]
     if thin_voice:
-        fails.append(f"thin P.VOICE.ryuya.W1.* still scheduled ({thin_voice})")
+        fails.append(f"thin P.VOICE.ryuya.W1.00x still scheduled ({thin_voice})")
+    named_voice = conn.execute(
+        "SELECT COUNT(*) FROM knowledge_schedule WHERE prop_id LIKE 'P.VOICE.ryuya.W1.%' "
+        "AND prop_id NOT GLOB 'P.VOICE.ryuya.W1.[0-9]*'"
+    ).fetchone()[0]
+    if named_voice < 4:
+        fails.append(f"named P.VOICE.ryuya.W1.* expected >=4, got {named_voice}")
     # ARCH must hit both consciousnesses
     for arch in ("P.ARCH.ryuya.mask", "P.ARCH.ryuya.brother_complex", "P.ARCH.ryuya.endure_dirt"):
         for cons in (CONS, CONS_WM):

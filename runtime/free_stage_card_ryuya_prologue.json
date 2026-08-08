@@ -4,6 +4,7 @@
   "ch_anchor": 0,
   "clock": "16:40",
   "prologue_active": true,
+  "soft_beat_budget": 4,
   "intro_include_blurb": false,
   "names_known_at_entry": true,
   "handoff_pending_entry": true,
@@ -165,10 +166,29 @@
         "REL.HOLD.ryuya.to_xiuzai",
         "REL.HOLD.ryuya.W1.to_WMAIN"
       ],
-      "voice_seed_prop_ids": [],
+      "voice_seed_prop_ids": [
+        "P.VOICE.ryuya.W1.cadence",
+        "P.VOICE.ryuya.W1.address",
+        "P.VOICE.ryuya.W1.ex_belief",
+        "P.VOICE.ryuya.W1.ex_farewell"
+      ],
       "slow_memory_activation_cues": {
-        "临别交坠/金属凉": ["挂坠", "项链", "金属", "交", "礼物", "临别"],
-        "12": ["挂坠", "项链", "金属", "交", "礼物", "临别"]
+        "临别交坠/金属凉": [
+          "挂坠",
+          "项链",
+          "金属",
+          "交",
+          "礼物",
+          "临别"
+        ],
+        "12": [
+          "挂坠",
+          "项链",
+          "金属",
+          "交",
+          "礼物",
+          "临别"
+        ]
       }
     }
   },

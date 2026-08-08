@@ -1319,6 +1319,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_ryuya_prologue_packet_seed.py",
     },
     {
+        "id": "ryuya_voice_cog_loop",
+        "desc": "龙也 P.VOICE 投影 + ActorCogLoop Decide/Reflect（咖啡序幕）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_ryuya_voice_cog_loop.py"],
+        "triggers": [
+            "runtime/actor_cog_loop.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/actor_context_v2.py",
+            "c1_web_console/observer.html",
+            "scripts/migrate_ryuya_voice_2026-08-08.py",
+            "scripts/tests/test_ryuya_voice_cog_loop.py",
+        ],
+        "need_db": True,
+        "need": [],
+        "need_file": "scripts/tests/test_ryuya_voice_cog_loop.py",
+    },
+    {
         "id": "ryuya_episodic_deep_past",
         "desc": "龙也双意识开场前情景记忆底库 + 候选池不截断（零 LLM）",
         "tier": "quick",

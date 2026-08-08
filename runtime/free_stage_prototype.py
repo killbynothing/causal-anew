@@ -117,6 +117,7 @@ from runtime.run_observation_ledger import (
     high_importance_facts as _ledger_high,
 )
 from runtime import opening_top_tier as ott
+from runtime import actor_cog_loop as cogloop
 
 H4_SYSTEM_PROMPT_BLOCK = """
 H4 语义防泄露补充规则：
@@ -5814,6 +5815,26 @@ def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[s
             if visible_hits:
                 issues.append(f"turn {idx+1}: user-facing text contains banned visible name '{visible_hits[0]}'")
 
+        # Cafe flashback BOUNDARY: mystic/system, early checklist dump, future spoilers.
+        if (
+            role in {"npc", "bridge", "narrate"}
+            and card is not None
+            and card.get("prologue_active")
+        ):
+            surface = f"{text} {stage}"
+            for tok in ("世界线", "因果之外", "系统任务", "绑定道具", "穿越", "任务系统"):
+                if tok in surface:
+                    issues.append(f"turn {idx+1}: prologue BOUNDARY mystic/system leak '{tok}'")
+            for tok in FUTURE_KNOWLEDGE:
+                if tok in surface:
+                    issues.append(f"turn {idx+1}: prologue BOUNDARY future spoiler '{tok}'")
+            done = {str(x) for x in (completed or [])}
+            if "RP2" not in done and "折原修哉" in surface and "张尘" in surface:
+                if any(k in surface for k in ("挂坠", "吊坠", "项链")):
+                    issues.append(
+                        f"turn {idx+1}: prologue early entrust+pendant checklist dump before deepen"
+                    )
+
     return issues
 
 
@@ -9911,6 +9932,40 @@ class FreeStageSession:
                         "base_instruction": copy.deepcopy(base_director_instruction),
                         "stall_escalation": copy.deepcopy(stall_escalation),
                     }
+                # ActorCogLoop Decide: top concern + pending (maps to observer step 7.5).
+                flash_beats_for_cog = int(resolved_card.get("_ryuya_flash_beats") or 0)
+                cogloop.attach_cog_loop_to_packet(
+                    pkt,
+                    scene_id=str(resolved_card.get("scene_id") or ""),
+                    flash_beats=flash_beats_for_cog,
+                    completed=self.completed,
+                )
+                decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+                if decide.get("pending_concerns") is not None:
+                    pkt.setdefault("conversation_contract", {})["pending_concerns"] = list(
+                        decide.get("pending_concerns") or []
+                    )
+                    priv = self.private_inner_states.setdefault(cons, {})
+                    if isinstance(priv, dict):
+                        priv["pending_concerns"] = list(decide.get("pending_concerns") or [])
+                        priv["top_concern"] = decide.get("top_concern")
+                # Banter ceiling: after soft budget without deepen, hard-nudge off idle chat.
+                if (
+                    resolved_card.get("prologue_active")
+                    and cons == "C.ryuya.W1"
+                    and "RP2" not in set(self.completed)
+                    and flash_beats_for_cog >= stall_budget_for_card(resolved_card)
+                ):
+                    ceiling = (
+                        "闲聊拍数已到上限：禁止再复问近况或编共同细节；"
+                        "本拍必须把话题往『临走前有件事』挪一小步。"
+                    )
+                    prev_si = str(
+                        (pkt.get("conversation_contract") or {}).get("social_instruction") or ""
+                    ).strip()
+                    pkt.setdefault("conversation_contract", {})["social_instruction"] = (
+                        f"{prev_si} {ceiling}".strip() if prev_si else ceiling
+                    )
 
         context_memory_count = len(resolved_card.get("memory_layers", {}).get("context_memory", []))
         slow_mem_count = sum(
@@ -10055,6 +10110,14 @@ class FreeStageSession:
                 if repaired != item.get("text"):
                     item["text"] = repaired
                     turn_degradations.extend(bio_degs)
+                if resolved_card.get("prologue_active") and cons == "C.ryuya.W1":
+                    repaired2, invent_degs = acv2.repair_ryuya_prologue_invent(
+                        str(item.get("text", "")),
+                        actor_context_packets[cons],
+                    )
+                    if repaired2 != item.get("text"):
+                        item["text"] = repaired2
+                        turn_degradations.extend(invent_degs)
             leak_issues = inner_state_leak_violations(turns, resolved_card)
             leak_issues.extend(privileged_leak_violations(turns, resolved_card))
             leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
@@ -10483,6 +10546,33 @@ class FreeStageSession:
         )
 
         annotate_packets_with_spoken_turns(actor_context_packets, turns, resolved_card)
+        # ActorCogLoop Reflect: private conclusion when the cafe beat moved.
+        reflect_log = getattr(self, "private_reflections", None)
+        if not isinstance(reflect_log, list):
+            reflect_log = []
+            self.private_reflections = reflect_log
+        for cons, pkt in list(actor_context_packets.items()):
+            if not isinstance(pkt, dict):
+                continue
+            spoken_rows = pkt.get("spoken_this_turn") or []
+            spoken_texts = [
+                str(r.get("text") or "").strip()
+                for r in spoken_rows
+                if isinstance(r, dict) and str(r.get("text") or "").strip()
+            ]
+            decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+            reflect = cogloop.build_reflect_thought(
+                cons_id=str(cons),
+                decide=decide if isinstance(decide, dict) else {},
+                spoken_texts=spoken_texts,
+                player_speech=speech,
+                completed_after=self.completed,
+            )
+            if reflect:
+                cogloop.stamp_reflect_on_packet(pkt, reflect)
+                reflect_log.append({"turn_no": turn_no, **reflect})
+                if len(reflect_log) > 40:
+                    del reflect_log[:-40]
         solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
         solidified_now = build_solidified_visible_facts(
             resolved_card,
@@ -10532,6 +10622,7 @@ class FreeStageSession:
             ),
             "situation_classify": resolved_card.get("_situation_classify") or {},
             "actor_context_packets": actor_context_packets,
+            "private_reflections": list(getattr(self, "private_reflections", []) or [])[-8:],
             "context_receipts": context_receipts,
             "context_budget_audit": audit_context_receipts(context_receipts),
             "intent_runtime": {
@@ -10913,15 +11004,17 @@ class FreeStageSession:
             and all_must_happen_complete(self.card, self.completed)
         ):
             # 闪回演完：世界账本在开场已交付则只恢复收据标记；禁止没演完就静默收束。
+            # 沉默≠答应：无世界账本且无当面收据时记 deferred，不默认 accepted。
+            has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
             if self._world_transaction("ryuya_pendant_disposition") is not None:
-                if "prologue_receipt_accepted" not in self.branch_progress:
+                if not has_receipt:
                     outcome = str(
                         (self._world_transaction("ryuya_pendant_disposition") or {}).get("outcome") or "accepted"
                     )
                     self.branch_progress.append(f"prologue_receipt_{outcome}")
-            elif "prologue_receipt_accepted" not in self.branch_progress:
-                self.branch_progress.append("prologue_receipt_accepted")
-                self._finalize_prologue_pendant("accepted", turn_no=turn_no)
+            elif not has_receipt:
+                self.branch_progress.append("prologue_receipt_deferred")
+                self._finalize_prologue_pendant("deferred", turn_no=turn_no)
             prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
@@ -11635,6 +11728,8 @@ def call_actor_packet(
             "physical_scene.本场用过的物件 / 场上可见物态：你要知道自己和同伴用过或正拿着什么（手机、单反等），被问及时可自然应答；"
             "挂坠若在包内身体帧里，按剧情需要处理，不要没事特提炫示；"
             "self_core.phase_voice_profile（若存在）是这个阶段的演法：优先遵从其中的正向行为取向与披露边界，不要滑向列出的失真说法；"
+            "self_core.voice_samples（若非空）是正典声纹参考：模仿口吻与节奏，禁止复述或整句照抄；"
+            "cog_loop.decide（若存在）是本拍自主决定：只服务 top_concern，不要一次勾完 pending_concerns；"
             "private_perceptions 是你独自感到的现场信息，可据此反应，但不要对旁人点破对方不知道的真相；"
             "若 body_frame_now / self_state.body_frame_now 存在：写 stage 必须从当前身体帧可到达；"
             "手 busy/holding 时不能再接第二件物；无可见变化则 stage 留空；"

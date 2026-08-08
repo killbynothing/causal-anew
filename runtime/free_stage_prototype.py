@@ -8283,7 +8283,19 @@ class FreeStageSession:
 
     def _barge_in_stream(self) -> None:
         # Barge-in only cuts the player-facing floor queue; companion lane already shown.
+        # Authored opening lines (cafe banter etc.) must land in history first — otherwise
+        # the player "speaks first" and the character never greets.
         if self.utterance_pending_queue:
+            kept: list[dict[str, Any]] = []
+            for item in self.utterance_pending_queue:
+                if not isinstance(item, dict):
+                    continue
+                prov = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
+                if prov.get("authored_opening") or str(prov.get("authored") or "").startswith("ryuya"):
+                    kept.append(dict(item))
+            for item in kept:
+                item.setdefault("stream_lane", "floor")
+                self.history.append(item)
             self.utterance_pending_queue.clear()
             self.stream_generation += 1
         self.stream_hold = False
@@ -8433,7 +8445,7 @@ class FreeStageSession:
                     if bid not in self.completed:
                         self.completed.append(bid)
             elif self.card.get("prologue_active"):
-                # 直接开序幕卡（测试/闪回）时：龙也先开口，不用玩家递话题。
+                # 直接开序幕卡：龙也先开口。勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
                 prologue_turn = acv2.annotate_turn(
                     {
                         "role": "npc",
@@ -8449,12 +8461,26 @@ class FreeStageSession:
                     provenance={"authored_opening": "ryuya_friend_banter"},
                 )
                 intro_turns.append(prologue_turn)
-                if "RP1" not in self.completed:
-                    self.completed.append("RP1")
             settle_body_frames_from_npc_turns(
                 self.body_frames, self.card, [*intro_turns, *canon_turns]
             )
             ensure_card_body_frames(self.card, self.body_frames)
+            # 序幕：旁白+龙也搭话一次进史，禁止进流式队列被玩家第一句 barge-in 清掉。
+            if self.card.get("prologue_active"):
+                shown: list[dict[str, Any]] = []
+                for raw in [*synopsis_turns, *intro_turns, *canon_turns]:
+                    if not isinstance(raw, dict):
+                        continue
+                    item = dict(raw)
+                    if ustream.is_stream_visible_turn(item):
+                        item = ustream.normalize_stream_turn(item, turn_no=0)
+                        item.setdefault("stream_lane", "floor")
+                    self.history.append(item)
+                    if item.get("player_visible", True) is not False:
+                        shown.append(dict(item))
+                if self.autosave:
+                    self.save()
+                return shown
             shown = self._seed_opening_stream(
                 [*synopsis_turns, *intro_turns, *canon_turns],
                 turn_no=0,

@@ -2231,9 +2231,20 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
   const holding = Array.isArray(scene["场上可见物态"]) ? scene["场上可见物态"] : [];
   const used = Array.isArray(scene["本场用过的物件"]) ? scene["本场用过的物件"] : [];
   const env = scene["刚刚发生的环境变化"];
+  const friendKnown = scene["两年朋友已知"] || packet?.self_memory?.known_friend_profile || {};
+  const friendBits = friendKnown && typeof friendKnown === "object"
+    ? ["name", "gender", "age_band", "occupation", "skill_hook", "skill"]
+        .map((k) => (friendKnown[k] ? `${k}=${formatReceiptValue(friendKnown[k])}` : ""))
+        .filter(Boolean)
+    : [];
+  const friendInstr = scene["朋友关系口径"] || friendKnown.instruction || "";
   const directorWorld = [
     `在哪：${formatReceiptValue(scene.where) || "—"}`,
     `何时：${formatReceiptValue(scene.when || scene.clock) || "—"}`,
+    friendBits.length
+      ? `两年朋友已知（开档切片）：${friendBits.join(" · ")}`
+      : "两年朋友已知：（空——开档未带 name/职业/擅长，或非序幕）",
+    friendInstr ? `朋友关系口径：${formatReceiptValue(String(friendInstr).slice(0, 180))}` : "",
     solidified.length ? `场面已成立：\n${solidified.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "场面已成立：（空——尚无自报/借视频等成立事实）",
     holding.length ? `可见物态：\n${holding.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "可见物态：（空——无人公开持物；挂坠不特提）",
     used.length ? `本场用过的物件：\n${used.map((x) => "· " + formatReceiptValue(x)).join("\n")}` : "本场用过的物件：（空）",

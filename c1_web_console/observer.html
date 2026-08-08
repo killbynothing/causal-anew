@@ -584,12 +584,39 @@ header {
   font-family: var(--font-mono);
   line-height: 1.45;
 }
+.pipeline-step.tone-decide {
+  border-left-color: #ffb347;
+  background: rgba(255, 179, 71, 0.08);
+}
+.pipeline-step.tone-reflect {
+  border-left-color: #c084fc;
+  background: rgba(192, 132, 252, 0.08);
+}
+.pipeline-step.tone-voice {
+  border-left-color: #74d99f;
+  background: rgba(116, 217, 159, 0.06);
+}
 .pipeline-step-label {
   color: var(--cyan);
   font-size: 11px;
   letter-spacing: 0.04em;
   margin-bottom: 4px;
   font-family: var(--font-title);
+}
+.pipeline-step.tone-decide .pipeline-step-label { color: #ffb347; }
+.pipeline-step.tone-reflect .pipeline-step-label { color: #c084fc; }
+.pipeline-step.tone-voice .pipeline-step-label { color: #74d99f; }
+.cog-loop-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: #ffb347;
+  border: 1px solid rgba(255, 179, 71, 0.55);
+  background: rgba(255, 179, 71, 0.1);
+  vertical-align: middle;
 }
 .coverage-ok { color: var(--green); }
 .coverage-miss { color: var(--yellow); }
@@ -995,8 +1022,8 @@ details[open] summary.group-title::before {
 
 <header>
   <div class="brand">
-    <div class="logo">存在的意义<span>·因果观测台</span></div>
-    <div class="subline">观测优先：同一会话里，同时看玩家可见层与导演真相层。</div>
+    <div class="logo">存在的意义<span>·因果观测台</span><span class="cog-loop-badge" title="龙也序幕样板">Agent环 · Decide/VOICE/Reflect</span></div>
+    <div class="subline">观测优先：同一会话里，同时看玩家可见层与导演真相层。右侧流水线第 7 / 10 步即 Decide / Reflect。</div>
   </div>
   <div class="control-stack">
     <input type="text" id="sessionInput" placeholder="Session ID">
@@ -1082,7 +1109,7 @@ details[open] summary.group-title::before {
     </div>
 
     <details id="group-actor-pipeline" open>
-      <summary class="group-title">角色包流水线（输入 → 先想 → 再说）</summary>
+      <summary class="group-title">角色包流水线（Decide → 先想 → 说出 → Reflect）</summary>
       <div class="group-content">
         <div class="debug-card" style="border-color: #9b8cff;">
           <h3>前两场已接线（装配展开） <button class="btn-copy-json" onclick="copyJson('debugAssembly')">复制</button></h3>
@@ -1091,10 +1118,11 @@ details[open] summary.group-title::before {
           <div class="json-view" id="debugAssembly" style="color: #c9beff;"></div>
           </details>
         </div>
-        <div class="debug-card" style="border-color: #74d99f;">
-          <h3>本拍按角色 · 核 / 关系 / 记忆 / 先想 / 说出</h3>
+        <div class="debug-card" style="border-color: #ffb347;">
+          <h3>本拍按角色 · VOICE / Decide / 先想 / 说出 / Reflect</h3>
           <div class="pipeline-chips" id="pipelineChips"></div>
-          <div class="human-view" id="actorPipelineRead">（选一个角色看完整包。）</div>
+          <div class="human-view" id="actorPipelineRead">（选龙也看第 2 步 VOICE、第 7 步 Decide、第 10 步 Reflect。）</div>
+          <div class="human-view compact" id="privateReflectionsRead" style="margin-top:8px;border-left:2px solid #c084fc;padding-left:10px;">（本场 Reflect 私想累计：尚无）</div>
           <details class="raw-toggle"><summary>全部角色原始包 JSON</summary>
           <div class="json-view" id="debugActorPackets" style="color: #bdf4cd;"></div>
           </details>
@@ -2333,10 +2361,11 @@ function decodeBodyFrames(frames) {
   }).join("\n\n");
 }
 
-function pipelineStep(label, bodyText) {
+function pipelineStep(label, bodyText, tone) {
   const empty = !bodyText || bodyText === "—" || bodyText === "无" || bodyText.startsWith("（");
+  const toneClass = tone ? ` tone-${String(tone)}` : "";
   return [
-    `<div class="pipeline-step${empty ? " actor-receipt-empty" : ""}">`,
+    `<div class="pipeline-step${toneClass}${empty ? " actor-receipt-empty" : ""}">`,
     `<div class="pipeline-step-label">${escapeHtml(label)}</div>`,
     `<div>${escapeHtml(bodyText || "—")}</div>`,
     `</div>`,
@@ -2483,17 +2512,28 @@ function decodeActorPipelineCard(cons, packet, nameMap) {
     `<div class="actor-receipt-head">▶ ${escapeHtml(who)}</div>`,
     `<div class="actor-receipt-id">${escapeHtml(cons)}</div>`,
     pipelineStep("1. 导演可见世界（环境 / 物态 / 场面事实）", directorWorld),
-    pipelineStep("2. 人格核（MANNER / BOUNDARY / VOICE）", personaBody),
+    pipelineStep("2. 人格核（MANNER / BOUNDARY / VOICE）", personaBody, "voice"),
     pipelineStep("3. 记忆与关系投影", memoryBody),
     pipelineStep("4. 听见的（玩家 + 同伴 + 同拍）", heardBody),
     pipelineStep("5. 会话义务 / 话轮", contractBody),
     pipelineStep("6. 包摘要（want / concern / BodyFrame）", packetSummary),
-    pipelineStep("7. Decide（ActorCogLoop）", decideBody),
+    pipelineStep("7. Decide（ActorCogLoop）", decideBody, "decide"),
     pipelineStep("8. 先想（pre_speech）", thinkBody),
     pipelineStep("9. 再说（因此说出的话）", spokenBody),
-    pipelineStep("10. Reflect（私有写回）", reflectBody),
+    pipelineStep("10. Reflect（私有写回）", reflectBody, "reflect"),
     `</div>`,
   ].join("");
+}
+
+function decodePrivateReflections(list) {
+  const rows = Array.isArray(list) ? list : [];
+  if (!rows.length) return "本场 Reflect 私想累计：（尚无——闲聊拍常不写；托付/交坠/拒绝后才有）";
+  return rows.slice(-8).map((r, i) => {
+    const who = formatReceiptValue(r.cons_id || "?");
+    const thought = formatReceiptValue(r.thought || "");
+    const band = formatReceiptValue(r.band || "");
+    return `${i + 1}. [${who}] ${band ? band + " · " : ""}${thought}`;
+  }).join("\n");
 }
 
 function decodeActorPackets(packets, nameMap, selectedCons) {
@@ -2780,6 +2820,10 @@ function renderDebugDetails(payload) {
   const pipelineRead = document.getElementById("actorPipelineRead");
   if (pipelineRead) {
     pipelineRead.innerHTML = decodeActorPackets(actorPackets, nameMap, window._selectedPipelineCons || null);
+  }
+  const reflectRead = document.getElementById("privateReflectionsRead");
+  if (reflectRead) {
+    reflectRead.textContent = decodePrivateReflections(payload?.private_reflections);
   }
   const coverageRead = document.getElementById("solidifiedCoverageRead");
   if (coverageRead) coverageRead.textContent = decodeSolidifiedCoverage(payload, nameMap);

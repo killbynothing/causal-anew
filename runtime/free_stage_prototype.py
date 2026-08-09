@@ -3702,12 +3702,127 @@ def _turns_text_blob(turns: list[dict[str, Any]] | None) -> str:
     return re.sub(r"\s+", "", "".join(parts))
 
 
-def turns_cover_ryuya_entrust(turns: list[dict[str, Any]] | None) -> bool:
-    """RP3 必须真说出托付：折原修哉全名+张尘，且名字不能说/会有危险。"""
+def turns_cover_ryuya_entrust(
+    turns: list[dict[str, Any]] | None,
+    history: list[dict[str, Any]] | None = None,
+) -> bool:
+    """RP3：全名托付 + 禁名。跨拍累计——本拍只补禁名也算齐。"""
     blob = _turns_text_blob(turns)
+    for item in history or []:
+        if not isinstance(item, dict):
+            continue
+        if item.get("role") != "npc":
+            continue
+        speaker = str(item.get("speaker") or "")
+        if "龙也" not in speaker and "ryuya" not in str(item.get("speaker_cons") or ""):
+            continue
+        blob += str(item.get("text") or "") + str(item.get("stage") or "")
+    blob = re.sub(r"\s+", "", blob)
     if "折原修哉" not in blob or "张尘" not in blob:
         return False
-    return any(token in blob for token in ("名字", "不能说", "不可以说", "会有影响", "会有危险", "会死人", "死亡", "别把我"))
+    care = any(k in blob for k in ("照顾", "照应", "拜托"))
+    ban = any(
+        token in blob
+        for token in ("名字", "不能说", "不可以说", "会有影响", "会有危险", "会死人", "死亡", "别把我")
+    )
+    return care and ban
+
+
+def repair_ryuya_reannounce_entrust(
+    turns: list[dict[str, Any]],
+    history: list[dict[str, Any]] | None = None,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """若托付画像已出口，禁止下一拍换皮重念张尘/修哉鉴定书。"""
+    from runtime import actor_cog_loop as _cog
+
+    facts = _cog.prologue_stated_public_facts(history or [])
+    care_done = any(
+        k in f
+        for f in facts
+        for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
+    )
+    if not care_done:
+        return turns, []
+    degs: list[dict[str, Any]] = []
+    out: list[dict[str, Any]] = []
+    for item in turns:
+        if not isinstance(item, dict):
+            out.append(item)
+            continue
+        row = dict(item)
+        text = str(row.get("text") or "")
+        speaker = str(row.get("speaker") or "")
+        if "龙也" not in speaker:
+            out.append(row)
+            continue
+        re_list = (
+            ("张尘" in text and ("修哉" in text or "折原修哉" in text))
+            and any(k in text for k in ("照顾", "照应", "拜托", "天才", "挺累", "嘴"))
+        )
+        if not re_list:
+            out.append(row)
+            continue
+        pendant_out = any(
+            k in text for k in ("挂坠", "项链", "给你", "收着", "临别")
+        )
+        if pendant_out:
+            # Keep pendant half; drop portrait checklist if possible.
+            row["text"] = re.sub(
+                r"[^。！？]*?(张尘|折原修哉|修哉)[^。！？]*?(照顾|照应|拜托|天才|挺累)[^。！？]*?[。！？]?",
+                "",
+                text,
+            ).strip() or "这个给你。收着就行。"
+        else:
+            row["text"] = "嗯，就这样。别让我再说第二遍。"
+            if not str(row.get("stage") or "").strip():
+                row["stage"] = "他低头看了眼杯沿，没再把两个人的事展开。"
+        degs.append(
+            {
+                "kind": "ryuya_reannounce_entrust_repaired",
+                "severity": "SOFT",
+                "reason": "托付画像已出口，禁止换皮重宣",
+            }
+        )
+        out.append(row)
+    return out, degs
+
+
+def ensure_solo_or_prologue_speakers(
+    plan: dict[str, Any],
+    card: dict[str, Any],
+) -> dict[str, Any]:
+    """单人咖啡馆/序幕：竞价不得把唯一主卡踢出 speakers（否则掉进无 Agent 的 call_actor）。"""
+    if not isinstance(plan, dict):
+        return plan
+    speakers = list(plan.get("speakers") or [])
+    if speakers:
+        return plan
+    present = card.get("present") if isinstance(card.get("present"), list) else []
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    force_cons = ""
+    if card.get("prologue_active") and "C.ryuya.W1" in personas:
+        force_cons = "C.ryuya.W1"
+    elif len(present) == 1:
+        force_cons = str(present[0] or "").strip()
+    elif len(personas) == 1:
+        force_cons = next(iter(personas.keys()))
+    if not force_cons or force_cons not in personas:
+        return plan
+    name = str((personas.get(force_cons) or {}).get("name") or force_cons)
+    plan = dict(plan)
+    plan["speakers"] = [
+        {
+            "cons": force_cons,
+            "name": name,
+            "bid": 1.0,
+            "reason": "solo_or_prologue_force",
+            "bid_reasons": ["solo_or_prologue_force"],
+            "relation_stage": "S1",
+            "response_slot": "primary",
+        }
+    ]
+    plan["allow_silence"] = False
+    return plan
 
 
 def normalize_card_identity_relations(
@@ -4975,7 +5090,7 @@ def build_speaker_plan(
     if subtle_c16_watch:
         plan["silent_observer_cons"] = "C.zhangchen.WMAIN"
         plan["player_signal_mode"] = "peripheral_watch_isolated"
-    return plan
+    return ensure_solo_or_prologue_speakers(plan, card)
 
 
 def _cap_question_marks(text: str, remaining: int) -> tuple[str, int]:
@@ -10318,6 +10433,9 @@ class FreeStageSession:
                     if repaired2 != item.get("text"):
                         item["text"] = repaired2
                         turn_degradations.extend(invent_degs)
+            if resolved_card.get("prologue_active"):
+                turns, re_degs = repair_ryuya_reannounce_entrust(turns, history=self.history)
+                turn_degradations.extend(re_degs)
             leak_issues = inner_state_leak_violations(turns, resolved_card)
             leak_issues.extend(privileged_leak_violations(turns, resolved_card))
             leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
@@ -10388,11 +10506,19 @@ class FreeStageSession:
             # 龙也托付：空标 RP3（台词未说清）不算完成。
             # 闪回不在同拍默认递坠/默认答应；RP3 后等玩家当面表态，再落 RP4。
             if self.card.get("prologue_active") and "RP3" in new_progress:
-                if not turns_cover_ryuya_entrust(turns):
+                if not turns_cover_ryuya_entrust(turns, history=self.history):
                     new_progress = [mh for mh in new_progress if mh != "RP3"]
                 elif "RP4" in new_progress and self.ryuya_flashback_return:
                     # 闪回：禁止 LLM 同拍连跳 RP3→RP4，避免「还没答应就默认答应」。
                     new_progress = [mh for mh in new_progress if mh != "RP4"]
+            # 跨拍已齐托付但本拍未标 RP3：补记（避免因无 Agent 竞价空 speakers 永远卡在 RP2）。
+            if (
+                self.card.get("prologue_active")
+                and "RP3" not in self.completed
+                and "RP3" not in new_progress
+                and turns_cover_ryuya_entrust(turns, history=self.history)
+            ):
+                new_progress.append("RP3")
             if (
                 self.card.get("prologue_active")
                 and self.ryuya_flashback_return
@@ -10509,6 +10635,20 @@ class FreeStageSession:
                         else:
                             if committed_now:
                                 turns.append({"speaker": "折原龙也", "text": "那就先放在我这里。", "stage": "他把挂坠收回去，像平常一样把话题放过。"})
+            # 独立咖啡馆（非闪回）：托付已齐且本拍已交坠 → 记 RP4 + deferred 收据，下一拍可收束。
+            if (
+                self.card.get("prologue_active")
+                and not self.ryuya_flashback_return
+                and ("RP3" in self.completed or "RP3" in newly_completed)
+                and "RP4" not in self.completed
+                and turns_cover_ryuya_pendant_gift(turns)
+            ):
+                if "RP4" not in newly_completed:
+                    newly_completed.append("RP4")
+                    self.completed.append("RP4")
+                if not any(str(x).startswith("prologue_receipt_") for x in self.branch_progress):
+                    self.branch_progress.append("prologue_receipt_deferred")
+                    self._finalize_prologue_pendant("deferred", turn_no=turn_no)
             if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
                 turns = repair_tiananmen_video_contradiction(
                     turns,
@@ -10701,12 +10841,16 @@ class FreeStageSession:
         player_visible_turns = [
             dict(item) for item in self.history
             if item.get("turn") == turn_no
-            and item.get("role") in {"player", "npc", "bridge", "marker", "error"}
+            and item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
+            and item.get("player_visible") is not False
+            and item.get("audience") != "director_only"
         ]
         if not any(item.get("role") == "player" for item in player_visible_turns):
             player_visible_turns = [
                 dict(item) for item in emitted
-                if item.get("role") in {"player", "npc", "bridge", "marker", "error"}
+                if item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
+                and item.get("player_visible") is not False
+                and item.get("audience") != "director_only"
             ]
         truth_turns = [
             dict(item) for item in emitted
@@ -11225,6 +11369,18 @@ class FreeStageSession:
                 self.branch_progress.append("prologue_receipt_deferred")
                 self._finalize_prologue_pendant("deferred", turn_no=turn_no)
             prologue_handoff_ready = True
+        # 独立序幕咖啡馆：MH 齐（含交坠）后应收束——本是闪回内容的排练，不是无限闲聊场。
+        if (
+            self.card.get("prologue_active")
+            and not self.ryuya_flashback_return
+            and all_must_happen_complete(self.card, self.completed)
+        ):
+            has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
+            if not has_receipt:
+                self.branch_progress.append("prologue_receipt_deferred")
+                if self._world_transaction("ryuya_pendant_disposition") is None:
+                    self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+            prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
             exits = [item for item in self.card.get("exits", []) if isinstance(item, dict)]
@@ -11635,6 +11791,7 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
                 "ambient": (
                     "可选；空字符串=本拍不需要环境余波。"
                     "需要时写 1 句可观察环境/路人/店员薄声（也可 {\"text\":\"...\",\"speaker\":\"店员\"}）；"
+                    "玩家点单/提咖啡时优先写吧台店员接单或做咖啡的薄声，不要每拍复读同一句雨声；"
                     "禁止命令主卡角色；禁止剧透；禁止编造主卡共同史；禁止另开第二脑。"
                 ),
             },
@@ -11674,6 +11831,14 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
             "active_exit_state": prompt_payload.get("active_exit_state", "converged"),
             "speaker_plan": prompt_payload.get("speaker_plan", {}),
         }
+        order_blob = str(prompt_payload.get("player_input") or "")
+        if isinstance(prompt_payload.get("player_input"), dict):
+            pi = prompt_payload["player_input"]
+            order_blob = str(pi.get("speech") or "") + str(pi.get("action") or "")
+        if any(k in order_blob for k in ("咖啡", "卡布", "拿铁", "点单", "一杯", "美式", "喝点")):
+            compact["ambient_order_hint"] = (
+                "玩家在点咖啡/饮料：ambient 优先写店员应声或吧台操作薄声，勿只复读雨声。"
+            )
         return json.dumps(compact, ensure_ascii=False, indent=2)
 
     def validate_payload(payload: dict[str, Any], *, enforce_visible_layer: bool) -> None:

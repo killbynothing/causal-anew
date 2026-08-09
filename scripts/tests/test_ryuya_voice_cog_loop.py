@@ -465,6 +465,69 @@ def test_opening_without_llm_skips_fixed_line():
         assert not npc, "without LLM, do not invent a fixed first line"
 
 
+def test_solo_prologue_forces_speaker_when_bids_empty():
+    from runtime.free_stage_prototype import build_speaker_plan, ensure_solo_or_prologue_speakers
+
+    card = json.loads(
+        (ROOT / "runtime" / "free_stage_card_ryuya_prologue.json").read_text(encoding="utf-8")
+    )
+    plan = build_speaker_plan(
+        card,
+        history=[],
+        player_input={"speech": "感天动地的友情啊", "action": "", "thought": ""},
+        completed=["RP1"],
+    )
+    speakers = plan.get("speakers") or []
+    assert speakers, "prologue must not drop Ryuya from speakers"
+    assert speakers[0]["cons"] == "C.ryuya.W1"
+    empty = ensure_solo_or_prologue_speakers({"speakers": []}, card)
+    assert empty["speakers"][0]["cons"] == "C.ryuya.W1"
+
+
+def test_entrust_cover_accumulates_across_beats():
+    from runtime.free_stage_prototype import turns_cover_ryuya_entrust
+
+    history = [
+        {
+            "role": "npc",
+            "speaker": "折原龙也",
+            "text": "张尘看着挺累，多照顾点；还有折原修哉，天才一个。",
+        }
+    ]
+    turns = [
+        {
+            "speaker": "折原龙也",
+            "text": "别把我的名字告诉他们，说了会有危险，会死人。",
+            "stage": "",
+        }
+    ]
+    assert turns_cover_ryuya_entrust(turns, history=history)
+    assert not turns_cover_ryuya_entrust(turns, history=[])
+
+
+def test_reannounce_entrust_repaired():
+    from runtime.free_stage_prototype import repair_ryuya_reannounce_entrust
+
+    history = [
+        {
+            "role": "npc",
+            "speaker": "折原龙也",
+            "speaker_cons": "C.ryuya.W1",
+            "text": "张尘和折原修哉，多照顾点。",
+        }
+    ]
+    turns = [
+        {
+            "speaker": "折原龙也",
+            "text": "其实我是替两个人来的。一个叫张尘，一个叫折原修哉。张尘挺累；修哉天才嘴毒。你多照应点。",
+            "stage": "",
+        }
+    ]
+    out, degs = repair_ryuya_reannounce_entrust(turns, history=history)
+    assert degs
+    assert "天才" not in (out[0].get("text") or "") or "第二遍" in (out[0].get("text") or "")
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -485,4 +548,7 @@ if __name__ == "__main__":
     test_want_ladder_zhang_first()
     test_llm_opening_not_authored_rain()
     test_opening_without_llm_skips_fixed_line()
+    test_solo_prologue_forces_speaker_when_bids_empty()
+    test_entrust_cover_accumulates_across_beats()
+    test_reannounce_entrust_repaired()
     print("PASS")

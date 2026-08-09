@@ -1,5 +1,12 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-09（a13 人验：闲聊无 Agent × 旁白左栏 × 托付重宣 × 收束）
+
+- **根因（a13）**：多数拍 `speakers=[]` → 掉进无包 `call_actor`，Decide/Reflect 空白；`player_visible_turns` 漏 `narrate`；RP3 只看本拍导致禁名跨拍不齐、画像重念。
+- **第一性**：独立咖啡馆=闪回内容的排练，脊柱=闲聊→临走信号→托付一次→交坠→收束；单人场竞价不得踢主卡。
+- **修**：`ensure_solo_or_prologue_speakers`；旁白进左栏；托付跨拍累计+重宣修复；点咖啡 ambient 提示店员；MH 齐后独立场可收束。
+- **你**：硬刷新后新开场；观测台左栏应见旁白；闲聊包应有 Decide。
+
 ### 2026-08-08（咖啡首句改 LLM 即兴 · 去掉写死雨句）
 
 - **改**：`start` / 闪回入场不再塞 authored「这雨下得…」；`_llm_ryuya_opening_turn` 走角色包+VOICE，可调侃雨/初遇泼袖/开档身份；`opening_temperature` 默认 0.75。

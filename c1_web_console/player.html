@@ -1013,6 +1013,10 @@ function renderFreeStageTurns(turns) {
       if (item.text) appendBubble("director", item.speaker || "记录", item.text, null);
       return;
     }
+    if (item.role === "narrate" || item.role === "bridge") {
+      if (item.text) appendBubble("director", item.speaker || "旁白", item.text, item.stage || null);
+      return;
+    }
     if (item.role === "error") {
       appendBubble("director", item.speaker || "运行错误", item.text || "这一拍断开了。", null);
       return;

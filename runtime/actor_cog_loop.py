@@ -39,11 +39,13 @@ def ryuya_prologue_concerns(
                 "band": "close",
             },
         ]
+    # Care portraits already spoken but ban/MH lag → only push 禁名 or 交坠, never re-list.
+    # (Caller may pass stated via attach; here we only have completed.)
     if "RP2" in done or beats >= 4:
         return [
             {
                 "id": "entrust",
-                "text": "说清托付与禁名（先张尘、再折原修哉全名；勿传龙也之名）",
+                "text": "说清托付与禁名（先张尘、再折原修哉全名；勿传龙也之名）——若已点过名，本拍只补禁名，勿重念画像",
                 "band": "entrust",
             },
             {
@@ -286,14 +288,19 @@ def attach_cog_loop_to_packet(
                 for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
             )
             if care_stuck and "RP4" not in done_set:
-                concerns = [
-                    {
+                if "已当面提过" in joined or "账本已记：托付" in joined:
+                    top = {
                         "id": "no_reannounce",
-                        "text": "照顾/托付已出口；禁止换皮重宣，接禁名或交挂坠",
-                        "band": "pendant" if "RP3" in done_set or "已当面提过" in joined else "entrust",
-                    },
-                    *concerns,
-                ]
+                        "text": "托付已出口；禁止换皮重宣画像；只补禁名（若未说）或交挂坠",
+                        "band": "pendant" if "RP3" in done_set else "entrust",
+                    }
+                else:
+                    top = {
+                        "id": "no_reannounce",
+                        "text": "照顾已出口；禁止换皮重宣，接禁名或交挂坠",
+                        "band": "entrust",
+                    }
+                concerns = [top, *concerns]
     elif want:
         concerns = [{"id": "want", "text": want, "band": "scene"}]
 

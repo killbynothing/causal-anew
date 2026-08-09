@@ -1608,6 +1608,10 @@ function renderHistoryToBeat(beatIndex) {
       appendBubble("error", speaker || "运行错误", msg.text || "", stage);
       return;
     }
+    if (msg.role === "narrate" || msg.role === "bridge") {
+      appendBubble("director", speaker || "旁白", msg.text || "", stage);
+      return;
+    }
     appendBubble("npc", speaker || "在场者", msg.text || "", stage);
   });
   chatContainer.scrollTop = chatContainer.scrollHeight;

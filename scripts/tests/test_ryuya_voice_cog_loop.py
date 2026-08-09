@@ -26,7 +26,7 @@ def test_voice_props_in_db():
         "SELECT COUNT(*) FROM propositions WHERE prop_id LIKE 'P.VOICE.ryuya.%'"
     ).fetchone()[0]
     con.close()
-    assert n >= 8, f"expected >=8 P.VOICE.ryuya.* rows, got {n}"
+    assert n >= 12, f"expected >=12 P.VOICE.ryuya.* rows, got {n}"
 
 
 def test_resolve_persona_core_carries_voice_samples():
@@ -323,10 +323,146 @@ def test_voice_cafe_samples_in_db():
     hold = cur.execute(
         "SELECT statement FROM propositions WHERE prop_id='REL.HOLD.ryuya.to_weichu'"
     ).fetchone()[0]
+    brother = cur.execute(
+        "SELECT statement FROM propositions WHERE prop_id='P.VOICE.ryuya.W1.ex_brother'"
+    ).fetchone()
+    entrust_v = cur.execute(
+        "SELECT statement FROM propositions WHERE prop_id='P.VOICE.ryuya.W1.ex_entrust_soft'"
+    ).fetchone()
+    boundary = cur.execute(
+        "SELECT statement FROM propositions WHERE prop_id='P.BOUNDARY.ryuya.W1.hard.entrust'"
+    ).fetchone()[0]
+    zc = cur.execute(
+        "SELECT statement FROM propositions WHERE prop_id='REL.HOLD.ryuya.W1.to_zhangchen'"
+    ).fetchone()[0]
     con.close()
     assert n >= 2
     assert "淡提" in hold or "结婚了" in hold
     assert "不提妻名" in hold or "不提" in hold
+    assert brother and "天才" in brother[0]
+    assert entrust_v and "张尘" in entrust_v[0] and "照顾" in entrust_v[0]
+    # Zhang-first: 张尘 appears before 折原修哉 in BOUNDARY
+    assert boundary.index("张尘") < boundary.index("折原修哉")
+    assert "挺累" in zc or "成熟" in zc
+
+
+def test_stated_facts_partial_care_and_repeat():
+    history = [
+        {
+            "role": "npc",
+            "speaker": "折原龙也",
+            "speaker_cons": "C.ryuya.W1",
+            "text": "以后要是碰上张尘，多照顾点。",
+        },
+        {
+            "role": "npc",
+            "speaker": "折原龙也",
+            "speaker_cons": "C.ryuya.W1",
+            "text": "真的，照顾一下就好。",
+        },
+    ]
+    facts = cogloop.prologue_stated_public_facts(history)
+    assert any("照顾" in f for f in facts)
+    assert any("多次" in f or "出口" in f for f in facts)
+    pkt: dict = {
+        "actor_cons": "C.ryuya.W1",
+        "self_state": {"inner_state": {"want_now": "托付"}},
+        "conversation_contract": {"participation_mode": "speak"},
+    }
+    cogloop.attach_cog_loop_to_packet(
+        pkt,
+        scene_id="OPENING_RYUYA_PROLOGUE_001",
+        flash_beats=3,
+        completed=["RP1"],
+        stated_facts=facts,
+    )
+    decide = (pkt.get("cog_loop") or {}).get("decide") or {}
+    assert decide.get("top_concern_id") == "no_reannounce"
+
+
+def test_stated_facts_from_ledger():
+    facts = cogloop.prologue_stated_public_facts(
+        [],
+        ledger=[{"kind": "entrust", "fact_text": "托付已说"}],
+    )
+    assert any("账本" in f or "托付" in f for f in facts)
+
+
+def test_want_ladder_zhang_first():
+    from runtime.free_stage_prototype import advance_ryuya_prologue_want_now
+
+    card = json.loads(
+        (ROOT / "runtime" / "free_stage_card_ryuya_prologue.json").read_text(encoding="utf-8")
+    )
+    want = advance_ryuya_prologue_want_now(card, flash_beats=4, completed=["RP1", "RP2"])
+    text = want.get("C.ryuya.W1") or ""
+    assert "张尘" in text
+    assert text.index("张尘") < text.index("折原修哉")
+
+
+def test_llm_opening_not_authored_rain():
+    """Cafe first line comes from LLM caller, never the old fixed rain sentence."""
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    fixed = "这雨下得比上回还不讲道理"
+    seen = {"n": 0}
+
+    def caller(**kwargs):
+        seen["n"] += 1
+        content = kwargs.get("user_content") or ""
+        assert "opening_first_line" in content or "开场首句" in content
+        return json.dumps(
+            {
+                "turns": [
+                    {
+                        "speaker": "折原龙也",
+                        "text": "袖子干了没？没干的话我再赔你一杯。",
+                        "stage": "他抬了抬下巴，等你坐。",
+                    }
+                ],
+                "mh_progress": [],
+                "director_note": "opening",
+            },
+            ensure_ascii=False,
+        )
+
+    with tempfile.TemporaryDirectory() as tmp:
+        sess = FreeStageSession(
+            session_id="llm-open-ryuya",
+            card_path=card,
+            state_dir=Path(tmp) / "s",
+            runtime_state_path=Path(tmp) / "r.db",
+            load_existing=False,
+            autosave=False,
+            caller=caller,
+        )
+        shown = sess.start()
+        npc = [t for t in shown if t.get("role") == "npc" and "龙也" in str(t.get("speaker") or "")]
+        assert npc, "LLM opening should produce a Ryuya line"
+        assert fixed not in (npc[0].get("text") or "")
+        assert "袖子" in (npc[0].get("text") or "")
+        assert (npc[0].get("provenance") or {}).get("llm_opening")
+        assert seen["n"] >= 1
+
+
+def test_opening_without_llm_skips_fixed_line():
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    fixed = "这雨下得比上回还不讲道理"
+    with tempfile.TemporaryDirectory() as tmp:
+        sess = FreeStageSession(
+            session_id="no-llm-open-ryuya",
+            card_path=card,
+            state_dir=Path(tmp) / "s",
+            runtime_state_path=Path(tmp) / "r.db",
+            load_existing=False,
+            autosave=False,
+            caller=None,
+            config={},
+        )
+        shown = sess.start()
+        blob = "\n".join(str(t.get("text") or "") for t in shown)
+        assert fixed not in blob
+        npc = [t for t in shown if t.get("role") == "npc"]
+        assert not npc, "without LLM, do not invent a fixed first line"
 
 
 if __name__ == "__main__":
@@ -344,4 +480,9 @@ if __name__ == "__main__":
     test_stage_improv_is_deterministic_not_second_brain()
     test_reflect_closes_into_next_decide()
     test_voice_cafe_samples_in_db()
+    test_stated_facts_partial_care_and_repeat()
+    test_stated_facts_from_ledger()
+    test_want_ladder_zhang_first()
+    test_llm_opening_not_authored_rain()
+    test_opening_without_llm_skips_fixed_line()
     print("PASS")

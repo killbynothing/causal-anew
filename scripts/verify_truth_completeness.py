@@ -27,7 +27,8 @@ EXPECTED_COUNTS = {
     # 2026-08-07 zhangchen knife1 +25 → 472
     # 2026-08-08 ryuya P.VOICE +8 → 480
     # 2026-08-08 cafe voice +2 (ex_casual/ex_married_soft) → 482
-    "propositions": 482,
+    # 2026-08-08 entrust portraits +2 voice (ex_brother/ex_entrust_soft) → 484
+    "propositions": 484,
     "node_contracts": 5,
 }
 

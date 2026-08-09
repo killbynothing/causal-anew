@@ -1,5 +1,22 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-08（咖啡首句改 LLM 即兴 · 去掉写死雨句）
+
+- **改**：`start` / 闪回入场不再塞 authored「这雨下得…」；`_llm_ryuya_opening_turn` 走角色包+VOICE，可调侃雨/初遇泼袖/开档身份；`opening_temperature` 默认 0.75。
+- **降级**：无 caller/无 api_key → **不**回退固定台词（只留旁白）；托付清单句软拒。
+- **验**：`test_llm_opening_not_authored_rain` 等。
+- **你**：重启控制台后新开咖啡场，首句应每次不同。
+
+### 2026-08-08（托付张尘优先 × 画像入库 × 声纹 × 已说事实真写入）
+
+- **根因**：RP3 先 `extend` 进 `completed` 再查「不在 completed」→ **托付永远写不进** `run_observation_ledger`；`stated_public_facts` 又要求双全名才算说过 → 「照顾」复读三次仍当第一次。
+- **机制**：放宽事实检测（半截照顾/复读次数/账本 kind）；soft want + `no_reannounce`；ledger 用 `newly_completed`。
+- **库/卡**：BOUNDARY+HOLD+IDENTITY 张尘优先；画像（成熟其实累 / 天才好人嘴毒）；want/RP/locks 同步。
+- **声纹**：`ex_brother`（L18918–32）+ `ex_entrust_soft`（authored 张尘优先口吻）+ cadence 禁断言共史/禁复读照顾。
+- **验**：`test_ryuya_voice_cog_loop`；props 484；`--quick`。
+- **报账**：画像为人裁软口径（非原著整句）；天才句有行号；§5.1 仿写仍不迁。
+- **你**：硬刷新后新开咖啡场——托付应先张尘；说过照顾后应推交坠；交坠后平常道别收束。
+
 ### 2026-08-08（声纹闲聊补库 × 已婚淡提 × Agent 闭环）
 
 - **判断**：不扩共史硬闸；用 soft anchors + Decide/Reflect 回灌压瞎编。

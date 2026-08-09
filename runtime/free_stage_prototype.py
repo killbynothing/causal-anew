@@ -4346,21 +4346,22 @@ def advance_ryuya_prologue_want_now(
     elif "RP3" in done:
         want = (
             "托付已经说清；必须当面把挂坠交到对方手里——"
-            "这是第一世界的修哉交给你、今夜一定要给出去的东西。等对方接或不接，再道别。"
-            "禁止把托付再宣读一遍。"
+            "这是第一世界的修哉交给你、今夜一定要给出去的东西。等对方接或不接，平常道别收束。"
+            "禁止把「照顾」再宣读一遍。"
         )
         goal_head = "当面交挂坠，再道别"
     elif "RP2" in done or beats >= 4:
         want = (
-            "该把压在心里的事说清楚了：碰巧遇见折原修哉（我亲弟弟）和张尘，能照顾就照顾一下；"
-            "点名用全名。对方须答应不要把你的名字告诉他们，说了会有危险，会死人。说完再给挂坠。"
-            "只说托付口径，不要补宿舍楼、外貌小传等没写过的特征。"
+            "该把压在心里的事说清楚了：碰巧遇见——先是张尘（看着成熟什么都能扛、其实挺累，多照顾点），"
+            "再是亲弟弟折原修哉（天才，好人，嘴有点毒，也照应一下）；点名用全名。"
+            "对方须答应不要把你的名字告诉他们，说了会有危险，会死人。说完再给挂坠。"
+            "只说一次托付口径，不要补宿舍楼、外貌小传等没写过的特征，不要复读「照顾」。"
         )
         goal_head = "当面说清托付与禁名"
     elif beats >= 2 or early_deepen:
         want = (
             "熟人闲聊已经够了；主动把话题往『临走前有件事』挪一小步——"
-            "仍轻松，但别再原地复读近况。可以先提弟弟折原修哉，或说有话想拜托。"
+            "仍轻松，但别再原地复读近况。心里更放不下的是张尘；也可以提弟弟折原修哉，或说有话想拜托。"
         )
         goal_head = "把谈话自然转到放不下的事"
     elif beats >= 1:
@@ -4372,11 +4373,11 @@ def advance_ryuya_prologue_want_now(
         goal_head = "用环境与玩笑把熟人感演出来"
     else:
         want = (
-            "先把这场见面过得像平日；可轻轻带一句初遇泼袖或开档身份，不要简历式复述，"
-            "不要编没写过的共同细节，让对方记住你这个人，而不是记住一份托付。"
-            "若对方拿定情/信物调侃：可淡提已婚，不提妻名。"
+            "你先开口：这场是熟人见面，首句即兴——可调侃雨天/天气、初遇泼袖、对方开档身份/近况，"
+            "或随便一句熟人口语；不要简历式复述，不要编没写过的共同细节，更别提托付或挂坠。"
+            "让对方记住你这个人，而不是记住一份托付。"
         )
-        goal_head = "用环境与玩笑把熟人感演出来"
+        goal_head = "即兴首句把熟人感演出来"
 
     persona = personas.get("C.ryuya.W1")
     if not isinstance(persona, dict):
@@ -6018,7 +6019,7 @@ def prologue_friend_known_profile(player_profile: dict[str, Any] | None) -> dict
         "instruction": (
             "你们已认识约两年（咖啡泼袖那种冒失起头）。"
             "闲聊优先眼前环境与称呼/职业/擅长；可接玩家当晚已说的话。"
-            "托付口径：碰巧遇见修哉或张尘则照顾一下；不要说出龙也的名字。"
+            "托付口径：碰巧遇见则照顾张尘，以及折原修哉；不要说出龙也的名字。"
             "挂坠是临别礼物，直接给到手上。"
             "不得谈入口社会身份、即将抵达的具体地点、"
             "修哉张尘后续、挂坠用途或世界秘密。"
@@ -7571,7 +7572,7 @@ class FreeStageSession:
             ]
             gate.append(
                 "【闪回主职】让玩家认识龙也：环境、口气、玩笑与沉默都要在场。"
-                "【托付口径·临别才说】遇见修哉和张尘则照顾一下；名字不可以说、说了会有危险，会死人；"
+                "【托付口径·临别才说】遇见则照顾张尘（更放不下），以及弟弟折原修哉；名字不可以说、说了会有危险，会死人；"
                 "挂坠作为临别礼物当面交到手上。禁止开场就把托付当任务宣读。"
             )
             layers["knowledge_gate"] = gate
@@ -7623,28 +7624,100 @@ class FreeStageSession:
             self.history.append(hint_turn)
             emitted.append(dict(hint_turn))
 
-        banter = acv2.annotate_turn(
-            {
-                "role": "npc",
-                "speaker": "折原龙也",
-                "text": "这雨下得比上回还不讲道理。你先坐；外面那阵子像是专门跟出门的人过不去。",
-                "stage": "他把杯垫转正，抬眼等了半秒，见你没接话，自己先笑了笑。",
-                "turn": turn_no,
-            },
-            audience="player",
-            player_visible=True,
-            actor_visible_to=["*"],
-            canon_status="adaptation",
-            provenance={"authored_opening": "ryuya_flashback_banter"},
-        )
-        self.history.append(banter)
-        emitted.append(dict(banter))
+        banter = self._llm_ryuya_opening_turn(turn_no=turn_no)
+        if banter is not None:
+            self.history.append(banter)
+            emitted.append(dict(banter))
         # 入场闲聊只抛第一句，不预先完成 RP1；先让玩家接一两拍，再进入托付。
         # 否则 LLM 下一拍就会跳 RP2/RP3，闪回像任务发布。
         self._flashback_inputs_at_enter = len(self.inputs)
         if self.autosave:
             self.save()
         return emitted
+
+    def _can_call_actor_llm(self) -> bool:
+        return self.caller is not None or bool((self.config or {}).get("api_key"))
+
+    def _llm_ryuya_opening_turn(self, *, turn_no: int) -> dict[str, Any] | None:
+        """First cafe line: LLM only — weather / first-meet / identity ok; never authored rain line."""
+        if not self.card.get("prologue_active"):
+            return None
+        if not self._can_call_actor_llm():
+            return None
+        advance_ryuya_prologue_want_now(self.card, flash_beats=0, completed=list(self.completed))
+        cons = "C.ryuya.W1"
+        packet = build_actor_context_packet(
+            self.card,
+            cons,
+            self.history,
+            {"speech": "", "action": "", "thought": ""},
+            turn_no,
+            self.world_cursor,
+            self.private_inner_states.get(cons),
+            self._ensure_actor_mind(self.card, cons) if hasattr(self, "_ensure_actor_mind") else None,
+            player_profile=self.player_profile,
+        )
+        contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
+        contract = dict(contract)
+        contract["participation_mode"] = "speak"
+        contract["response_slot"] = "primary"
+        contract["opening_first_line"] = True
+        contract["social_instruction"] = (
+            "开场首句即兴：可调侃雨/天气、初遇泼袖、对方开档身份或近况；"
+            "禁止托付/挂坠/禁名；禁止编共史。"
+        )
+        packet["conversation_contract"] = contract
+        cogloop.attach_cog_loop_to_packet(
+            packet,
+            scene_id=str(self.card.get("scene_id") or ""),
+            flash_beats=0,
+            completed=list(self.completed),
+            player_speech="",
+        )
+        packet["director_instruction"] = {
+            "opening_first_line": True,
+            "note": "龙也先开口；旁白已给雨景，你自己选怎么招呼，勿念任务。",
+        }
+        try:
+            payload = call_actor_packet(
+                packet,
+                self.config,
+                caller=self.caller,
+                temperature=float((self.config or {}).get("opening_temperature", 0.75)),
+            )
+        except Exception:
+            return None
+        turns, _progress, _note = normalize_turns(payload)
+        text = ""
+        stage = ""
+        for item in turns:
+            if not isinstance(item, dict):
+                continue
+            text = str(item.get("text") or "").strip()
+            stage = str(item.get("stage") or "").strip()
+            if text or stage:
+                break
+        if not text and not stage:
+            return None
+        # Opening must not advance MH / dump entrust.
+        if any(k in text for k in ("挂坠", "会死人", "折原修哉", "照顾一下")):
+            # Soft reject checklist dump; ask model failed — no authored rain fallback.
+            return None
+        return acv2.annotate_turn(
+            {
+                "role": "npc",
+                "speaker": "折原龙也",
+                "speaker_cons": cons,
+                "text": text,
+                "stage": stage,
+                "turn": turn_no,
+            },
+            audience="player",
+            player_visible=True,
+            actor_visible_to=["*"],
+            canon_status="adaptation",
+            provenance={"llm_opening": "ryuya_first_line"},
+        )
 
     def _scene_fact_ids(self) -> set[str]:
         """Facts are sourced from receipts first; old saves may only have markers."""
@@ -8331,15 +8404,19 @@ class FreeStageSession:
 
     def _barge_in_stream(self) -> None:
         # Barge-in only cuts the player-facing floor queue; companion lane already shown.
-        # Authored opening lines (cafe banter etc.) must land in history first — otherwise
-        # the player "speaks first" and the character never greets.
+        # Authored / LLM opening lines (cafe first line) must land in history first —
+        # otherwise the player "speaks first" and the character never greets.
         if self.utterance_pending_queue:
             kept: list[dict[str, Any]] = []
             for item in self.utterance_pending_queue:
                 if not isinstance(item, dict):
                     continue
                 prov = item.get("provenance") if isinstance(item.get("provenance"), dict) else {}
-                if prov.get("authored_opening") or str(prov.get("authored") or "").startswith("ryuya"):
+                if (
+                    prov.get("authored_opening")
+                    or prov.get("llm_opening")
+                    or str(prov.get("authored") or "").startswith("ryuya")
+                ):
                     kept.append(dict(item))
             for item in kept:
                 item.setdefault("stream_lane", "floor")
@@ -8493,22 +8570,11 @@ class FreeStageSession:
                     if bid not in self.completed:
                         self.completed.append(bid)
             elif self.card.get("prologue_active"):
-                # 直接开序幕卡：龙也先开口。勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
-                prologue_turn = acv2.annotate_turn(
-                    {
-                        "role": "npc",
-                        "speaker": "折原龙也",
-                        "text": "这雨下得比上回还不讲道理。你先坐；外面那阵子像是专门跟出门的人过不去。",
-                        "stage": "他把杯垫转正，抬眼等了半秒，见你没接话，自己先笑了笑。",
-                        "turn": 0,
-                    },
-                    audience="player",
-                    player_visible=True,
-                    actor_visible_to=["*"],
-                    canon_status="adaptation",
-                    provenance={"authored_opening": "ryuya_friend_banter"},
-                )
-                intro_turns.append(prologue_turn)
+                # 直接开序幕卡：龙也 LLM 即兴先开口（天气/初遇/身份皆可）；无写死雨句。
+                # 勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
+                prologue_turn = self._llm_ryuya_opening_turn(turn_no=0)
+                if prologue_turn is not None:
+                    intro_turns.append(prologue_turn)
             settle_body_frames_from_npc_turns(
                 self.body_frames, self.card, [*intro_turns, *canon_turns]
             )
@@ -10009,22 +10075,36 @@ class FreeStageSession:
                 # ActorCogLoop Decide: top concern + pending (maps to observer step 7.5).
                 flash_beats_for_cog = int(resolved_card.get("_ryuya_flash_beats") or 0)
                 stated_facts = (
-                    cogloop.prologue_stated_public_facts(self.history)
+                    cogloop.prologue_stated_public_facts(
+                        self.history,
+                        ledger=getattr(self, "run_observation_ledger", None),
+                    )
                     if resolved_card.get("prologue_active")
                     else []
                 )
-                # Soft want sync: if托付已出口但 RP3 收据滞后，先把 desire 推到交坠带。
+                # Soft want sync: 托付/照顾已出口但 MH 滞后 → 推到交坠带，停复读。
+                care_spoken = any(
+                    k in f
+                    for f in stated_facts
+                    for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
+                )
                 if (
                     resolved_card.get("prologue_active")
-                    and stated_facts
-                    and any("已当面提过" in f for f in stated_facts)
-                    and "RP3" not in self.completed
+                    and care_spoken
                     and "RP4" not in self.completed
                 ):
+                    soft_done = list(self.completed)
+                    if "RP3" not in soft_done and any(
+                        k in f for f in stated_facts for k in ("已当面提过", "账本已记：托付")
+                    ):
+                        soft_done = [*soft_done, "RP3"]
+                    elif "RP3" not in soft_done:
+                        # 半截照顾：仍停在 entrust 带，但 want 文案用 RP2+ 的「说清」而非 idle
+                        soft_done = [*soft_done, "RP2"]
                     advance_ryuya_prologue_want_now(
                         resolved_card,
                         flash_beats=max(flash_beats_for_cog, 4),
-                        completed=[*self.completed, "RP3"],
+                        completed=soft_done,
                     )
                 prior_map = getattr(self, "prior_reflect_by_cons", None)
                 if not isinstance(prior_map, dict):
@@ -10368,6 +10448,7 @@ class FreeStageSession:
                     new_progress = [mh for mh in new_progress if mh in {"RP1"}]
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
+            newly_completed = [mh for mh in new_progress if mh not in set(self.completed)]
             self.completed.extend(new_progress)
             must_happen_by_id = {
                 str(item.get("id", "") or "").strip(): item
@@ -10385,12 +10466,14 @@ class FreeStageSession:
                         source_kind="observed_progress",
                     )
 
-            if "RP3" in new_progress and "RP3" not in self.completed:
+            # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
+            # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
+            if "RP3" in newly_completed:
                 self.run_observation_ledger = _ledger_append(
                     self.run_observation_ledger,
                     turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
-                    fact_text="龙也当面托付：照顾修哉与张尘；禁名警告为危险/会死",
+                    fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
                     kind="entrust",
                 )
                 self.run_observation_ledger = _ledger_append(
@@ -11826,7 +11909,11 @@ def call_intent_interpreter(
 
 
 def call_actor_packet(
-    packet: dict[str, Any], config: dict[str, Any], caller: Callable[..., str] | None = None,
+    packet: dict[str, Any],
+    config: dict[str, Any],
+    caller: Callable[..., str] | None = None,
+    *,
+    temperature: float | None = None,
 ) -> dict[str, Any]:
     """Call exactly one actor with its already isolated packet.
 
@@ -11898,6 +11985,13 @@ def call_actor_packet(
             if part_mode == "side" or slot == "side" else ""
         ),
     }
+    if contract.get("opening_first_line"):
+        request["instruction"] += (
+            " 【开场首句】这是你先开口：即兴一句熟人招呼即可——"
+            "可调侃雨/天气、初遇泼袖、对方开档身份或近况，或随便口语短接；"
+            "禁止托付、禁名、挂坠、任务清单；禁止编共史（如断言对方在雨里站很久）；"
+            "mh_progress 必须为空数组。"
+        )
     if decision_request is not None:
         request["output_contract"]["actor_decision"] = copy.deepcopy(decision_request["output_contract"])
         request["instruction"] += (
@@ -11928,7 +12022,9 @@ def call_actor_packet(
                 {"role": "system", "content": build_actor_system_prompt()},
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.1,
+            "temperature": float(
+                0.1 if temperature is None else temperature
+            ),
             "max_tokens": actor_max_tokens(config),
         }
         body.update(chat_request_options(config))
@@ -12481,7 +12577,7 @@ def fixed_selftest_actor(**kwargs: Any) -> str:
         if "RP2" not in completed:
             return json.dumps({"turns": [{"speaker": "折原龙也", "text": "我有件事想托你答应我。不是玩笑，也不是随口一提。", "stage": "他把勺子放在杯碟边，指腹在杯沿停了一下，语气比刚才认真了些。"}], "mh_progress": ["RP2"], "director_note": "龙也把话题自然转向托付，但不再给模糊退路。"}, ensure_ascii=False)
         if "RP3" not in completed:
-            return json.dumps({"turns": [{"speaker": "折原龙也", "text": "以后要是碰巧遇见折原修哉和张尘，能照顾就照顾一下。修哉是我弟弟。还有，别把我的名字告诉他们。你得答应我，这个不能说，说了会有危险，会死人。", "stage": "他说到最后停了一下，目光落在你脸上，像是在等一个不能含糊过去的答复。"}], "mh_progress": ["RP3"], "director_note": "托付口径：折原修哉（弟弟）和张尘、名字不能说、说了会有危险，会死人。"}, ensure_ascii=False)
+            return json.dumps({"turns": [{"speaker": "折原龙也", "text": "以后要是碰巧遇见张尘——看着什么都能扛、其实挺累的那个——多照顾点。还有我弟弟折原修哉，天才一个，人倒是好人，嘴损点，也照应一下。还有，别把我的名字告诉他们。你得答应我，这个不能说，说了会有危险，会死人。", "stage": "他说到最后停了一下，目光落在你脸上，像是在等一个不能含糊过去的答复。"}], "mh_progress": ["RP3"], "director_note": "托付口径：张尘优先+折原修哉（弟弟）、名字不能说、说了会有危险，会死人。"}, ensure_ascii=False)
         branch = set(prompt.get("branch_progress", []))
         if "RP4" not in completed:
             # 独立序幕：等玩家收据。闪回由运行时在 RP3 同拍补递坠，不依赖这里抢跑。

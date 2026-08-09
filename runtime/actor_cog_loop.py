@@ -30,12 +30,12 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "hand_pendant",
-                "text": "当面把挂坠交到对方手里，再道别",
+                "text": "当面把挂坠交到对方手里，再道别——不要再复读照顾",
                 "band": "pendant",
             },
             {
                 "id": "farewell",
-                "text": "交完再道别",
+                "text": "交完平常道别，收束这场",
                 "band": "close",
             },
         ]
@@ -43,7 +43,7 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "entrust",
-                "text": "说清托付与禁名（修哉/张尘全名；勿传龙也之名）",
+                "text": "说清托付与禁名（先张尘、再折原修哉全名；勿传龙也之名）",
                 "band": "entrust",
             },
             {
@@ -56,7 +56,7 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "deepen",
-                "text": "把话题往『临走前有件事』挪一小步",
+                "text": "把话题往『临走前有件事』挪一小步（心里更重的是张尘）",
                 "band": "deepen",
             },
             {
@@ -81,7 +81,7 @@ def ryuya_prologue_concerns(
     return [
         {
             "id": "presence",
-            "text": "平日见面；可轻轻带初遇泼袖或开档身份，勿简历式复述",
+            "text": "你先开口：可调侃雨/天气、初遇泼袖或开档身份，口语短接；勿编共史、勿托付、勿交坠",
             "band": "idle",
         }
     ]
@@ -195,25 +195,53 @@ def inject_prior_reflect(
     return packet
 
 
-def prologue_stated_public_facts(history: list[dict[str, Any]]) -> list[str]:
-    """Facts this actor already said aloud — soft continuity, not a hard gate."""
+def prologue_stated_public_facts(
+    history: list[dict[str, Any]],
+    *,
+    ledger: list[dict[str, Any]] | None = None,
+) -> list[str]:
+    """Facts this actor already said aloud — soft continuity, not a hard gate.
+
+    Broader than RP3 receipt: partial「照顾」also sticks, so the loop stops
+    re-announcing before both full names + ban land in one beat.
+    """
     facts: list[str] = []
     blob = ""
+    care_count = 0
     for item in history or []:
         if not isinstance(item, dict) or item.get("role") != "npc":
             continue
         speaker = str(item.get("speaker") or "")
-        if "龙也" not in speaker and "ryuya" not in str(item.get("speaker_cons") or ""):
+        cons = str(item.get("speaker_cons") or item.get("cons") or "")
+        if "龙也" not in speaker and "ryuya" not in cons:
             continue
-        blob += str(item.get("text") or "")
-    if "折原修哉" in blob and "张尘" in blob:
-        facts.append("已当面提过：折原修哉（弟弟）与张尘——照顾一下；勿再当第一次介绍。")
+        text = str(item.get("text") or "")
+        blob += text
+        care_count += text.count("照顾")
+    has_xiuzai = ("折原修哉" in blob) or ("修哉" in blob and "弟" in blob)
+    has_zhang = "张尘" in blob
+    if has_xiuzai and has_zhang:
+        facts.append("已当面提过：张尘与折原修哉——照顾一下；勿再当第一次介绍。")
+    elif (has_xiuzai or has_zhang) and ("照顾" in blob or "拜托" in blob):
+        facts.append("已提起过照顾对象；勿换皮重宣同一句，补全未说清的全名/禁名或转交坠。")
+    if care_count >= 2:
+        facts.append("「照顾」已出口多次；禁止再复读，推进禁名收据或交挂坠。")
     if any(k in blob for k in ("名字不能说", "不要把", "会有危险", "会死人", "别告诉")):
         facts.append("已当面说过禁名：不要把龙也的名字告诉他们。")
     if any(k in blob for k in ("挂坠", "项链", "临别")):
         facts.append("挂坠话题已出口或在交涉中。")
     if any(k in blob for k in ("结婚", "已婚", "老婆", "妻子", "好女孩")):
         facts.append("已婚一事已淡提过；勿反复卖惨。")
+    for row in ledger or []:
+        if not isinstance(row, dict):
+            continue
+        kind = str(row.get("kind") or "")
+        if kind == "entrust" and not any("已当面提过" in f for f in facts):
+            facts.append("账本已记：托付口径已当面说过；勿再当第一次介绍。")
+        if kind == "name_ban_warning" and not any("禁名" in f for f in facts):
+            facts.append("账本已记：禁名警告已说出。")
+        if kind == "pendant" and not any("挂坠" in f for f in facts):
+            facts.append("账本已记：挂坠已交付或在交涉中。")
     return facts
 
 
@@ -250,14 +278,19 @@ def attach_cog_loop_to_packet(
                 *concerns,
             ]
         if stated_facts:
-            # If entrust already spoken, force pendant/close band even if MH lagging.
+            # If entrust / care already spoken, stop re-checklist even if MH lagging.
             joined = "\n".join(stated_facts)
-            if "已当面提过" in joined and "RP3" not in {str(x) for x in (completed or [])}:
+            done_set = {str(x) for x in (completed or [])}
+            care_stuck = any(
+                k in joined
+                for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
+            )
+            if care_stuck and "RP4" not in done_set:
                 concerns = [
                     {
                         "id": "no_reannounce",
-                        "text": "托付口径已说过；禁止重宣，看对方是否接住，再交挂坠",
-                        "band": "pendant",
+                        "text": "照顾/托付已出口；禁止换皮重宣，接禁名或交挂坠",
+                        "band": "pendant" if "RP3" in done_set or "已当面提过" in joined else "entrust",
                     },
                     *concerns,
                 ]

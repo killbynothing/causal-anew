@@ -1329,6 +1329,7 @@ VALIDATORS = [
             "runtime/actor_context_v2.py",
             "c1_web_console/observer.html",
             "scripts/migrate_ryuya_voice_2026-08-08.py",
+            "scripts/migrate_ryuya_entrust_voice_2026-08-08.py",
             "scripts/tests/test_ryuya_voice_cog_loop.py",
         ],
         "need_db": True,

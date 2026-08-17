@@ -6,4 +6,4 @@
 - verify: python scripts/verify.py --quick → PASS 12 / FAIL 0 / SKIP 166
 - four pillars: 12/12
 - old tag: archive/pre-move-2026-08-03 (already present)
-- note: copy c1_web_console/config.json from old repo yourself (gitignored; not committed)
+- note: copy web/config.json from old repo yourself (gitignored; not committed)

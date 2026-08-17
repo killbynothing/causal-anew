@@ -3,7 +3,7 @@
 """
 p0_endpoints.py —— P0 垂直切片（巷中·修哉）的三个端点逻辑
 ========================================================
-独立模块，给 c1_web_console/server.py 最小改动接入：
+独立模块，给 web/server.py 最小改动接入：
   /api/intent      玩家自由文本 → {动作,对象,方式,风险,lane,flags}
   /api/adjudicate  载入节点契约 + 四支柱 → 判定 pass/converge/cost/reject + 剧情内施压
   /api/ledger      δ 落账 / 读既视感

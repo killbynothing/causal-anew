@@ -114,7 +114,7 @@ def test_actor_error_survives_hard_check_issues():
 
 
 def test_config_experiment_keeps_dsv4flash_without_copying_key():
-    exp_path = ROOT / "c1_web_console" / "config_experiment.json"
+    exp_path = ROOT / "web" / "config_experiment.json"
     payload = json.loads(exp_path.read_text(encoding="utf-8"))
     assert payload["model"] == "deepseek-v4-flash"
     assert payload["api_url"] == "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
@@ -133,7 +133,7 @@ def test_live_play_config_pins_volc_coding_plan_without_thinking():
 
 
 def test_real_actor_allows_empty_mh_progress_when_scene_can_pause():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -167,13 +167,15 @@ def test_real_actor_allows_empty_mh_progress_when_scene_can_pause():
     finally:
         llm_transport.post_json_with_retry = old_post
 
+    # 刀 1：导演不写主卡台词——turns 被拒收降级，空 mh hint 合法、不重试。
+    assert "turns" not in payload
     assert payload["mh_progress"] == []
     assert len(calls) == 1
     assert calls[0]["max_tokens"] >= 2000
 
 
-def test_real_actor_retries_when_progress_skips_next_must():
-    from c1_web_console import llm_transport
+def test_real_actor_caps_multiple_hints_without_ordering_retry():
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -188,19 +190,11 @@ def test_real_actor_retries_when_progress_skips_next_must():
 
     def fake_post_json(api_url, api_key, body, attempt_plan):
         calls.append(body)
-        if len(calls) == 1:
-            content = {
-                "turns": [{"speaker": "川口秋人", "text": "我叫川口秋人，我们去咖啡厅吧。", "stage": "他先把相机往肩上一甩。"}],
-                "mh_progress": ["TM3", "TM4"],
-                "director_note": "skipped",
-            }
-        else:
-            assert "如果推进，只能推进 1 个，而且必须是剩余列表中的第一个" in body["messages"][-1]["content"]
-            content = {
-                "turns": [{"speaker": "圆脸青年", "text": "能不能借我们看一下你刚才的升旗视频？", "stage": "他把语气放轻了一点。"}],
-                "mh_progress": ["TM1"],
-                "director_note": "fixed order",
-            }
+        content = {
+            "turns": [{"speaker": "川口秋人", "text": "我叫川口秋人，我们去咖啡厅吧。", "stage": "他先把相机往肩上一甩。"}],
+            "mh_progress": ["TM3", "TM4"],
+            "director_note": "skipped",
+        }
         return {
             "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]
         }, {"ok": True}
@@ -215,12 +209,13 @@ def test_real_actor_retries_when_progress_skips_next_must():
     finally:
         llm_transport.post_json_with_retry = old_post
 
-    assert payload["mh_progress"] == ["TM1"]
-    assert len(calls) == 2
+    # mh 只是 hint：多填只保留 1 个，不再因为「跳过下一个必须」重试导演——顺序由引擎证据裁决。
+    assert payload["mh_progress"] == ["TM3"]
+    assert len(calls) == 1
 
 
-def test_real_actor_retries_user_visible_continue_token():
-    from c1_web_console import llm_transport
+def test_real_actor_rejects_director_turns_with_degradation():
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -235,19 +230,11 @@ def test_real_actor_retries_user_visible_continue_token():
 
     def fake_post_json(api_url, api_key, body, attempt_plan):
         calls.append(body)
-        if len(calls) == 1:
-            content = {
-                "turns": [{"speaker": "秋人", "text": "我们继续往下聊。", "stage": "他又看了一眼你手里的手机。"}],
-                "mh_progress": ["TM1"],
-                "director_note": "bad token",
-            }
-        else:
-            assert "用户可见台词" in body["messages"][-1]["content"]
-            content = {
-                "turns": [{"speaker": "秋人", "text": "刚才升旗那段视频，多亏你肯借我们看。", "stage": "他先把话题拢回了早上的事。"}],
-                "mh_progress": ["TM1"],
-                "director_note": "fixed token",
-            }
+        content = {
+            "turns": [{"speaker": "秋人", "text": "我们继续往下聊。", "stage": "他又看了一眼你手里的手机。"}],
+            "mh_progress": ["TM1"],
+            "director_note": "bad token",
+        }
         return {
             "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]
         }, {"ok": True}
@@ -262,12 +249,18 @@ def test_real_actor_retries_user_visible_continue_token():
     finally:
         llm_transport.post_json_with_retry = old_post
 
+    # 导演不再写 turns：即使导演输出里带 continue 等戏外词，也只随 turns 一起被拒收降级，不会重试导演。
+    assert "turns" not in payload
+    assert any(
+        d.get("kind") == "director_turns_rejected"
+        for d in payload.get("degradations", [])
+    )
     assert payload["mh_progress"] == ["TM1"]
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
-def test_real_actor_retries_false_maki_aquarium_route():
-    from c1_web_console import llm_transport
+def test_real_actor_rejects_maki_link_turn_with_degradation():
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -282,19 +275,11 @@ def test_real_actor_retries_false_maki_aquarium_route():
 
     def fake_post_json(api_url, api_key, body, attempt_plan):
         calls.append(body)
-        if len(calls) == 1:
-            content = {
-                "turns": [{"speaker": "川口秋人", "text": "真纪姐说去海族馆等我们，水母应该也很漂亮。", "stage": "他像是想起了刚才那条消息。"}],
-                "mh_progress": ["TM4"],
-                "director_note": "bad maki aquarium link",
-            }
-        else:
-            assert "不是真纪指示" in body["messages"][-1]["content"]
-            content = {
-                "turns": [{"speaker": "川口秋人", "text": "真纪姐还没回，我们自己去有动物看的地方转转吧。", "stage": "他朝人群散去的方向看了看。"}],
-                "mh_progress": ["TM4"],
-                "director_note": "fixed maki aquarium link",
-            }
+        content = {
+            "turns": [{"speaker": "川口秋人", "text": "真纪姐说去海族馆等我们，水母应该也很漂亮。", "stage": "他像是想起了刚才那条消息。"}],
+            "mh_progress": ["TM4"],
+            "director_note": "bad maki aquarium link",
+        }
         return {
             "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]
         }, {"ok": True}
@@ -309,12 +294,14 @@ def test_real_actor_retries_false_maki_aquarium_route():
     finally:
         llm_transport.post_json_with_retry = old_post
 
+    # maki 假链接若出现在导演 turns 里，随 turns 一起被拒收降级（约束仍在导演侧 voice/ambient 闸与提示里）。
+    assert "turns" not in payload
     assert payload["mh_progress"] == ["TM4"]
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
-def test_real_actor_retries_descriptor_names_on_intro_progress():
-    from c1_web_console import llm_transport
+def test_real_actor_rejects_descriptor_intro_turn_with_degradation():
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -329,21 +316,11 @@ def test_real_actor_retries_descriptor_names_on_intro_progress():
 
     def fake_post_json(api_url, api_key, body, attempt_plan):
         calls.append(body)
-        if len(calls) == 1:
-            content = {
-                "turns": [{"speaker": "圆脸青年", "text": "我是圆脸青年，这位是懒散青年。", "stage": "他先抬手点了点自己。"}],
-                "mh_progress": ["TM3"],
-                "director_note": "bad intro",
-            }
-        else:
-            repair_text = body["messages"][-1]["content"]
-            for name in proto.intro_descriptor_names():
-                assert name in repair_text
-            content = {
-                "turns": [{"speaker": "川口秋人", "text": "其实我叫川口秋人。这两位是坂本晴明和折原修哉。", "stage": "他顺势把另外两人也介绍了出来。"}],
-                "mh_progress": ["TM3"],
-                "director_note": "fixed intro",
-            }
+        content = {
+            "turns": [{"speaker": "圆脸青年", "text": "我是圆脸青年，这位是懒散青年。", "stage": "他先抬手点了点自己。"}],
+            "mh_progress": ["TM3"],
+            "director_note": "bad intro",
+        }
         return {
             "choices": [{"message": {"content": json.dumps(content, ensure_ascii=False)}}]
         }, {"ok": True}
@@ -358,8 +335,10 @@ def test_real_actor_retries_descriptor_names_on_intro_progress():
     finally:
         llm_transport.post_json_with_retry = old_post
 
+    # 描述称呼当姓名的自介若出现在导演 turns 里，随 turns 被拒收降级；真实演员行的该闸在 hard_check/生产路径。
+    assert "turns" not in payload
     assert payload["mh_progress"] == ["TM3"]
-    assert len(calls) == 2
+    assert len(calls) == 1
 
 
 def test_no_immediate_transition_without_intent():

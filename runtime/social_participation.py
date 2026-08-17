@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Global social participation: floor eligibility, concern queues, character habits.
 
-See design/00_架构/社交参与与自主决策备忘_活人话轮×礼貌×floor_2026-08-04.md
+See design/社交参与与自主决策备忘_活人话轮×礼貌×floor_2026-08-04.md
 """
 from __future__ import annotations
 

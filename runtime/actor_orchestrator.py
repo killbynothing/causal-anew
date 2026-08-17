@@ -11,6 +11,8 @@ import copy
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
+from runtime import director_harness
+
 
 DirectorCall = Callable[[str, dict[str, Any], Callable[..., str] | None], dict[str, Any]]
 ActorCall = Callable[[dict[str, Any], dict[str, Any], Callable[..., str] | None], dict[str, Any]]
@@ -155,11 +157,15 @@ def dispatch_turn(
             f"本拍串行：导演先 → 演员{len(packets_in_order)}路（后者听见前者）。",
             detail="overlap_director=false",
         ))
+        skin = director_harness.fold_world_skin_into_ambient(director_payload)
         return {
             "turns": turns,
             "mh_progress": director_payload.get("mh_progress", []),
             "director_note": director_payload.get("director_note", ""),
-            "ambient": director_payload.get("ambient", ""),
+            "ambient": skin.get("ambient", ""),
+            "voice": director_payload.get("voice") or {},
+            "stage": director_payload.get("stage") or {},
+            "opportunity": director_payload.get("opportunity", ""),
             "actor_decisions": actor_decisions,
             "context_receipts": receipts,
             "degradations": list(director_payload.get("degradations", []) or []) + degradations,
@@ -191,11 +197,15 @@ def dispatch_turn(
         f"本拍串行演员（导演并行重叠）：导演1路 + 演员{len(packets_in_order)}路。",
         detail="overlap_director=true",
     ))
+    skin = director_harness.fold_world_skin_into_ambient(director_payload)
     return {
         "turns": turns,
         "mh_progress": director_payload.get("mh_progress", []),
         "director_note": director_payload.get("director_note", ""),
-        "ambient": director_payload.get("ambient", ""),
+        "ambient": skin.get("ambient", ""),
+        "voice": director_payload.get("voice") or {},
+        "stage": director_payload.get("stage") or {},
+        "opportunity": director_payload.get("opportunity", ""),
         "actor_decisions": actor_decisions,
         "context_receipts": receipts,
         "degradations": list(director_payload.get("degradations", []) or []) + degradations,

@@ -47,14 +47,14 @@ class SceneState:
 
     @classmethod
     def get_path(cls, run_no: int, scene_id: str) -> Path:
-        # Save in c1_web_console/states/
-        states_dir = Path(__file__).resolve().parents[1] / "c1_web_console" / "states"
+        # Save in web/states/
+        states_dir = Path(__file__).resolve().parents[1] / "web" / "states"
         states_dir.mkdir(parents=True, exist_ok=True)
         return states_dir / f"state_{run_no}_{scene_id}.json"
 
     @classmethod
     def load_all_committed(cls, run_no: int) -> list[str]:
-        states_dir = Path(__file__).resolve().parents[1] / "c1_web_console" / "states"
+        states_dir = Path(__file__).resolve().parents[1] / "web" / "states"
         committed = []
         if states_dir.exists():
             for path in states_dir.glob(f"state_{run_no}_*.json"):
@@ -69,7 +69,7 @@ class SceneState:
 
     @classmethod
     def load_all_introduced(cls, run_no: int) -> dict[str, bool]:
-        states_dir = Path(__file__).resolve().parents[1] / "c1_web_console" / "states"
+        states_dir = Path(__file__).resolve().parents[1] / "web" / "states"
         introduced = {}
         if states_dir.exists():
             for path in states_dir.glob(f"state_{run_no}_*.json"):

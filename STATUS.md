@@ -1,5 +1,67 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-14（目录改名：c1_web_console→web，design 压平，GIT 工作流进 docs）
+
+- GitHub 文件列表要靠**顶层名字**变，不是靠 README。
+- `c1_web_console` → `web`；`design/00_架构/*` → `design/`；`GIT工作流_…` → `docs/git-workflow.md`。
+
+### 2026-08-14（门面：README 去海报化 + LICENSE + docs/analysis 索引）
+
+- GitHub 目录页显得像草稿：默认分支提交旧、README 黑客松风、`web` 名暂不改（断路径）。
+- 改：专业 README；`LICENSE` 源码保留、原著权利不转；`docs/README.md`、`analysis/README.md`。
+
+### 2026-08-14（落位：根目录临时件进 scratch；远程钉 causal-anew）
+
+- 根目录 `tmp_*` / `maki_temp*` 挪进 `scratch/`（gitignore 已挡）。
+- `origin` = `https://github.com/killbynothing/causal-anew`。
+
+### 2026-08-14（刀 1 收尾：voice 上场 × 本拍合法招 × 瘦提示）
+
+- **做**：`fold_world_skin_into_ambient`（voice/stage.hint→ambient）；`opportunity` 必须 ∈ 本拍 `legal_moves`；snapshot 补封顶/离场钟/收窗；真调用走 `build_harness_prompt`。
+- **验**：`test_director_harness` 21 例（含点美式店员可见）；`--quick` 30/0/165。
+- **你**：硬刷新后新开咖啡场，点一杯美式——左栏应有店员薄声，主卡仍是龙也自己说。
+- **报账**：机制；未编正典。下一刀才是 run_meta。
+
+### 2026-08-14（计划刷新：刀进度 + DSH 能学什么 + 离终点）
+
+- **文**：`计划_导演闸×周目回执×角色环不动_2026-08-14.md` 重写进度节。
+- **刀 1 ≈60%**：主卡词卸了；`voice` 未上场；opportunity 未闸本拍合法招。刀 2–6 = 0。
+- **DSH**：不当车间。只学：能力组合、只追加轨迹、预设先冻。
+- **下一刀**：刀 1 四条收尾（voice 并进 ambient 等）。未动业务码。
+
+### 2026-08-14（用词改名：导演闸 / 角色环；DSH 不当本仓车间）
+
+- **改名**：计划 → `计划_导演闸×周目回执×角色环不动_2026-08-14.md`；设计 → `导演闸主循环备忘_四端口×闭集_2026-08-14.md`。代码 `director_harness.py` 不动（那是笼子实现）。
+- **口令**：角色要活（角色环）；导演要冷（导演闸）。Harness ≠ 物种。
+- **DSH**：创造模式是通用 Agent 车间，**不是本项目车间**。本仓车间=观测台+verify+迁库。
+- **刀 1 仍未完**：`voice` 未接到可见层。
+
+### 2026-08-14（刀 1 落地：导演卸 turns × 证据先行会计 × 闭集五招 × 四端口接线）
+
+- **产出**：`runtime/director_harness.py`（出招/裁招/复核）+ `runtime/beat_evidence.py`（注册节拍证据表）+ `runtime/free_stage_prototype.py` 生产接线 + `scripts/tests/test_director_harness.py`。
+- **刀 1 合同**：导演 LLM 只填 `{director_note, opportunity, stage, voice, mh_progress(hint)}`；**主卡台词只由 `call_actor_packet` 产出**（导演写 turns → 拒收+降级 `director_turns_rejected`，绝不重试导演）；`opportunity` 必须是闭集五招（quiet/店员薄声/时间压/放进路人/收窗）之一，非法即 fatal；mh 是 hint，注册节拍一律被证据覆盖。
+- **证据先行**：RP1·RP2·RP3·TM1·TM2·TM3·TM4 凭可见证据落账（复用现有手调谓词防漂移）；after 顺序 + 隐式前置（后拍证据⇒前拍已完成）；**RP4 不在证据表**（留 tuned hint + 收据块 + authored 挂坠降级兜底）。
+- **四端口**：Resolver 会计（永不 LLM）→ 看见 → 闭集出招 → Resolver 裁招 → LLM 只填 Stage/Dramaturgy/Voice → Resolver 复核 → 留痕（`director_port_trace` 含 Dramaturgy 闭集招记录，`dispatch_turn` 透传 opportunity）。
+- **maki 假链接**（真纪→海洋馆=正典污染）：进 `_AMBIENT_BANNED`（导演 voice/ambient 闸）+ OPENING_TIANANMEN_002 演员行 SOFT 守卫（红字+降级 `maki_aquarium_false_link`）；**非**全局 hard_check（王府井 WJ3 自测里「真纪说直接去海洋馆」是正典 → 会误伤）。
+- **验**：`--quick` **30 PASS / 0 FAIL / 165 SKIP**（新增 director_harness 验证器；free_stage_smoke 5 个旧合同测试改写为新合同；双向软证据样例 RP3/TM2 防假阳+防漏检；天安门无 hint 凭证据走完 TM1-4）。
+- **报账**：机制接线；未编正典。★ 待你裁：RP4 挂坠 authored 兜底（有 provenance 的确定性降级）是否保留；WJ/真纪「直接去海洋馆」正典口径存疑（★★★，见设计备忘）。
+- **你**：重启控制台后新开天安门场——导演不再写主卡台词；无 hint 也能按证据推进 TM1-4。
+
+### 2026-08-14（导演 Harness 主循环设计 · 未动码）
+
+- **产出**：后改名为 `design/导演闸主循环备忘_四端口×闭集_2026-08-14.md`。
+- **要点**：一拍内顺序 = Resolver会计(永不LLM)→看见→闭集出招→Resolver裁招→LLM只填Stage/Dramaturgy/Voice→Resolver复核→四端口留痕；闭集=quiet/店员薄声/时间压/放进路人/收窗；导演合同删 `turns`+`mh_progress`；接线映射到现码行号。
+- **未动码**：接线留刀 1 loop（先测试→再接线→`--quick` 绿）。
+- **报账**：机制设计；未编正典。
+
+### 2026-08-14（规划：导演闸 × 周目回执 × 角色环不动）
+
+- **裁定**：不训世界基模、不换角色环。导演重是因为还在写 `turns`；run 轴表在 0 行；关局无回执。
+- **文**：后改名为 `docs/plans/计划_导演闸×周目回执×角色环不动_2026-08-14.md`。
+- **刀序**：①导演卸 turns ②开局 run_meta ③δ 进库 ④EndRun+结算单 ⑤下周读疤 ⑥薄压力。回执署名 ★★★。
+- **未动码**。咖啡 G4 人验仍要你走。
+- **报账**：机制规划；未编正典。
+
 ### 2026-08-09（a13 人验：闲聊无 Agent × 旁白左栏 × 托付重宣 × 收束）
 
 - **根因（a13）**：多数拍 `speakers=[]` → 掉进无包 `call_actor`，Decide/Reflect 空白；`player_visible_turns` 漏 `narrate`；RP3 只看本拍导致禁名跨拍不齐、画像重念。
@@ -149,7 +211,7 @@
 
 ### 2026-08-04（社交参与宪法落地 · 意图队列 × backchannel · 等人验）
 
-- **设计**：`design/00_架构/社交参与与自主决策备忘_…` 人裁为**全场**现行；`runtime/social_participation.py` 各角色社交习惯可用。
+- **设计**：`design/社交参与与自主决策备忘_…` 人裁为**全场**现行；`runtime/social_participation.py` 各角色社交习惯可用。
 - **运行时**：天安门 open concerns 顶格进 `want_now`（不 checklist）；撤竞价 content boost；`backchannel_actors`（晴明等短接）；语言呈现 locks 更新；撤 primary「推进 want」脚本。
 - **验证**：`test_social_participation.py` + 原 solidified 测；`--quick` 🟢。
 - **你**：重玩天安门——蹭到后应先道歉；语言通后另拍才借视频；晴明应有短接；一句不应叠四件事。
@@ -165,7 +227,7 @@
 
 ### 2026-08-03（观测台整合 × 先想再说 × 物态提取 · 已重启）
 
-- **观测台**：流水线置顶（装配展开 + 按人核/关系/记忆/先想/再说）；已固化对照保留；「角色」改为深检副本默认不展开。服务已重启（`c1_web_console/server.py`，自检 `observer.html` 200）。
+- **观测台**：流水线置顶（装配展开 + 按人核/关系/记忆/先想/再说）；已固化对照保留；「角色」改为深检副本默认不展开。服务已重启（`web/server.py`，自检 `observer.html` 200）。
 - **先想再说**：`call_actor_packet` 要求 `pre_speech`；缺则合成回执并留痕；流水线第 7/8 步可见。
 - **物态**：对话/舞台提取手机·单反进 `本场用过的物件`；挂坠不特提；BodyFrame 仍连续。
 - **登记簿**：A1 改为「开场两场 session FSM 已接」。
@@ -187,7 +249,7 @@
 
 ### 2026-08-03（三层分工备忘 · 卡保留）
 
-- 文：`design/00_架构/三层分工备忘_…`
+- 文：`design/三层分工备忘_…`
 
 ### 2026-08-03（苏颖退出固定底 + β S6）
 

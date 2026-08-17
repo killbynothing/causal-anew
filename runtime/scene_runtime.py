@@ -37,7 +37,7 @@ except ImportError:
 ROOT = Path(__file__).resolve().parents[1]
 ALLOWED_STATE_UPDATE_KEYS = {"trust_delta", "alert_delta", "memory_write", "created_runtime_props", "scene_flags", "committed"}
 DEFAULT_OPENING_MEMORY = ROOT / "runtime" / "opening_memory.json"
-DEFAULT_SCHEDULES = ROOT / "c1_web_console" / "schedules.json"
+DEFAULT_SCHEDULES = ROOT / "web" / "schedules.json"
 
 
 def anonymize_text(text: str, introduced: dict[str, bool]) -> str:
@@ -273,7 +273,7 @@ def build_agent_state(
             "keywords": list(agenda_cfg.get("keywords") or []),
             "source_events": list(agenda_cfg.get("source_events") or []),
             "next_scene": dict(agenda_cfg.get("next_scene") or {}),
-            "source": f"c1_web_console/schedules.json:_opening_agenda.{agenda_id}" if agenda_id and agenda_cfg else "",
+            "source": f"web/schedules.json:_opening_agenda.{agenda_id}" if agenda_id and agenda_cfg else "",
         },
         "long_term_thread": role_cfg.get("long_term_thread", "★★★ 待人裁：主线方向未定。"),
         "social_role": dict(role_cfg.get("social_role") or {"label": "在场者", "initiative": 0.1, "keywords": []}),
@@ -377,7 +377,7 @@ def _legal_transition_target(scene_state: dict[str, Any], map_data: dict[str, An
     import os
     _HERE = os.path.dirname(__file__)
     _ROOT = os.path.abspath(os.path.join(_HERE, ".."))
-    states_dir = os.path.join(_ROOT, "c1_web_console", "states")
+    states_dir = os.path.join(_ROOT, "web", "states")
     
     unvisited_exits = []
     visited_exits = []

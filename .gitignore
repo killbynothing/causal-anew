@@ -12,8 +12,13 @@ __pycache__/
 **/sessions/
 **/*.jsonl
 data/runtime_state.db
-c1_web_console/states/
+web/states/
 scratch/
+
+# 根目录临时转储（落位：scratch/，禁堆根）
+/tmp_*.txt
+/*_temp.txt
+/*_temp2.txt
 
 # OS
 .DS_Store

@@ -23,11 +23,15 @@
 1. **`main` 永远绿灯**:只有 `python scripts/verify.py --quick` 🟢 才能合入。CI(`.github/workflows/verify.yml`)与 pre-commit 双重把关。
 2. **`main` 绝不 rebase**,绝不 force-push `main`。rebase 只用于「自己本地、还没 push、还没人用」的分支。
 3. **特性分支合回 `main` 用 squash merge**:一个 loop 压成一笔,main 历史保持线性、一 loop 一提交。
-4. **不入库的东西就是不入库**(见第 4 节落位表):编译产物 `__pycache__/*.pyc`、运行态 `c1_web_console/states/`、`scene_log.jsonl`、`config.json`、`scratch/` 一律 gitignore。
+4. **不入库的东西就是不入库**(见第 4 节落位表):编译产物 `__pycache__/*.pyc`、运行态 `web/states/`、`scene_log.jsonl`、`config.json`、`scratch/` 一律 gitignore。
 5. **行尾统一 LF**:仓库有 `.gitattributes`(`* text=auto eol=lf`)。新机器/新文件不准把行尾翻成 CRLF 制造假改动。
 6. **db 入库策略以本文第 5 节为准**,改策略属 ★★★,需人裁决。
 
 ---
+
+**远程唯一地址**：`https://github.com/killbynothing/causal-anew.git`（`origin`）。之后都 push 这里。
+
+提交标题给 GitHub 目录页看：`feat|fix|docs|chore: 短句`。不要把 loop 名、场次黑话、一长串「×」写进标题。细节放正文。
 
 ## 2. 分支模型(轻量,不用 git-flow)
 
@@ -71,7 +75,7 @@ git worktree remove ../eu-loop-a1   # 合并完清理
 | 对话记录 / 临时草稿(`对话*.txt` 之类) | `docs/对话归档/`,或若纯临时 → `scratch/`(不入库) | 视情况 |
 | 代码:运行时 | `runtime/` | ✅ |
 | 代码:脚本/验证器 | `scripts/`(验证器进 `verify.py`) | ✅ |
-| 代码:Web 控制台 | `c1_web_console/`(但 `states/`、`*.jsonl` 不入库) | 部分 |
+| 代码:Web 控制台 | `web/`(但 `states/`、`*.jsonl` 不入库) | 部分 |
 | 节点契约 | `contracts/*.yaml` | ✅ |
 | 角色圣经(库的投影,勿手改) | `characters/` | ✅ |
 | 生成的事件卡 | `obsidian_events/` | ✅(纯生成,改库后重渲染) |

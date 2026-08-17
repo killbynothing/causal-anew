@@ -65,7 +65,7 @@
 
 - `main` 永远绿；**绝不** rebase / force-push。
 - 一个 loop 一个分支 `loop/<名>`；收尾 squash 合回；`--quick` 绿才许合。
-- commit 信息：`<loop>: <做了什么>`，一行说人话。
+- commit 信息：`feat|fix|docs|chore: 短句`（给 GitHub 目录页看）。loop 名写在正文，不要写进标题。
 - 每 loop 收尾提交；游玩记录也提交（进 `play_logs/`）。
 - pre-commit 红灯不许 `--no-verify`。
 

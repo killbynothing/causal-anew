@@ -31,6 +31,8 @@
 
 **远程唯一地址**：`https://github.com/killbynothing/causal-anew.git`（`origin`）。之后都 push 这里。
 
+提交标题给 GitHub 目录页看：`feat|fix|docs|chore: 短句`。不要把 loop 名、场次黑话、一长串「×」写进标题。细节放正文。
+
 ## 2. 分支模型(轻量,不用 git-flow)
 
 | 分支 | 用途 | 命名 |

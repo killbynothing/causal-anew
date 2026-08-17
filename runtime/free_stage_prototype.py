@@ -31,7 +31,7 @@ if str(TESTS) not in sys.path:
 from player_simulator import simulate_player_turn
 from scene_delta import append_delta_events, load_adversarial_terms, parse_player_input_modalities
 import test_scene_experience as exp
-from c1_web_console.scene_api import evaluate_condition
+from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
 from runtime import heart_gate, world_calendar
 from runtime import offscreen_tick as offscreen_kernel
@@ -566,7 +566,7 @@ def classify_opening_situation(
             raw = caller(user_content=prompt)
             parsed = extract_json(raw)
         else:
-            from c1_web_console import llm_transport
+            from web import llm_transport
             body = {
                 "model": cfg.get("model") or "deepseek-v4-flash",
                 "messages": [
@@ -1839,12 +1839,12 @@ def render_offscreen_narrative_for_clock(template: str, clock: str) -> str:
 CARD_PATH = ROOT / "runtime" / "free_stage_card_tiananmen_v2.json"
 RYUYA_PROLOGUE_CARD_PATH = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
 SESSION_ROOT = ROOT / "runtime" / "sessions"
-BASE_CONFIG_PATH = ROOT / "c1_web_console" / "config.json"
-EXPERIMENT_CONFIG_PATH = ROOT / "c1_web_console" / "config_experiment.json"
+BASE_CONFIG_PATH = ROOT / "web" / "config.json"
+EXPERIMENT_CONFIG_PATH = ROOT / "web" / "config_experiment.json"
 OUTPUT_ROOT = ROOT / "artifacts" / "free_stage_ab"
 DIRECTOR_VOICE_PATH = ROOT / "data" / "voice_bank" / "director_voice_samples.md"
-DELTA_LEDGER_PATH = ROOT / "c1_web_console" / "delta_ledger.json"
-OPENING_SCHEDULES_PATH = ROOT / "c1_web_console" / "schedules.json"
+DELTA_LEDGER_PATH = ROOT / "web" / "delta_ledger.json"
+OPENING_SCHEDULES_PATH = ROOT / "web" / "schedules.json"
 SESSION_SCHEMA_VERSION = "free_stage.session.v1"
 END_MARKER = "<<< 本场结束 >>>"
 BRANCH_EXCLUSIVE_GROUPS = (
@@ -1880,7 +1880,7 @@ def run_director_and_isolated_actors(
     config: dict[str, Any],
     caller: Callable[..., str] | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
-    from c1_web_console import llm_transport
+    from web import llm_transport
     return actor_orchestrator.dispatch_turn(
         prompt, packets_in_order, config,
         director_call=call_actor,
@@ -6172,7 +6172,7 @@ def call_narrative_generator(
     if not api_key:
         return NARRATIVE_FALLBACK_TEXT
         
-    from c1_web_console import llm_transport
+    from web import llm_transport
     body = {
         "model": model,
         "messages": [
@@ -6785,7 +6785,7 @@ def apply_offscreen_lives(source_card: dict[str, Any], target_card: dict[str, An
         return matches
 
     def find_npc_agendas(cons_id: str) -> list[str]:
-        schedules_path = Path("c1_web_console/schedules.json")
+        schedules_path = Path("web/schedules.json")
         if not schedules_path.exists():
             return []
         try:
@@ -6800,7 +6800,7 @@ def apply_offscreen_lives(source_card: dict[str, Any], target_card: dict[str, An
         return entries
 
     def find_npc_echoes(cons_id: str) -> list[str]:
-        ledger_path = Path("c1_web_console/delta_ledger.json")
+        ledger_path = Path("web/delta_ledger.json")
         if not ledger_path.exists():
             return []
         try:
@@ -11984,7 +11984,7 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
     if not api_key:
         raise NotImplementedError("Real LLM call not configured in prototype (Missing API Key)")
 
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     primary_timeout = float(os.getenv("FREE_STAGE_ACTOR_TIMEOUT_PRIMARY", "30"))
     retry_timeout = float(os.getenv("FREE_STAGE_ACTOR_TIMEOUT_RETRY", "45"))
@@ -12052,7 +12052,7 @@ def call_intent_interpreter(
     api_key = config.get("api_key")
     if not api_key:
         raise NotImplementedError("Intent interpreter requires a configured model")
-    from c1_web_console import llm_transport
+    from web import llm_transport
     body = {
         "model": config.get("model") or "deepseek-v4-flash",
         "messages": [
@@ -12185,7 +12185,7 @@ def call_actor_packet(
         api_key = config.get("api_key")
         if not api_key:
             raise NotImplementedError("Real LLM call not configured in prototype (Missing API Key)")
-        from c1_web_console import llm_transport
+        from web import llm_transport
         body = {
             "model": config.get("model") or "deepseek-v4-flash",
             "messages": [
@@ -12371,7 +12371,7 @@ def call_memory_consolidator(
                 model = config.get("model") or "deepseek-v4-flash"
                 
                 system_prompt = build_consolidator_system_prompt(npc_keys, player_name)
-                from c1_web_console.llm_transport import post_json_with_retry
+                from web.llm_transport import post_json_with_retry
                 body = {
                     "model": model,
                     "messages": [

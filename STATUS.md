@@ -1,8 +1,13 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-14（目录改名：c1_web_console→web，design 压平，GIT 工作流进 docs）
+
+- GitHub 文件列表要靠**顶层名字**变，不是靠 README。
+- `c1_web_console` → `web`；`design/00_架构/*` → `design/`；`GIT工作流_…` → `docs/git-workflow.md`。
+
 ### 2026-08-14（门面：README 去海报化 + LICENSE + docs/analysis 索引）
 
-- GitHub 目录页显得像草稿：默认分支提交旧、README 黑客松风、`c1_web_console` 名暂不改（断路径）。
+- GitHub 目录页显得像草稿：默认分支提交旧、README 黑客松风、`web` 名暂不改（断路径）。
 - 改：专业 README；`LICENSE` 源码保留、原著权利不转；`docs/README.md`、`analysis/README.md`。
 
 ### 2026-08-14（落位：根目录临时件进 scratch；远程钉 causal-anew）
@@ -44,7 +49,7 @@
 
 ### 2026-08-14（导演 Harness 主循环设计 · 未动码）
 
-- **产出**：后改名为 `design/00_架构/导演闸主循环备忘_四端口×闭集_2026-08-14.md`。
+- **产出**：后改名为 `design/导演闸主循环备忘_四端口×闭集_2026-08-14.md`。
 - **要点**：一拍内顺序 = Resolver会计(永不LLM)→看见→闭集出招→Resolver裁招→LLM只填Stage/Dramaturgy/Voice→Resolver复核→四端口留痕；闭集=quiet/店员薄声/时间压/放进路人/收窗；导演合同删 `turns`+`mh_progress`；接线映射到现码行号。
 - **未动码**：接线留刀 1 loop（先测试→再接线→`--quick` 绿）。
 - **报账**：机制设计；未编正典。
@@ -206,7 +211,7 @@
 
 ### 2026-08-04（社交参与宪法落地 · 意图队列 × backchannel · 等人验）
 
-- **设计**：`design/00_架构/社交参与与自主决策备忘_…` 人裁为**全场**现行；`runtime/social_participation.py` 各角色社交习惯可用。
+- **设计**：`design/社交参与与自主决策备忘_…` 人裁为**全场**现行；`runtime/social_participation.py` 各角色社交习惯可用。
 - **运行时**：天安门 open concerns 顶格进 `want_now`（不 checklist）；撤竞价 content boost；`backchannel_actors`（晴明等短接）；语言呈现 locks 更新；撤 primary「推进 want」脚本。
 - **验证**：`test_social_participation.py` + 原 solidified 测；`--quick` 🟢。
 - **你**：重玩天安门——蹭到后应先道歉；语言通后另拍才借视频；晴明应有短接；一句不应叠四件事。
@@ -222,7 +227,7 @@
 
 ### 2026-08-03（观测台整合 × 先想再说 × 物态提取 · 已重启）
 
-- **观测台**：流水线置顶（装配展开 + 按人核/关系/记忆/先想/再说）；已固化对照保留；「角色」改为深检副本默认不展开。服务已重启（`c1_web_console/server.py`，自检 `observer.html` 200）。
+- **观测台**：流水线置顶（装配展开 + 按人核/关系/记忆/先想/再说）；已固化对照保留；「角色」改为深检副本默认不展开。服务已重启（`web/server.py`，自检 `observer.html` 200）。
 - **先想再说**：`call_actor_packet` 要求 `pre_speech`；缺则合成回执并留痕；流水线第 7/8 步可见。
 - **物态**：对话/舞台提取手机·单反进 `本场用过的物件`；挂坠不特提；BodyFrame 仍连续。
 - **登记簿**：A1 改为「开场两场 session FSM 已接」。
@@ -244,7 +249,7 @@
 
 ### 2026-08-03（三层分工备忘 · 卡保留）
 
-- 文：`design/00_架构/三层分工备忘_…`
+- 文：`design/三层分工备忘_…`
 
 ### 2026-08-03（苏颖退出固定底 + β S6）
 

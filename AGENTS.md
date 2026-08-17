@@ -35,14 +35,14 @@
 | 契约/语料/原著 | `contracts/` `corpus/` `source/` | 库的上游 |
 | 当前进度 | `STATUS.md` | 日报式，新的在最上 |
 | 计划 | `docs/plans/` | **必须登记 INDEX.md 才算存在** |
-| 设计 | `design/<分区>/` | 含现行 `design/00_架构/角色装配备忘_…` |
+| 设计 | `design/` | 角色装配、导演闸、三层分工 |
 | **游玩记录** | `play_logs/YYYY-MM/` | 纳入 git（是证据）；每月一文件夹 |
 | **人的体验记录/想法** | `docs/experience/` | 与 play_logs 分开：这是人写的 |
 | 过程稿/临时 | `docs/` | 不堆根目录 |
 | 参考材料 | `docs/refs/` | 外部文章/开源笔记 |
 | 一次性脚本 | `scratch/` | 用完即弃 |
 | 归档 | `_archive/` | 只进不出；**删任何东西先出清单人审** |
-| 运行时 / 验证 | `runtime/` `scripts/` | |
+| 运行时 / 验证 | `runtime/` `scripts/` `web/` | |
 
 **禁**：根目录新增散文件（允许的只有 AGENTS/STATUS/README/WORKFLOW 等规则件）。
 
@@ -90,13 +90,13 @@ python scripts/generate_bibles.py           # 从库重渲染投影产物
 | 想知道 | 看 |
 |---|---|
 | 长期排期（唯一执行入口） | `docs/plans/长期路线图_2026-08-03.md` |
-| 角色怎么装（用什么/可变层） | `design/00_架构/角色装配备忘_用什么×怎么装×可变层_2026-08-03.md` |
-| 人格底色 / 怎么装 | `design/00_架构/角色装配备忘_用什么×怎么装×可变层_2026-08-03.md` |
+| 角色怎么装（用什么/可变层） | `design/角色装配备忘_用什么×怎么装×可变层_2026-08-03.md` |
+| 人格底色 / 怎么装 | `design/角色装配备忘_用什么×怎么装×可变层_2026-08-03.md` |
 | 人格/关系人裁格式 | `docs/plans/人裁模板_人格核×关系图_2026-08-03.md` |
 | 当前真相/进度 | `STATUS.md` |
 | 计划索引 | `docs/plans/INDEX.md` |
 | 怎么干活（loop 格式） | `LOOP总纲_LOOP_CHARTER.md`（待搬）/ 旧仓同名文件 |
-| Git 纪律 | `GIT工作流_GIT_WORKFLOW.md` |
+| Git 纪律 | `docs/git-workflow.md` |
 | 旧仓（封存只读） | 桌面目录 `令人充满希望的进行啊`（双根工作区） |
 
 ---

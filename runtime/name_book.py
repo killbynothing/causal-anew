@@ -7,7 +7,7 @@ name_book.py -- NPC 名册单一来源（审计重构 R6）。
   - runtime/free_stage_prototype.py  CONS_ALIASES / redact_pre_intro / hard_check /
     sanitize_visible_names / find_npc_canon_events(short_names ×2) / 桥接 npc_names
   - runtime/scene_runtime.py         bid_turn_taking 内联 aliases / anonymize_text
-  - c1_web_console/scene_api.py      _REAL_NAMES / _CONS_ALIASES
+  - web/scene_api.py      _REAL_NAMES / _CONS_ALIASES
 改一处漏三处 = 直接的真名泄露风险面。自本文件起：**改名只改这里**。
 
 字段说明：

@@ -104,7 +104,7 @@ class TestBetaSedimentSchema(unittest.TestCase):
         )
 
     def test_director_effective_threshold_uses_S(self):
-        sys.path.insert(0, str(ROOT / "c1_web_console"))
+        sys.path.insert(0, str(ROOT / "web"))
         import director
 
         contract = {

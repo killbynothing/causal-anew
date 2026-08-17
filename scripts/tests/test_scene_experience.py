@@ -28,7 +28,7 @@ from typing import Optional
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-CONSOLE = ROOT / "c1_web_console"
+CONSOLE = ROOT / "web"
 DB_PATH = str(ROOT / "data" / "world_truth.db")
 ANALYSIS_DIR = ROOT / "analysis"
 TRANSCRIPT_DIR = ANALYSIS_DIR / "transcripts"

@@ -9,7 +9,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-C1_CONSOLE = ROOT / "c1_web_console"
+C1_CONSOLE = ROOT / "web"
 if str(C1_CONSOLE) not in sys.path:
     sys.path.insert(0, str(C1_CONSOLE))
 

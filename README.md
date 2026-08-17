@@ -35,24 +35,24 @@ flowchart LR
 | `corpus/` | 声纹摘句 |
 | `contracts/` | 节点契约 |
 | `runtime/` | 运行时（角色环、导演闸、场卡） |
-| `c1_web_console/` | 玩家舱与观测台（历史目录名，暂不改以免断路径） |
+| `web/` | 玩家舱与观测台 |
 | `scripts/` | 入库、校验、`verify.py` |
 | `design/` | 架构备忘 |
 | `docs/` | 计划与索引，见 [docs/README.md](docs/README.md) |
 | `analysis/` | 原著细剖表，见 [analysis/README.md](analysis/README.md) |
 | `play_logs/` | 人验记录 |
 
-规则与当日进度：`AGENTS.md`、`STATUS.md`。Git 纪律：`GIT工作流_GIT_WORKFLOW.md`。
+规则与当日进度：`AGENTS.md`、`STATUS.md`。Git 纪律：`docs/git-workflow.md`。
 
 ## 运行
 
-需要 Python 3.10+。控制台密钥放在 `c1_web_console/config.json`（不入库，可从 `config.example.json` 复制）。
+需要 Python 3.10+。控制台密钥放在 `web/config.json`（不入库，可从 `config.example.json` 复制）。
 
 ```bash
 python scripts/import_db.py
 python scripts/mech_invariant_suite.py --db data/world_truth.db
 python scripts/verify.py --quick
-python c1_web_console/server.py
+python web/server.py
 ```
 
 浏览器打开控制台（默认本机端口见该目录说明）。现玩场：龙也咖啡馆闪回、天安门开场。

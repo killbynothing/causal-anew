@@ -29,7 +29,7 @@ INTERVENTION_TYPES = {"hack", "social", "physical", "info", "item"}
 # 横向跳者（与玩家同框需声明 coherence.phase）；可随同位体建档扩充
 LATERAL_JUMPERS = {"C.dust.W1"}   # 异世界张尘 ID 定名后加入
 VALID_PHASES = {"aligned", "neutral", "opposed"}
-OPENING_MAP_PATH = os.path.join("c1_web_console", "opening_map.json")
+OPENING_MAP_PATH = os.path.join("web", "opening_map.json")
 
 
 class CompileError(Exception):

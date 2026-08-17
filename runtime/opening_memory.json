@@ -147,7 +147,7 @@
           "data/world_truth.db:knowledge_schedule",
           "characters/角色圣经全编_卡卡西.md",
           "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
-          "c1_web_console/opening_map.json"
+          "web/opening_map.json"
         ]
       }
     ],
@@ -292,7 +292,7 @@
           "data/world_truth.db:knowledge_schedule",
           "characters/角色圣经全编_折原修哉.md",
           "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
-          "c1_web_console/opening_map.json"
+          "web/opening_map.json"
         ]
       }
     ],
@@ -426,7 +426,7 @@
           "data/world_truth.db:knowledge_schedule",
           "characters/角色圣经全编_川口秋人.md",
           "analysis/时间线/卡卡西_真值事件与心智觉醒时间轴_整合版.md",
-          "c1_web_console/opening_map.json"
+          "web/opening_map.json"
         ]
       }
     ]

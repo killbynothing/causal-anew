@@ -114,7 +114,7 @@ def test_actor_error_survives_hard_check_issues():
 
 
 def test_config_experiment_keeps_dsv4flash_without_copying_key():
-    exp_path = ROOT / "c1_web_console" / "config_experiment.json"
+    exp_path = ROOT / "web" / "config_experiment.json"
     payload = json.loads(exp_path.read_text(encoding="utf-8"))
     assert payload["model"] == "deepseek-v4-flash"
     assert payload["api_url"] == "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
@@ -133,7 +133,7 @@ def test_live_play_config_pins_volc_coding_plan_without_thinking():
 
 
 def test_real_actor_allows_empty_mh_progress_when_scene_can_pause():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -175,7 +175,7 @@ def test_real_actor_allows_empty_mh_progress_when_scene_can_pause():
 
 
 def test_real_actor_caps_multiple_hints_without_ordering_retry():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -215,7 +215,7 @@ def test_real_actor_caps_multiple_hints_without_ordering_retry():
 
 
 def test_real_actor_rejects_director_turns_with_degradation():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -260,7 +260,7 @@ def test_real_actor_rejects_director_turns_with_degradation():
 
 
 def test_real_actor_rejects_maki_link_turn_with_degradation():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(
@@ -301,7 +301,7 @@ def test_real_actor_rejects_maki_link_turn_with_degradation():
 
 
 def test_real_actor_rejects_descriptor_intro_turn_with_degradation():
-    from c1_web_console import llm_transport
+    from web import llm_transport
 
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     prompt = proto.build_prompt(

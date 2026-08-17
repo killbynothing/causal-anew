@@ -71,6 +71,8 @@
 
 ---
 
+**远程**：`https://github.com/killbynothing/causal-anew`（`origin`）。特性分支 `loop/<名>` 推这里；`main` 只 squash 合。
+
 ## 关键命令
 
 ```bash

@@ -118,6 +118,8 @@ from runtime.run_observation_ledger import (
 )
 from runtime import opening_top_tier as ott
 from runtime import actor_cog_loop as cogloop
+from runtime import director_harness
+from runtime import beat_evidence
 
 H4_SYSTEM_PROMPT_BLOCK = """
 H4 语义防泄露补充规则：
@@ -3264,6 +3266,7 @@ def build_prompt(
             "completed_must_happen": completed,
             "stall_turns_without_mh_progress": stall,
             "fallback_clock_active": stall >= 4,
+            "soft_beat_budget": stall_budget_for_card(card),
             "player_input": player_input,
             "recent_history": recent_history,
             "branch_progress": branch_progress or [],
@@ -5488,6 +5491,8 @@ _AMBIENT_BANNED = [
     re.compile(r"\b(?:RP|TM|MH|AQ)\d+\b", re.IGNORECASE),
     re.compile(r"must_happen|must-happen|下一拍|未完待续", re.IGNORECASE),
     re.compile(r"(你必须|立刻|马上).{0,8}(说|交|答应)"),
+    # 海洋馆改道是三人自己的决定，不是真纪指示（导演的世界线薄声也不许写）。
+    re.compile(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)"),
 ]
 
 
@@ -5510,7 +5515,8 @@ def normalize_director_ambient(
 
     Not a second agent: barista/rain/crowd are optional lines on the director brain.
     """
-    raw = payload.get("ambient") if isinstance(payload, dict) else None
+    folded = director_harness.fold_world_skin_into_ambient(payload if isinstance(payload, dict) else {})
+    raw = folded.get("ambient")
     if raw is None or raw == "" or raw == [] or raw is False:
         return []
     entries: list[dict[str, str]] = []
@@ -7125,6 +7131,7 @@ class FreeStageSession:
         self.director_port_trace = [
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
+        self.last_director_opportunity = data.get("last_director_opportunity")
         # New saves carry one explicit domain envelope.  Keep reading the
         # legacy fields first so historical saves remain valid, then let a
         # well-formed envelope win as the authoritative migration boundary.
@@ -7302,6 +7309,7 @@ class FreeStageSession:
         self.world_transactions = {}
         self.causal_receipts = []
         self.director_port_trace = []
+        self.last_director_opportunity = None
         self.last_issues = []
         self.last_degradations = []
         self.player_violations = []
@@ -7425,6 +7433,34 @@ class FreeStageSession:
             self._record_director_port({"port": "Dramaturgy", **opportunity}, turn_no=turn_no)
             published.append(opportunity)
         return published
+
+    def _publish_director_opportunity(
+        self,
+        opportunity: Any,
+        *,
+        turn_no: int,
+    ) -> None:
+        """Dramaturgy 口：导演从闭集选出的合法招只记账，不替角色决定。
+
+        kind 必须是 closed set 里的非 quiet 招（validate_harness_payload 已拦非法），
+        只落 port trace + surface，供观测与后续闸读取。
+        """
+        if not isinstance(opportunity, dict):
+            return
+        kind = str(opportunity.get("kind") or "").strip()
+        if not kind or kind == "quiet" or not director_harness.is_closed_move(kind):
+            return
+        self._record_director_port(
+            {
+                "port": "Dramaturgy",
+                "opportunity_kind": kind,
+                "visible_reason": str(opportunity.get("visible_reason") or ""),
+                "actor_target": str(opportunity.get("actor_target") or ""),
+                "closed_move": True,
+            },
+            turn_no=turn_no,
+        )
+        self.last_director_opportunity = dict(opportunity)
 
     def _resolve_via_director_port(
         self,
@@ -10333,6 +10369,8 @@ class FreeStageSession:
                 )
             else:
                 payload = call_actor(prompt, self.config, caller=self.caller)
+                # 刀 1：导演不写主卡台词；组合路径若没有演员行，就显式记为空行。
+                payload.setdefault("turns", [])
             context_receipts = [
                 dict(item) for item in (payload.get("context_receipts") or [])
                 if isinstance(item, dict)
@@ -10347,6 +10385,51 @@ class FreeStageSession:
                     actor_packets=actor_context_packets,
                 )
             turns, progress, note = normalize_turns(payload)
+            self._publish_director_opportunity(payload.get("opportunity"), turn_no=turn_no)
+            # ── Resolver-A 证据先行会计：注册节拍只认可见证据，模型 mh 只是 hint ──
+            _turns_blob = "".join(
+                str(item.get("text", "") or "") + str(item.get("stage", "") or "")
+                for item in turns
+            )
+            evidence_flags = {
+                "rp3_entrust": turns_cover_ryuya_entrust(turns, history=self.history),
+                "tm2_visible": tiananmen_tm2_visible_evidence(self.history, turns),
+                "tm3_intro": (
+                    "C.xiuzai.WMAIN"
+                    in _npc_self_introduced_to_player_after_turn(
+                        resolved_card, self.history, turns, 0
+                    )
+                    and "tiananmen_japanese_understood" in self.branch_progress
+                ),
+                "rp1_chatted": int(beats_on_card or 0) >= 1,
+                "tm1_played": bool(self.history) or bool(turns),
+                "flash_beats": int(beats_on_card or 0),
+                "topic_interface": bool(resolved_card.get("_ryuya_topic_interface")),
+                "tm4_aquarium": any(
+                    token in _turns_blob for token in ("海洋馆", "海族馆", "水族馆")
+                ),
+            }
+            evidence_ctx = {
+                "card": resolved_card,
+                "history": self.history,
+                "turns": turns,
+                "evidence_flags": evidence_flags,
+            }
+            allowed = set(card_must_happen_ids(resolved_card))
+            evidence_completed = beat_evidence.resolve_completions(
+                evidence_ctx,
+                allowed=allowed,
+                completed=set(self.completed),
+                after=beat_evidence.after_map(resolved_card),
+            )
+            # 未注册证据的节拍仍走模型 hint（长尾场不因未登记而卡死）。
+            hint = [
+                mh for mh in progress
+                if mh in allowed
+                and mh not in self.completed
+                and mh not in beat_evidence.BEAT_EVIDENCE
+            ]
+            merged_progress = list(dict.fromkeys(progress + evidence_completed))
             ambient_turns = normalize_director_ambient(payload, turn_no=turn_no)
             if ambient_turns:
                 for amb in ambient_turns:
@@ -10385,10 +10468,23 @@ class FreeStageSession:
                     resolved_card,
                 )
                 turn_degradations.extend(budget_degradations)
+            if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
+                # 海洋馆改道是三人自己的决定，不是真纪指示（演员行软闸；WJ 路正典不同，不在此拦）。
+                for _item in turns:
+                    _surface = f"{str(_item.get('text') or '')} {str(_item.get('stage') or '')}"
+                    if re.search(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)", _surface):
+                        turn_degradations.append({
+                            "kind": "maki_aquarium_false_link",
+                            "severity": "SOFT",
+                            "reason": "海洋馆是三人自己决定，不是真纪指示",
+                            "text": _surface[:80],
+                        })
+                        _item["text"] = ""
+                        _item["stage"] = "（这句被导演拦下。）"
             intro_done = intro_done_for_card(
                 resolved_card,
                 self.completed,
-                progress,
+                merged_progress,
                 turns,
                 history=self.history,
                 player_profile=self.player_profile,
@@ -10471,8 +10567,18 @@ class FreeStageSession:
                     )
             if leak_issues:
                 raise ValueError(f"Inner state leak detected: {'; '.join(leak_issues)}")
-            allowed = set(card_must_happen_ids(resolved_card))
-            new_progress = [mh for mh in progress if mh in allowed and mh not in self.completed]
+            # 证据先行：注册节拍只从证据完成；hint 只补未注册节拍；after 顺序闸拦跳拍。
+            new_progress = list(evidence_completed)
+            new_progress.extend(hint)
+            new_progress = list(dict.fromkeys(new_progress))
+            _after_map = beat_evidence.after_map(resolved_card)
+            new_progress = [
+                b for b in new_progress
+                if not (
+                    (_after_map.get(b) or set())
+                    - (set(self.completed) | set(new_progress[:new_progress.index(b)]))
+                )
+            ]
             if (
                 str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
                 and "TM2" in new_progress
@@ -11767,190 +11873,98 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
         allowed_performer_cons = list(allowed_performer_cons) + [obligation_cons]
     max_speakers = int(speaker_plan.get("max_speakers", MAX_BID_SPEAKERS) or MAX_BID_SPEAKERS)
 
-    def compact_actor_prompt() -> str:
-        if not isinstance(prompt_payload, dict) or not isinstance(card, dict):
-            return prompt_str
-        remaining_musts = build_director_intents(card, list(completed_set))
-        recent = []
-        for item in prompt_payload.get("recent_history", [])[-16:]:
-            if not isinstance(item, dict):
-                continue
-            if item.get("role") == "player_thought":
-                # Erase thoughts from NPC context
-                continue
-            recent.append({
-                "role": item.get("role", ""),
-                "speaker": item.get("speaker", ""),
-                "text": item.get("text", ""),
-            })
-        compact = {
-            "output_contract": {
-                "turns": [{"speaker": "角色名", "text": "台词", "stage": "舞台指示"}],
-                "mh_progress": ["可为空；若推进则只能填写 0 或 1 个合法 id"],
-                "director_note": "一句只描述本拍玩家可见层已经发生之事的导演观察；禁止预告下一步；禁止写完成XX/触发XX；禁止写未出口的自我介绍或姓名落地",
-                "ambient": (
-                    "可选；空字符串=本拍不需要环境余波。"
-                    "需要时写 1 句可观察环境/路人/店员薄声（也可 {\"text\":\"...\",\"speaker\":\"店员\"}）；"
-                    "玩家点单/提咖啡时优先写吧台店员接单或做咖啡的薄声，不要每拍复读同一句雨声；"
-                    "禁止命令主卡角色；禁止剧透；禁止编造主卡共同史；禁止另开第二脑。"
-                ),
-            },
-            "scene_id": card.get("scene_id", ""),
-            "scene": card.get("scene", ""),
-            "scene_frame": card.get("scene_frame", {}),
-            "memory_layers": card.get("memory_layers", {}),
-            "present_persona_cards": card.get("persona_cards", {}),
-            "boundaries": prompt_payload.get("boundaries") or project_actor_boundaries(card),
-            "refusal_rules": prompt_payload.get("refusal_rules") or ACTOR_REFUSAL_RULES,
-            "visible_layer_rules": {
-                "require_stage_cue": True,
-                "stage_cue_budget": {"min": 1, "max": 3},
-                "proactively_surface_environment": True,
-                "proactively_surface_non_speakers": True,
-                "do_not_wait_for_player_to_ask": True,
-                "stage_only_contract": "speaker_plan.stage_actors contains at most one non-speaking actor: their text must be empty and their stage must be non-empty.",
-                "ban_visible_names": ["卡卡西", "旗木"],
-                "proactive_interaction_quota": "【主动性要求】：近 4 拍历史中若 NPC 未向玩家发起过提问/提议/主动互动，本回合发言的 NPC 必须主动向玩家发起一次关联其 want_now（此刻想要）或 unsaid（没说出口的话）的提问或对话提议，推动玩家表态。",
-                "allow_subjective_reference_only": ["像卡卡西"],
-                "kakashi_surface_language": "玩家可见层一律中文。不要输出假名，不要写（日）/（日语）标记；若角色内部说日语，可见层直接写成中文意思，原文只留观测台真相层。",
-            },
-            "current_event_terms": card.get("current_event_terms", []),
-            "locks": card.get("locks", []),
-            "completed_must_happen": prompt_payload.get("completed_must_happen", []),
-            "director_intents": remaining_musts,
-            "progress_rules": {
-                "may_pause_without_progress": True,
-                "max_progress_this_turn": MAX_MH_PROGRESS_PER_TURN,
-                "if_progress_then_first_remaining_only": remaining_ids[:1],
-            },
-            "player_input": prompt_payload.get("player_input", ""),
-            "player_profile": prompt_payload.get("player_profile", {}),
-            "recent_history": recent,
-            "stall_turns_without_mh_progress": prompt_payload.get("stall_turns_without_mh_progress", 0),
-            "branch_progress": prompt_payload.get("branch_progress", []),
-            "active_exit_state": prompt_payload.get("active_exit_state", "converged"),
-            "speaker_plan": prompt_payload.get("speaker_plan", {}),
-        }
+    def _director_harness_inputs() -> tuple[dict[str, Any], list[str]]:
         order_blob = str(prompt_payload.get("player_input") or "")
         if isinstance(prompt_payload.get("player_input"), dict):
             pi = prompt_payload["player_input"]
             order_blob = str(pi.get("speech") or "") + str(pi.get("action") or "")
-        if any(k in order_blob for k in ("咖啡", "卡布", "拿铁", "点单", "一杯", "美式", "喝点")):
-            compact["ambient_order_hint"] = (
-                "玩家在点咖啡/饮料：ambient 优先写店员应声或吧台操作薄声，勿只复读雨声。"
-            )
-        return json.dumps(compact, ensure_ascii=False, indent=2)
+        stall = int(prompt_payload.get("stall_turns_without_mh_progress", 0) or 0)
+        budget = int(prompt_payload.get("soft_beat_budget") or 0)
+        if budget <= 0 and isinstance(card, dict):
+            budget = int(stall_budget_for_card(card) or 0)
+        exit_state = str(prompt_payload.get("active_exit_state", "converged") or "converged")
+        cast = (card.get("persona_cards") or {}) if isinstance(card, dict) else {}
+        has_barista = bool(isinstance(card, dict) and card.get("ambient_actor_profiles")) or any(
+            "店员" in str(item.get("display_name") or "")
+            or "barista" in str(item.get("cons") or "").lower()
+            for item in cast.values()
+            if isinstance(item, dict)
+        )
+        inputs = director_harness.snapshot_harness_inputs(
+            scene_id=str((card or {}).get("scene_id") or ""),
+            prologue_active=bool((card or {}).get("prologue_active") or False),
+            stall=stall,
+            active_exit_state=exit_state,
+            exit_clock_active=bool(prompt_payload.get("fallback_clock_active")) or stall >= 4,
+            casual_cap=bool(budget and stall >= budget),
+            close_window_near=(len(remaining_ids) <= 1) or exit_state not in ("", "converged"),
+            player_ordering=any(
+                k in order_blob for k in ("咖啡", "卡布", "拿铁", "点单", "一杯", "美式", "喝点")
+            ),
+            player_requested_stage=player_requests_stage_improv(prompt_payload.get("player_input", "")),
+            has_barista=has_barista,
+            has_stranger_profile=bool(isinstance(card, dict) and card.get("ambient_actor_profiles")),
+            spine_remaining=len(remaining_ids),
+        )
+        return inputs, director_harness.legal_moves(inputs)
 
-    def validate_payload(payload: dict[str, Any], *, enforce_visible_layer: bool) -> None:
-        turns, progress, note = normalize_turns(payload)
-        progress = [str(x).strip() for x in payload.get("mh_progress", []) if str(x).strip()]
-        if len(progress) > MAX_MH_PROGRESS_PER_TURN:
-            raise ValueError(
-                f"LLM JSON advances too many must_happen ids in one turn: {progress}"
-            )
-        illegal_progress = [item for item in progress if item not in allowed_ids]
-        if illegal_progress:
-            raise ValueError(f"LLM JSON contains illegal mh_progress ids: {illegal_progress}")
-        if progress and remaining_ids and remaining_ids[0] not in progress:
-            raise ValueError(
-                "LLM JSON missing next required mh_progress; "
-                f"expected {remaining_ids[0]}"
-            )
-        if any(item in progress for item in ("T3", "TM3", "MH2")):
-            surface = json.dumps(turns, ensure_ascii=False)
-            if any(name in surface for name in intro_descriptor_names()):
-                raise ValueError("introduction progress must use real introduced names, not descriptor names")
-        # Always reject "我叫银发青年" style collapses: descriptor is a UI label, not a name.
-        for item in turns:
-            spoken = str(item.get("text", "") or "")
-            for descriptor in intro_descriptor_names():
-                if re.search(
-                    rf"(?:我叫|我是|叫我|我的名字是|名字是)\s*{re.escape(descriptor)}",
-                    spoken,
-                ):
-                    raise ValueError(
-                        f"actor used descriptor '{descriptor}' as an in-world self-introduction name"
-                    )
-        surface = json.dumps(turns, ensure_ascii=False)
-        for keyword in ["continue", "继续", "未完待续", "下一拍", "must_happen", "must-happen", "不变量", "选项"]:
-            if keyword in surface:
-                raise ValueError(f"user-facing actor output contains banned token: {keyword}")
-        if re.search(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)", surface):
-            raise ValueError("user-facing actor output falsely links Maki to the aquarium route")
-        if visible_name_violations(surface):
-            raise ValueError("user-facing actor output leaked banned visible name")
-        spoiler_hits = []
-        for item in turns:
-            spoiler_hits.extend(find_spoiler_hits(str(item.get("text", "") or "")))
-            spoiler_hits.extend(find_spoiler_hits(str(item.get("stage", "") or "")))
-        if spoiler_hits:
-            raise ValueError(f"spoiler leak detected: {spoiler_error_label(spoiler_hits)}")
-        spoken_cons = []
-        for item in turns:
-            cons = _cons_from_speaker(card, item.get("speaker", ""))
-            if cons in stage_only_cons and str(item.get("text", "")).strip():
-                raise ValueError(f"stage-only actor spoke: {cons}")
-            if cons and cons not in stage_only_cons and str(item.get("text", "")).strip() and cons not in spoken_cons:
-                spoken_cons.append(cons)
-        if len(spoken_cons) > max_speakers:
-            raise ValueError(f"actor output exceeds speaker cap: {len(spoken_cons)} > {max_speakers}")
-        if allowed_performer_cons:
-            performer_cons = []
-            for item in turns:
-                cons = _cons_from_speaker(card, item.get("speaker", ""))
-                if cons and cons not in performer_cons:
-                    performer_cons.append(cons)
-            illegal = [cons for cons in performer_cons if cons not in allowed_performer_cons]
-            if illegal:
-                raise ValueError(f"actor output used speaker outside bid plan: {illegal}")
-        note_issues = director_note_violations(note)
-        if note_issues:
+    def compact_actor_prompt() -> str:
+        if not isinstance(prompt_payload, dict) or not isinstance(card, dict):
+            return prompt_str
+        _inputs, legal_moves = _director_harness_inputs()
+        return director_harness.build_harness_prompt(
+            prompt_payload,
+            legal_moves,
+            physical_state={
+                "stall": _inputs.get("stall"),
+                "casual_cap": _inputs.get("casual_cap"),
+                "exit_clock_active": _inputs.get("exit_clock_active"),
+                "close_window_near": _inputs.get("close_window_near"),
+                "has_barista": _inputs.get("has_barista"),
+            },
+        )
+
+    def validate_harness_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        """导演路径的新合同校验：turns 拒收降级，mh 只是 hint，机会/舞台/薄声过闸。"""
+        _inputs, legal_moves = _director_harness_inputs()
+        clean, degs, fatal = director_harness.validate_harness_output(
+            payload,
+            allowed_mh_ids=allowed_ids,
+            legal_moves=legal_moves,
+            card=card,
+            text_check=None,
+        )
+        if fatal:
+            raise ValueError("; ".join(fatal))
+        note = str(clean.get("director_note") or "").strip()
+        if note and director_note_violations(note):
             raise ValueError(f"director_note uses banned broadcast style: {note}")
-        ambient_raw = payload.get("ambient")
-        if ambient_raw not in (None, "", [], False):
-            probe_texts: list[str] = []
-            if isinstance(ambient_raw, str):
-                probe_texts.append(ambient_raw)
-            elif isinstance(ambient_raw, dict):
-                probe_texts.append(str(ambient_raw.get("text") or ""))
-            elif isinstance(ambient_raw, list):
-                for item in ambient_raw[:2]:
-                    if isinstance(item, str):
-                        probe_texts.append(item)
-                    elif isinstance(item, dict):
-                        probe_texts.append(str(item.get("text") or ""))
-            for probe in probe_texts:
-                amb_hits = director_ambient_violations(probe)
-                if amb_hits:
-                    raise ValueError(f"ambient uses banned tokens or spoilers: {probe[:80]}")
-        if enforce_visible_layer:
-            stageful = [
-                item for item in turns
-                if str(item.get("stage", "")).strip() and str(item.get("stage", "")).strip() != "-"
-            ]
-            if turns and len(stageful) < 1:
-                raise ValueError("actor output missing required visible-layer stage cue")
-            if len(stageful) > 3:
-                raise ValueError(f"actor output exceeds visible-layer stage cue budget: {len(stageful)} > 3")
+        for key in ("voice", "ambient"):
+            item = clean.get(key)
+            if isinstance(item, dict):
+                probe = str(item.get("text") or "").strip()
+                if probe and director_ambient_violations(probe):
+                    raise ValueError(f"{key} uses banned tokens or spoilers: {probe[:80]}")
+        clean["degradations"] = degs
+        return clean
 
     def repair_prompt(raw_text: str, error: str) -> str:
         return (
-            "上一次输出不满足 free_stage 结构化契约。\n"
+            "上一次输出不满足 free_stage 导演结构化契约。\n"
             f"错误：{error}\n"
             f"当前场景：{card.get('scene_id', '') if isinstance(card, dict) else ''}\n"
             f"已完成：{list(completed_set)}\n"
             f"剩余合法 must_happen：{remaining_ids}\n"
-            "这一拍可以不推进 must_happen，先只承接玩家输入；但如果推进，只能推进 1 个，而且必须是剩余列表中的第一个。\n"
-            f"如果推进自我介绍节点 T3、TM3 或 MH2，台词必须给出真实姓名，不能说{'/'.join(intro_descriptor_names())}。\n"
-            f"禁止把描述称呼当成姓名自我介绍，例如不能说「我叫{'/我叫'.join(intro_descriptor_names()[:3])}」。\n"
-            "用户可见台词和舞台指示禁止出现 continue/继续/must_happen/下一拍/选项 等戏外或流程词。\n"
+            "这一拍可以不推进 must_happen；mh_progress 只是提示数组，最多 1 个合法 id，成立与否由引擎证据裁决。\n"
+            "你不写 turns：主卡台词只由演员通道产出，你的可见产物只有 opportunity/stage/voice/director_note。\n"
             "director_note 只能写本拍可见层已经发生的事，不能写成“完成TM1/触发AQ2/条件满足”，也不能预告自我介绍或姓名落地；玩家拒绝了就不能写成同意。\n"
-            "ambient 可空；需要时只写薄层可观察环境/店员，不命令主卡，不剧透，不另开第二调用。\n"
+            "voice/ambient 可空；需要时只写薄层可观察环境/店员，不命令主卡，不剧透，不另开第二调用。\n"
             "王府井后去海族馆是三人自己决定去玩/改道，不是真纪指示；禁止说真纪在海族馆等、真纪让他们去海族馆或真纪给了海族馆线索。\n"
             "只能输出 JSON，格式为："
-            "{\"turns\":[{\"speaker\":\"角色名\",\"text\":\"台词\",\"stage\":\"舞台指示\"}],"
-            "\"mh_progress\":[\"合法ID\"],\"director_note\":\"一句话\",\"ambient\":\"\"}\n"
-            f"本回合允许开口的角色：{allowed_speaker_cons or ['（可沉默）']}；最多 {max_speakers} 人开口。\n"
+            "{\"director_note\":\"一句话\",\"opportunity\":{\"kind\":\"time_pressure|admit_extra|close_window\","
+            "\"visible_reason\":\"...\"},\"stage\":{\"active\":false},\"voice\":{\"text\":\"...\",\"speaker\":\"店员|路人|旁白\"},"
+            "\"mh_progress\":[\"合法ID\"]}\n"
+            "opportunity.kind 必须来自本轮给定的 legal_moves（非 quiet 招），选不了就省略。\n"
             "不要解释，不要输出 Markdown。\n\n"
             f"原始约束输入：\n{actor_prompt}\n\n"
             f"上一次原始输出：\n{raw_text[:1200]}"
@@ -11959,16 +11973,7 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
     if caller is not None:
         payload = extract_json(caller(user_content=prompt_str))
         if caller is not fixed_selftest_actor:
-            try:
-                validate_payload(payload, enforce_visible_layer=False)
-            except Exception as exc:
-                if "spoiler leak detected:" not in str(exc):
-                    raise
-                guarded_turns, degradations = guard_turns(payload.get("turns", []), channel="actor")
-                payload["turns"] = guarded_turns
-                payload["mh_progress"] = []
-                payload["director_note"] = "可见层已改写为安全旁白。"
-                payload["degradations"] = degradations
+            payload = validate_harness_payload(payload)
         payload["context_receipt"] = build_context_receipt(
             kind="director" if isinstance(prompt_payload, dict) and "director_charter" in prompt_payload else "actor_legacy",
             system_prompt=build_actor_system_prompt(),
@@ -12016,7 +12021,7 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
         last_raw = choices[0]["message"]["content"]
         try:
             parsed = extract_json(last_raw)
-            validate_payload(parsed, enforce_visible_layer=True)
+            parsed = validate_harness_payload(parsed)
             parsed["context_receipt"] = build_context_receipt(
                 kind="director" if isinstance(prompt_payload, dict) and "director_charter" in prompt_payload else "actor_legacy",
                 system_prompt=str(messages[0].get("content", "")),

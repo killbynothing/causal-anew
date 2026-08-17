@@ -1290,6 +1290,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_free_stage_smoke.py",
     },
     {
+        "id": "director_harness",
+        "desc": "刀1 导演 Harness：闭集出招 × Resolver 三层闸 × 证据先行会计（零 LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_director_harness.py"],
+        "triggers": [
+            "runtime/free_stage_prototype.py",
+            "runtime/director_harness.py",
+            "runtime/beat_evidence.py",
+            "runtime/actor_orchestrator.py",
+            "scripts/tests/test_director_harness.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_director_harness.py",
+    },
+    {
         "id": "free_stage_memory_frame",
         "desc": "free_stage 场景框架与分层记忆装配断言（零 LLM）",
         "tier": "quick",

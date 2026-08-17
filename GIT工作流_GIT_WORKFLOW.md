@@ -29,6 +29,8 @@
 
 ---
 
+**远程唯一地址**：`https://github.com/killbynothing/causal-anew.git`（`origin`）。之后都 push 这里。
+
 ## 2. 分支模型(轻量,不用 git-flow)
 
 | 分支 | 用途 | 命名 |

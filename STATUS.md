@@ -1,5 +1,10 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-14（门面：README 去海报化 + LICENSE + docs/analysis 索引）
+
+- GitHub 目录页显得像草稿：默认分支提交旧、README 黑客松风、`c1_web_console` 名暂不改（断路径）。
+- 改：专业 README；`LICENSE` 源码保留、原著权利不转；`docs/README.md`、`analysis/README.md`。
+
 ### 2026-08-14（落位：根目录临时件进 scratch；远程钉 causal-anew）
 
 - 根目录 `tmp_*` / `maki_temp*` 挪进 `scratch/`（gitignore 已挡）。

@@ -7075,7 +7075,15 @@ class FreeStageSession:
             if isinstance(state, dict)
         }
         self.world_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
-        self.world_cursor.setdefault("run", self.run_no)
+        stored_run = data.get("run_no", self.world_cursor.get("run", self.run_no))
+        try:
+            stored_run = int(stored_run)
+        except (TypeError, ValueError):
+            stored_run = self.run_no
+        if stored_run < 1:
+            stored_run = 1
+        self.run_no = stored_run
+        self.world_cursor["run"] = self.run_no
         self.world_cursor.setdefault("worldline", "WMAIN")
         self.offscreen_ledger = dict(data.get("offscreen_ledger") or {})
         self.heart_stages = {
@@ -7220,6 +7228,7 @@ class FreeStageSession:
         return {
             "schema_version": SESSION_SCHEMA_VERSION,
             "session_id": self.session_id,
+            "run_no": int(self.run_no),
             "card_path": str(self.card_path),
             "opening_id": self.opening_id,
             "player_profile": self.player_profile,
@@ -7911,6 +7920,7 @@ class FreeStageSession:
         return {
             "scene": str(self.card.get("scene", "未知场景")),
             "place": str(self.card.get("place", "未知地点")),
+            "run": int(self.run_no),
             "active_exit_state": self.get_active_exit_state(),
             "opening_id": self.opening_id,
             "player_profile": visible_player_profile,

@@ -1306,6 +1306,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_director_harness.py",
     },
     {
+        "id": "run_meta_open",
+        "desc": "刀2 开局写 run_meta：递增、resume 不新开、reset 不是新周目",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_run_meta_open.py"],
+        "triggers": [
+            "runtime/run_registry.py",
+            "runtime/free_stage_prototype.py",
+            "web/server.py",
+            "scripts/tests/test_run_meta_open.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_run_meta_open.py",
+    },
+    {
         "id": "free_stage_memory_frame",
         "desc": "free_stage 场景框架与分层记忆装配断言（零 LLM）",
         "tier": "quick",

@@ -170,7 +170,7 @@ def save_config(config_data):
     except Exception as e:
         print(f"[warn] 保存 config.json 失败: {e}")
 
-def handle_free_stage_request(req_data, config, state_dir=None, caller=None):
+def handle_free_stage_request(req_data, config, state_dir=None, caller=None, truth_db=None):
     def redact_sensitive_director_fields(data):
         if isinstance(data, dict):
             cleaned = {}
@@ -188,10 +188,10 @@ def handle_free_stage_request(req_data, config, state_dir=None, caller=None):
             return res_lst
         return data
 
-    res = _handle_free_stage_request_raw(req_data, config, state_dir, caller)
+    res = _handle_free_stage_request_raw(req_data, config, state_dir, caller, truth_db=truth_db)
     return redact_sensitive_director_fields(res)
 
-def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None):
+def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None, truth_db=None):
     try:
         from free_stage_prototype import FreeStageSession, _safe_session_id
     except ImportError as e:
@@ -299,8 +299,17 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         )
         os.makedirs(s_dir, exist_ok=True)
         state_path = os.path.join(s_dir, f"{session_id}.json")
+        if os.path.exists(state_path):
+            return {"status": "error", "error": f"session {session_id} already exists"}
         from free_stage_prototype import resolve_card_path
+        from runtime.run_registry import open_run, profile_hash
         selected_card_path = resolve_card_path(opening.get("card_path", ""))
+        run_row = open_run(
+            Path(truth_db) if truth_db else DB_PATH,
+            opening_id=opening_id,
+            player_line=str(player_profile.get("id") or "a_qi"),
+            player_profile_hash=profile_hash(player_profile),
+        )
         session = FreeStageSession(
             session_id=session_id,
             state_dir=s_dir,
@@ -312,6 +321,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
             pending_entry=None,
             autosave=False,
             load_existing=False,
+            run_no=int(run_row["run"]),
         )
         payload = session._state_payload()
         try:
@@ -335,6 +345,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         return {
             "status": "ok",
             "session_id": session.session_id,
+            "run_no": int(session.run_no),
             "turns": [],
             "completed": session.completed,
             "issues": [],
@@ -540,6 +551,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         res_data = {
             "status": "ok",
             "session_id": session.session_id,
+            "run_no": int(getattr(session, "run_no", 1) or 1),
             "turns": turns,
             "completed": session.completed,
             "issues": session.last_issues,

@@ -105,7 +105,7 @@ Python 3.10+，无重量级外部依赖。
 ```bash
 python scripts/import_db.py                                      # 初始化真值库
 python scripts/mech_invariant_suite.py --db data/world_truth.db  # 四支柱断言 12/12
-python scripts/verify.py --quick                                 # 心跳自检 30 PASS / 0 FAIL
+python scripts/verify.py --quick                                 # 心跳自检 31 PASS / 0 FAIL
 cp web/config.example.json web/config.json                       # 填入模型 API Key
 python web/server.py                                             # 启动本地控制台
 ```

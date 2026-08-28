@@ -36,3 +36,6 @@ docs/refs/_ga_trash_*/
 # editor
 .obsidian/
 
+# agent local config
+.claude/
+

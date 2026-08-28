@@ -1321,6 +1321,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_run_meta_open.py",
     },
     {
+        "id": "delta_ledger_db",
+        "desc": "刀3 δ 进库：双写映射、幂等、run=0 拒绝、settle 可消费、固定底仍挡",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_delta_ledger_db.py"],
+        "triggers": [
+            "runtime/delta_db.py",
+            "runtime/scene_delta.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/settle_run.py",
+            "scripts/tests/test_delta_ledger_db.py",
+            "scripts/verify_db_rebuild_from_dump.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_delta_ledger_db.py",
+    },
+    {
         "id": "free_stage_memory_frame",
         "desc": "free_stage 场景框架与分层记忆装配断言（零 LLM）",
         "tier": "quick",

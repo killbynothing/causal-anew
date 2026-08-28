@@ -1,5 +1,13 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-28（刀 3：δ 进库）
+
+- **做**：`runtime/delta_db.py` 把玩时 δ 追加进 `world_truth.db.delta_ledger`（run≥1，幂等，run=0 整批拒绝）；`free_stage` 双写 JSON 追溯件 + 库表（库失败不中断游玩）。Z1b dump 把 `run_meta`/`delta_ledger`/`delta_sediment` 标成玩时可变表，不进 sql 指纹。
+- **验**：`test_delta_ledger_db` 8 例；`--quick` **32 PASS / 0 FAIL / 165 SKIP**。G1 存档仍不写真值库；δ 事件进库是本刀合同。
+- **你**：新开一场并正常离场后，库表应有 run≥1 行；`reset()` 仍不写新 δ。下一刀才是 EndRun+结算单。
+- **报账**：机制接线；未编正典。JSON 里原有天安门 `normal_exit` 未回填进库（等人下场玩时写入）。legacy `scene_api.py` 冻结不改。测试默认不传 `truth_db`，避免 `--quick` 污染真库。
+- **下一刀**：`计划_导演闸×周目回执×角色环不动_2026-08-14` **刀 4** EndRun+回执。
+
 ### 2026-08-17（刀 2：开局写 run_meta，run 递增）
 
 - **做**：`runtime/run_registry.py`（`open_run` 只追加 run≥1）；观测台「从头新开」`create_session` 登记一行；存档记下 `run_no`；resume 不新开；`reset()` 仍不是新周目。

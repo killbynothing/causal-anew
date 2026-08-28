@@ -322,6 +322,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
             autosave=False,
             load_existing=False,
             run_no=int(run_row["run"]),
+            truth_db=Path(truth_db) if truth_db else DB_PATH,
         )
         payload = session._state_payload()
         try:
@@ -529,6 +530,7 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         state_dir=s_dir,
         config=config,
         caller=caller,
+        truth_db=Path(truth_db) if truth_db else DB_PATH,
     )
     if op == "reset":
         session.reset()

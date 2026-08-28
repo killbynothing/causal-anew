@@ -29,7 +29,8 @@ if str(TESTS) not in sys.path:
     sys.path.insert(0, str(TESTS))
 
 from player_simulator import simulate_player_turn
-from scene_delta import append_delta_events, load_adversarial_terms, parse_player_input_modalities
+from scene_delta import load_adversarial_terms, parse_player_input_modalities
+from delta_db import dual_write_delta_events
 import test_scene_experience as exp
 from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
@@ -1844,6 +1845,13 @@ EXPERIMENT_CONFIG_PATH = ROOT / "web" / "config_experiment.json"
 OUTPUT_ROOT = ROOT / "artifacts" / "free_stage_ab"
 DIRECTOR_VOICE_PATH = ROOT / "data" / "voice_bank" / "director_voice_samples.md"
 DELTA_LEDGER_PATH = ROOT / "web" / "delta_ledger.json"
+WORLD_TRUTH_DB_PATH = ROOT / "data" / "world_truth.db"
+
+
+def append_delta_events(ledger_path, events):
+    """刀 3 双写：JSON 追溯件照旧 + world_truth.db delta_ledger 表。"""
+    return dual_write_delta_events(ledger_path, events, WORLD_TRUTH_DB_PATH)
+
 OPENING_SCHEDULES_PATH = ROOT / "web" / "schedules.json"
 SESSION_SCHEMA_VERSION = "free_stage.session.v1"
 END_MARKER = "<<< 本场结束 >>>"
@@ -6897,6 +6905,7 @@ class FreeStageSession:
         entry_context: dict[str, Any] | EntryContext | None = None,
         runtime_state_path: Path | str | None = None,
         load_existing: bool = True,
+        truth_db: Path | str | None = None,
     ) -> None:
         self.session_id = _safe_session_id(session_id)
         # session_id 只是存档名字，不能承载 run/worldline/ch_anchor 任一维度。
@@ -6911,6 +6920,8 @@ class FreeStageSession:
         self.runtime_state_path = (
             Path(runtime_state_path) if runtime_state_path is not None else ROOT / "data" / "runtime_state.db"
         )
+        # 只有显式传入 truth_db 才双写库表。测试默认不传，避免 --quick 污染正典库。
+        self.truth_db_path = Path(truth_db) if truth_db is not None else None
         self.card_path = Path(card_path)
         self.initial_card_path = self.card_path
         self.config = config or {}
@@ -8765,6 +8776,14 @@ class FreeStageSession:
             return shown
         return []
 
+    def _write_delta(self, events):
+        """正式游玩双写库表；测试用临时 overlay 时只写 JSON，避免污染真值库。"""
+        if self.truth_db_path is None:
+            from scene_delta import append_delta_events as append_json
+
+            return append_json(DELTA_LEDGER_PATH, events)
+        return dual_write_delta_events(DELTA_LEDGER_PATH, events, self.truth_db_path)
+
     def _record_player_violation(self, violation: dict[str, Any]) -> None:
         scene_id = str(self.card.get("scene_id", self.card_path))
         entry = {
@@ -8779,8 +8798,7 @@ class FreeStageSession:
             "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
         }
         self.player_violations.append(entry)
-        append_delta_events(
-            DELTA_LEDGER_PATH,
+        self._write_delta(
             [
                 {
                     "type": "violation",
@@ -8810,8 +8828,7 @@ class FreeStageSession:
     def _record_c16_cafe_refusal(self, disposition: str, turn_no: int) -> None:
         """明确拒绝属于合法 δ，不是违规；只在首次形成该分支时记一笔。"""
         scene_id = str(self.card.get("scene_id", self.card_path))
-        append_delta_events(
-            DELTA_LEDGER_PATH,
+        self._write_delta(
             [
                 {
                     "type": "c16_cafe_refusal",
@@ -8839,8 +8856,7 @@ class FreeStageSession:
         """A physical route change is a legal δ path, not a prompt to re-converge."""
         scene_id = str(self.card.get("scene_id", self.card_path))
         input_digest = _player_public_input_text(player_input)[:240]
-        append_delta_events(
-            DELTA_LEDGER_PATH,
+        self._write_delta(
             [
                 {
                     "type": "c16_encounter_diversion",
@@ -9414,7 +9430,7 @@ class FreeStageSession:
             )
             delta = float(effects.get("delta", 0.0) or 0.0)
             if delta:
-                append_delta_events(DELTA_LEDGER_PATH, [{
+                self._write_delta([{
                     "type": "actor_travel_commitment",
                     "run_no": self.run_no,
                     "scene_id": str(self.card.get("scene_id", self.card_path)),
@@ -11657,7 +11673,7 @@ class FreeStageSession:
                 }
                 prophecy_events.append(delta_entry)
             if prophecy_events:
-                append_delta_events(DELTA_LEDGER_PATH, prophecy_events)
+                self._write_delta(prophecy_events)
             # 注入 recycling hint：NPC 在目标场被提醒时会记起那句话
             recycling_note = (
                 "【预言回收提示】：玩家之前曾说'——现在场景应验了。"
@@ -11672,8 +11688,7 @@ class FreeStageSession:
         if mode == "forced":
             unresolved = [mh for mh in card_must_happen_ids(self.card) if mh not in self.completed]
             unresolved_str = ", ".join(unresolved) if unresolved else "无"
-            append_delta_events(
-                DELTA_LEDGER_PATH,
+            self._write_delta(
                 [
                     {
                         "type": "early_exit",
@@ -11692,8 +11707,7 @@ class FreeStageSession:
                 ],
             )
         elif mode == "normal":
-            append_delta_events(
-                DELTA_LEDGER_PATH,
+            self._write_delta(
                 [
                     {
                         "type": "normal_exit",

@@ -18,7 +18,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / "data" / "world_truth.db"
 SQL_PATH = ROOT / "data" / "world_truth.sql"
 REPORT_PATH = ROOT / "docs" / "refs" / "Z1b_world_truth_sql_rebuild_report_2026-07-08.md"
-MUTABLE_TABLES = {"run_bonds"}
+# 正典 dump 不含玩时只追加表：run_meta/δ 由刀 2–4 在 run≥1 写入，不要求进 sql 指纹。
+MUTABLE_TABLES = {"run_bonds", "run_meta", "delta_ledger", "delta_sediment"}
 
 
 def dump_database(db_path: Path) -> str:

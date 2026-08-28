@@ -6983,6 +6983,8 @@ class FreeStageSession:
         self.stall = 0
         self.inputs: list[str] = []
         self.ended = False
+        self.run_receipt: dict[str, Any] | None = None
+        self._run_closed = False
         self.branch_progress: list[str] = []
         self._language_discovery_observation: str | None = None
         # Structured scene facts are the authoritative receipt ledger for
@@ -7137,6 +7139,9 @@ class FreeStageSession:
         }
         self.inputs = [str(x) for x in data.get("inputs", [])]
         self.ended = bool(data.get("ended", False))
+        stored_receipt = data.get("run_receipt")
+        self.run_receipt = dict(stored_receipt) if isinstance(stored_receipt, dict) else None
+        self._run_closed = bool(data.get("run_closed") or self.run_receipt)
         self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
         self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
         self.world_transactions = {
@@ -7265,6 +7270,8 @@ class FreeStageSession:
             "stall_escalation_fired_scenes": sorted(self._stall_escalation_fired_scenes),
             "inputs": self.inputs,
             "ended": self.ended,
+            "run_receipt": dict(self.run_receipt) if self.run_receipt else None,
+            "run_closed": bool(self._run_closed),
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
@@ -7306,6 +7313,34 @@ class FreeStageSession:
         self.runtime_store.save(payload)
         sync_bonds_to_runtime_state(self.run_no, self.branch_progress, self.runtime_state_path)
 
+    def _mark_ended(self) -> None:
+        self.ended = True
+        self._close_run_once()
+
+    def _close_run_once(self) -> dict[str, Any] | None:
+        if self._run_closed and self.run_receipt:
+            return self.run_receipt
+        if self.truth_db_path is None or int(self.run_no) < 1:
+            return None
+        from runtime.end_run import close_run
+
+        try:
+            self.run_receipt = close_run(
+                self.truth_db_path,
+                int(self.run_no),
+                opening_id=self.opening_id,
+            )
+            self._run_closed = True
+        except Exception as exc:
+            print(f"[end_run] WARN 关局失败（游玩不中断）: {exc}")
+            self.run_receipt = None
+        return self.run_receipt
+
+    def _with_receipt(self, result: dict[str, Any]) -> dict[str, Any]:
+        if self.run_receipt:
+            result["receipt"] = dict(self.run_receipt)
+        return result
+
     def reset(self) -> None:
         self.completed = []
         self.completed_by_card = {}
@@ -7323,6 +7358,8 @@ class FreeStageSession:
         self.stall = 0
         self.inputs = []
         self.ended = False
+        self.run_receipt = None
+        self._run_closed = False
         self.branch_progress = []
         self._language_discovery_observation = None
         self.scene_receipts = []
@@ -7942,6 +7979,7 @@ class FreeStageSession:
                 else None
             ),
             "eligible_entries": self.get_eligible_entries(),
+            "receipt": dict(self.run_receipt) if self.run_receipt else None,
         }
 
     def _player_channels_snapshot(
@@ -8564,7 +8602,7 @@ class FreeStageSession:
             result["debug_payload"] = debug_payload
             result["debug_history"] = self.debug_history
             result["history"] = self.history
-        return result
+        return self._with_receipt(result)
 
     def _stream_status_payload(self) -> dict[str, Any]:
         return ustream.stream_status(
@@ -10932,7 +10970,7 @@ class FreeStageSession:
         self.last_issues = actor_errors + hard_check(self.history, self.completed, resolved_card)
         if resolved_card.get("must_happen") and all_must_happen_complete(resolved_card, self.completed):
             if not resolved_card.get("exits"):
-                self.ended = True
+                self._mark_ended()
                 marker = {"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no}
                 if not any(END_MARKER in str(t.get("text", "")) for t in self.history):
                     self.history.append(marker)
@@ -11252,7 +11290,7 @@ class FreeStageSession:
             result["debug_payload"] = debug_payload
             result["debug_history"] = self.debug_history
             result["history"] = self.history
-        return result
+        return self._with_receipt(result)
 
     def result(self, debug: bool = False) -> dict[str, Any]:
         issues = self.last_issues if self.ended else hard_check(self.history, self.completed, self.card)
@@ -11281,7 +11319,7 @@ class FreeStageSession:
         }
         if debug:
             res["debug_history"] = self.debug_history
-        return res
+        return self._with_receipt(res)
 
     def skip_scene(self, caller: Callable[..., str] | None = None) -> dict[str, Any]:
         """Skip the current brief scene by completing all must_happen items,
@@ -11300,7 +11338,7 @@ class FreeStageSession:
         exits = self.card.get("exits", [])
         if not exits:
             # If no exits, we just end the session
-            self.ended = True
+            self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
             self.completed_by_card[source_scene_id] = list(self.completed)
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
@@ -11374,7 +11412,7 @@ class FreeStageSession:
         self.card_history.append(target_scene_id)
 
         if all_must_happen_complete(target_card, self.completed) and target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER":
-            self.ended = True
+            self._mark_ended()
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
 
         self.save()
@@ -11858,7 +11896,7 @@ class FreeStageSession:
             transition_marker["canon_turns"] = [dict(item) for item in entered_canon_turns]
 
         if all_must_happen_complete(target_card, self.completed) and target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER":
-            self.ended = True
+            self._mark_ended()
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no})
 
         return transition_marker

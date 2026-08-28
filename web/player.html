@@ -1237,6 +1237,11 @@ async function sendMessage() {
         chatInput.disabled = true;
         btnSend.disabled = true;
         chatInput.classList.remove('active-turn');
+        const sheet = res.receipt || res.surface && res.surface.receipt;
+        if (sheet && sheet.run) {
+          const n = (sheet.done || []).length;
+          showToast(`本周目已记录 · run ${sheet.run} · ${n} 条`, "info");
+        }
         return;
       }
       if (handleBriefPacingDecision(res)) {

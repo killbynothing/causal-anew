@@ -1338,6 +1338,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_delta_ledger_db.py",
     },
     {
+        "id": "end_run_receipt",
+        "desc": "刀4 EndRun：结算单幂等、固定底仍挡、回执无情感",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_end_run.py"],
+        "triggers": [
+            "runtime/end_run.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/settle_run.py",
+            "scripts/tests/test_end_run.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_end_run.py",
+    },
+    {
         "id": "free_stage_memory_frame",
         "desc": "free_stage 场景框架与分层记忆装配断言（零 LLM）",
         "tier": "quick",

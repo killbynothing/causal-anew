@@ -1,5 +1,12 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-08-28（刀 4：EndRun + 冷回执）
+
+- **做**：`runtime/end_run.py` 关局 settle、出事实清单（无情感、无署名）；场结束 `_mark_ended` 只关一次；`reset()` 不清已关周目。
+- **验**：`test_end_run` 5 例；`--quick` **33 PASS / 0 FAIL / 165 SKIP**。固定底仍挡。
+- **你**：打完一场应收回执 toast（run N · k 条）。署名/口气仍 ★★★，这张单只记账。
+- **报账**：机制；未编正典。下一刀：下周读疤（刀 5）。刀 6 薄压力人感仍待。
+
 ### 2026-08-28（刀 3：δ 进库）
 
 - **做**：`runtime/delta_db.py` 把玩时 δ 追加进 `world_truth.db.delta_ledger`（run≥1，幂等，run=0 整批拒绝）；`free_stage` 双写 JSON 追溯件 + 库表（库失败不中断游玩）。Z1b dump 把 `run_meta`/`delta_ledger`/`delta_sediment` 标成玩时可变表，不进 sql 指纹。

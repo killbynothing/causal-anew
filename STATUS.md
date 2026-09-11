@@ -1,5 +1,12 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-11（刀 5：下周读疤）
+
+- **做**：`runtime/scars_reader.py`（`read_run_scars` + `compute_node_effective_threshold`）；读取 `src_run < current_run` 的 `delta_sediment`；固定底节点强制 $S \equiv 0$；`FreeStageSession` 开局/reset 挂接 `sediment_S` 与微残影 `ambient_scar`（物理感官质感，零泄密）；`physical_state` 携带软化度。
+- **验**：`test_read_scars` 6 例；`--quick` **34 PASS / 0 FAIL / 165 SKIP**。固定底仍挡。
+- **你**：新开第二周目（run≥2）时，观测台与会话状态能读到上周目沉淀 $S$ 且有效阈值自动软化；龙也仍不知上周目。
+- **报账**：机制；未编正典。残影文本纯物理感官，无元词汇。下一刀：刀 6 薄压力人感 / Rubric 评测脚本。
+
 ### 2026-08-28（刀 4：EndRun + 冷回执）
 
 - **做**：`runtime/end_run.py` 关局 settle、出事实清单（无情感、无署名）；场结束 `_mark_ended` 只关一次；`reset()` 不清已关周目。

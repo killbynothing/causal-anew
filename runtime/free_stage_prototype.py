@@ -7039,6 +7039,15 @@ class FreeStageSession:
         self.private_reflections: list[dict[str, Any]] = []
         if load_existing:
             self._load()
+        from runtime.scars_reader import read_run_scars
+
+        node_id = str(self.card.get("node_id") or self.opening_id or "").strip()
+        self.scar_info = read_run_scars(
+            self.truth_db_path,
+            node_id,
+            current_run=self.run_no,
+        )
+        self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
         self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
 
@@ -7268,6 +7277,8 @@ class FreeStageSession:
             "active_exit_state_by_card": self.active_exit_state_by_card,
             "stall": self.stall,
             "stall_escalation_fired_scenes": sorted(self._stall_escalation_fired_scenes),
+            "sediment_S": getattr(self, "sediment_S", 0.0),
+            "scar_info": dict(getattr(self, "scar_info", {}) or {}),
             "inputs": self.inputs,
             "ended": self.ended,
             "run_receipt": dict(self.run_receipt) if self.run_receipt else None,
@@ -7401,6 +7412,15 @@ class FreeStageSession:
         self.card = load_card(self.card_path)
         self.body_frames = ensure_card_body_frames(self.card, {})
         self.world_cursor = _card_cursor(self.card, self.run_no)
+        from runtime.scars_reader import read_run_scars
+
+        node_id = str(self.card.get("node_id") or self.opening_id or "").strip()
+        self.scar_info = read_run_scars(
+            self.truth_db_path,
+            node_id,
+            current_run=self.run_no,
+        )
+        self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card_history = [self.card.get("scene_id", str(self.card_path))]
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
         # + delayed flashback replace the mandatory front-door prologue.
@@ -11983,6 +12003,8 @@ def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., st
                 "exit_clock_active": _inputs.get("exit_clock_active"),
                 "close_window_near": _inputs.get("close_window_near"),
                 "has_barista": _inputs.get("has_barista"),
+                "sediment_S": prompt_payload.get("sediment_S", 0.0) if isinstance(prompt_payload, dict) else 0.0,
+                "has_scars": bool(prompt_payload.get("has_scars")) if isinstance(prompt_payload, dict) else False,
             },
         )
 

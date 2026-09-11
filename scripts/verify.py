@@ -1353,6 +1353,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_end_run.py",
     },
     {
+        "id": "read_scars",
+        "desc": "刀5 下周读疤：读上周目沉淀、S 软化有效阈值、微残影无剧透、固定底仍挡",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_read_scars.py"],
+        "triggers": [
+            "runtime/scars_reader.py",
+            "runtime/softening_params.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_read_scars.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_read_scars.py",
+    },
+    {
         "id": "free_stage_memory_frame",
         "desc": "free_stage 场景框架与分层记忆装配断言（零 LLM）",
         "tier": "quick",

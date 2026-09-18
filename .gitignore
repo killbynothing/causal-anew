@@ -11,6 +11,7 @@ __pycache__/
 # runtime state / logs
 **/sessions/
 **/*.jsonl
+!scripts/tests/fixtures/*.jsonl
 data/runtime_state.db
 web/states/
 scratch/

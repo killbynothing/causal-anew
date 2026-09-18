@@ -121,6 +121,12 @@ from runtime import opening_top_tier as ott
 from runtime import actor_cog_loop as cogloop
 from runtime import director_harness
 from runtime import beat_evidence
+from runtime.agent_module_slots import project_agent_modules
+
+
+def _with_agent_modules(payload: dict[str, Any]) -> dict[str, Any]:
+    payload["agent_modules"] = project_agent_modules(payload)
+    return payload
 
 H4_SYSTEM_PROMPT_BLOCK = """
 H4 语义防泄露补充规则：
@@ -8244,7 +8250,7 @@ class FreeStageSession:
             dict(layers.get("per_npc_knowledge_gate", {})),
             dict(layers.get("per_npc_privileged_facts", {})),
         )
-        return {
+        return _with_agent_modules({
             "schema_version": "free_stage.debug_payload.v3",
             "turn_no": 0,
             "scene_frame": {
@@ -8360,7 +8366,7 @@ class FreeStageSession:
             "body_frames": copy.deepcopy(self.body_frames or {}),
             "run_observation_ledger": [dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)],
             "assembly_projection": self._assembly_projection_status(card),
-        }
+        })
 
     def get_active_exit_state(self) -> str:
         scene_id = str(self.card.get("scene_id", self.card_path))
@@ -11126,7 +11132,7 @@ class FreeStageSession:
         )
         packet_coverage = fact_packet_coverage(solidified_pre_speak, actor_context_packets)
 
-        debug_payload = {
+        debug_payload = _with_agent_modules({
             "schema_version": "free_stage.debug_payload.v3",
             "prompt_chars": len(prompt),
             "turn_no": turn_no,
@@ -11280,7 +11286,7 @@ class FreeStageSession:
             "visible_holding_map": build_visible_holding_map(resolved_card),
             "object_use_memory": extract_object_use_memory(resolved_card, self.history),
             "assembly_projection": self._assembly_projection_status(resolved_card),
-        }
+        })
         self.debug_history.append(debug_payload)
 
         if self.autosave:

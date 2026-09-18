@@ -1,5 +1,21 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-18（实习专项最小集：Rubric × 工具契约 × 七槽 × 对齐旁路）
+
+- **做**：现行计划改为 `计划_对标游戏公司实习_Rubric评测×工具契约×对齐旁路_2026-09-18.md`（初稿 MCP/运行时 DPO 标过期，文件保留）。落地：`runtime/director_tools.py`（五招 Function Calling schema，非法调用拒）；`runtime/narrative_rubric.py` + `scripts/eval_narrative_rubric.py --smoke`（任务/一致/叙事/工具/安全）；`runtime/agent_module_slots.py` 投影进 `debug_payload.agent_modules`，观测台 ④ 七槽只读；`scripts/pipeline/build_preference_pairs.py` 旁路 jsonl + 可选 PyTorch 头（不进闸）。
+- **验**：`--quick` **38 PASS / 0 FAIL / 165 SKIP**（+director_tools / narrative_rubric / agent_module_slots / preference_pairs）。`eval_narrative_rubric.py --smoke` 黄金集该挂的维挂。preference holdout 分类头 1.0（失败谓词特征，非句长）。
+- **你**：硬刷新观测台新开咖啡场——④ 组应见七槽；点美式仍应是龙也自己说。人验记录仍要你写 `play_logs/`。
+- **报账**：机制与评测夹具；负例对白不进库/VOICE。未编正典。简历仍仓外。MCP 未做。SFT/DPO 未接运行时。
+- **下一刀**：导演闸刀 6 薄压力（人感）仍并行；本专项投递前你要打完一场咖啡馆。
+
+### 2026-09-18（实习专项：对标游戏公司 AI Agent 研发计划落位）
+
+- **做**：对标头部游戏公司 AI NPC / Agent 核心研发与算法实习岗位，完成专项升级规划并落位：`docs/plans/计划_对标游戏公司实习_Rubric评测×DPO微调×MCP工具_2026-09-18.md`；同步登记 `docs/plans/INDEX.md`。
+- **拆解**：四大模块：① 叙事与角色 Rubric 自动化评测体系（Agent Eval）；② NPC 认知对齐 SFT/DPO 数据飞轮与微调管线；③ 标准 Tool Use 与 MCP 协议适配；④ 工业级架构门面与求职面试攻防手册。
+- **验**：`--quick` **34 PASS / 0 FAIL / 165 SKIP**。
+- **报账**：规划与索引落位，未改动 `data/world_truth.db` 既有正典事实。
+- **下一动**：启动模块一，编写 `scripts/eval_narrative_rubric.py` 混合评测套件。
+
 ### 2026-09-11（刀 5：下周读疤）
 
 - **做**：`runtime/scars_reader.py`（`read_run_scars` + `compute_node_effective_threshold`）；读取 `src_run < current_run` 的 `delta_sediment`；固定底节点强制 $S \equiv 0$；`FreeStageSession` 开局/reset 挂接 `sediment_S` 与微残影 `ambient_scar`（物理感官质感，零泄密）；`physical_state` 携带软化度。

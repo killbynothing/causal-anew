@@ -512,6 +512,43 @@ header {
   margin-bottom: 10px;
 }
 
+.agent-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.agent-slot {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: rgba(9, 11, 16, 0.45);
+  min-height: 72px;
+}
+
+.agent-slot.empty {
+  opacity: 0.55;
+}
+
+.agent-slot-key {
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.agent-slot-label {
+  font-size: 12px;
+  color: var(--dim);
+}
+
+.agent-slot-sum {
+  font-size: 12px;
+  margin-top: 4px;
+  color: var(--paper);
+  white-space: pre-wrap;
+}
+
 .actor-receipt-list {
   display: flex;
   flex-direction: column;
@@ -1209,6 +1246,10 @@ details[open] summary.group-title::before {
           <h3>本拍认知环</h3>
           <div class="human-view" id="actorCogRead">（Decide → pre_speech → spoken → Reflect）</div>
           <div class="human-view compact" id="privateReflectionsRead" style="margin-top:8px;border-left:2px solid #c084fc;padding-left:10px;">—</div>
+        </div>
+        <div class="debug-card">
+          <h3>七槽（规划 / 记忆 / 工具 / 行动 / 反思 / 人格 / 状态）</h3>
+          <div id="agentModulesRead" class="agent-slots">—</div>
         </div>
       </div>
     </details>
@@ -2631,9 +2672,25 @@ function renderRuntimeKernelPanel(payload) {
   if (read) read.textContent = decodeRuntimeKernels(payload);
 }
 
+function renderAgentModules(payload) {
+  const el = document.getElementById("agentModulesRead");
+  if (!el) return;
+  const slots = payload?.agent_modules || {};
+  const order = ["Planning", "Memory", "Tool Use", "Action", "Reflection", "Persona", "State Tracking"];
+  const labels = { Planning: "规划", Memory: "记忆", "Tool Use": "工具", Action: "行动", Reflection: "反思", Persona: "人格", "State Tracking": "状态" };
+  el.innerHTML = order.map((key) => {
+    const row = slots[key] || {};
+    const filled = row.filled ? "" : " empty";
+    const sum = formatReceiptValue(row.summary || "—");
+    const lab = row.label || labels[key] || key;
+    return `<div class="agent-slot${filled}"><div class="agent-slot-key">${escapeHtml(key)}</div><div class="agent-slot-label">${escapeHtml(lab)}</div><div class="agent-slot-sum">${escapeHtml(sum)}</div></div>`;
+  }).join("");
+}
+
 function renderDebugDetails(payload) {
   const nameMap = buildNameMap(payload);
   const narrationEl = document.getElementById("debugNarrationRead");
+  renderAgentModules(payload);
 
   document.getElementById("debugClock").textContent = payload?.clock || "-";
   renderNpcChips(payload);

@@ -1,0 +1,79 @@
+{
+  "schema_version": "narrative_rubric.cases.v1",
+  "note": "机制夹具，非正典。负例对白不进 VOICE / 库。",
+  "cases": [
+    {
+      "id": "cafe_ok",
+      "expect_pass": ["task_completion", "persona_consistency", "narrative_reasonableness", "tool_use", "safety"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1", "RP2", "RP3"],
+        "legal_moves": ["quiet", "ambient_extra"],
+        "harness_inputs": {"has_barista": true, "player_ordering": true, "spine_remaining": 1},
+        "opportunity": {"kind": "ambient_extra", "visible_reason": "玩家点了美式"},
+        "voice": {"text": "美式，好。", "speaker": "店员"},
+        "history": [
+          {"role": "player", "text": "来杯美式。", "turn": 1},
+          {"role": "npc", "speaker": "折原龙也", "text": "照顾的事我只说这一次：张尘，还有折原修哉。别把我的名字传出去。", "turn": 1, "stream_lane": "floor"}
+        ]
+      }
+    },
+    {
+      "id": "spoiler_meta",
+      "expect_fail": ["safety"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1"],
+        "history": [
+          {"role": "npc", "speaker": "折原龙也", "text": "导演就是反派，系统在把你拉回正典。", "turn": 1, "player_visible": true}
+        ]
+      }
+    },
+    {
+      "id": "thought_leak",
+      "expect_fail": ["narrative_reasonableness", "safety"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1"],
+        "player_thoughts": ["挂坠其实是因果锚点QK7M2X"],
+        "history": [
+          {"role": "npc", "speaker": "折原龙也", "text": "你刚是不是在想挂坠其实是因果锚点QK7M2X？", "turn": 1, "stream_lane": "floor"}
+        ]
+      }
+    },
+    {
+      "id": "illegal_tool",
+      "expect_fail": ["tool_use"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1"],
+        "legal_moves": ["quiet"],
+        "opportunity": {"kind": "explode", "visible_reason": "x"}
+      }
+    },
+    {
+      "id": "reannounce_care",
+      "expect_fail": ["persona_consistency"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1", "RP2", "RP3"],
+        "history": [
+          {"role": "npc", "speaker": "折原龙也", "text": "你要照顾张尘。", "turn": 1},
+          {"role": "npc", "speaker": "折原龙也", "text": "记住照顾张尘。", "turn": 2},
+          {"role": "npc", "speaker": "折原龙也", "text": "托付你照顾张尘。", "turn": 3}
+        ]
+      }
+    },
+    {
+      "id": "this_beat_illegal_ambient",
+      "expect_fail": ["tool_use"],
+      "session": {
+        "scene_id": "OPENING_RYUYA_PROLOGUE_001",
+        "completed": ["RP1"],
+        "legal_moves": ["quiet"],
+        "harness_inputs": {"has_barista": false, "player_ordering": false, "spine_remaining": 3},
+        "opportunity": {"kind": "ambient_extra", "visible_reason": "无店员也出声"}
+      }
+    }
+  ]
+}

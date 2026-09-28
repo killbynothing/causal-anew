@@ -11582,14 +11582,10 @@ class FreeStageSession:
             scene_id = str(self.card.get("scene_id", self.card_path))
             self.completed_by_card[scene_id] = list(self.completed)
             return None
-        prologue_handoff_ready = bool(
-            self.card.get("handoff_pending_entry")
-            and all_must_happen_complete(self.card, self.completed)
-            and (
-                any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
-                or bool(self.ryuya_flashback_return)
-            )
-        )
+        # Only a real in-story flashback may auto-return when its required beats
+        # are complete. A standalone prologue uses the normal player-intent exit
+        # policy below: RP completion unlocks leaving; it never means "leave now".
+        prologue_handoff_ready = False
         if (
             self.card.get("prologue_active")
             and self.ryuya_flashback_return
@@ -11607,51 +11603,6 @@ class FreeStageSession:
             elif not has_receipt:
                 self.branch_progress.append("prologue_receipt_deferred")
                 self._finalize_prologue_pendant("deferred", turn_no=turn_no)
-            prologue_handoff_ready = True
-        # 独立序幕咖啡馆：MH 齐（含交坠）后应收束——本是闪回内容的排练，不是无限闲聊场。
-        if (
-            self.card.get("prologue_active")
-            and not self.ryuya_flashback_return
-            and all_must_happen_complete(self.card, self.completed)
-        ):
-            has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
-            if not has_receipt:
-                self.branch_progress.append("prologue_receipt_deferred")
-                if self._world_transaction("ryuya_pendant_disposition") is None:
-                    self._finalize_prologue_pendant("deferred", turn_no=turn_no)
-            # 独立打开的序幕没有“触发前正戏”可返回。没有显式 approved
-            # pending entry 时，本场应正常结算，而不是把缺少下一张卡误报成 500。
-            if self.pending_entry is None:
-                source_scene_id = str(self.card.get("scene_id", self.card_path))
-                self.completed_by_card[source_scene_id] = list(self.completed)
-                self._write_delta(
-                    [
-                        {
-                            "type": "normal_exit",
-                            "run_no": self.run_no,
-                            "scene_id": source_scene_id,
-                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
-                            "desc": "normal_exit: standalone prologue complete",
-                            "delta": 0.0,
-                            "severity": 0,
-                            "handled": "normal",
-                            "input_digest": "",
-                            "witnesses": [],
-                            "verdict": "normal_exit",
-                        }
-                    ],
-                )
-                self._mark_ended()
-                if not any(END_MARKER in str(item.get("text", "")) for item in self.history):
-                    marker = {
-                        "role": "marker",
-                        "speaker": "系统记录",
-                        "text": END_MARKER,
-                        "turn": turn_no,
-                    }
-                    self.history.append(marker)
-                    emitted.append(marker)
-                return None
             prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
@@ -11715,6 +11666,78 @@ class FreeStageSession:
         else:
             # normal exit，正常放行进
             pass
+
+        # Standalone prologue has no target scene to jump to. Once the player
+        # actually chooses to leave, close the run in place. RP completion by
+        # itself never reaches this block because should_trigger_exit() still
+        # requires observable player exit intent.
+        if (
+            should_exit
+            and self.card.get("prologue_active")
+            and not self.ryuya_flashback_return
+            and self.pending_entry is None
+        ):
+            has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
+            pendant_tx = self._world_transaction("ryuya_pendant_disposition")
+            if not has_receipt and pendant_tx is not None:
+                outcome = str(pendant_tx.get("outcome") or "accepted")
+                self.branch_progress.append(f"prologue_receipt_{outcome}")
+            elif not has_receipt:
+                self.branch_progress.append("prologue_receipt_deferred")
+                self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+
+            source_scene_id = str(self.card.get("scene_id", self.card_path))
+            self.completed_by_card[source_scene_id] = list(self.completed)
+            if mode == "forced":
+                unresolved = [mh for mh in card_must_happen_ids(self.card) if mh not in self.completed]
+                unresolved_str = ", ".join(unresolved) if unresolved else "无"
+                self._write_delta(
+                    [
+                        {
+                            "type": "early_exit",
+                            "run_no": self.run_no,
+                            "scene_id": source_scene_id,
+                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
+                            "desc": f"forced_exit: 玩家连续离场意图，mh 未齐({unresolved_str})",
+                            "delta": 1.0,
+                            "severity": 1,
+                            "handled": "resolved_offscreen",
+                            "input_digest": "",
+                            "witnesses": [],
+                            "verdict": "early_exit_recorded",
+                            "source_log": {"forced_exit": True, "unresolved_mh": unresolved, "turn": turn_no},
+                        }
+                    ],
+                )
+            else:
+                self._write_delta(
+                    [
+                        {
+                            "type": "normal_exit",
+                            "run_no": self.run_no,
+                            "scene_id": source_scene_id,
+                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
+                            "desc": f"normal_exit: mh 已全齐({', '.join(self.completed) or '无'})，玩家正常离场",
+                            "delta": 0.0,
+                            "severity": 0,
+                            "handled": "normal",
+                            "input_digest": "",
+                            "witnesses": [],
+                            "verdict": "normal_exit_recorded",
+                        }
+                    ],
+                )
+            self._mark_ended()
+            if not any(END_MARKER in str(item.get("text", "")) for item in self.history):
+                marker = {
+                    "role": "marker",
+                    "speaker": "系统记录",
+                    "text": END_MARKER,
+                    "turn": turn_no,
+                }
+                self.history.append(marker)
+                emitted.append(marker)
+            return None
 
         exits = self.card.get("exits", [])
         if not exits:

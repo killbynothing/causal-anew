@@ -51,7 +51,14 @@ def classify_cafe_pacing_signal(
     blob = f"{speech} {action}".strip()
 
     if "RP4" in done:
-        mode, reason = "close", "pendant_handoff_complete"
+        close_markers = (
+            "先走", "走了", "走吧", "离开", "回头见", "再见", "回见", "告辞",
+            "go", "leave", "exit",
+        )
+        if any(k.lower() in blob.lower() for k in close_markers):
+            mode, reason = "close", "player_signals_goodbye_after_handoff"
+        else:
+            mode, reason = "neutral", "pendant_handoff_complete_player_stays"
     elif "RP3" in done:
         mode, reason = "close", "entrust_complete"
     elif "RP2" in done:
@@ -75,7 +82,7 @@ def classify_cafe_pacing_signal(
     instruction = {
         "hold": "先接住玩家这一拍的轻口吻/回避，不把它当成严肃邀请；正事最多挪近一小步。",
         "open": "玩家给了认真说事的空间；可以自然承接当前 concern，但仍不得跳过已定义前置。",
-        "close": "正事已经完成，优先收束或交接，不重宣。",
+        "close": "正事已经完成，且玩家明确给出离场信号；自然道别，不重宣。",
         "neutral": "没有明确语义许可或拒绝；按当前 concern 自然推进，不因拍数单独升级语气。",
     }[mode]
     return {

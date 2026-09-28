@@ -54,6 +54,24 @@ def test_cafe_pacing_signal_holds_joke_and_opens_serious_floor():
     assert serious["mode"] == "open"
 
 
+def test_cafe_pacing_after_rp4_only_closes_on_player_goodbye():
+    stay = director_harness.classify_cafe_pacing_signal(
+        {"speech": "那你这次要出差多久？", "action": ""},
+        flash_beats=6,
+        completed=["RP1", "RP2", "RP3", "RP4"],
+    )
+    assert stay["mode"] == "neutral"
+    assert stay["reason"] == "pendant_handoff_complete_player_stays"
+
+    leave = director_harness.classify_cafe_pacing_signal(
+        {"speech": "那我先走了，回头见。", "action": ""},
+        flash_beats=6,
+        completed=["RP1", "RP2", "RP3", "RP4"],
+    )
+    assert leave["mode"] == "close"
+    assert "离场信号" in leave["instruction"]
+
+
 def test_legal_moves_are_closed_subset_with_quiet():
     moves = director_harness.legal_moves(director_harness.snapshot_harness_inputs())
     assert moves == ["quiet"]

@@ -4,11 +4,12 @@
 
 - **做**：咖啡馆导演新增确定性 `hold/open/neutral/close` 节奏信号，只管“什么时候”，不代角色决定“说什么”；`你最好有事情` 这类轻口吻/回避不再因拍数直接跳托付。`ActorMind` 明确为唯一持久心智权威，旧 `private_inner_states` 降为本拍 working context；观测台工程原件改读 `actor_state`。共史锚点保留 4 条边界，但每拍只轮换 ≤2 条提醒；角色 prompt 已要求相似小动作宁可留空，不换词重复敲桌/收目光/摸杯。
 - **验**：新增节奏、锚点轮换、ActorMind 单一权威测试；`python scripts/verify.py --quick` **38 PASS / 0 FAIL / 165 SKIP**。
-- **人验实抓**：首轮真人咖啡馆暴露一个“假断线” blocker：RP1–RP4 收束时，独立序幕错误走 `target_pending_entry`，因 `pending_entry=None` 抛 `ValueError: prologue handoff requires an approved pending entry` → HTTP 500。已改为：独立序幕无 approved pending entry 时正常 `normal_exit` + EndRun；真实闪回仍回 `ryuya_flashback_return`；显式 approved pending entry 才跨入口。观测台/玩家页现在显示后端真实错误正文，不再把所有 500 伪装成“断线”；server 调试日志落 `scratch/server_live.log`。
+- **人验实抓**：首轮真人咖啡馆先暴露“假断线”：独立序幕出口误走 `target_pending_entry`，`pending_entry=None` 时抛 HTTP 500。第一刀止血后又暴露第二个更关键问题：RP4 一完成便自动 `EndRun`，把 must-happen 完成错误等同于玩家离场。现合同已改正：**RP1–RP4 齐只解锁离场，不自动结束；只有玩家公开说/做出离场意图才收束**。RP4 后无告别信号时 `pace=neutral`，ActorCogLoop 进入 `post_entrust_chat`，继续按朋友关系接话；明确“先走/回头见”等才 `pace=close` + farewell。真实闪回仍可按 `ryuya_flashback_return` 自动回正戏。观测台/玩家页继续显示真实后端错误正文，server 调试日志落 `scratch/server_live.log`。
 - **API 基线**：火山 CodingPlan 已过期，运行基线切到 DeepSeek 官方 `deepseek-flash`；`config_experiment.json` / 默认 fallback / UI 同步，Key 仍只在 gitignore 的 `web/config.json`。15 次短压测 15/15 HTTP 200；本局前 7 拍导演/演员调用均单次成功，无 repair/retry。
-- **你**：继续当前咖啡馆存档即可；失败那一拍未持久化，当前档仍停在 RP1–RP3。硬刷新后重发那句/继续把 RP4 演完，预期正常结束而非 500；随后立即开第二周目验疤。
-- **报账**：代码只改运行时、API 配置、错误诊断与测试；未改 run=0 正典、卡正典、VOICE 原句或角色 Seed。真人开档已按合同在 `world_truth.db.run_meta` 追加 run=1，这是运行态回执，不是正典改写。
-- **下一动**：不再扩机制。先把当前完整咖啡馆收完 + 第二周目人验记录到 `play_logs/`，再按坏味道开下一刀。
+- **a14 恢复**：人验档 `a14` 在 RP4 后被错误关局。为遵守 append-only，没有删 run=1 的错误冷回执；已追加 run=2 `kind=fork`、`fork_event=bug_recovery:premature_prologue_end:a14:run1`，原对话/RP1–RP4 全保留，只撤掉自动生成的结束 marker、`prologue_receipt_deferred` 与错误的挂坠 deferred transaction。服务端复查：`ended=false`，可继续聊。
+- **你**：直接继续 `a14`。现在挂坠刚被龙也推到你面前，RP1–RP4 已发生，但场景仍开放；你可以继续问、开玩笑、接挂坠或聊别的。只有你明确说要走，才真正关局。之后再新开一局验疤。
+- **报账**：未改 run=0 正典、卡正典、VOICE 原句或角色 Seed。真人运行态只追加 run/δ；错误 run=1 保留审计，恢复用 run=2 fork，不做历史回滚。
+- **下一动**：不再扩机制。先把 `a14` 聊到你自己选择离场，再开下一新周目验疤；坏味道继续写 `play_logs/`。
 
 ### 2026-09-18（实习专项最小集：Rubric × 工具契约 × 七槽 × 对齐旁路）
 

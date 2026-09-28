@@ -299,6 +299,25 @@ def test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors():
     assert len(one["shared_past_anchor_catalog"]) == 4
 
 
+def test_post_rp4_chat_stays_open_until_player_goodbye():
+    stay = cogloop.ryuya_prologue_concerns(
+        flash_beats=6,
+        completed=["RP1", "RP2", "RP3", "RP4"],
+        pacing_signal={"mode": "neutral"},
+    )
+    assert stay[0]["id"] == "post_entrust_chat"
+    assert stay[0]["band"] == "idle"
+    assert "不主动催离" in stay[0]["text"]
+
+    leave = cogloop.ryuya_prologue_concerns(
+        flash_beats=6,
+        completed=["RP1", "RP2", "RP3", "RP4"],
+        pacing_signal={"mode": "close"},
+    )
+    assert leave[0]["id"] == "farewell"
+    assert leave[0]["band"] == "close"
+
+
 def test_stage_improv_is_deterministic_not_second_brain():
     from runtime.free_stage_prototype import improvise_stage_environment
 
@@ -576,6 +595,7 @@ if __name__ == "__main__":
     test_normalize_director_ambient_same_call()
     test_idle_want_seeps_first_meet_and_profile()
     test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors()
+    test_post_rp4_chat_stays_open_until_player_goodbye()
     test_stage_improv_is_deterministic_not_second_brain()
     test_reflect_closes_into_next_decide()
     test_voice_cafe_samples_in_db()

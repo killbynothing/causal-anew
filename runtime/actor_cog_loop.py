@@ -21,11 +21,19 @@ def ryuya_prologue_concerns(
     beats = max(0, int(flash_beats or 0))
     pacing_mode = str((pacing_signal or {}).get("mode") or "neutral").strip() or "neutral"
     if "RP4" in done:
+        if pacing_mode == "close":
+            return [
+                {
+                    "id": "farewell",
+                    "text": "玩家已经给出离场信号；平常道别，不重宣托付",
+                    "band": "close",
+                }
+            ]
         return [
             {
-                "id": "farewell",
-                "text": "平常道别，收束这场见面",
-                "band": "close",
+                "id": "post_entrust_chat",
+                "text": "正事已经交代完；玩家若继续聊，就回到朋友之间的当下，顺着对方话题，不复读托付，也不主动催离",
+                "band": "idle",
             }
         ]
     if "RP3" in done:

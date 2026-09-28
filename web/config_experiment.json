@@ -1,6 +1,6 @@
 {
-  "api_url": "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-  "model": "deepseek-v4-flash",
+  "api_url": "https://api.deepseek.com/chat/completions",
+  "model": "deepseek-flash",
   "chat_request_options": {
     "thinking": {
       "type": "disabled"

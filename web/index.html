@@ -1426,7 +1426,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
       <div class="form-group">
         <label>API Endpoint (服务端配置，只读)</label>
-        <input type="text" id="settingsUrl" value="https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions" readonly disabled>
+        <input type="text" id="settingsUrl" value="https://api.deepseek.com/chat/completions" readonly disabled>
         <div style="font-size: 10.5px; color: var(--cyan-dim); margin-top: 2px;">
           出站地址由服务端 config.json / 环境变量配置，前端不可覆盖。
         </div>
@@ -1434,7 +1434,7 @@ input[type="range"]::-webkit-slider-thumb:hover {
 
       <div class="form-group">
         <label>API Model (模型名称)</label>
-        <input type="text" id="settingsModel" value="deepseek-chat">
+        <input type="text" id="settingsModel" value="deepseek-flash">
       </div>
     </div>
     <div class="modal-footer">
@@ -1462,8 +1462,8 @@ const state = {
   retrievedMemories: [],
   chatHistory: [],
   config: {
-    api_url: "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
-    model: "deepseek-chat",
+    api_url: "https://api.deepseek.com/chat/completions",
+    model: "deepseek-flash",
     has_key: false,
     masked_key: ""
   },

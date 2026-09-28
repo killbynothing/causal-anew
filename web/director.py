@@ -206,7 +206,7 @@ def build_prompt(contract, activated, player_text):
 def call_llm(prompt, config):
     """真 LLM 调用（OpenAI 兼容）。沙箱无网络，本机联调用。"""
     body = {
-        "model": config.get("model", "deepseek-v4-flash"),
+        "model": config.get("model", "deepseek-flash"),
         "messages": [{"role": "system", "content": prompt},
                      {"role": "user", "content": "请判断并只输出 JSON。"}],
         "temperature": 0.6,
@@ -217,7 +217,7 @@ def call_llm(prompt, config):
     except Exception:
         pass
     req = urllib.request.Request(
-        config.get("api_url", "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"),
+        config.get("api_url", "https://api.deepseek.com/chat/completions"),
         data=json.dumps(body).encode("utf-8"),
         headers={"Content-Type": "application/json",
                  "Authorization": "Bearer " + config.get("api_key", "")},

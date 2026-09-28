@@ -141,6 +141,39 @@ def test_ryuya_prologue_rp1_no_forced_entrust_in_seed_want():
     assert "不急着托付" in str(mh.get("RP1", {}).get("desc") or "")
 
 
+def test_standalone_ryuya_prologue_closes_without_pending_entry():
+    """独立序幕 RP1-RP4 齐后应结束，不得因 pending_entry=None 抛 500。"""
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        sess = FreeStageSession(
+            session_id="ryuya-standalone-close",
+            card_path=card,
+            state_dir=Path(tmp) / "s",
+            runtime_state_path=Path(tmp) / "r.db",
+            load_existing=False,
+            autosave=False,
+            caller=_dummy_caller,
+        )
+        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        sess.branch_progress = ["prologue_receipt_accepted"]
+        captured = []
+        sess._write_delta = lambda events: captured.extend(events) or len(events)
+        emitted = []
+
+        transition = sess._maybe_transition(
+            {"speech": "那就回头见。", "action": "", "thought": ""},
+            turn_no=5,
+            emitted=emitted,
+        )
+
+        assert transition is None
+        assert sess.ended is True
+        assert sess.pending_entry is None
+        assert sess.completed_by_card["OPENING_RYUYA_PROLOGUE_001"] == ["RP1", "RP2", "RP3", "RP4"]
+        assert captured and captured[-1]["type"] == "normal_exit"
+        assert any(item.get("role") == "marker" for item in emitted)
+
+
 def test_observer_beat_io_projection():
     card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
     with tempfile.TemporaryDirectory() as tmp:
@@ -241,6 +274,7 @@ if __name__ == "__main__":
     test_tiananmen_secret_leak_gate()
     test_pendant_layer_c_emits_once()
     test_ryuya_prologue_rp1_no_forced_entrust_in_seed_want()
+    test_standalone_ryuya_prologue_closes_without_pending_entry()
     test_observer_beat_io_projection()
     test_opening_isolation_forced_with_caller()
     print("PASS")

@@ -458,7 +458,7 @@ button:disabled {
       📍 <span id="locationVal">加载中...</span>
     </div>
     <select id="apiSelector" style="padding: 0 12px; font-size: 13px; border-radius: 20px; border: 1px solid rgba(0, 240, 255, 0.4); background: rgba(9, 11, 16, 0.6); color: var(--cyan); height: 32px; cursor: pointer; outline: none; transition: border-color 0.2s;">
-      <option value="default">火山 Coding Plan · deepseek-v4-flash</option>
+      <option value="default">DeepSeek 官方 · deepseek-flash</option>
     </select>
     <button id="btnBondArchive" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(0, 240, 255, 0.4); color: var(--cyan); height: 32px; cursor: pointer; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.3);">羁绊档案</button>
     <button id="btnSlots" style="padding: 6px 16px; font-size: 13px; border-radius: 20px; border-color: rgba(0, 240, 255, 0.4); color: var(--cyan); height: 32px; display: none;">存档/读档</button>
@@ -826,15 +826,26 @@ function hideTypingIndicator() {
 }
 
 async function fetchAPI(path, opts = {}) {
-  // Live play is pinned to server config (Volc Coding Plan + thinking off).
+  // Live play is pinned to server config; the browser cannot swap provider/model.
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
     ...opts
   });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    data = null;
   }
-  return await res.json();
+  if (!res.ok) {
+    const detail = data?.error || data?.message || text || `HTTP ${res.status}`;
+    throw new Error(`HTTP ${res.status}: ${detail}`);
+  }
+  if (data === null) {
+    throw new Error("服务端返回了非 JSON 响应");
+  }
+  return data;
 }
 
 function readPlayerProfile() {
@@ -1268,7 +1279,9 @@ async function sendMessage() {
     }
   } catch (err) {
     hideTypingIndicator();
-    showToast("因果链接流转失败");
+    const detail = err?.message || "未知错误";
+    console.error("sendMessage failed", err);
+    showToast(`因果链接流转失败：${detail}`);
   } finally {
     state.busy = false;
     if (!(state.engine === "free_stage" && state.freeStageEnded)) {

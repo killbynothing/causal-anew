@@ -602,7 +602,7 @@ def classify_opening_situation(
         else:
             from web import llm_transport
             body = {
-                "model": cfg.get("model") or "deepseek-v4-flash",
+                "model": cfg.get("model") or "deepseek-flash",
                 "messages": [
                     {
                         "role": "system",
@@ -616,7 +616,7 @@ def classify_opening_situation(
             body.update(chat_request_options(cfg))
             result, info = llm_transport.post_json_with_retry(
                 cfg.get("api_url")
-                or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+                or "https://api.deepseek.com/chat/completions",
                 cfg.get("api_key"),
                 body,
                 [("primary", 15.0, 0.3), ("retry_1", 25.0, 0.6)],
@@ -6208,8 +6208,8 @@ def call_narrative_generator(
         payload = caller(user_content=user_prompt)
         return validate_and_clean_narration(payload)
     api_key = config.get("api_key")
-    api_url = config.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
-    model = config.get("model") or "deepseek-v4-flash"
+    api_url = config.get("api_url") or "https://api.deepseek.com/chat/completions"
+    model = config.get("model") or "deepseek-flash"
     if not api_key:
         return NARRATIVE_FALLBACK_TEXT
         
@@ -11619,6 +11619,39 @@ class FreeStageSession:
                 self.branch_progress.append("prologue_receipt_deferred")
                 if self._world_transaction("ryuya_pendant_disposition") is None:
                     self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+            # 独立打开的序幕没有“触发前正戏”可返回。没有显式 approved
+            # pending entry 时，本场应正常结算，而不是把缺少下一张卡误报成 500。
+            if self.pending_entry is None:
+                source_scene_id = str(self.card.get("scene_id", self.card_path))
+                self.completed_by_card[source_scene_id] = list(self.completed)
+                self._write_delta(
+                    [
+                        {
+                            "type": "normal_exit",
+                            "run_no": self.run_no,
+                            "scene_id": source_scene_id,
+                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
+                            "desc": "normal_exit: standalone prologue complete",
+                            "delta": 0.0,
+                            "severity": 0,
+                            "handled": "normal",
+                            "input_digest": "",
+                            "witnesses": [],
+                            "verdict": "normal_exit",
+                        }
+                    ],
+                )
+                self._mark_ended()
+                if not any(END_MARKER in str(item.get("text", "")) for item in self.history):
+                    marker = {
+                        "role": "marker",
+                        "speaker": "系统记录",
+                        "text": END_MARKER,
+                        "turn": turn_no,
+                    }
+                    self.history.append(marker)
+                    emitted.append(marker)
+                return None
             prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
@@ -11973,8 +12006,8 @@ class FreeStageSession:
 
 def call_actor(prompt_str: str, config: dict[str, Any], caller: Callable[..., str] | None = None) -> dict[str, Any]:
     api_key = config.get("api_key")
-    api_url = config.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
-    model = config.get("model") or "deepseek-v4-flash"
+    api_url = config.get("api_url") or "https://api.deepseek.com/chat/completions"
+    model = config.get("model") or "deepseek-flash"
 
     try:
         prompt_payload = json.loads(prompt_str)
@@ -12187,7 +12220,7 @@ def call_intent_interpreter(
         raise NotImplementedError("Intent interpreter requires a configured model")
     from web import llm_transport
     body = {
-        "model": config.get("model") or "deepseek-v4-flash",
+        "model": config.get("model") or "deepseek-flash",
         "messages": [
             {
                 "role": "system",
@@ -12203,7 +12236,7 @@ def call_intent_interpreter(
     }
     body.update(chat_request_options(config))
     result, info = llm_transport.post_json_with_retry(
-        config.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+        config.get("api_url") or "https://api.deepseek.com/chat/completions",
         api_key, body, [("primary", 20.0, 0.4), ("retry_1", 30.0, 0.8)],
     )
     if not result or not result.get("choices"):
@@ -12323,7 +12356,7 @@ def call_actor_packet(
             raise NotImplementedError("Real LLM call not configured in prototype (Missing API Key)")
         from web import llm_transport
         body = {
-            "model": config.get("model") or "deepseek-v4-flash",
+            "model": config.get("model") or "deepseek-flash",
             "messages": [
                 {"role": "system", "content": build_actor_system_prompt()},
                 {"role": "user", "content": prompt},
@@ -12335,7 +12368,7 @@ def call_actor_packet(
         }
         body.update(chat_request_options(config))
         result, info = llm_transport.post_json_with_retry(
-            config.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions",
+            config.get("api_url") or "https://api.deepseek.com/chat/completions",
             api_key, body, [("primary", 30.0, 0.5), ("retry_1", 45.0, 1.0)],
         )
         if not result or not result.get("choices"):
@@ -12503,8 +12536,8 @@ def call_memory_consolidator(
                 payload = caller(user_content=prompt_payload)
             else:
                 api_key = config.get("api_key")
-                api_url = config.get("api_url") or "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
-                model = config.get("model") or "deepseek-v4-flash"
+                api_url = config.get("api_url") or "https://api.deepseek.com/chat/completions"
+                model = config.get("model") or "deepseek-flash"
                 
                 system_prompt = build_consolidator_system_prompt(npc_keys, player_name)
                 from web.llm_transport import post_json_with_retry

@@ -113,20 +113,20 @@ def test_actor_error_survives_hard_check_issues():
     assert any("contract failed loudly" in item for item in res["issues"])
 
 
-def test_config_experiment_keeps_dsv4flash_without_copying_key():
+def test_config_experiment_keeps_deepseek_flash_without_copying_key():
     exp_path = ROOT / "web" / "config_experiment.json"
     payload = json.loads(exp_path.read_text(encoding="utf-8"))
-    assert payload["model"] == "deepseek-v4-flash"
-    assert payload["api_url"] == "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+    assert payload["model"] == "deepseek-flash"
+    assert payload["api_url"] == "https://api.deepseek.com/chat/completions"
     assert payload.get("chat_request_options") == {"thinking": {"type": "disabled"}}
     assert "api_key" not in payload
 
 
-def test_live_play_config_pins_volc_coding_plan_without_thinking():
+def test_live_play_config_pins_deepseek_flash_without_thinking():
     cfg, mode = proto.load_config()
     assert mode in {"base_config", "experiment_config"}
-    assert cfg.get("model") == "deepseek-v4-flash"
-    assert cfg.get("api_url") == "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+    assert cfg.get("model") == "deepseek-flash"
+    assert cfg.get("api_url") == "https://api.deepseek.com/chat/completions"
     assert proto.chat_request_options(cfg) == {"thinking": {"type": "disabled"}}
     # Key may be present locally; never assert its value in tests.
     assert "api_key" in cfg

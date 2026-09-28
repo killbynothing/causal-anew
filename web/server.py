@@ -53,11 +53,11 @@ CONTRACTS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "c
 LEDGER_PATH   = os.path.join(os.path.dirname(__file__), "delta_ledger.json")
 FREE_STAGE_SESSION_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "artifacts", "free_stage_sessions"))
 ANCHOR_POINTS_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "runtime", "anchor_points.json"))
-DEFAULT_API_URL = "https://ark.cn-beijing.volces.com/api/coding/v3/chat/completions"
+DEFAULT_API_URL = "https://api.deepseek.com/chat/completions"
 DEFAULT_CONFIG = {
     "api_key": "",
     "api_url": DEFAULT_API_URL,
-    "model": "deepseek-v4-flash",
+    "model": "deepseek-flash",
     "chat_request_options": {"thinking": {"type": "disabled"}},
 }
 # IGNORE_CLIENT_API_URL: outbound LLM calls never honor client-supplied api_url.
@@ -135,8 +135,8 @@ def load_config():
 def resolve_llm_config(base_cfg, req_data=None):
     """Merge safe display overrides; never accept client api_url or model swap."""
     cfg = dict(base_cfg or DEFAULT_CONFIG)
-    # Live play is pinned to server config (Volc Coding Plan). Client may not
-    # switch provider/model; only empty request fields are ignored.
+    # Live play is pinned to server config. Client may not switch
+    # provider/model; only empty request fields are ignored.
     cfg["api_url"] = str(cfg.get("api_url") or DEFAULT_API_URL).strip() or DEFAULT_API_URL
     if not str(cfg.get("model") or "").strip():
         cfg["model"] = DEFAULT_CONFIG["model"]

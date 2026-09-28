@@ -98,7 +98,7 @@ def test_server_free_stage_accepts_text_alias(tmp_path):
 
 def test_server_free_stage_loads_experiment_config():
     cfg = server.load_free_stage_config()
-    assert cfg["model"] == "deepseek-v4-flash"
+    assert cfg["model"] == "deepseek-flash"
     assert cfg["api_url"].endswith("/chat/completions")
 
 

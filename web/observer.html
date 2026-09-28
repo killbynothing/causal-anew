@@ -1093,7 +1093,7 @@ details[open] summary.group-title::before {
   <div class="control-stack">
     <input type="text" id="sessionInput" placeholder="Session ID">
     <select id="apiSelector">
-      <option value="default">火山 Coding Plan · deepseek-v4-flash</option>
+      <option value="default">DeepSeek 官方 · deepseek-flash</option>
     </select>
     <button id="btnSlots">存档 / 新周目</button>
     <button id="btnBondArchive">羁绊档案</button>
@@ -1514,8 +1514,7 @@ function setBusy(flag) {
 }
 
 function currentRequestOverrides(bodyObj) {
-  // Live play is pinned to server config (Volc Coding Plan + thinking off).
-  // Do not let the browser swap model/provider.
+  // Live play is pinned to server config; the browser cannot swap provider/model.
   return bodyObj;
 }
 
@@ -1525,10 +1524,21 @@ async function fetchAPI(path, bodyObj) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(currentRequestOverrides(bodyObj || {})),
   });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch (err) {
+    data = null;
   }
-  return await res.json();
+  if (!res.ok) {
+    const detail = data?.error || data?.message || text || `HTTP ${res.status}`;
+    throw new Error(`HTTP ${res.status}: ${detail}`);
+  }
+  if (data === null) {
+    throw new Error("服务端返回了非 JSON 响应");
+  }
+  return data;
 }
 
 function showTypingIndicator(label = "本拍演算中") {
@@ -3088,8 +3098,9 @@ async function sendTurn() {
     }
   } catch (err) {
     hideTypingIndicator();
-    appendBubble("error", "未送达", "未送达，输入已保留。可以稍后重试，或刷新后继续。");
-    showToast("推进这一拍失败，输入已保留");
+    const detail = err?.message || "未知错误";
+    appendBubble("error", "未送达", `未送达，输入已保留。原因：${detail}`);
+    showToast(`推进失败：${detail}`);
   } finally {
     window.clearTimeout(retryStatusTimer);
     hideTypingIndicator();

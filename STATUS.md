@@ -4,9 +4,11 @@
 
 - **做**：咖啡馆导演新增确定性 `hold/open/neutral/close` 节奏信号，只管“什么时候”，不代角色决定“说什么”；`你最好有事情` 这类轻口吻/回避不再因拍数直接跳托付。`ActorMind` 明确为唯一持久心智权威，旧 `private_inner_states` 降为本拍 working context；观测台工程原件改读 `actor_state`。共史锚点保留 4 条边界，但每拍只轮换 ≤2 条提醒；角色 prompt 已要求相似小动作宁可留空，不换词重复敲桌/收目光/摸杯。
 - **验**：新增节奏、锚点轮换、ActorMind 单一权威测试；`python scripts/verify.py --quick` **38 PASS / 0 FAIL / 165 SKIP**。
-- **你**：现在进入人验。重启控制台/硬刷新，新开咖啡场；先闲聊和开玩笑，再明确给“说正事”的空间，观察 `pace=hold → open`、龙也是否先接话再推进；同时看动作是否少复用、右栏是否显示 `authority=actor_mind`。完整结束后再开第二周目验疤。
-- **报账**：只改运行时、观测投影与测试；未改 `world_truth.db`、卡正典、VOICE 原句或角色 Seed。
-- **下一动**：不再扩机制。先收一份完整咖啡馆 + 第二周目人验记录到 `play_logs/`，再按坏味道开下一刀。
+- **人验实抓**：首轮真人咖啡馆暴露一个“假断线” blocker：RP1–RP4 收束时，独立序幕错误走 `target_pending_entry`，因 `pending_entry=None` 抛 `ValueError: prologue handoff requires an approved pending entry` → HTTP 500。已改为：独立序幕无 approved pending entry 时正常 `normal_exit` + EndRun；真实闪回仍回 `ryuya_flashback_return`；显式 approved pending entry 才跨入口。观测台/玩家页现在显示后端真实错误正文，不再把所有 500 伪装成“断线”；server 调试日志落 `scratch/server_live.log`。
+- **API 基线**：火山 CodingPlan 已过期，运行基线切到 DeepSeek 官方 `deepseek-flash`；`config_experiment.json` / 默认 fallback / UI 同步，Key 仍只在 gitignore 的 `web/config.json`。15 次短压测 15/15 HTTP 200；本局前 7 拍导演/演员调用均单次成功，无 repair/retry。
+- **你**：继续当前咖啡馆存档即可；失败那一拍未持久化，当前档仍停在 RP1–RP3。硬刷新后重发那句/继续把 RP4 演完，预期正常结束而非 500；随后立即开第二周目验疤。
+- **报账**：代码只改运行时、API 配置、错误诊断与测试；未改 run=0 正典、卡正典、VOICE 原句或角色 Seed。真人开档已按合同在 `world_truth.db.run_meta` 追加 run=1，这是运行态回执，不是正典改写。
+- **下一动**：不再扩机制。先把当前完整咖啡馆收完 + 第二周目人验记录到 `play_logs/`，再按坏味道开下一刀。
 
 ### 2026-09-18（实习专项最小集：Rubric × 工具契约 × 七槽 × 对齐旁路）
 

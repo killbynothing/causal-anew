@@ -299,6 +299,37 @@ def test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors():
     assert len(one["shared_past_anchor_catalog"]) == 4
 
 
+def test_post_rp3_pendant_offer_waits_for_player_response():
+    offer = cogloop.ryuya_prologue_concerns(
+        flash_beats=9,
+        completed=["RP1", "RP2", "RP3"],
+        pacing_signal={"mode": "neutral"},
+        stated_facts=[],
+    )
+    assert offer[0]["id"] == "offer_pendant"
+    assert "不要只写动作" in offer[0]["text"]
+    assert "等对方回应" in offer[0]["text"]
+
+    waiting = cogloop.ryuya_prologue_concerns(
+        flash_beats=10,
+        completed=["RP1", "RP2", "RP3"],
+        pacing_signal={"mode": "neutral"},
+        stated_facts=["账本已记：挂坠已明确递出，正在等待对方回应；勿重复递交。"],
+    )
+    assert waiting[0]["id"] == "await_pendant_response"
+    assert "不催收" in waiting[0]["text"]
+
+
+def test_high_beat_count_does_not_auto_promote_to_entrust():
+    concerns = cogloop.ryuya_prologue_concerns(
+        flash_beats=20,
+        completed=["RP1"],
+        pacing_signal={"mode": "neutral"},
+    )
+    assert concerns[0]["id"] == "deepen"
+    assert all(item["id"] != "entrust" for item in concerns[:1])
+
+
 def test_post_rp4_chat_stays_open_until_player_goodbye():
     stay = cogloop.ryuya_prologue_concerns(
         flash_beats=6,
@@ -595,6 +626,8 @@ if __name__ == "__main__":
     test_normalize_director_ambient_same_call()
     test_idle_want_seeps_first_meet_and_profile()
     test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors()
+    test_post_rp3_pendant_offer_waits_for_player_response()
+    test_high_beat_count_does_not_auto_promote_to_entrust()
     test_post_rp4_chat_stays_open_until_player_goodbye()
     test_stage_improv_is_deterministic_not_second_brain()
     test_reflect_closes_into_next_decide()

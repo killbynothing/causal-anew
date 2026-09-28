@@ -3746,22 +3746,46 @@ def _turns_text_blob(turns: list[dict[str, Any]] | None) -> str:
     return re.sub(r"\s+", "", "".join(parts))
 
 
+def _ryuya_spoken_blob(
+    turns: list[dict[str, Any]] | None,
+    history: list[dict[str, Any]] | None = None,
+) -> str:
+    """Only Ryuya's audible words. Stage directions are never verbal evidence."""
+    parts: list[str] = []
+    for item in list(history or []) + list(turns or []):
+        if not isinstance(item, dict):
+            continue
+        speaker = str(item.get("speaker") or "")
+        cons = str(item.get("speaker_cons") or item.get("cons") or "")
+        role = str(item.get("role") or "")
+        if role in {"player", "player_thought", "narrate", "director_note", "marker", "system"}:
+            continue
+        if "龙也" not in speaker and "ryuya" not in cons:
+            continue
+        text = str(item.get("text") or "").strip()
+        if text:
+            parts.append(text)
+    return re.sub(r"\s+", "", "".join(parts))
+
+
+def turns_cover_ryuya_deepen(turns: list[dict[str, Any]] | None) -> bool:
+    """RP2 needs a visible conversational pivot; elapsed beats are not evidence."""
+    blob = _ryuya_spoken_blob(turns)
+    return any(
+        token in blob
+        for token in (
+            "有件事", "有点事", "有事想", "想跟你说", "有话跟你说",
+            "临走前", "走之前", "放不下", "放心不下", "帮个忙", "拜托你",
+        )
+    )
+
+
 def turns_cover_ryuya_entrust(
     turns: list[dict[str, Any]] | None,
     history: list[dict[str, Any]] | None = None,
 ) -> bool:
-    """RP3：全名托付 + 禁名。跨拍累计——本拍只补禁名也算齐。"""
-    blob = _turns_text_blob(turns)
-    for item in history or []:
-        if not isinstance(item, dict):
-            continue
-        if item.get("role") != "npc":
-            continue
-        speaker = str(item.get("speaker") or "")
-        if "龙也" not in speaker and "ryuya" not in str(item.get("speaker_cons") or ""):
-            continue
-        blob += str(item.get("text") or "") + str(item.get("stage") or "")
-    blob = re.sub(r"\s+", "", blob)
+    """RP3：全名托付 + 禁名，只认龙也真正说出口的台词。"""
+    blob = _ryuya_spoken_blob(turns, history=history)
     if "折原修哉" not in blob or "张尘" not in blob:
         return False
     care = any(k in blob for k in ("照顾", "照应", "拜托"))
@@ -3770,6 +3794,46 @@ def turns_cover_ryuya_entrust(
         for token in ("名字", "不能说", "不可以说", "会有影响", "会有危险", "会死人", "死亡", "别把我")
     )
     return care and ban
+
+
+def repair_ryuya_forced_pendant_transfer(
+    turns: list[dict[str, Any]],
+    *,
+    player_input: str | dict[str, str],
+    entrust_ready: bool,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Protect player agency: an undecided player cannot be made to accept the pendant."""
+    if not entrust_ready or prologue_receipt_disposition(player_input) != "undecided":
+        return turns, []
+    forced_re = re.compile(
+        r"(塞进|塞到|按进|按到|放进|放到).{0,6}(你|她).{0,4}(手|手心|掌心)"
+        r"|直接塞.{0,10}(手|手心|掌心)"
+        r"|(?:替你|给你).{0,4}(戴上|套上)"
+        r"|(?:戴到|套到|挂到).{0,6}(脖|颈)"
+    )
+    out: list[dict[str, Any]] = []
+    degs: list[dict[str, Any]] = []
+    for item in turns:
+        if not isinstance(item, dict):
+            out.append(item)
+            continue
+        row = dict(item)
+        speaker = str(row.get("speaker") or "")
+        if "龙也" not in speaker:
+            out.append(row)
+            continue
+        stage = str(row.get("stage") or "")
+        if forced_re.search(stage):
+            row["stage"] = "他把古铜色挂坠停在你这边的桌面上，手收了回去，没有替你做决定。"
+            degs.append(
+                {
+                    "kind": "pendant_forced_transfer_repaired",
+                    "severity": "SOFT",
+                    "reason": "玩家尚未明确收下/拒绝/暂放，禁止角色替玩家完成物件接受",
+                }
+            )
+        out.append(row)
+    return out, degs
 
 
 def repair_ryuya_reannounce_entrust(
@@ -3927,11 +3991,19 @@ def merge_identity_relations(*groups: list[dict[str, Any]] | None) -> list[dict[
 
 
 def turns_cover_ryuya_pendant_gift(turns: list[dict[str, Any]] | None) -> bool:
-    """RP4 必须真把挂坠交到手上（可演重演），不能空标进度。"""
-    blob = _turns_text_blob(turns)
-    return any(token in blob for token in ("挂坠", "项链")) and any(
-        token in blob for token in ("手里", "手心", "给你", "收着", "礼物", "放进")
+    """Pendant offer needs words + action. A silent push across the table is not RP4."""
+    spoken = _ryuya_spoken_blob(turns)
+    visible = _turns_text_blob(turns)
+    has_object = any(token in f"{spoken}{visible}" for token in ("挂坠", "吊坠", "项链"))
+    has_verbal_offer = any(
+        token in spoken
+        for token in ("给你", "送你", "收着", "收下", "拿着", "临别礼物", "留给你", "这个给你")
     )
+    has_visible_offer = any(
+        token in visible
+        for token in ("推到你", "推回去", "递到你", "递给你", "放到你", "摆到你", "放在你面前", "摊在掌心", "递过去")
+    )
+    return has_object and has_verbal_offer and has_visible_offer
 
 
 def tiananmen_tm2_visible_evidence(
@@ -4485,11 +4557,11 @@ def advance_ryuya_prologue_want_now(
     scene is want_now stuck on everyday banter.  Rewrite desire by how far the
     chat has already gone and which RP beats are done.
 
-    Option A (人裁): beat count is floor/ceiling; a topic interface may advance
-    one band early after the floor, but never before floor and never skips the
-    ceiling bands.
-      - idle → deepen: floor beats>=1 + topic, else ceiling beats>=2
-      - deepen → say-clear: ceiling beats>=4 or RP2 (no early double-jump)
+    Beat count may prevent repetitive idle loops, but it never proves a story beat.
+    A player/actor semantic interface opens the serious floor; only evidence-backed
+    RP2 moves the desire to full entrust.
+      - idle → deepen: topic interface after at least one exchange, or a soft nudge
+      - deepen → say-clear: RP2 only
     """
     if not card.get("prologue_active"):
         return {}
@@ -4504,12 +4576,12 @@ def advance_ryuya_prologue_want_now(
         goal_head = "平常道别，收束这场见面"
     elif "RP3" in done:
         want = (
-            "托付已经说清；必须当面把挂坠交到对方手里——"
-            "这是第一世界的修哉交给你、今夜一定要给出去的东西。等对方接或不接，平常道别收束。"
+            "托付已经说清；下一步要把挂坠的意思用话说清楚：明确告诉对方这是给她的临别礼物，"
+            "再把古铜色挂坠递到她这边。不要只靠动作，不要擅自塞进手里；说完停住，等她自己接、拒绝或暂放。"
             "禁止把「照顾」再宣读一遍。"
         )
-        goal_head = "当面交挂坠，再道别"
-    elif "RP2" in done or beats >= 4:
+        goal_head = "明确口头赠坠，递出后等回应"
+    elif "RP2" in done:
         want = (
             "该把压在心里的事说清楚了：碰巧遇见——先是张尘（看着成熟什么都能扛、其实挺累，多照顾点），"
             "再是亲弟弟折原修哉（天才，好人，嘴有点毒，也照应一下）；点名用全名。"
@@ -6182,7 +6254,7 @@ def prologue_friend_known_profile(player_profile: dict[str, Any] | None) -> dict
             "你们已认识约两年（咖啡泼袖那种冒失起头）。"
             "闲聊优先眼前环境与称呼/职业/擅长；可接玩家当晚已说的话。"
             "托付口径：碰巧遇见则照顾张尘，以及折原修哉；不要说出龙也的名字。"
-            "挂坠是临别礼物，直接给到手上。"
+            "挂坠是临别礼物：先用话说明是给对方的，再递到对方面前；是否收下由对方自己回应。"
             "不得谈入口社会身份、即将抵达的具体地点、"
             "修哉张尘后续、挂坠用途或世界秘密。"
         ),
@@ -9704,26 +9776,24 @@ class FreeStageSession:
 
         layer_c_turns = self._maybe_emit_pendant_layer_c(parsed_input, turn_no=turn_no)
 
-        # 托付的回应是可见事实，不能因为物件尚未摆上桌就被系统当作没说过。
-        # RP3 前只先记账；RP3 落下的同拍再兑现为交付/婉拒，不让龙也重问。
-        # 闪回例外：不要在演员发言前抢先标 RP4，否则会跳过递坠演出并立刻切场。
+        # 玩家可以先回应托付，但挂坠去向必须等“龙也已明确口头递出”之后再结算。
+        # 这样「我答应帮忙」不会被误当成「我已经收下物件」。
         if self.card.get("prologue_active") and "RP4" not in self.completed:
             receipt = prologue_receipt_disposition(parsed_input)
             if receipt != "undecided":
                 marker = f"prologue_receipt_{receipt}"
-                if "RP3" in self.completed and not self.ryuya_flashback_return:
+                pendant_offered = "prologue_pendant_offered" in self.branch_progress
+                if "RP3" in self.completed and pendant_offered:
                     self.completed.append("RP4")
                     if marker not in self.branch_progress:
                         self.branch_progress.append(marker)
                     self._finalize_prologue_pendant(receipt, turn_no=turn_no)
-                elif "RP3" not in self.completed:
+                else:
+                    # Before an explicit pendant offer this is only a response to
+                    # the entrust / conversation, never proof of item transfer.
                     early = f"prologue_early_receipt_{receipt}"
                     if early not in self.branch_progress:
                         self.branch_progress.append(early)
-                elif self.ryuya_flashback_return:
-                    # 闪回：先记下当面收据，等本拍演员/补演落 RP4。
-                    if marker not in self.branch_progress:
-                        self.branch_progress.append(marker)
 
         facts_this_turn: set[str] = set()
         scene_id_for_obs = str(self.card.get("scene_id", ""))
@@ -10417,8 +10487,9 @@ class FreeStageSession:
                     and flash_beats_for_cog >= stall_budget_for_card(resolved_card)
                 ):
                     ceiling = (
-                        "闲聊拍数已到上限：禁止再复问近况或编共同细节；"
-                        "本拍必须把话题往『临走前有件事』挪一小步。"
+                        "闲聊已持续多拍：禁止复问同一近况或编共同细节；"
+                        "本拍请换一个自然招法（新角度、环境回应、短暂停顿或轻微探口都可以）。"
+                        "拍数本身不是推进许可，不得仅因时间到了就强行进入托付。"
                     )
                     prev_si = str(
                         (pkt.get("conversation_contract") or {}).get("social_instruction") or ""
@@ -10523,6 +10594,7 @@ class FreeStageSession:
             )
             evidence_flags = {
                 "rp3_entrust": turns_cover_ryuya_entrust(turns, history=self.history),
+                "rp2_nudged": turns_cover_ryuya_deepen(turns),
                 "tm2_visible": tiananmen_tm2_visible_evidence(self.history, turns),
                 "tm3_intro": (
                     "C.xiuzai.WMAIN"
@@ -10662,6 +10734,15 @@ class FreeStageSession:
             if resolved_card.get("prologue_active"):
                 turns, re_degs = repair_ryuya_reannounce_entrust(turns, history=self.history)
                 turn_degradations.extend(re_degs)
+                turns, pendant_agency_degs = repair_ryuya_forced_pendant_transfer(
+                    turns,
+                    player_input=player_input,
+                    entrust_ready=(
+                        "RP3" in self.completed
+                        or bool(evidence_flags.get("rp3_entrust"))
+                    ),
+                )
+                turn_degradations.extend(pendant_agency_degs)
             leak_issues = inner_state_leak_violations(turns, resolved_card)
             leak_issues.extend(privileged_leak_violations(turns, resolved_card))
             leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
@@ -10755,51 +10836,6 @@ class FreeStageSession:
                 and turns_cover_ryuya_entrust(turns, history=self.history)
             ):
                 new_progress.append("RP3")
-            if (
-                self.card.get("prologue_active")
-                and self.ryuya_flashback_return
-                and "RP3" in self.completed
-                and "RP4" not in self.completed
-                and "RP4" not in new_progress
-            ):
-                # 必须有明确答应/婉拒/暂存；闲聊接话不算默认答应。
-                receipt = prologue_receipt_disposition(player_input)
-                if receipt == "undecided":
-                    receipt = next(
-                        (
-                            item.removeprefix("prologue_receipt_")
-                            for item in self.branch_progress
-                            if item.startswith("prologue_receipt_")
-                        ),
-                        "undecided",
-                    )
-                if receipt != "undecided":
-                    if not turns_cover_ryuya_pendant_gift(turns):
-                        if receipt == "accepted":
-                            turns.append({
-                                "speaker": "折原龙也",
-                                "text": "临别礼物。收着。它不证明什么。",
-                                "stage": "他把古铜色挂坠连同项链放进你手里，像把一件东西轻轻交到你这边。",
-                            })
-                        elif receipt == "declined":
-                            turns.append({
-                                "speaker": "折原龙也",
-                                "text": "行，我听见了。这枚先放我这儿。",
-                                "stage": "他把挂坠收回掌心，没有把默认答应强加给你。",
-                            })
-                        else:
-                            turns.append({
-                                "speaker": "折原龙也",
-                                "text": "那就先放在我这里。你哪天想起来，再找我。",
-                                "stage": "他把挂坠收回去，像平常一样把话题放过。",
-                            })
-                    new_progress.append("RP4")
-                    marker = f"prologue_receipt_{receipt}"
-                    if marker not in self.branch_progress:
-                        self.branch_progress.append(marker)
-                    # 世界账本若开场已交付，闪回只演；否则按当面收据记账。
-                    if self._world_transaction("ryuya_pendant_disposition") is None:
-                        self._finalize_prologue_pendant(receipt, turn_no=turn_no)
             # 闪回至少先闲聊两拍，再允许跳到托付（RP2+）。
             if self.card.get("prologue_active") and self.ryuya_flashback_return:
                 flash_beats = max(
@@ -10845,46 +10881,28 @@ class FreeStageSession:
                     fact_text="禁名警告已说出：说了会有危险，会死人",
                     kind="name_ban_warning",
                 )
-            if self.card.get("prologue_active") and "RP3" in new_progress and "RP4" not in self.completed:
-                if not self.ryuya_flashback_return:
-                    early_receipt = next(
-                        (item.removeprefix("prologue_early_receipt_") for item in self.branch_progress
-                         if item.startswith("prologue_early_receipt_")),
-                        "",
-                    )
-                    if early_receipt:
-                        self.completed.append("RP4")
-                        receipt_marker = f"prologue_receipt_{early_receipt}"
-                        if receipt_marker not in self.branch_progress:
-                            self.branch_progress.append(receipt_marker)
-                        committed_now = self._finalize_prologue_pendant(early_receipt, turn_no=turn_no)
-                        if early_receipt == "accepted":
-                            if committed_now:
-                                turns.append({
-                                    "speaker": "折原龙也",
-                                    "text": "好。那我就不再多说了。",
-                                    "stage": "他把古铜色的挂坠连同项链放进你手心，像是终于把一句话说完。",
-                                })
-                        elif early_receipt == "declined":
-                            if committed_now:
-                                turns.append({"speaker": "折原龙也", "text": "好，我知道。", "stage": "他把挂坠收回掌心，没再追问。"})
-                        else:
-                            if committed_now:
-                                turns.append({"speaker": "折原龙也", "text": "那就先放在我这里。", "stage": "他把挂坠收回去，像平常一样把话题放过。"})
-            # 独立咖啡馆（非闪回）：托付已齐且本拍已交坠 → 记 RP4 + deferred 收据，下一拍可收束。
+            # 挂坠先“明确递出”，再等玩家下一拍决定收/拒/暂放。
+            # 口头赠与 + 可见递物只建立 offer，不直接完成 RP4。
             if (
                 self.card.get("prologue_active")
-                and not self.ryuya_flashback_return
                 and ("RP3" in self.completed or "RP3" in newly_completed)
                 and "RP4" not in self.completed
                 and turns_cover_ryuya_pendant_gift(turns)
             ):
-                if "RP4" not in newly_completed:
-                    newly_completed.append("RP4")
-                    self.completed.append("RP4")
-                if not any(str(x).startswith("prologue_receipt_") for x in self.branch_progress):
-                    self.branch_progress.append("prologue_receipt_deferred")
-                    self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+                if "prologue_pendant_offered" not in self.branch_progress:
+                    self.branch_progress.append("prologue_pendant_offered")
+                if not any(
+                    isinstance(row, dict)
+                    and str(row.get("kind") or "") == "pendant_offer"
+                    for row in self.run_observation_ledger
+                ):
+                    self.run_observation_ledger = _ledger_append(
+                        self.run_observation_ledger,
+                        turn=turn_no,
+                        scene_id=str(self.card.get("scene_id", "")),
+                        fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
+                        kind="pendant_offer",
+                    )
             if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
                 turns = repair_tiananmen_video_contradiction(
                     turns,

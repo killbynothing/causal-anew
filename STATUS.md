@@ -4,12 +4,13 @@
 
 - **做**：咖啡馆导演新增确定性 `hold/open/neutral/close` 节奏信号，只管“什么时候”，不代角色决定“说什么”；`你最好有事情` 这类轻口吻/回避不再因拍数直接跳托付。`ActorMind` 明确为唯一持久心智权威，旧 `private_inner_states` 降为本拍 working context；观测台工程原件改读 `actor_state`。共史锚点保留 4 条边界，但每拍只轮换 ≤2 条提醒；角色 prompt 已要求相似小动作宁可留空，不换词重复敲桌/收目光/摸杯。
 - **验**：新增节奏、锚点轮换、ActorMind 单一权威测试；`python scripts/verify.py --quick` **38 PASS / 0 FAIL / 165 SKIP**。
-- **人验实抓**：首轮真人咖啡馆先暴露“假断线”：独立序幕出口误走 `target_pending_entry`，`pending_entry=None` 时抛 HTTP 500。第一刀止血后又暴露第二个更关键问题：RP4 一完成便自动 `EndRun`，把 must-happen 完成错误等同于玩家离场。现合同已改正：**RP1–RP4 齐只解锁离场，不自动结束；只有玩家公开说/做出离场意图才收束**。RP4 后无告别信号时 `pace=neutral`，ActorCogLoop 进入 `post_entrust_chat`，继续按朋友关系接话；明确“先走/回头见”等才 `pace=close` + farewell。真实闪回仍可按 `ryuya_flashback_return` 自动回正戏。观测台/玩家页继续显示真实后端错误正文，server 调试日志落 `scratch/server_live.log`。
-- **API 基线**：火山 CodingPlan 已过期，运行基线切到 DeepSeek 官方 `deepseek-flash`；`config_experiment.json` / 默认 fallback / UI 同步，Key 仍只在 gitignore 的 `web/config.json`。15 次短压测 15/15 HTTP 200；本局前 7 拍导演/演员调用均单次成功，无 repair/retry。
-- **a14 恢复**：人验档 `a14` 在 RP4 后被错误关局。为遵守 append-only，没有删 run=1 的错误冷回执；已追加 run=2 `kind=fork`、`fork_event=bug_recovery:premature_prologue_end:a14:run1`，原对话/RP1–RP4 全保留，只撤掉自动生成的结束 marker、`prologue_receipt_deferred` 与错误的挂坠 deferred transaction。服务端复查：`ended=false`，可继续聊。
-- **你**：直接继续 `a14`。现在挂坠刚被龙也推到你面前，RP1–RP4 已发生，但场景仍开放；你可以继续问、开玩笑、接挂坠或聊别的。只有你明确说要走，才真正关局。之后再新开一局验疤。
-- **报账**：未改 run=0 正典、卡正典、VOICE 原句或角色 Seed。真人运行态只追加 run/δ；错误 run=1 保留审计，恢复用 run=2 fork，不做历史回滚。
-- **下一动**：不再扩机制。先把 `a14` 聊到你自己选择离场，再开下一新周目验疤；坏味道继续写 `play_logs/`。
+- **人验实抓**：真人咖啡馆连续抓到三层红灯：① 独立序幕出口缺 `pending_entry` 曾抛 HTTP 500；② RP1–RP4 全齐曾被误当自动 `EndRun`；③ **托付/挂坠节拍过紧**：RP2 曾可被拍数自动满足，RP3 证据曾把 stage 动作也当口头托付，RP4 曾把“动作递物”直接算交付，并在玩家暧昧回应时替玩家把挂坠塞进手里。现合同统一改正：**拍数不证明节拍；RP2 要可见语义转向，RP3 只认龙也真正说出口的全名托付+禁名，RP4 拆成“明确口头赠与+可见递出 → 等玩家下一拍收/拒/暂放”两段**。玩家未表态时任何“塞进手心/替你戴上”都会被运行时修复为“挂坠停在两人之间，等待决定”。RP4 后无离场信号仍 `pace=neutral` + `post_entrust_chat`；玩家明确离场才收束。
+- **API 基线**：火山 CodingPlan 已过期，运行基线切到 DeepSeek 官方 `deepseek-flash`；`config_experiment.json` / 默认 fallback / UI 同步，Key 仍只在 gitignore 的 `web/config.json`。15 次短压测 15/15 HTTP 200；本局调用未见线路级异常。
+- **a14 恢复**：run=1/run=2 的错误关局均保留审计；run=2 误生成的 `delta_sediment` scar 已用既有 `revoked=1` 机制作废，不删历史。现追加 run=3 `kind=fork`、`fork_event=bug_recovery:pendant_two_step:a14:run2`，恢复到第 10 拍：龙也已明确说“是给你的”并把挂坠递到玩家这边，`RP1–RP3` 完成、`prologue_pendant_offered` 成立、`RP4` 未完成。重放玩家原句“想再见见你总要有个借口吧”后：`ended=false`、仍仅 RP1–RP3，龙也只把挂坠往玩家这边推半寸，没有强塞、没有自动关场。
+- **你**：直接继续 `a14`。现在系统正等你自己决定挂坠：可以收、拒绝、先放着，也可以继续聊。挂坠去向不会再由动作或暧昧台词代判。之后只有你明确离场才真正关局，再开下一新周目验疤。
+- **报账**：未改 run=0 正典、场卡正典、VOICE 原句或角色 Seed；只改运行时证据闸、角色工作目标/节奏、玩家行动权修复与测试。真人运行态保留 run/δ 审计，错误沉淀只标 `revoked`，不删除历史。
+- **验**：新增“高拍数不自动 RP2/entrust、stage 不冒充口头托付、挂坠必须话+动作、未表态禁止强塞”回归；`python scripts/verify.py --quick` **38 PASS / 0 FAIL / 165 SKIP**。
+- **下一动**：继续 `a14` 人验两件事：① 挂坠回应是否自然；② 托付之后是否还能松弛聊天。玩家自己关局后再开新周目验疤。
 
 ### 2026-09-18（实习专项最小集：Rubric × 工具契约 × 七槽 × 对齐旁路）
 

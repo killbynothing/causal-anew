@@ -60,7 +60,7 @@ def classify_cafe_pacing_signal(
         else:
             mode, reason = "neutral", "pendant_handoff_complete_player_stays"
     elif "RP3" in done:
-        mode, reason = "close", "entrust_complete"
+        mode, reason = "neutral", "entrust_complete_pendant_pending"
     elif "RP2" in done:
         mode, reason = "open", "spine_already_open"
     else:

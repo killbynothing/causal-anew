@@ -49,10 +49,12 @@ def _rp1_chatted(ctx: Mapping[str, Any]) -> bool:
 
 
 def _rp2_toward_entrust(ctx: Mapping[str, Any]) -> bool:
-    """谈话已自然转向放不下的事：托付已出口 / 话题接口命中 / 闲聊已两拍。"""
-    if _flag(ctx, "rp3_entrust", False) or _flag(ctx, "topic_interface", False) or _flag(ctx, "rp2_nudged", False):
-        return True
-    return bool(_flag(ctx, "flash_beats", 0) or 0) >= 2
+    """谈话已可见地转向正事；拍数本身不是证据。"""
+    return bool(
+        _flag(ctx, "rp3_entrust", False)
+        or _flag(ctx, "topic_interface", False)
+        or _flag(ctx, "rp2_nudged", False)
+    )
 
 
 def _rp3_entrust(ctx: Mapping[str, Any]) -> bool:

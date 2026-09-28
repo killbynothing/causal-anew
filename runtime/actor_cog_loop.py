@@ -15,11 +15,13 @@ def ryuya_prologue_concerns(
     flash_beats: int,
     completed: list[str] | set[str] | None = None,
     pacing_signal: dict[str, Any] | None = None,
+    stated_facts: list[str] | None = None,
 ) -> list[dict[str, str]]:
     """Ordered open concerns for the cafe flashback (top = current intent)."""
     done = {str(x) for x in (completed or [])}
     beats = max(0, int(flash_beats or 0))
     pacing_mode = str((pacing_signal or {}).get("mode") or "neutral").strip() or "neutral"
+    facts = [str(x) for x in (stated_facts or []) if str(x).strip()]
     if "RP4" in done:
         if pacing_mode == "close":
             return [
@@ -37,17 +39,20 @@ def ryuya_prologue_concerns(
             }
         ]
     if "RP3" in done:
+        if any("挂坠已明确递出" in f or "等待对方回应" in f for f in facts):
+            return [
+                {
+                    "id": "await_pendant_response",
+                    "text": "挂坠已经明确递到对方面前；顺着对方这一拍回应，不重复递、不催收，也不要替对方决定收不收",
+                    "band": "pendant",
+                }
+            ]
         return [
             {
-                "id": "hand_pendant",
-                "text": "当面把挂坠交到对方手里，再道别——不要再复读照顾",
+                "id": "offer_pendant",
+                "text": "先用一句人话明确点出这枚挂坠是给对方的临别礼物，再把它递到对方这边；不要只写动作，不要擅自塞进对方手里。说完停住，等对方回应",
                 "band": "pendant",
-            },
-            {
-                "id": "farewell",
-                "text": "交完平常道别，收束这场",
-                "band": "close",
-            },
+            }
         ]
     # Director owns timing: a joking/deflecting player line may not be promoted
     # into a serious entrust merely because the beat counter is high.
@@ -67,7 +72,7 @@ def ryuya_prologue_concerns(
 
     # Care portraits already spoken but ban/MH lag → only push 禁名 or 交坠, never re-list.
     # (Caller may pass stated via attach; here we only have completed.)
-    if "RP2" in done or beats >= 4:
+    if "RP2" in done:
         return [
             {
                 "id": "entrust",
@@ -268,8 +273,10 @@ def prologue_stated_public_facts(
             facts.append("账本已记：托付口径已当面说过；勿再当第一次介绍。")
         if kind == "name_ban_warning" and not any("禁名" in f for f in facts):
             facts.append("账本已记：禁名警告已说出。")
+        if kind == "pendant_offer" and not any("挂坠已明确递出" in f for f in facts):
+            facts.append("账本已记：挂坠已明确递出，正在等待对方回应；勿重复递交。")
         if kind == "pendant" and not any("挂坠" in f for f in facts):
-            facts.append("账本已记：挂坠已交付或在交涉中。")
+            facts.append("账本已记：挂坠去向已结算。")
     return facts
 
 
@@ -299,6 +306,7 @@ def attach_cog_loop_to_packet(
             flash_beats=flash_beats,
             completed=completed,
             pacing_signal=pacing_signal,
+            stated_facts=stated_facts,
         )
         # Soft cue: marriage joke → insert a touch concern above idle chatter.
         if any(k in str(player_speech or "") for k in ("定情", "信物", "结婚", "老婆", "妻子")):

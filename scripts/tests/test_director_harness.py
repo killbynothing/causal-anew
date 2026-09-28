@@ -71,6 +71,14 @@ def test_cafe_pacing_after_rp4_only_closes_on_player_goodbye():
     assert leave["mode"] == "close"
     assert "离场信号" in leave["instruction"]
 
+    pendant_pending = director_harness.classify_cafe_pacing_signal(
+        {"speech": "这个到底是什么意思？", "action": ""},
+        flash_beats=6,
+        completed=["RP1", "RP2", "RP3"],
+    )
+    assert pendant_pending["mode"] == "neutral"
+    assert pendant_pending["reason"] == "entrust_complete_pendant_pending"
+
 
 def test_legal_moves_are_closed_subset_with_quiet():
     moves = director_harness.legal_moves(director_harness.snapshot_harness_inputs())
@@ -270,6 +278,31 @@ def test_implied_prereq_rp3_completes_rp2():
     assert got == ["RP1", "RP2", "RP3"]
 
 
+def test_rp2_requires_semantic_pivot_not_elapsed_beats():
+    ctx = {
+        "card": {"must_happen": [{"id": "RP1"}, {"id": "RP2", "after": ["RP1"]}]},
+        "history": [{"role": "player", "text": "随便聊聊。"}],
+        "turns": [],
+        "evidence_flags": {"flash_beats": 8, "rp2_nudged": False, "topic_interface": False},
+    }
+    got = beat_evidence.resolve_completions(
+        ctx,
+        allowed={"RP1", "RP2"},
+        completed={"RP1"},
+        after={"RP1": set(), "RP2": {"RP1"}},
+    )
+    assert got == []
+
+    ctx["evidence_flags"]["rp2_nudged"] = True
+    got = beat_evidence.resolve_completions(
+        ctx,
+        allowed={"RP1", "RP2"},
+        completed={"RP1"},
+        after={"RP1": set(), "RP2": {"RP1"}},
+    )
+    assert got == ["RP2"]
+
+
 # ── 软证据双向样例（防假阳 / 防漏检）─────────────────────────────────────
 
 
@@ -295,6 +328,76 @@ def test_rp3_soft_evidence_bidirectional():
         }
     ]
     assert not proto.turns_cover_ryuya_entrust(negative, history=[])
+
+    # 舞台动作里即使写全托付，也不能冒充龙也真的说出口。
+    stage_only = [
+        {
+            "speaker": "折原龙也",
+            "role": "npc",
+            "text": "嗯。",
+            "stage": "他示意要照顾张尘和折原修哉，也别说名字，会有危险，会死人。",
+        }
+    ]
+    assert not proto.turns_cover_ryuya_entrust(stage_only, history=[])
+
+
+def test_pendant_forced_transfer_is_repaired_when_player_undecided():
+    turns = [
+        {
+            "speaker": "折原龙也",
+            "role": "npc",
+            "text": "行了，拿着。",
+            "stage": "他把挂坠直接塞进你手心里，掌心压了一下才松开。",
+        }
+    ]
+    out, degs = proto.repair_ryuya_forced_pendant_transfer(
+        turns,
+        player_input={"speech": "想再见见你总要有个借口吧", "action": "", "thought": ""},
+        entrust_ready=True,
+    )
+    assert degs and degs[0]["kind"] == "pendant_forced_transfer_repaired"
+    assert "塞进" not in out[0]["stage"]
+    assert "没有替你做决定" in out[0]["stage"]
+
+    accepted, accepted_degs = proto.repair_ryuya_forced_pendant_transfer(
+        turns,
+        player_input={"speech": "好，我收下", "action": "", "thought": ""},
+        entrust_ready=True,
+    )
+    assert not accepted_degs
+    assert "塞进" in accepted[0]["stage"]
+
+
+def test_pendant_offer_requires_verbal_gift_and_visible_offer():
+    action_only = [
+        {
+            "speaker": "折原龙也",
+            "role": "npc",
+            "text": "嗯。",
+            "stage": "他把古铜色挂坠推到你面前。",
+        }
+    ]
+    assert not proto.turns_cover_ryuya_pendant_gift(action_only)
+
+    words_only = [
+        {
+            "speaker": "折原龙也",
+            "role": "npc",
+            "text": "这个挂坠给你，算临别礼物。",
+            "stage": "",
+        }
+    ]
+    assert not proto.turns_cover_ryuya_pendant_gift(words_only)
+
+    complete_offer = [
+        {
+            "speaker": "折原龙也",
+            "role": "npc",
+            "text": "这个挂坠给你，算临别礼物。收不收你自己决定。",
+            "stage": "他把古铜色挂坠推到你面前，手停在那里。",
+        }
+    ]
+    assert proto.turns_cover_ryuya_pendant_gift(complete_offer)
 
 
 def test_tm2_soft_evidence_bidirectional():

@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-28（架构复盘：从补丁收口转入运行时权威重构）
+
+- **总体判断**：方向/宪法没有错，问题在生产接线。现 `free_stage_prototype.py` 约 13.5k 行、`FreeStageSession` 约 5k 行、`step()` 约 1.8k 行；角色、导演、MH 会计、玩家行动、转场/EndRun 与场特例在同一主路径互相读写。a14 的假断线、RP 齐自动关局、托付/挂坠抢跑属于同一类“多权威接缝债”，不再按孤立 badcase 继续贴补丁。
+- **新计划**：新增并登记 `docs/plans/计划_运行时权威收口×主循环重构_2026-09-28.md`，挂长期路线图阶段 5；允许结构性大改，但仍守 AGENTS 红线与 ★★★ 人裁。长期路线图同步为：先完成 ActorMind / Resolver / Beat / PlayerAgency / Exit 唯一权威，再继续 causal_web / 全角色量产。
+- **目标架构**：世界事实只由 EventReceipt/Resolver 落；角色持续心理只由 ActorMind；MH 内部改 BeatState（必要时支持 offered→settled）；玩家关键动作必须有 PlayerActionReceipt；EndRun/transition 只经 ExitPolicy；Floor 只仲裁参与冲突，不替角色分配内容。
+- **准备淘汰**：`private_inner_states` 作为持久心理权威、直接 `completed.append` 业务路径、generic MH complete→EndRun、core loop 的 scene-specific if forest、content-aware speaker boost、`context_assembly` 仅观测不生产的双装配。
+- **执行序**：P0 authority map + characterization → P1 ExitPolicy → P2 BeatState + PlayerAgency（咖啡馆竖切）→ P3 ActorMind 真权威 → P4 participation ownership → P5 ContextAssembler 唯一入口 → P6 TurnEngine / ScenePolicy 拆主循环；两场人验稳定后才回 causal_web。
+- **★★★ 待人裁**：挂坠固定事实粒度。A=龙也必须完成“明确赠与尝试”，玩家可拒/暂放；B=本节点结束前玩家最终必须取得挂坠，但必须提供合法世界因果路径，绝不能靠 stage 强塞。裁决前运行时按最保守 Player Agency：未明确接受则不写 custody。
+- **本轮报账**：只做架构审计与计划文档，未改运行时代码、run=0、角色 Seed/VOICE 或正典内容；`data/world_truth.db` 仍只有 a14 真人运行态变化，继续不进代码提交。
+
 ### 2026-09-28（刀 6 人验前收口：语义节奏 × 单一心智权威 × 去机械复用）
 
 - **做**：咖啡馆导演新增确定性 `hold/open/neutral/close` 节奏信号，只管“什么时候”，不代角色决定“说什么”；`你最好有事情` 这类轻口吻/回避不再因拍数直接跳托付。`ActorMind` 明确为唯一持久心智权威，旧 `private_inner_states` 降为本拍 working context；观测台工程原件改读 `actor_state`。共史锚点保留 4 条边界，但每拍只轮换 ≤2 条提醒；角色 prompt 已要求相似小动作宁可留空，不换词重复敲桌/收目光/摸杯。

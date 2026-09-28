@@ -26,6 +26,66 @@ MOVE_LABELS: dict[str, str] = {
     "close_window": "收窗",
 }
 
+PACING_MODES: tuple[str, ...] = ("neutral", "hold", "open", "close")
+
+
+def classify_cafe_pacing_signal(
+    player_input: Mapping[str, Any] | str | None,
+    *,
+    flash_beats: int = 0,
+    completed: Iterable[str] = (),
+) -> dict[str, Any]:
+    """Director-owned timing signal for the Ryuya cafe.
+
+    This changes *when* a concern may surface, never what Ryuya must say.
+    It is deliberately deterministic so a joking player line cannot be
+    misread as permission to jump straight into the entrust beat.
+    """
+    done = {str(x) for x in completed if str(x).strip()}
+    if isinstance(player_input, Mapping):
+        speech = str(player_input.get("speech") or "").strip()
+        action = str(player_input.get("action") or "").strip()
+    else:
+        speech = str(player_input or "").strip()
+        action = ""
+    blob = f"{speech} {action}".strip()
+
+    if "RP4" in done:
+        mode, reason = "close", "pendant_handoff_complete"
+    elif "RP3" in done:
+        mode, reason = "close", "entrust_complete"
+    elif "RP2" in done:
+        mode, reason = "open", "spine_already_open"
+    else:
+        hold_markers = (
+            "开玩笑", "逗你", "逗他", "哈哈", "笑死", "最好有事",
+            "少来", "别闹", "得了吧", "算了", "没空", "不想听",
+        )
+        open_markers = (
+            "说吧", "你说", "什么事", "怎么了", "有事就说",
+            "我听着", "认真说", "到底什么事", "发生什么",
+        )
+        if any(k in blob for k in hold_markers):
+            mode, reason = "hold", "player_tone_light_or_deflecting"
+        elif any(k in blob for k in open_markers):
+            mode, reason = "open", "player_explicitly_opens_serious_floor"
+        else:
+            mode, reason = "neutral", "no_strong_semantic_cue"
+
+    instruction = {
+        "hold": "先接住玩家这一拍的轻口吻/回避，不把它当成严肃邀请；正事最多挪近一小步。",
+        "open": "玩家给了认真说事的空间；可以自然承接当前 concern，但仍不得跳过已定义前置。",
+        "close": "正事已经完成，优先收束或交接，不重宣。",
+        "neutral": "没有明确语义许可或拒绝；按当前 concern 自然推进，不因拍数单独升级语气。",
+    }[mode]
+    return {
+        "mode": mode,
+        "reason": reason,
+        "instruction": instruction,
+        "flash_beats": max(0, int(flash_beats or 0)),
+    }
+
+
 _FORBIDDEN_OUTPUT_KEYS = ("actor_decision", "decision", "accepted", "accept", "refuse", "refused", "outcome")
 
 

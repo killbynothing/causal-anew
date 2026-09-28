@@ -264,6 +264,41 @@ def test_idle_want_seeps_first_meet_and_profile():
     assert "泼袖" in concerns0[0]["text"] or "开档" in concerns0[0]["text"]
 
 
+def test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors():
+    hold = {"mode": "hold", "reason": "player_tone_light_or_deflecting", "instruction": "先接住玩笑"}
+    concerns = cogloop.ryuya_prologue_concerns(
+        flash_beats=6,
+        completed=["RP1"],
+        pacing_signal=hold,
+    )
+    assert concerns[0]["id"] == "hold_banter"
+    assert concerns[0]["band"] in {"idle", "deepen"}
+    assert all(item["id"] != "entrust" for item in concerns[:1])
+
+    def packet_for(beat):
+        pkt = {
+            "actor_cons": "C.ryuya.W1",
+            "self_state": {"inner_state": {"want_now": ""}},
+            "conversation_contract": {"participation_mode": "speak"},
+        }
+        cogloop.attach_cog_loop_to_packet(
+            pkt,
+            scene_id="OPENING_RYUYA_PROLOGUE_001",
+            flash_beats=beat,
+            completed=["RP1"],
+            player_speech="你最好有事情",
+            pacing_signal=hold,
+        )
+        return pkt
+
+    one = packet_for(1)["cog_loop"]
+    two = packet_for(2)["cog_loop"]
+    assert one["pacing_signal"]["mode"] == "hold"
+    assert len(one["shared_past_anchors"]) <= 2
+    assert one["shared_past_anchors"] != two["shared_past_anchors"]
+    assert len(one["shared_past_anchor_catalog"]) == 4
+
+
 def test_stage_improv_is_deterministic_not_second_brain():
     from runtime.free_stage_prototype import improvise_stage_environment
 
@@ -540,6 +575,7 @@ if __name__ == "__main__":
     test_prologue_exit_defaults_deferred_without_receipt()
     test_normalize_director_ambient_same_call()
     test_idle_want_seeps_first_meet_and_profile()
+    test_pacing_hold_blocks_beat_count_entrust_and_rotates_anchors()
     test_stage_improv_is_deterministic_not_second_brain()
     test_reflect_closes_into_next_decide()
     test_voice_cafe_samples_in_db()

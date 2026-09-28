@@ -99,7 +99,12 @@ from runtime.director_ports import (
     render_director_voice,
     resolve_public_action,
 )
-from runtime.actor_mind import apply_event_receipt, build_actor_mind, observer_safe_summary
+from runtime.actor_mind import (
+    apply_event_receipt,
+    build_actor_mind,
+    observer_safe_summary,
+    observer_state_projection,
+)
 from runtime.intent_runtime import (
     IntentResolution,
     bind_resolution,
@@ -127,6 +132,28 @@ from runtime.agent_module_slots import project_agent_modules
 def _with_agent_modules(payload: dict[str, Any]) -> dict[str, Any]:
     payload["agent_modules"] = project_agent_modules(payload)
     return payload
+
+
+def _observer_actor_state_map(
+    actor_minds: Mapping[str, Any] | None,
+    inner_states: Mapping[str, Any] | None,
+    actor_packets: Mapping[str, Any] | None,
+) -> dict[str, dict[str, Any]]:
+    """One right-panel state shape; ActorMind is the persistent authority."""
+    minds = dict(actor_minds or {})
+    working = dict(inner_states or {})
+    packets = dict(actor_packets or {})
+    out: dict[str, dict[str, Any]] = {}
+    for cons in sorted(set(minds) | set(working) | set(packets)):
+        pkt = packets.get(cons) if isinstance(packets.get(cons), dict) else {}
+        cog = pkt.get("cog_loop") if isinstance(pkt.get("cog_loop"), dict) else {}
+        decide = cog.get("decide") if isinstance(cog.get("decide"), dict) else {}
+        out[str(cons)] = observer_state_projection(
+            minds.get(cons) if isinstance(minds.get(cons), dict) else {},
+            working_context=working.get(cons) if isinstance(working.get(cons), dict) else {},
+            decide=decide,
+        )
+    return out
 
 H4_SYSTEM_PROMPT_BLOCK = """
 H4 语义防泄露补充规则：
@@ -8303,6 +8330,9 @@ class FreeStageSession:
                 cons: observer_safe_summary(mind)
                 for cons, mind in sorted(self.actor_minds.items())
             },
+            "actor_state": _observer_actor_state_map(
+                self.actor_minds, inner_states, preflight_packets
+            ),
             "soft_beat_budget": stall_budget_for_card(card),
             "clock": advance_clock(card.get("clock", "未知时刻"), self.player_state.get("elapsed_minutes", 0)),
             "player_state": self.player_state,
@@ -10351,6 +10381,15 @@ class FreeStageSession:
                 if not isinstance(prior_map, dict):
                     prior_map = {}
                     self.prior_reflect_by_cons = prior_map
+                pacing_signal = (
+                    director_harness.classify_cafe_pacing_signal(
+                        {"speech": speech, "action": action},
+                        flash_beats=flash_beats_for_cog,
+                        completed=self.completed,
+                    )
+                    if resolved_card.get("prologue_active")
+                    else None
+                )
                 cogloop.attach_cog_loop_to_packet(
                     pkt,
                     scene_id=str(resolved_card.get("scene_id") or ""),
@@ -10359,6 +10398,7 @@ class FreeStageSession:
                     prior_reflect=prior_map.get(str(cons)),
                     stated_facts=stated_facts,
                     player_speech=speech,
+                    pacing_signal=pacing_signal,
                 )
                 decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
                 if decide.get("pending_concerns") is not None:
@@ -11202,6 +11242,9 @@ class FreeStageSession:
                 cons: observer_safe_summary(mind)
                 for cons, mind in sorted(self.actor_minds.items())
             },
+            "actor_state": _observer_actor_state_map(
+                self.actor_minds, inner_states, actor_context_packets
+            ),
             "soft_beat_budget": stall_budget_for_card(resolved_card),
             "clock": advance_clock(resolved_card.get("clock", "未知时刻"), self.player_state.get("elapsed_minutes", 0)),
             "player_state": self.player_state,
@@ -12226,13 +12269,16 @@ def call_actor_packet(
             "self_core.phase_voice_profile（若存在）是这个阶段的演法：优先遵从其中的正向行为取向与披露边界，不要滑向列出的失真说法；"
             "self_core.voice_samples（若非空）是正典声纹参考：模仿口吻与节奏，禁止复述或整句照抄；"
             "cog_loop.decide（若存在）是本拍自主决定：只服务 top_concern，不要一次勾完 pending_concerns；"
+            "conversation_contract.pacing_signal（若存在）只管时机：hold 时先接住轻口吻/回避，禁止把玩笑当认真邀请；"
+            "它不替你决定台词内容，也不能跳过角色自己的判断；"
             "cog_loop.prior_reflect / conversation_contract.prior_reflect_thought（若存在）是你上一拍的私下结论——"
             "本拍必须接着它想，不要当没发生过；"
             "conversation_contract.stated_public_facts（若存在）是你已当面说过的事：禁止换皮重宣；"
-            "cog_loop.shared_past_anchors（若存在）是与对方仅有的共史锚点：锚点外的宿舍楼/旧约等不要补编；"
+            "cog_loop.shared_past_anchor_catalog（若存在）是共史边界；cog_loop.shared_past_anchors 只是本拍最多两个可用提醒，没必要强行提；目录外的宿舍楼/旧约等不要补编；"
             "private_perceptions 是你独自感到的现场信息，可据此反应，但不要对旁人点破对方不知道的真相；"
             "若 body_frame_now / self_state.body_frame_now 存在：写 stage 必须从当前身体帧可到达；"
             "手 busy/holding 时不能再接第二件物；无可见变化则 stage 留空；"
+            "如果 last_visible_stage / last_action_type 与你准备写的动作近似，宁可 stage 留空，也不要换词重复敲桌、收目光、摸杯子等小动作；"
             "不得代替导演推进正典事件。"
         ) + (
             " 你是 stage_only：只能给一个可见动作；text 必须为空，stage 必须非空，绝不能说话或提问。"

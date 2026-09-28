@@ -1,5 +1,13 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-28（刀 6 人验前收口：语义节奏 × 单一心智权威 × 去机械复用）
+
+- **做**：咖啡馆导演新增确定性 `hold/open/neutral/close` 节奏信号，只管“什么时候”，不代角色决定“说什么”；`你最好有事情` 这类轻口吻/回避不再因拍数直接跳托付。`ActorMind` 明确为唯一持久心智权威，旧 `private_inner_states` 降为本拍 working context；观测台工程原件改读 `actor_state`。共史锚点保留 4 条边界，但每拍只轮换 ≤2 条提醒；角色 prompt 已要求相似小动作宁可留空，不换词重复敲桌/收目光/摸杯。
+- **验**：新增节奏、锚点轮换、ActorMind 单一权威测试；`python scripts/verify.py --quick` **38 PASS / 0 FAIL / 165 SKIP**。
+- **你**：现在进入人验。重启控制台/硬刷新，新开咖啡场；先闲聊和开玩笑，再明确给“说正事”的空间，观察 `pace=hold → open`、龙也是否先接话再推进；同时看动作是否少复用、右栏是否显示 `authority=actor_mind`。完整结束后再开第二周目验疤。
+- **报账**：只改运行时、观测投影与测试；未改 `world_truth.db`、卡正典、VOICE 原句或角色 Seed。
+- **下一动**：不再扩机制。先收一份完整咖啡馆 + 第二周目人验记录到 `play_logs/`，再按坏味道开下一刀。
+
 ### 2026-09-18（实习专项最小集：Rubric × 工具契约 × 七槽 × 对齐旁路）
 
 - **做**：现行计划改为 `计划_对标游戏公司实习_Rubric评测×工具契约×对齐旁路_2026-09-18.md`（初稿 MCP/运行时 DPO 标过期，文件保留）。落地：`runtime/director_tools.py`（五招 Function Calling schema，非法调用拒）；`runtime/narrative_rubric.py` + `scripts/eval_narrative_rubric.py --smoke`（任务/一致/叙事/工具/安全）；`runtime/agent_module_slots.py` 投影进 `debug_payload.agent_modules`，观测台 ④ 七槽只读；`scripts/pipeline/build_preference_pairs.py` 旁路 jsonl + 可选 PyTorch 头（不进闸）。

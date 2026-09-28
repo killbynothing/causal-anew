@@ -37,6 +37,23 @@ def test_legal_moves_include_pressure_when_cap_or_clock():
     assert "close_window" in moves
 
 
+def test_cafe_pacing_signal_holds_joke_and_opens_serious_floor():
+    joke = director_harness.classify_cafe_pacing_signal(
+        {"speech": "医生下班直接来，你最好有事情", "action": ""},
+        flash_beats=5,
+        completed=["RP1"],
+    )
+    assert joke["mode"] == "hold"
+    assert "轻口吻" in joke["instruction"]
+
+    serious = director_harness.classify_cafe_pacing_signal(
+        "行，说吧，到底什么事？",
+        flash_beats=5,
+        completed=["RP1"],
+    )
+    assert serious["mode"] == "open"
+
+
 def test_legal_moves_are_closed_subset_with_quiet():
     moves = director_harness.legal_moves(director_harness.snapshot_harness_inputs())
     assert moves == ["quiet"]

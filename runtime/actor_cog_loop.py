@@ -14,10 +14,12 @@ def ryuya_prologue_concerns(
     *,
     flash_beats: int,
     completed: list[str] | set[str] | None = None,
+    pacing_signal: dict[str, Any] | None = None,
 ) -> list[dict[str, str]]:
     """Ordered open concerns for the cafe flashback (top = current intent)."""
     done = {str(x) for x in (completed or [])}
     beats = max(0, int(flash_beats or 0))
+    pacing_mode = str((pacing_signal or {}).get("mode") or "neutral").strip() or "neutral"
     if "RP4" in done:
         return [
             {
@@ -39,6 +41,22 @@ def ryuya_prologue_concerns(
                 "band": "close",
             },
         ]
+    # Director owns timing: a joking/deflecting player line may not be promoted
+    # into a serious entrust merely because the beat counter is high.
+    if pacing_mode == "hold" and "RP2" not in done:
+        return [
+            {
+                "id": "hold_banter",
+                "text": "先接住对方这一拍的轻口吻或回避；别把玩笑当认真邀请，正事最多挪近一小步",
+                "band": "deepen" if beats >= 2 else "idle",
+            },
+            {
+                "id": "deepen",
+                "text": "等对方真的给出认真说事的空间，再把话题往临走前那件事挪",
+                "band": "deepen",
+            },
+        ]
+
     # Care portraits already spoken but ban/MH lag → only push 禁名 or 交坠, never re-list.
     # (Caller may pass stated via attach; here we only have completed.)
     if "RP2" in done or beats >= 4:
@@ -256,6 +274,7 @@ def attach_cog_loop_to_packet(
     prior_reflect: dict[str, Any] | None = None,
     stated_facts: list[str] | None = None,
     player_speech: str = "",
+    pacing_signal: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Stamp cog_loop.decide onto an actor packet (prologue-aware)."""
     cons = str(packet.get("actor_cons") or "")
@@ -268,7 +287,11 @@ def attach_cog_loop_to_packet(
 
     concerns: list[dict[str, str]] = []
     if "ryuya" in cons and ("prologue" in str(scene_id).lower() or "OPENING_RYUYA" in str(scene_id)):
-        concerns = ryuya_prologue_concerns(flash_beats=flash_beats, completed=completed)
+        concerns = ryuya_prologue_concerns(
+            flash_beats=flash_beats,
+            completed=completed,
+            pacing_signal=pacing_signal,
+        )
         # Soft cue: marriage joke → insert a touch concern above idle chatter.
         if any(k in str(player_speech or "") for k in ("定情", "信物", "结婚", "老婆", "妻子")):
             concerns = [
@@ -309,19 +332,34 @@ def attach_cog_loop_to_packet(
         "decide": decide,
         "reflect": packet.get("cog_loop", {}).get("reflect") if isinstance(packet.get("cog_loop"), dict) else None,
     }
+    if pacing_signal:
+        packet["cog_loop"]["pacing_signal"] = dict(pacing_signal)
+        contract = dict(contract)
+        contract["pacing_signal"] = dict(pacing_signal)
+        packet["conversation_contract"] = contract
     if stated_facts:
         packet["cog_loop"]["stated_public_facts"] = list(stated_facts)
         contract = dict(contract)
         contract["stated_public_facts"] = list(stated_facts)
         packet["conversation_contract"] = contract
-    # Soft cafe anchors (not a hard invent gate): feed Decide/instruction.
+    # Soft cafe anchors: rotate a tiny subset so the same four motifs are not
+    # re-injected every beat. These are reference anchors, never lines to copy.
     if "ryuya" in cons and ("prologue" in str(scene_id).lower() or "OPENING_RYUYA" in str(scene_id)):
-        packet["cog_loop"]["shared_past_anchors"] = [
+        anchor_catalog = [
             "雨夜咖啡馆",
             "靠窗旧桌",
             "初遇泼袖赔一杯",
             "两年偶遇熟人",
         ]
+        anchor_sets = (
+            ("雨夜咖啡馆", "初遇泼袖赔一杯"),
+            ("靠窗旧桌", "两年偶遇熟人"),
+            ("初遇泼袖赔一杯", "两年偶遇熟人"),
+        )
+        packet["cog_loop"]["shared_past_anchor_catalog"] = anchor_catalog
+        packet["cog_loop"]["shared_past_anchors"] = list(
+            anchor_sets[max(0, int(flash_beats or 0)) % len(anchor_sets)]
+        )
     if isinstance(inner, dict):
         inner = dict(inner)
         inner["pending_concerns"] = list(decide.get("pending_concerns") or [])

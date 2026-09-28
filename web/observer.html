@@ -1285,7 +1285,7 @@ details[open] summary.group-title::before {
         <div class="debug-card"><h3>truth_turns</h3><div class="json-view" id="debugTruthTurns"></div></div>
         <div class="debug-card"><h3>scene_frame</h3><div class="human-view" id="debugSceneFrameRead"></div><div class="json-view" id="debugSceneFrame"></div></div>
         <div class="debug-card"><h3>ambient_stage</h3><div class="human-view" id="debugAmbientRead"></div><div id="debugAmbient" class="json-view"></div></div>
-        <div class="debug-card"><h3>inner_states</h3><div class="human-view" id="debugInnerStatesRead"></div><div class="json-view" id="debugInnerStates"></div></div>
+        <div class="debug-card"><h3>actor_state（ActorMind 权威 + working context）</h3><div class="human-view" id="debugInnerStatesRead"></div><div class="json-view" id="debugInnerStates"></div></div>
         <div class="debug-card"><h3>boundaries</h3><div class="human-view" id="debugBoundariesRead"></div><div class="json-view" id="debugBoundaries"></div></div>
         <div class="debug-card"><h3>per_npc_memory</h3><div class="human-view" id="debugPerNpcMemoryRead"></div><div class="json-view" id="debugPerNpcMemory"></div></div>
         <div class="debug-card"><h3>knowledge gate</h3><div class="human-view" id="debugKnowledgeRead"></div><div class="json-view" id="debugKnowledge"></div></div>
@@ -2733,10 +2733,18 @@ function renderDebugDetails(payload) {
   };
   const activeCons = activeNpc.startsWith("C.") ? activeNpc : (npcKeyMap[activeNpc] || activeNpc);
 
-  const innerStateVal = payload?.inner_states?.[activeCons] || null;
-  document.getElementById("debugInnerStates").textContent = JSON.stringify(innerStateVal, null, 2);
+  const actorStateVal = payload?.actor_state?.[activeCons] || null;
+  const innerStateVal = actorStateVal?.working_context || payload?.inner_states?.[activeCons] || null;
+  document.getElementById("debugInnerStates").textContent = JSON.stringify(
+    actorStateVal || innerStateVal,
+    null,
+    2
+  );
   const innerRead = document.getElementById("debugInnerStatesRead");
-  if (innerRead) innerRead.textContent = decodeInnerState(innerStateVal);
+  if (innerRead) {
+    const authority = actorStateVal?.authority ? `权威：${actorStateVal.authority}；working_context 仅解释本拍。\n` : "";
+    innerRead.textContent = authority + decodeInnerState(innerStateVal);
+  }
 
   const boundaryVal = payload?.boundaries?.[activeCons] || null;
   document.getElementById("debugBoundaries").textContent = JSON.stringify(boundaryVal, null, 2);

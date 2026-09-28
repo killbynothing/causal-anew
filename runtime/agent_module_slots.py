@@ -132,6 +132,15 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
         f"ch={cursor.get('ch_anchor', '—')}",
         f"MH={','.join(str(x) for x in completed) or 'none'}",
     ]
+    actor_states = data.get("actor_state") if isinstance(data.get("actor_state"), dict) else {}
+    actor_state = actor_states.get(cons) if isinstance(actor_states.get(cons), dict) else {}
+    persistent = actor_state.get("persistent") if isinstance(actor_state.get("persistent"), dict) else {}
+    if actor_state.get("authority"):
+        state_bits.insert(0, f"mind={actor_state.get('authority')}")
+        state_bits.append(f"receipts={persistent.get('receipt_count', 0)}")
+    pacing = cog.get("pacing_signal") if isinstance(cog.get("pacing_signal"), dict) else {}
+    if pacing.get("mode"):
+        state_bits.append(f"pace={pacing.get('mode')}")
     sediment = data.get("physical_state") if isinstance(data.get("physical_state"), dict) else {}
     if sediment.get("sediment_S") is not None:
         state_bits.append(f"S={sediment.get('sediment_S')}")
@@ -170,7 +179,7 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
         "State Tracking": _slot(
             True,
             _clip(" · ".join(state_bits)),
-            "world_cursor / must_happen_progress",
+            "actor_state / world_cursor / must_happen_progress",
         ),
     }
     for key, row in slots.items():

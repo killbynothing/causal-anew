@@ -108,6 +108,45 @@ def observer_safe_summary(mind: Mapping[str, Any] | None) -> dict[str, Any]:
     }
 
 
+def observer_state_projection(
+    mind: Mapping[str, Any] | None,
+    *,
+    working_context: Mapping[str, Any] | None = None,
+    decide: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Single observatory shape: ActorMind is authority, turn context is a projection.
+
+    The legacy/private working context remains useful for explaining the current
+    beat, but it is explicitly subordinate and must never look like a second
+    persistent mind.
+    """
+    working = dict(working_context or {})
+    decision = dict(decide or {})
+    keep_working = {
+        key: copy.deepcopy(working[key])
+        for key in (
+            "attention_target", "observation_status", "observation",
+            "response_intent", "inhibition", "visible_decision",
+            "top_concern", "pending_concerns", "updated_at_turn",
+        )
+        if key in working
+    }
+    keep_decide = {
+        key: copy.deepcopy(decision[key])
+        for key in (
+            "top_concern_id", "top_concern", "band",
+            "participation_mode", "intention",
+        )
+        if key in decision
+    }
+    return {
+        "authority": "actor_mind",
+        "persistent": observer_safe_summary(mind),
+        "working_context": keep_working,
+        "decide": keep_decide,
+    }
+
+
 def _valid_receipt(receipt: Mapping[str, Any] | None) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
     if not isinstance(receipt, Mapping):
         return None

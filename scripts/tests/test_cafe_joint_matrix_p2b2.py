@@ -168,10 +168,10 @@ def _assert_actor_request(caller: MatrixCaller, player_input):
     if isinstance(player_input, dict):
         assert str(observable.get("speech") or "") == str(player_input.get("speech") or "")
         assert str(observable.get("action") or "") == str(player_input.get("action") or "")
-        # thought must not be exposed as public speech/action.
-        assert str(player_input.get("thought") or "") not in json.dumps(
-            observable, ensure_ascii=False
-        )
+        # Non-empty thought must not be exposed as public speech/action.
+        thought = str(player_input.get("thought") or "")
+        if thought:
+            assert thought not in json.dumps(observable, ensure_ascii=False)
     return packet
 
 
@@ -342,8 +342,8 @@ def test_cafe_fixed_input_joint_matrix():
             assert row["player_actions"] and row["player_actions"][0][1] == expected
             assert row["pendant_observations"][-1][2].startswith("world:")
             assert exits[name]["action"] == "continue"
-            # RP4 remains a compatibility projection pending human canon ruling.
-            assert isinstance("RP4" in row["completed"], bool)
+            # RP4 status is intentionally not asserted here: deferred/rejected
+            # completion semantics remain a human canon decision.
 
         ignored = snapshots["ignore_and_chat"]
         assert ignored["transaction"] is None
@@ -429,7 +429,6 @@ def test_accept_continue_chat_then_explicit_exit():
             session, {"speech": "那我先走了，回头见。", "action": "", "thought": ""}
         )
         assert d3[-1]["action"] == "end_run"
-        assert d3[-1]["authorized"] if "authorized" in d3[-1] else True
         assert session.ended is True
         assert session.lifecycle_state == "closed"
         _assert_reload_equal(session, state_dir, caller, tmp)

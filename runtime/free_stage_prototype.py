@@ -78,6 +78,7 @@ from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
 from runtime import world_commit
+from runtime import world_projection
 from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
@@ -986,17 +987,10 @@ def settle_body_frames_from_npc_turns(
         frame["last_visible_stage"] = stage
         if action_type:
             frame["last_action_type"] = action_type
-        # Pendant handoff: clear Ryuya holding when stage shows delivery.
-        if holding_now == "I.PENDANT_ANCHOR" and "挂坠" in stage and any(
-            k in stage for k in ("放进", "交到", "递", "塞进", "交出去")
-        ):
-            apply_body_frame_holding(
-                frames,
-                body_id=body_id,
-                holding=None,
-                note="挂坠已交到对方手里",
-                last_action_type="object_handle",
-            )
+        # P2b-1: pendant stage may show an offer/gesture, but it never owns
+        # custody. Only a committed WorldCommit disposition may clear holding.
+        if holding_now == "I.PENDANT_ANCHOR" and "挂坠" in stage:
+            pass
         elif holding_now == "I.CAMERA_DSLR" and ("单反" in stage or "相机" in stage) and any(
             k in stage for k in ("放下", "垂下", "挎回")
         ):
@@ -7905,7 +7899,7 @@ class FreeStageSession:
         return dict(record) if isinstance(record, dict) else None
 
     def _finalize_prologue_pendant(self, disposition: str, *, turn_no: int) -> bool:
-        """Make the Ryuya pendant outcome authoritative in either reply order."""
+        """Commit disposition first; derive compatibility projections from its receipt."""
         disposition = str(disposition).strip()
         if disposition not in {"accepted", "declined", "deferred"}:
             raise ValueError(f"invalid pendant disposition: {disposition}")
@@ -7920,31 +7914,25 @@ class FreeStageSession:
                 else "pendant_retained_by_ryuya"
             ),
         )
+        transaction = self._world_transaction("ryuya_pendant_disposition")
+        if not isinstance(transaction, dict):
+            raise RuntimeError("pendant disposition commit did not produce a world transaction")
+        projected = world_projection.project_world_transaction(
+            transaction,
+            player_state=self.player_state,
+            body_frames=self.body_frames,
+            observation_ledger=self.run_observation_ledger,
+            session_id=self.session_id,
+        )
+        self.player_state = projected.player_state
+        self.body_frames = projected.body_frames
+        self.run_observation_ledger = projected.observation_ledger
+        ensure_card_body_frames(self.card, self.body_frames)
         self._record_scene_receipt(
             "ryuya_pendant_disposition",
             owner="player",
             turn_no=turn_no,
             source_kind="world_transaction",
-        )
-        if disposition == "accepted":
-            props = [str(item) for item in self.player_state.get("body_props", []) if str(item).strip()]
-            if "古铜色金属挂坠项链" not in props:
-                props.append("古铜色金属挂坠项链")
-            self.player_state["body_props"] = props
-            apply_body_frame_holding(
-                self.body_frames,
-                body_id="B.ryuya.WMAIN",
-                holding=None,
-                note="挂坠已交到对方手里",
-                last_action_type="object_handle",
-            )
-            ensure_card_body_frames(self.card, self.body_frames)
-        self.run_observation_ledger = _ledger_append(
-            self.run_observation_ledger,
-            turn=turn_no,
-            scene_id=str(self.card.get("scene_id", "")),
-            fact_text=f"挂坠{disposition}",
-            kind="pendant",
         )
         return committed_now
 

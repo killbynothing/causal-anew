@@ -600,6 +600,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_run_lifecycle_p1b.py",
     },
     {
+        "id": "cafe_world_projection_p2b",
+        "desc": "P2b-1 咖啡馆挂坠 WorldCommit→player/body/observation 同源投影，stage 不拥有 custody",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_cafe_world_projection_p2b.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/world_projection.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/run_observation_ledger.py",
+            "scripts/tests/test_cafe_world_projection_p2b.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_cafe_world_projection_p2b.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

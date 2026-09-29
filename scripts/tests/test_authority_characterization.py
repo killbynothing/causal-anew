@@ -61,12 +61,16 @@ def test_p1b_lifecycle_projection_has_one_production_writer():
     assert report["facts"]["lifecycle_state"]["production_writer_count"] == 1
 
 
-def test_known_bug_settlement_uses_mutating_sql_until_p1b():
+def test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains():
     report = load_report()
     sediment = production(report, "sql:delta_sediment")
     run_meta = production(report, "sql:run_meta")
 
-    assert any(row["write_kind"] == "delete_from" for row in sediment)
+    assert sediment
+    assert not any(row["write_kind"] == "delete_from" for row in sediment)
+    assert any(row["write_kind"].startswith("insert") for row in sediment)
+    # P1b deliberately leaves run_meta.closed_at/final_delta_summary as the
+    # current lifecycle projection debt; no schema exception is invented here.
     assert any(row["write_kind"] == "update" for row in run_meta)
 
 
@@ -80,6 +84,6 @@ if __name__ == "__main__":
     test_known_bug_multiple_beat_writers_is_visible_until_p2()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
-    test_known_bug_settlement_uses_mutating_sql_until_p1b()
+    test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()
     test_unknown_aliases_are_reported_not_hidden()
     print("PASS test_authority_characterization")

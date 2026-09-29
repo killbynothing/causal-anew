@@ -10,9 +10,6 @@ import sqlite3
 from pathlib import Path
 from typing import Any
 
-from runtime.run_registry import get_run
-
-
 def _desc_text(raw: str | None, node_id: str) -> str:
     text = str(raw or "").strip()
     if not text:
@@ -96,17 +93,31 @@ def close_run(
     run = int(run)
     if run < 1:
         raise ValueError("run=0 is read-only; cannot close canon")
-    existing = get_run(db_path, run)
-    if existing is None:
-        raise ValueError(f"run_meta missing for run={run}")
-
     from scripts.settle_run import settle
 
-    con = sqlite3.connect(str(db_path))
+    con = sqlite3.connect(str(db_path), timeout=30.0)
+    con.row_factory = sqlite3.Row
     try:
-        if existing.get("closed_at"):
-            return build_receipt(con, run, opening_id=opening_id)
-        summary = settle(con, run, apply=True)
-        return build_receipt(con, run, opening_id=opening_id, settle_summary=summary)
+        # One write transaction owns "is it already closed?" + settlement +
+        # receipt. Concurrent closers serialize here instead of both settling.
+        con.execute("BEGIN IMMEDIATE")
+        existing = con.execute(
+            "SELECT * FROM run_meta WHERE run=?",
+            (run,),
+        ).fetchone()
+        if existing is None:
+            raise ValueError(f"run_meta missing for run={run}")
+        if existing["closed_at"]:
+            receipt = build_receipt(con, run, opening_id=opening_id)
+            con.commit()
+            return receipt
+
+        summary = settle(con, run, apply=True, commit=False)
+        receipt = build_receipt(con, run, opening_id=opening_id, settle_summary=summary)
+        con.commit()
+        return receipt
+    except Exception:
+        con.rollback()
+        raise
     finally:
         con.close()

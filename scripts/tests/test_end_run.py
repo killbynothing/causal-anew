@@ -6,6 +6,7 @@ import json
 import sqlite3
 import sys
 import tempfile
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -116,6 +117,90 @@ def test_close_run_is_idempotent(tmp_path):
         con.close()
     assert n_meta == 1
     assert n_sed == a["n_sediment"] == b["n_sediment"]
+
+
+def test_close_run_concurrent_calls_share_one_settlement(tmp_path):
+    db = _temp_db(tmp_path)
+    append_delta_rows(db, [_exit_event()])
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        receipts = list(pool.map(lambda _: close_run(db, 1), range(2)))
+
+    assert receipts[0]["closed_at"] == receipts[1]["closed_at"]
+    assert receipts[0]["n_sediment"] == receipts[1]["n_sediment"]
+    con = sqlite3.connect(str(db))
+    try:
+        rows = con.execute(
+            "SELECT src_delta, node_id, kind, revoked FROM delta_sediment WHERE src_run=1"
+        ).fetchall()
+    finally:
+        con.close()
+    assert len(rows) == receipts[0]["n_sediment"]
+    assert len(rows) == len(set(rows))
+
+
+def test_close_run_preserves_revoked_history_instead_of_delete_rewrite(tmp_path):
+    db = _temp_db(tmp_path)
+    con = sqlite3.connect(str(db))
+    con.execute(
+        """
+        INSERT INTO delta_sediment
+          (node_id, kind, payload, cons_id, weight, src_run, src_delta, revoked, created_at)
+        VALUES
+          ('LEGACY', 'scar', '{}', NULL, 0.1, 1, 'legacy-revoked', 1, '2026-09-01T00:00:00Z')
+        """
+    )
+    con.commit()
+    con.close()
+    append_delta_rows(db, [_exit_event()])
+
+    close_run(db, 1)
+
+    con = sqlite3.connect(str(db))
+    try:
+        row = con.execute(
+            "SELECT node_id, revoked FROM delta_sediment "
+            "WHERE src_run=1 AND src_delta='legacy-revoked'"
+        ).fetchone()
+    finally:
+        con.close()
+    assert row == ("LEGACY", 1)
+
+
+def test_close_run_conflicting_same_source_sediment_rolls_back(tmp_path):
+    db = _temp_db(tmp_path)
+    append_delta_rows(db, [_exit_event()])
+    con = sqlite3.connect(str(db))
+    delta_id = str(
+        con.execute("SELECT delta_id FROM delta_ledger WHERE run=1 ORDER BY delta_id LIMIT 1").fetchone()[0]
+    )
+    con.execute(
+        """
+        INSERT INTO delta_sediment
+          (node_id, kind, payload, cons_id, weight, src_run, src_delta, revoked, created_at)
+        VALUES
+          ('RYUYA_CAFE_PROLOGUE', 'scar', '{"bad":true}', NULL, 9.9, 1, ?, 0, '2026-09-01T00:00:00Z')
+        """,
+        (delta_id,),
+    )
+    con.commit()
+    con.close()
+
+    try:
+        close_run(db, 1)
+    except RuntimeError as exc:
+        assert "settle conflict" in str(exc)
+    else:
+        raise AssertionError("conflicting same-source sediment must hard fail")
+
+    con = sqlite3.connect(str(db))
+    try:
+        closed_at = con.execute("SELECT closed_at FROM run_meta WHERE run=1").fetchone()[0]
+        n_rows = con.execute("SELECT COUNT(*) FROM delta_sediment WHERE src_run=1").fetchone()[0]
+    finally:
+        con.close()
+    assert closed_at is None
+    assert n_rows == 1
 
 
 def test_close_run_still_blocks_fixed_bottom(tmp_path):

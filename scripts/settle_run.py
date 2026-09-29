@@ -76,13 +76,45 @@ def soft_field(weights: list[float], s_max: float = S_MAX_DEFAULT) -> float:
     return _sf(weights, s_max=s_max)
 
 
-def settle(con: sqlite3.Connection, run: int, *, apply: bool) -> dict:
+def settle(
+    con: sqlite3.Connection,
+    run: int,
+    *,
+    apply: bool,
+    commit: bool = True,
+) -> dict:
     cur = con.cursor()
     cur.row_factory = sqlite3.Row
 
     meta = cur.execute("SELECT * FROM run_meta WHERE run=?", (run,)).fetchone()
     if meta is None:
         raise SystemExit(f"[FAIL] run_meta missing for run={run}")
+    if apply and meta["closed_at"]:
+        raw = meta["final_delta_summary"]
+        try:
+            stored = json.loads(raw) if raw else {}
+        except (TypeError, json.JSONDecodeError):
+            stored = {}
+        if not isinstance(stored, dict):
+            stored = {}
+        stored.setdefault(
+            "n_delta",
+            cur.execute("SELECT COUNT(*) FROM delta_ledger WHERE run=?", (run,)).fetchone()[0],
+        )
+        stored.setdefault(
+            "n_sediment",
+            cur.execute(
+                "SELECT COUNT(*) FROM delta_sediment WHERE src_run=? AND revoked=0",
+                (run,),
+            ).fetchone()[0],
+        )
+        stored.setdefault("n_rejected_fixed", 0)
+        stored.setdefault("rejected", [])
+        stored.setdefault("sediment", [])
+        stored["run"] = run
+        stored["applied"] = False
+        stored["already_closed"] = True
+        return stored
 
     fixed = load_fixed_bottom_nodes(cur)
     # named paths from receipts — table may not exist yet
@@ -163,9 +195,60 @@ def settle(con: sqlite3.Connection, run: int, *, apply: bool) -> dict:
     }
 
     if apply:
-        # idempotent re-settle: drop prior rows from this src_run then rewrite
-        cur.execute("DELETE FROM delta_sediment WHERE src_run=?", (run,))
+        inserted = 0
+        existing = 0
         for row in proposed:
+            prior = cur.execute(
+                """
+                SELECT node_id, kind, payload, cons_id, weight, src_run, src_delta, revoked
+                FROM delta_sediment
+                WHERE src_run=? AND src_delta=? AND node_id=? AND kind=?
+                ORDER BY sid
+                """,
+                (row["src_run"], row["src_delta"], row["node_id"], row["kind"]),
+            ).fetchall()
+            if prior:
+                if any(int(item["revoked"] or 0) == 1 for item in prior):
+                    raise RuntimeError(
+                        "settle conflict: revoked sediment cannot be reactivated "
+                        f"for run={run} src_delta={row['src_delta']}"
+                    )
+                expected = (
+                    row["node_id"],
+                    row["kind"],
+                    row["payload"],
+                    row["cons_id"],
+                    float(row["weight"]),
+                    int(row["src_run"]),
+                    row["src_delta"],
+                    int(row["revoked"]),
+                )
+                if any(
+                    (
+                        str(item["node_id"]),
+                        str(item["kind"]),
+                        str(item["payload"]),
+                        item["cons_id"],
+                        float(item["weight"]),
+                        int(item["src_run"]),
+                        str(item["src_delta"]),
+                        int(item["revoked"] or 0),
+                    )
+                    != expected
+                    for item in prior
+                ):
+                    raise RuntimeError(
+                        "settle conflict: same source key has different payload "
+                        f"for run={run} src_delta={row['src_delta']}"
+                    )
+                if len(prior) != 1:
+                    raise RuntimeError(
+                        "settle conflict: duplicate active sediment rows "
+                        f"for run={run} src_delta={row['src_delta']}"
+                    )
+                existing += 1
+                continue
+
             cur.execute(
                 """
                 INSERT INTO delta_sediment
@@ -175,11 +258,16 @@ def settle(con: sqlite3.Connection, run: int, *, apply: bool) -> dict:
                 """,
                 row,
             )
+            inserted += 1
+
+        summary["inserted_sediment"] = inserted
+        summary["existing_sediment"] = existing
         cur.execute(
             "UPDATE run_meta SET closed_at=?, final_delta_summary=? WHERE run=?",
             (now, json.dumps(summary, ensure_ascii=False), run),
         )
-        con.commit()
+        if commit:
+            con.commit()
         summary["applied"] = True
     else:
         summary["applied"] = False

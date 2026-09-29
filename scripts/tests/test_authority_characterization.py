@@ -49,6 +49,15 @@ def test_p2c2_scene_and_frame_beat_writers_are_single():
     assert report["facts"]["completed_beats"]["unknown_alias_count"] == 0
 
 
+def test_p2c3_scene_fact_writers_are_single():
+    report = load_report()
+    for fact in ("branch_progress", "scene_receipts"):
+        rows = production(report, fact)
+        assert {row["symbol"] for row in rows} == {"FreeStageSession._reduce_scene_facts"}
+        assert report["facts"][fact]["production_writer_count"] == 1
+        assert report["facts"][fact]["unknown_alias_count"] == 0
+
+
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
     report = load_report()
     rows = production(report, "private_inner_states")
@@ -87,6 +96,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 if __name__ == "__main__":
     test_p2c2_scene_and_frame_beat_writers_are_single()
+    test_p2c3_scene_fact_writers_are_single()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

@@ -15,6 +15,7 @@ if str(ROOT) not in sys.path:
 from runtime.causal_protocol import ReceiptConflict, RuntimeScope
 from runtime.player_action import build_player_action, commit_player_action
 from runtime.world_commit import (
+    P2A_WORLD_MIGRATED_FACTS,
     P2A_WORLD_MIGRATION_DEBT,
     commit_world_batch,
     commit_world_fact,
@@ -360,15 +361,26 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     report = module.build_report(False)
+
+    debt = set(P2A_WORLD_MIGRATION_DEBT)
+    migrated = set(P2A_WORLD_MIGRATED_FACTS)
+    assert debt.isdisjoint(migrated)
+    assert {"body_frames", "player_state", "world_cursor"} <= debt
+    assert {"branch_progress", "scene_receipts"} <= migrated
+
     current = {
         fact
         for fact, meta in report["facts"].items()
         if meta.get("target_owner") == "WorldCommit"
         and int(meta.get("production_writer_count") or 0) > 0
     }
-    debt = set(P2A_WORLD_MIGRATION_DEBT)
-    assert current <= debt, f"unlisted P2a world authority debt: {sorted(current - debt)}"
-    assert {"branch_progress", "body_frames", "player_state"} <= debt
+    assert current <= debt | migrated, (
+        f"unlisted P2 world authority family: {sorted(current - debt - migrated)}"
+    )
+    for fact in migrated:
+        meta = report["facts"][fact]
+        assert meta["production_writer_count"] == 1
+        assert meta["unknown_alias_count"] == 0
 
 
 if __name__ == "__main__":

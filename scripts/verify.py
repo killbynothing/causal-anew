@@ -665,6 +665,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_frame_beat_authority_p2c2.py",
     },
     {
+        "id": "scene_fact_authority_p2c3",
+        "desc": "P2c-3 branch_progress × scene_receipts 单一写权：append-only receipt、active index retract/replace、无 alias",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_scene_fact_authority_p2c3.py"],
+        "triggers": [
+            "runtime/scene_fact_state.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/world_commit.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_scene_fact_authority_p2c3.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_scene_fact_authority_p2c3.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

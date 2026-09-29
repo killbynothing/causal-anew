@@ -378,14 +378,18 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     assert current <= debt | migrated, (
         f"unlisted P2 world authority family: {sorted(current - debt - migrated)}"
     )
+    projection_owned = {"branch_progress", "scene_receipts"}
+    ledger_owned = {"world_transactions", "causal_receipts"}
+    assert projection_owned | ledger_owned <= migrated
     for fact in migrated:
         meta = report["facts"][fact]
         details = [
             (row["symbol"], row["line"], row["write_kind"], row["classification"])
             for row in meta["writers"]
         ]
-        assert meta["production_writer_count"] == 1, details
-        assert meta["unknown_alias_count"] == 0, details
+        expected_writers = 1 if fact in projection_owned else 0
+        assert meta["production_writer_count"] == expected_writers, (fact, details)
+        assert meta["unknown_alias_count"] == 0, (fact, details)
 
 
 if __name__ == "__main__":

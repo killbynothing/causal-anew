@@ -43,7 +43,7 @@ def _transaction(outcome: str):
         public_effect=(
             "pendant_transferred_to_player"
             if outcome == "accepted"
-            else "pendant_retained_by_ryuya"
+            else "pendant_not_in_player_custody"
         ),
         source_refs=["player:response:3"],
     )
@@ -100,6 +100,7 @@ def test_declined_and_deferred_do_not_claim_custody():
         assert PENDANT_PROP not in out.player_state.get("body_props", [])
         assert out.body_frames[RYUYA_BODY_ID]["holding"] == "I.PENDANT_ANCHOR"
         assert out.observation_ledger[0]["fact_text"] == f"挂坠{disposition}"
+        assert _transaction(disposition)["public_effect"] == "pendant_not_in_player_custody"
 
 
 def test_projection_retry_is_idempotent():

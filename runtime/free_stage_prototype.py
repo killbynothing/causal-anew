@@ -7950,7 +7950,7 @@ class FreeStageSession:
             turn_no=turn_no,
             public_effect=(
                 "pendant_transferred_to_player" if disposition == "accepted"
-                else "pendant_retained_by_ryuya"
+                else "pendant_not_in_player_custody"
             ),
             source_refs=source_refs,
             request_id=request_id,

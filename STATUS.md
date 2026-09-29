@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-1 完成：场景 Beat 单一生产写权）
+
+- **BeatReducer 主干**：新增 `runtime/beat_state.py` 纯 reducer；`FreeStageSession._reduce_beat_state()` 成为 `completed / completed_by_card` 唯一生产 writer。旧字段暂保留为存档/兼容投影，不再允许 step/skip/canon/闪回/转场各自直接 append/extend/赋值。
+- **生产迁移**：正常证据进度、RP1、挂坠 RP4 兼容投影、C16 ZG3/ZG4、canon segment、WH1 起场、brief skip、闪回进入/返回、普通换场与各类 scene snapshot 全部改经 BeatReducer。brief skip 用 `replace_complete` 保持旧“精确等于全部 must_happen”语义；flashback restore 不伪造新完成证据。
+- **收据**：新增持久 `beat_receipts`。只有真正新增 beat 的 `complete/replace_complete` 产 `free_stage.beat_transition.v1` receipt，记录 scene/turn/source/evidence_refs/completed_after；snapshot/enter/restore/reset 不冒充新事件。挂坠 RP4 兼容写引用已提交 WorldCommit receipt。
+- **静态收口**：`free_stage_prototype.py` 中 `self.completed.append/extend` 已归零，`self.completed_by_card[...]` 已归零；直接 `self.completed =` 只剩 legacy `_load` 与唯一生产 facade。P0 characterization 从“多 writer 已知债”升级为“scene Beat 单 writer”，同时明确保留 `completed_beats` 的 reset writer + alias mark_done 债，留 P2c-2。
+- **兼容**：load 仍按旧字段读历史存档并读取可选 `beat_receipts`；旧无 receipt 存档不补造历史玩家/Beat 证据。save→load 覆盖 receipt 与 projection。
+- **验**：新增 quick `beat_authority_p2c1`；Actions `36552043052` **success**，quick **50 PASS / 0 FAIL / 163 SKIP（213 validators）**，Authority Map/characterization/P2b 联合矩阵均通过，DB checksum 前后不变。
+- **报账**：未改 `completed_beats` 跨视角语义、branch/scene receipts/world cursor、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：P2c-2 收 `completed_beats`：保留 frame_id+beat_id 的既有幂等/跨视角语义，但禁止 `frame_beat_ledger.mark_done(self.completed_beats,...)` 直接拿 session 可变引用；统一经 BeatReducer 子入口提交，再更新 Authority Map。
+
 ### 2026-09-29（P2b-2 完成：咖啡馆联合矩阵 × Reflect 事实降权）
 
 - **联合矩阵**：新增 quick `cafe_joint_matrix_p2b2`，固定覆盖纯玩笑、高拍数、认真话题、stage-only 托付、words-only/action-only/完整 offer、模糊回应、收/拒/暂放、不理继续聊，并另走 accepted→继续聊天→明确离场连续链。测试调用真实 `FreeStageSession.step()` 与 isolated actor caller，只比结构，不把自然语言做黄金文本。

@@ -616,6 +616,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_world_projection_p2b.py",
     },
     {
+        "id": "cafe_joint_matrix_p2b2",
+        "desc": "P2b-2 咖啡馆固定输入联合矩阵：真实caller payload×Beat×World×Body×Exit×save/load",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_cafe_joint_matrix_p2b2.py"],
+        "triggers": [
+            "runtime/free_stage_prototype.py",
+            "runtime/player_action.py",
+            "runtime/world_commit.py",
+            "runtime/world_projection.py",
+            "runtime/exit_policy.py",
+            "scripts/tests/test_cafe_joint_matrix_p2b2.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_cafe_joint_matrix_p2b2.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

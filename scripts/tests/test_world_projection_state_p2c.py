@@ -145,7 +145,8 @@ def test_authority_map_zeroes_projection_direct_writers_and_aliases():
     debt = set(P2A_WORLD_MIGRATION_DEBT)
     assert "run_observation_ledger" not in debt
     assert "body_frames" not in debt
-    assert {"branch_progress", "player_state", "world_cursor"} <= debt
+    assert {"branch_progress", "player_state"} <= debt
+    assert "world_cursor" not in debt
 
 
 if __name__ == "__main__":

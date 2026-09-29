@@ -11794,9 +11794,10 @@ class FreeStageSession:
         )
         target_card = apply_consolidated_memory(target_card, self.consolidated_memory_by_card)
         degradations = list(self.consolidated_memory_by_card[source_scene_id].get("degradations", []))
-        cursor_before = dict(self.world_cursor)
+        cursor_before = self.world_cursor
         degradations.extend(self._advance_world_cursor_for_card(target_card))
-        degradations.extend(self._tick_offscreen_lines(cursor_before, self.world_cursor))
+        cursor_after = self.world_cursor
+        degradations.extend(self._tick_offscreen_lines(cursor_before, cursor_after))
         
         # Append bridge narrative to history
         narrative = generate_brief_skip_narrative(self, self.config, caller=caller or self.caller)
@@ -12294,9 +12295,10 @@ class FreeStageSession:
             )
 
         target_card = apply_offscreen_lives(self.card, target_card, self.branch_progress, self.config)
-        cursor_before = dict(self.world_cursor)
+        cursor_before = self.world_cursor
         cursor_degradations = self._advance_world_cursor_for_card(target_card)
-        offscreen_degradations = self._tick_offscreen_lines(cursor_before, self.world_cursor)
+        cursor_after = self.world_cursor
+        offscreen_degradations = self._tick_offscreen_lines(cursor_before, cursor_after)
         active_state = self.get_active_exit_state()
         bridge_package = build_bridge_package(
             player_input,

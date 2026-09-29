@@ -149,7 +149,8 @@ def test_authority_map_has_zero_production_direct_writers_for_migrated_ledgers()
     assert "scene_receipts" not in debt
     assert "world_transactions" not in debt
     assert "causal_receipts" not in debt
-    assert {"branch_progress", "player_state", "world_cursor"} <= debt
+    assert {"branch_progress", "player_state"} <= debt
+    assert "world_cursor" not in debt
     assert "run_observation_ledger" not in debt
     assert "body_frames" not in debt
 

@@ -713,6 +713,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_projection_owner_p2c5.py",
     },
     {
+        "id": "player_state_owner_p2c6",
+        "desc": "P2c-6 player_state 单一 owner：copy-only、时间/收敛/转场/WorldCommit/branch 投影、零直写/alias",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_player_state_owner_p2c6.py"],
+        "triggers": [
+            "runtime/player_state.py",
+            "runtime/world_commit.py",
+            "runtime/world_projection.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_player_state_owner_p2c6.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_player_state_owner_p2c6.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

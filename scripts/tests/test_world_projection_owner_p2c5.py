@@ -131,8 +131,10 @@ def test_world_projection_updates_owner_while_player_state_stays_debt():
         assert "古铜色金属挂坠项链" in session.player_state.get("body_props", [])
         assert session.body_frames["B.ryuya.WMAIN"]["holding"] is None
         assert session.run_observation_ledger[-1]["world_receipt_id"] == tx["receipt"]["receipt_id"]
-        assert set(P2A_WORLD_MIGRATION_DEBT) == {"player_state", "world_cursor"}
-        assert {"body_frames", "run_observation_ledger"} <= set(P2A_WORLD_MIGRATED_FACTS)
+        assert set(P2A_WORLD_MIGRATION_DEBT) == {"world_cursor"}
+        assert {
+            "body_frames", "run_observation_ledger", "player_state"
+        } <= set(P2A_WORLD_MIGRATED_FACTS)
 
 
 def test_authority_map_zeroes_body_and_observation_writers_and_aliases():

@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P1b 完成：生命周期耐久 × outbox 恢复 × 追加式结算）
+
+- **生命周期**：新增 `runtime/run_lifecycle.py`，可写 run 只允许 `open → closing → closed`；`ended/run_closed` 降为兼容投影，生产只由 `_set_lifecycle_state()` 写。closed run 的 reset/start/skip/stream/step 等写操作不能复活；closing 的下一次 step 只重试原 close，不调用模型。
+- **耐久性**：主 session snapshot 改为 temp + `os.replace` 原子替换，损坏 JSON 硬报错。P0b outbox 正式接入 close：先 durable prepare，再写 closing snapshot；即使主 snapshot 写失败，reload 也会从 `.commit.json` 恢复 closing，完成同一 close 后 ack。final snapshot/ack 失败同样可继续原提交。
+- **并发/副本**：Web load→reduce→save 以 session_id 进程内锁串行；`save_as` 同 run 副本改成 `snapshot_read_only`，不能产生第二个可写 writer；源/目标按固定顺序加锁，目标用 temp+replace。sidecar 不再出现在存档列表，delete 会同时删主 JSON 与 sidecar。
+- **EndRun/settle**：`close_run` 用 SQLite `BEGIN IMMEDIATE` 把“是否已关→settle→receipt”包在一个提交边界，并发双 close 只结算一次。移除 `DELETE FROM delta_sediment WHERE src_run=?` 的重写幂等：同源完全相同则复用，不同 payload/重复 active/已 revoked 同源都硬冲突；revoked 历史不会被 settle 复活或擦掉。
+- **保留债**：`run_meta.closed_at/final_delta_summary` 仍以 UPDATE 维护生命周期投影；本轮没有为追求“纯 append-only”擅自新增 DB schema 或扩大例外。该字段级差异继续留作后续迁移/投影债，不宣称所有 UPDATE 已消失。
+- **闸**：新增 quick `run_lifecycle_p1b`；升级 P0/P1a authority 与 EndRun 旧反例。故障测试覆盖主 snapshot 写失败、DB close 失败、reload 重试不进模型、closed 禁写、只读 save_as、并发 close、冲突 rollback、revoked 保留、sidecar list/delete 边界。
+- **验**：P1b 最终 GitHub Actions [36542378673](https://github.com/killbynothing/causal-anew/actions/runs/36542378673) **success**；`python scripts/verify.py --quick` **46 PASS / 0 FAIL / 164 SKIP（210 validators）**；Actions 前后 `data/world_truth.db` 哈希一致。P1b 中间绿灯还有 36541451878 / 36541722953 / 36542153344。
+- **报账**：未修改 run=0、场卡、Seed/VOICE、正典内容或已提交 LFS DB；GitHub 侧没有接触本机真人 a14 DB。**哪里是我编的：正典/人物/剧情新增 = 0**；lifecycle/outbox/并发/只读副本是工程合同。
+- **下一动**：只做 **P2a**，先建唯一 WorldCommit/PlayerAction 提交入口与 batch/receipt 投影边界；不提前做咖啡馆 ★★★ RP4 裁决，也不切 P3 心智。
+
 ### 2026-09-29（GitHub 同步 × quick CI）
 
 - **同步**：P1a 提交 `6118ff1`（`feat: 收口P1a退出决策权`）；plan / P0a / P0b / P1a 四个指定分支已普通推送 origin。已 fetch 核实：P1a 是远端旧 director-gate 分支 `5acc0bb` 的正常延续；main 的既有 squash 分叉未改动。未 rebase、force push 或重新初始化。

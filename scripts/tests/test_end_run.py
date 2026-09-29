@@ -177,7 +177,12 @@ def test_session_end_closes_run_reset_does_not(tmp_path):
     finally:
         con.close()
     assert closed
-    session.reset()
+    try:
+        session.reset()
+    except RuntimeError as exc:
+        assert "lifecycle is closed" in str(exc)
+    else:
+        raise AssertionError("reset must not revive a closed run")
     con = sqlite3.connect(str(db))
     try:
         n_after = con.execute("SELECT COUNT(*) FROM run_meta").fetchone()[0]
@@ -186,7 +191,7 @@ def test_session_end_closes_run_reset_does_not(tmp_path):
         con.close()
     assert n_before == n_after == 1
     assert still_closed
-    assert session.ended is False
+    assert session.ended is True
 
 
 def _run_directly():

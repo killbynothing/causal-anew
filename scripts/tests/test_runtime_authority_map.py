@@ -49,9 +49,10 @@ def test_scanner_finds_representative_five_domain_writers():
     assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)
 
     ended = writers(report, "ended", "production")
-    assert any(row["symbol"].endswith("_mark_ended") for row in ended)
-    # P1a removed the external run_session EndRun bypass. The scanner must
-    # reflect that removal instead of freezing the old debt forever.
+    assert {row["symbol"] for row in ended} == {"FreeStageSession._set_lifecycle_state"}
+    lifecycle = writers(report, "lifecycle_state", "production")
+    assert {row["symbol"] for row in lifecycle} == {"FreeStageSession._set_lifecycle_state"}
+    # P1a removed run_session authorization; P1b removes direct bool writers.
     assert not any(row["symbol"].endswith("run_session") for row in ended)
 
 
@@ -64,11 +65,15 @@ def test_scanner_separates_initialization_and_reports_callers():
     assert all(row["classification"] == "initialization" for row in init_rows)
 
     ended = report["facts"]["ended"]["writers"]
-    mark = next(row for row in ended if row["symbol"].endswith("_mark_ended"))
-    caller_symbols = {row["caller"] for row in mark["callers"]}
+    lifecycle_writer = next(
+        row for row in ended
+        if row["symbol"].endswith("_set_lifecycle_state")
+        and row["classification"] == "production"
+    )
+    caller_symbols = {row["caller"] for row in lifecycle_writer["callers"]}
+    assert "FreeStageSession._mark_ended" in caller_symbols
+    assert "FreeStageSession.reset" in caller_symbols
     assert "FreeStageSession._maybe_transition" in caller_symbols
-    assert "FreeStageSession.skip_scene" in caller_symbols
-    assert "FreeStageSession.step" not in caller_symbols
 
 
 def test_verify_inventory_is_complete_and_new_p0_gates_are_registered():

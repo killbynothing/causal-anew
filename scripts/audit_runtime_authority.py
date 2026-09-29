@@ -45,6 +45,7 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "actor_minds": {"domain": "mind", "target_owner": "ActorMindReducer"},
     "fsm_by_cons": {"domain": "mind_projection", "target_owner": "ActorMindReducer"},
     "rel_state_by_cons": {"domain": "mind_projection", "target_owner": "ActorMindReducer"},
+    "lifecycle_state": {"domain": "exit", "target_owner": "ExitLifecycle"},
     "ended": {"domain": "exit", "target_owner": "ExitLifecycle"},
     "_run_closed": {"domain": "exit", "target_owner": "ExitLifecycle"},
     "run_receipt": {"domain": "exit", "target_owner": "ExitLifecycle"},

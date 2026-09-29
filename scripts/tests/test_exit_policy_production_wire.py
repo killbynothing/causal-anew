@@ -49,10 +49,11 @@ def test_step_and_one_shot_no_longer_invent_endrun_from_mh_completion():
     assert old_generic not in step_source
     assert "session.ended = True" not in run_source
     assert "ExitPolicy is the sole decider" in step_source
-    # P1a authority invariant: only lifecycle commit may write True. Other
-    # ended writers seen by P0a are scene/reset writes to False and remain P1b debt.
-    assert class_source.count("self.ended = True") == 1
-    assert "self.ended = True" in inspect.getsource(proto.FreeStageSession._mark_ended)
+    # P1b upgrades the compatibility boolean to a lifecycle projection.
+    # ExitPolicy still authorizes; only _set_lifecycle_state may project ended.
+    assert "self.ended =" not in inspect.getsource(proto.FreeStageSession._mark_ended)
+    lifecycle_source = inspect.getsource(proto.FreeStageSession._set_lifecycle_state)
+    assert "self.ended = state == run_lifecycle.CLOSED" in lifecycle_source
 
 
 def test_forced_exit_target_survives_save_reload():

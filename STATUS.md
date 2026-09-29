@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-2 完成：跨视角 Frame Beat 单一生产写权）
+
+- **Frame BeatReducer**：在 `runtime/beat_state.py` 增加纯 `reduce_frame_beats()`，保持既有 `run + frame_id::beat_id` 稳定键、ordered/idempotent append 与 run 隔离。调用方不再把 session 可变 `completed_beats` 直接交给 `beat_ledger.mark_done()`。
+- **唯一 writer**：新增 `FreeStageSession._reduce_frame_beats()`，成为 `completed_beats` 唯一生产 writer；reset 也走同一 facade。legacy `_load` 仍可只读旧存档。live Authority Map required gate 证明 production writer = `_reduce_frame_beats` 且 unknown alias = 0。
+- **来源链**：新增持久 `frame_beat_receipts`。只有真正新增的跨视角 beat 才产生 `free_stage.frame_beat_transition.v1` receipt，并引用本拍 scene Beat receipt；reset / retry 不伪造完成证据。
+- **语义保持**：`_mark_frame_beats_for_progress()` 现在只消费 `newly_completed`，不再拿重复 `new_progress` 重新推；跨视角 folding 仍按 `frame_id + beat_id`，`frame_beat=[]` 的纯视角项仍永不折叠。
+- **闸**：新增 quick `frame_beat_authority_p2c2`，覆盖纯 reducer copy-safe/幂等/run 隔离、reset 无假 receipt、scene receipt→frame receipt、save→load、跨视角 fold 与静态无 alias writer。P2c-1 旧“frame debt 必须存在”反例升级为 P2c-2 后“债必须消失”的 successor invariant，没有删测试刷绿。
+- **验**：首跑 Actions `36572958722` 中 P2c-2 新测试、Authority Map、characterization 全 PASS，唯一红点是 P2c-1 旧债断言到期；升级后 Actions [36573150434](https://github.com/killbynothing/causal-anew/actions/runs/36573150434) **success**，quick **51 PASS / 0 FAIL / 163 SKIP（214 validators）**，DB checksum 前后不变。
+- **报账**：未改 branch/scene receipts、world cursor、BodyFrame 其它写路、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：只做 **P2c-3：scene fact authority**。把 `branch_progress + scene_receipts` 收成“receipt 为证据、branch 为只读索引”的单一提交/投影路径；先清业务 append/alias，再处理 reset/load 兼容。P2c-3 不顺手吞 observation/body/world cursor，也不碰 P3。
+
 ### 2026-09-29（P2c-1 完成：场景 Beat 单一生产写权）
 
 - **BeatReducer 主干**：新增 `runtime/beat_state.py` 纯 reducer；`FreeStageSession._reduce_beat_state()` 成为 `completed / completed_by_card` 唯一生产 writer。旧字段暂保留为存档/兼容投影，不再允许 step/skip/canon/闪回/转场各自直接 append/extend/赋值。

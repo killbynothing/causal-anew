@@ -214,6 +214,23 @@ def test_entrust_and_pendant_disposition_parsers_are_separate():
     assert proto.prologue_pendant_disposition("想再见见你总要有个借口吧") == "undecided"
 
 
+def test_pendant_disposition_public_action_matrix():
+    cases = [
+        ({"speech": "好，我收下", "action": "", "thought": ""}, "accepted"),
+        ({"speech": "", "action": "我接过挂坠，拿在手里", "thought": ""}, "accepted"),
+        ({"speech": "你留着吧，我不收", "action": "", "thought": ""}, "declined"),
+        ({"speech": "", "action": "把挂坠推回去", "thought": ""}, "declined"),
+        ({"speech": "先放着，我想想", "action": "", "thought": ""}, "deferred"),
+        ({"speech": "", "action": "把挂坠放在桌上", "thought": ""}, "deferred"),
+        ({"speech": "我答应照顾他们", "action": "", "thought": ""}, "undecided"),
+        ({"speech": "想再见见你总要有个借口吧", "action": "", "thought": ""}, "undecided"),
+        ({"speech": "你今天咖啡喝得也太慢了", "action": "", "thought": ""}, "undecided"),
+        ({"speech": "", "action": "", "thought": "这东西到底什么意思"}, "undecided"),
+    ]
+    for player_input, expected in cases:
+        assert proto.prologue_pendant_disposition(player_input) == expected, player_input
+
+
 def test_after_offer_entrust_promise_does_not_accept_pendant():
     card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
     with tempfile.TemporaryDirectory() as tmp:

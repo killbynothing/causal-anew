@@ -3750,7 +3750,8 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
         token in text
         for token in (
             "不收", "我不要", "这个不要", "你留着", "你自己留着",
-            "拿回去", "收回去", "不用给我",
+            "拿回去", "收回去", "不用给我", "推回去", "递回去",
+            "还给你", "把挂坠推回", "把挂坠递回",
         )
     ):
         return "declined"
@@ -3759,6 +3760,7 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
         for token in (
             "先放着", "先放这", "先搁着", "暂时放着", "我想想",
             "想想再说", "以后再说", "下次再说", "改天再说",
+            "放在桌上", "放到桌上", "留在桌上", "先放桌上",
         )
     ):
         return "deferred"
@@ -3766,7 +3768,8 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
         token in text
         for token in (
             "我收下", "那我收下", "我就收下", "我拿着", "那我拿着",
-            "我先拿着", "我拿走", "我收着", "给我吧",
+            "我先拿着", "我拿走", "我收着", "给我吧", "接过挂坠",
+            "拿起挂坠", "把挂坠拿起", "把挂坠收起", "收起挂坠",
         )
     ):
         return "accepted"

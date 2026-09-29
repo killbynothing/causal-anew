@@ -38,7 +38,9 @@ class SceneState:
         self.last_player_input = ""
         self.repeat_count = 0
         self.react_rotation = {}   # {cons: int} 兜底反应变体轮转，跨拍不重复
-        self.branch_progress = {}  # {node_id: [path_id, ...]}
+        # Legacy scene-contract routing state. This is NOT FreeStage's
+        # WorldCommit branch_progress fact index.
+        self.contract_branch_progress = {}  # {node_id: [path_id, ...]}
         self.seen_npc_lines = {}   # {location: [compact_dialogue, ...]} 防同场景 NPC 同句复读
         # 灵魂层·动态记忆（干预达成时写入，跨场景持久；按 run 隔离，不混周目）
         self.dynamic_memory = []  # [{cons, anchor, text, ch_anchor, run_no, tag}, ...]
@@ -108,7 +110,12 @@ class SceneState:
                 state.last_player_input = data.get("last_player_input", "")
                 state.repeat_count = data.get("repeat_count", 0)
                 state.react_rotation = data.get("react_rotation", {})
-                state.branch_progress = data.get("branch_progress", {})
+                # One-way migration: old SceneState snapshots used the
+                # ambiguous "branch_progress" key.
+                state.contract_branch_progress = data.get(
+                    "contract_branch_progress",
+                    data.get("branch_progress", {}),
+                )
                 state.seen_npc_lines = data.get("seen_npc_lines", {})
                 state.dynamic_memory = data.get("dynamic_memory", [])
                 state.trust_override = data.get("trust_override", {})
@@ -224,7 +231,7 @@ class SceneState:
             "last_player_input": self.last_player_input,
             "repeat_count": self.repeat_count,
             "react_rotation": self.react_rotation,
-            "branch_progress": self.branch_progress,
+            "contract_branch_progress": self.contract_branch_progress,
             "seen_npc_lines": self.seen_npc_lines,
             "dynamic_memory": self.dynamic_memory,
             "trust_override": self.trust_override,

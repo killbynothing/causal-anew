@@ -93,10 +93,10 @@ def register_branch_progress(state: Any, binding: dict[str, Any], path_ids: list
     }
     if not node_id or not valid_paths:
         return []
-    ledger = getattr(state, "branch_progress", None)
+    ledger = getattr(state, "contract_branch_progress", None)
     if not isinstance(ledger, dict):
         ledger = {}
-        state.branch_progress = ledger
+        state.contract_branch_progress = ledger
     current = set(ledger.get(node_id, []) or [])
     added = []
     for path_id in path_ids:
@@ -117,7 +117,7 @@ def resolve_active_exit_state(state: Any, binding: dict[str, Any]) -> dict[str, 
     threshold = int(contract.get("combine_threshold", 0) or 0)
     if not node_id or threshold <= 0:
         return None
-    ledger = getattr(state, "branch_progress", {}) or {}
+    ledger = getattr(state, "contract_branch_progress", {}) or {}
     activated = sorted(set(ledger.get(node_id, []) or []))
     if len(activated) < threshold:
         return None

@@ -266,6 +266,46 @@ def test_scene_fact_state_survives_save_load():
         assert "route_b" in resumed._scene_fact_ids()
 
 
+def test_legacy_scene_contract_branch_state_has_distinct_name_and_migrates():
+    import json
+    import tempfile
+    from pathlib import Path
+    from unittest.mock import patch
+
+    from runtime.scene_state import SceneState
+    from runtime.scene_contracts import register_branch_progress, resolve_active_exit_state
+
+    contract = {
+        "path_set": [{"id": "left"}, {"id": "right"}],
+        "combine_threshold": 1,
+        "exit_states": [
+            {"id": "left_exit", "requires_paths": ["left"]},
+        ],
+    }
+    binding = {"covered": True, "node_id": "NODE-X", "contract": contract}
+
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / "legacy.json"
+        path.write_text(
+            json.dumps({"branch_progress": {"NODE-X": ["left"]}}, ensure_ascii=False),
+            encoding="utf-8",
+        )
+        with patch.object(SceneState, "get_path", classmethod(lambda cls, run_no, scene_id: path)):
+            loaded = SceneState.load(1, "S")
+            assert loaded.contract_branch_progress == {"NODE-X": ["left"]}
+            assert not hasattr(loaded, "branch_progress")
+
+            added = register_branch_progress(loaded, binding, ["right"])
+            assert added == ["right"]
+            assert loaded.contract_branch_progress["NODE-X"] == ["left", "right"]
+            active = resolve_active_exit_state(loaded, binding)
+            assert active is not None
+
+            saved = json.loads(path.read_text(encoding="utf-8"))
+            assert saved["contract_branch_progress"] == {"NODE-X": ["left", "right"]}
+            assert "branch_progress" not in saved
+
+
 def test_authority_map_has_one_scene_fact_writer_and_no_alias_debt():
     report = _report()
     for fact in ("branch_progress", "scene_receipts"):

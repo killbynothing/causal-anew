@@ -122,7 +122,11 @@ def classify(path: Path, symbol: str, *, uncertain: bool = False) -> str:
     rp = rel(path)
     low = symbol.lower()
     leaf = low.rsplit(".", 1)[-1]
-    if "/tests/" in f"/{rp}" or rp.startswith("scripts/tests/"):
+    if (
+        "/tests/" in f"/{rp}"
+        or rp.startswith("scripts/tests/")
+        or rp.startswith("scripts/test_")
+    ):
         return "test"
     if rp == "scripts/audit_runtime_authority.py":
         return "audit"
@@ -130,7 +134,9 @@ def classify(path: Path, symbol: str, *, uncertain: bool = False) -> str:
         return "unknown_alias"
     if leaf in {"__init__", "__post_init__"} or leaf.startswith("_init"):
         return "initialization"
-    if any(tok in low for tok in ("migrate", "migration", "restore", "from_state", "_load", "load_")):
+    if leaf == "load" or any(
+        tok in low for tok in ("migrate", "migration", "restore", "from_state", "_load", "load_")
+    ):
         return "load_migration"
     if any(tok in low for tok in ("projection", "observer", "snapshot", "serialize", "to_dict", "_state_payload")):
         return "projection"

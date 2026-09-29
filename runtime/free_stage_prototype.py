@@ -7171,7 +7171,7 @@ class FreeStageSession:
             "physical": "good",
             "elapsed_minutes": 0,
         }
-        self.run_observation_ledger: list[dict[str, Any]] = []
+        self._world_projection_state = world_projection.WorldProjectionState()
         self.utterance_pending_queue: list[dict[str, Any]] = []
         self.companion_pending_queue: list[dict[str, Any]] = []
         self.stream_hold: bool = False
@@ -7182,7 +7182,6 @@ class FreeStageSession:
         # 开场梗概已播 / 托付闪回：延后到遇修哉或张尘再演两年前。
         self.ryuya_flashback_return: dict[str, Any] | None = None
         self._flashback_inputs_at_enter: int = 0
-        self.body_frames: dict[str, Any] = {}
         self.prior_reflect_by_cons: dict[str, dict[str, Any]] = {}
         self.private_reflections: list[dict[str, Any]] = []
         if load_existing:
@@ -7197,7 +7196,7 @@ class FreeStageSession:
         )
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
-        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
+        self._ensure_body_frames(self.card)
 
 
     @property
@@ -7211,6 +7210,35 @@ class FreeStageSession:
     @property
     def causal_receipts(self) -> list[dict[str, Any]]:
         return self._world_commit_state.causal_receipts_view()
+
+    @property
+    def body_frames(self) -> dict[str, Any]:
+        return self._world_projection_state.body_frames_view()
+
+    @property
+    def run_observation_ledger(self) -> list[dict[str, Any]]:
+        return self._world_projection_state.observation_ledger_view()
+
+    def _ensure_body_frames(self, card: dict[str, Any]) -> dict[str, Any]:
+        return self._world_projection_state.ensure_body_frames(
+            card,
+            ensure_card_body_frames,
+        )
+
+    def _settle_body_frames(
+        self,
+        card: dict[str, Any],
+        turns: list[dict[str, Any]],
+    ) -> list[str]:
+        return self._world_projection_state.settle_body_frames(
+            card,
+            turns,
+            settle_fn=settle_body_frames_from_npc_turns,
+            ensure_fn=ensure_card_body_frames,
+        )
+
+    def _append_observation(self, **kwargs: Any) -> list[dict[str, Any]]:
+        return self._world_projection_state.append_observation(**kwargs)
 
     def _merged_opening_memories(self) -> dict[str, Any]:
         merged = dict(self.consolidated_memory_by_card)
@@ -7381,9 +7409,7 @@ class FreeStageSession:
         self.player_state.setdefault("energy", 0.78)
         self.player_state.setdefault("physical", "good")
         self.player_state.setdefault("elapsed_minutes", 0)
-        self.run_observation_ledger = [
-            dict(item) for item in data.get("run_observation_ledger", []) if isinstance(item, dict)
-        ]
+        self._world_projection_state = world_projection.WorldProjectionState.from_legacy(data)
         self.utterance_pending_queue = [
             dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
         ]
@@ -7399,11 +7425,7 @@ class FreeStageSession:
             dict(stored_flashback_return) if isinstance(stored_flashback_return, dict) else None
         )
         self._flashback_inputs_at_enter = int(data.get("_flashback_inputs_at_enter", 0) or 0)
-        stored_frames = data.get("body_frames")
-        self.body_frames = (
-            copy.deepcopy(stored_frames) if isinstance(stored_frames, dict) else {}
-        )
-        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
+        self._ensure_body_frames(self.card)
         raw_prior = data.get("prior_reflect_by_cons")
         self.prior_reflect_by_cons = (
             {
@@ -7693,7 +7715,7 @@ class FreeStageSession:
             "elapsed_minutes": 0,
         }
         self._triggered_at_clocks: set[str] = set()
-        self.run_observation_ledger = []
+        self._world_projection_state.reset()
         self.utterance_pending_queue = []
         self.companion_pending_queue = []
         self.stream_hold = False
@@ -7704,7 +7726,7 @@ class FreeStageSession:
         self.ryuya_flashback_return = None
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
-        self.body_frames = ensure_card_body_frames(self.card, {})
+        self._ensure_body_frames(self.card)
         self.world_cursor = _card_cursor(self.card, self.run_no)
         from runtime.scars_reader import read_run_scars
 
@@ -7955,17 +7977,12 @@ class FreeStageSession:
         transaction = self._world_transaction("ryuya_pendant_disposition")
         if not isinstance(transaction, dict):
             raise RuntimeError("pendant disposition commit did not produce a world transaction")
-        projected = world_projection.project_world_transaction(
+        self.player_state = self._world_projection_state.apply_world_transaction(
             transaction,
             player_state=self.player_state,
-            body_frames=self.body_frames,
-            observation_ledger=self.run_observation_ledger,
             session_id=self.session_id,
         )
-        self.player_state = projected.player_state
-        self.body_frames = projected.body_frames
-        self.run_observation_ledger = projected.observation_ledger
-        ensure_card_body_frames(self.card, self.body_frames)
+        self._ensure_body_frames(self.card)
         self._record_scene_receipt(
             "ryuya_pendant_disposition",
             owner="player",
@@ -8026,8 +8043,7 @@ class FreeStageSession:
         if not turns:
             return []
         self._pendant_layer_c_emitted = True
-        self.run_observation_ledger = _ledger_append(
-            self.run_observation_ledger,
+        self._append_observation(
             turn=turn_no,
             scene_id=str(self.card.get("scene_id", "")),
             fact_text="挂坠层C短闪回：雨声/旧桌/递坠",
@@ -9181,10 +9197,9 @@ class FreeStageSession:
                 prologue_turn = self._llm_ryuya_opening_turn(turn_no=0)
                 if prologue_turn is not None:
                     intro_turns.append(prologue_turn)
-            settle_body_frames_from_npc_turns(
-                self.body_frames, self.card, [*intro_turns, *canon_turns]
+            self._settle_body_frames(
+                self.card, [*intro_turns, *canon_turns]
             )
-            ensure_card_body_frames(self.card, self.body_frames)
             # 序幕：旁白+龙也搭话一次进史，禁止进流式队列被玩家第一句 barge-in 清掉。
             if self.card.get("prologue_active"):
                 shown: list[dict[str, Any]] = []
@@ -9969,7 +9984,7 @@ class FreeStageSession:
         scene_id_for_obs_early = str(self.card.get("scene_id", ""))
         thought_deltas: list[dict[str, Any]] = []
         if thought:
-            self.run_observation_ledger, thought_deltas = ingest_player_thought(
+            thought_ledger, thought_deltas = ingest_player_thought(
                 thought,
                 ledger=self.run_observation_ledger,
                 turn=len(self.inputs) + 1,
@@ -9977,6 +9992,7 @@ class FreeStageSession:
                 session_id=self.session_id,
                 run_id=self.run_no,
             )
+            self._world_projection_state.replace_observation_ledger(thought_ledger)
 
         if (action or speech) and not suppress_visible_input:
             self._barge_in_stream()
@@ -10098,8 +10114,7 @@ class FreeStageSession:
             }
             for fact_key, (kind, text) in _OBS_FACT_MAP.items():
                 if fact_key in facts_this_turn:
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
+                    self._append_observation(
                         turn=turn_no, scene_id=scene_id_for_obs,
                         fact_text=text, kind=kind,
                     )
@@ -10558,7 +10573,7 @@ class FreeStageSession:
             + list(speaker_plan.get("stage_actors", []) or [])
             + companion_pool
         )
-        self.body_frames = ensure_card_body_frames(resolved_card, getattr(self, "body_frames", {}) or {})
+        self._ensure_body_frames(resolved_card)
         if ott.is_opening_top_tier_scene(resolved_card):
             present_for = [
                 str(item.get("cons", "")).strip()
@@ -11153,15 +11168,13 @@ class FreeStageSession:
             # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
             # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
             if "RP3" in newly_completed:
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._append_observation(
                     turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
                     kind="entrust",
                 )
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._append_observation(
                     turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="禁名警告已说出：说了会有危险，会死人",
@@ -11182,8 +11195,7 @@ class FreeStageSession:
                     and str(row.get("kind") or "") == "pendant_offer"
                     for row in self.run_observation_ledger
                 ):
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
+                    self._append_observation(
                         turn=turn_no,
                         scene_id=str(self.card.get("scene_id", "")),
                         fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
@@ -11238,10 +11250,9 @@ class FreeStageSession:
                     turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,
                 )
             )
-            body_issues = settle_body_frames_from_npc_turns(
-                self.body_frames, resolved_card, turns
+            body_issues = self._settle_body_frames(
+                resolved_card, turns
             )
-            ensure_card_body_frames(resolved_card, self.body_frames)
             if body_issues:
                 self.last_issues.extend(body_issues)
                 for msg in body_issues:
@@ -11266,10 +11277,9 @@ class FreeStageSession:
                 remaining_canon -= 1
             if auto_canon_turns:
                 self._enqueue_stream_items(auto_canon_turns, turn_no=turn_no)
-                settle_body_frames_from_npc_turns(
-                    self.body_frames, resolved_card, auto_canon_turns
+                self._settle_body_frames(
+                    resolved_card, auto_canon_turns
                 )
-                ensure_card_body_frames(resolved_card, self.body_frames)
                 self.completed_by_card[scene_id] = list(self.completed)
             note_item = {
                 "role": "director_note",
@@ -12359,8 +12369,7 @@ class FreeStageSession:
                 self.history.append(look)
                 emitted.append(look)
                 self._pendant_look_emitted = True
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._append_observation(
                     turn=turn_no,
                     scene_id=str(target_scene_id),
                     fact_text="回场时玩家看向随身吊坠",

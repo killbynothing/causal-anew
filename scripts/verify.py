@@ -631,6 +631,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_commit_state_p2c.py",
     },
     {
+        "id": "world_projection_state_p2c",
+        "desc": "P2c WorldProjectionState：BodyFrame/观察账单 owner，Session 只读副本且 reducer 受控",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_projection_state_p2c.py"],
+        "triggers": [
+            "runtime/world_projection.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/run_observation_ledger.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_projection_state_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_projection_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

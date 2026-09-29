@@ -634,6 +634,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_joint_matrix_p2b2.py",
     },
     {
+        "id": "beat_authority_p2c1",
+        "desc": "P2c-1 BeatReducer 单一生产写权：completed/completed_by_card 收口、receipt、save/load、frame debt 保留",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_beat_authority_p2c1.py"],
+        "triggers": [
+            "runtime/beat_state.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_beat_authority_p2c1.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_beat_authority_p2c1.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

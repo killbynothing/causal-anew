@@ -173,6 +173,40 @@ def test_closed_run_refuses_mutating_methods_and_reset():
                 raise AssertionError(f"{name} must not mutate a closed run")
 
 
+def test_sidecar_is_not_a_session_and_delete_removes_it():
+    with tempfile.TemporaryDirectory() as tmp:
+        state_dir = Path(tmp) / "states"
+        state_dir.mkdir(parents=True, exist_ok=True)
+        (state_dir / "real.json").write_text(
+            json.dumps({"session_id": "real", "history": [], "ended": False}),
+            encoding="utf-8",
+        )
+        (state_dir / "real.commit.json").write_text(
+            json.dumps({"schema_version": "free_stage.commit_cursor.v1", "revision": 0,
+                        "last_committed_batch_id": None, "pending": None}),
+            encoding="utf-8",
+        )
+        listed = server.handle_free_stage_request(
+            {"op": "list_sessions"},
+            {},
+            state_dir=str(state_dir),
+            caller=_caller_should_not_run,
+        )
+        ids = {item["session_id"] for item in listed["sessions"]}
+        assert "real" in ids
+        assert "real.commit" not in ids
+
+        deleted = server.handle_free_stage_request(
+            {"op": "delete_session", "target_session_id": "real"},
+            {},
+            state_dir=str(state_dir),
+            caller=_caller_should_not_run,
+        )
+        assert deleted["status"] == "ok"
+        assert not (state_dir / "real.json").exists()
+        assert not (state_dir / "real.commit.json").exists()
+
+
 def test_save_as_is_read_only_and_cannot_become_second_run_writer():
     with tempfile.TemporaryDirectory() as tmp:
         state_dir = Path(tmp) / "states"
@@ -215,5 +249,6 @@ if __name__ == "__main__":
     test_close_snapshot_failure_recovers_from_outbox_without_model()
     test_close_failure_persists_closing_and_retries_without_model()
     test_closed_run_refuses_mutating_methods_and_reset()
+    test_sidecar_is_not_a_session_and_delete_removes_it()
     test_save_as_is_read_only_and_cannot_become_second_run_writer()
     print("PASS test_run_lifecycle_p1b")

@@ -218,7 +218,11 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         import glob
         import time
         os.makedirs(s_dir, exist_ok=True)
-        files = glob.glob(os.path.join(s_dir, "*.json"))
+        files = [
+            path
+            for path in glob.glob(os.path.join(s_dir, "*.json"))
+            if not os.path.basename(path).endswith(".commit.json")
+        ]
         sessions = []
         for filepath in files:
             filename = os.path.basename(filepath)
@@ -287,14 +291,17 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
     if op == "delete_session":
         sid = _safe_session_id(req_data.get("target_session_id") or req_data.get("session_id"))
         filepath = os.path.join(s_dir, f"{sid}.json")
+        commit_filepath = os.path.join(s_dir, f"{sid}.commit.json")
         with SESSION_FILE_LOCK:
             exists = os.path.exists(filepath)
+            commit_exists = os.path.exists(commit_filepath)
             if exists:
                 os.remove(filepath)
-        if exists:
+            if commit_exists:
+                os.remove(commit_filepath)
+        if exists or commit_exists:
             return {"status": "ok"}
-        else:
-            return {"status": "error", "error": f"session {sid} not found"}
+        return {"status": "error", "error": f"session {sid} not found"}
 
     session_id = _safe_session_id(req_data.get("session_id") or "web-default")
     if op == "create_session":

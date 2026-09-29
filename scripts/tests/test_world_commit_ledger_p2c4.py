@@ -162,7 +162,10 @@ def test_authority_map_zeroes_direct_world_ledger_writers():
     migrated = set(P2A_WORLD_MIGRATED_FACTS)
     assert {"world_transactions", "causal_receipts"} <= migrated
     assert {"world_transactions", "causal_receipts"}.isdisjoint(debt)
-    assert {"run_observation_ledger", "player_state", "body_frames", "world_cursor"} <= debt
+    # P2c-5 moves BodyFrame/observation into their own projection owner.
+    # Only player_state/world_cursor remain as WorldCommit migration debt.
+    assert debt == {"player_state", "world_cursor"}
+    assert {"run_observation_ledger", "body_frames"} <= migrated
 
 
 if __name__ == "__main__":

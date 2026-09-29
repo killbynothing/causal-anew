@@ -123,7 +123,8 @@ def test_authority_map_zeroes_world_cursor_direct_writers():
     assert rows == [], rows
     debt = set(P2A_WORLD_MIGRATION_DEBT)
     assert "world_cursor" not in debt
-    assert debt == {"branch_progress"}
+    assert debt == set()
+    assert "branch_progress" not in debt
     assert "player_state" not in debt
 
 

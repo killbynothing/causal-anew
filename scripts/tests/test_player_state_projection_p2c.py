@@ -115,7 +115,8 @@ def test_authority_map_zeroes_player_state_direct_writers():
     ]
     assert rows == [], rows
     debt = set(P2A_WORLD_MIGRATION_DEBT)
-    assert debt == {"branch_progress"}
+    assert debt == set()
+    assert "branch_progress" not in debt
 
 
 if __name__ == "__main__":

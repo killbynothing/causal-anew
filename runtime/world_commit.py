@@ -19,12 +19,10 @@ from runtime.causal_protocol import (
 )
 
 WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
+BRANCH_FACT_SCHEMA = "free_stage.branch_fact.v1"
 
-# P2a deliberately migrates the mature world_transactions append path first.
-# These authority-map fact families remain compatibility writers until P2c.
-P2A_WORLD_MIGRATION_DEBT = (
-    "branch_progress",
-)
+# P2c has migrated every fact family that P0a assigned to WorldCommit.
+P2A_WORLD_MIGRATION_DEBT: tuple[str, ...] = ()
 
 
 class WorldCursorState:
@@ -84,10 +82,22 @@ class WorldCommitState:
     def __init__(
         self,
         *,
+        branch_progress: Sequence[str] = (),
+        branch_fact_events: Sequence[Mapping[str, Any]] = (),
         scene_receipts: Sequence[Mapping[str, Any]] = (),
         world_transactions: Mapping[str, Mapping[str, Any]] | None = None,
         causal_receipts: Sequence[Mapping[str, Any]] = (),
     ) -> None:
+        self._branch_progress = []
+        for item in branch_progress:
+            fact = _text(item)
+            if fact and fact not in self._branch_progress:
+                self._branch_progress.append(fact)
+        self._branch_fact_events = [
+            copy.deepcopy(dict(item))
+            for item in branch_fact_events
+            if isinstance(item, Mapping)
+        ]
         self._scene_receipts = [
             copy.deepcopy(dict(item))
             for item in scene_receipts
@@ -107,6 +117,16 @@ class WorldCommitState:
     @classmethod
     def from_legacy(cls, raw: Mapping[str, Any]) -> "WorldCommitState":
         return cls(
+            branch_progress=(
+                raw.get("branch_progress")
+                if isinstance(raw.get("branch_progress"), (list, tuple))
+                else ()
+            ),
+            branch_fact_events=(
+                raw.get("branch_fact_events")
+                if isinstance(raw.get("branch_fact_events"), (list, tuple))
+                else ()
+            ),
             scene_receipts=(
                 raw.get("scene_receipts")
                 if isinstance(raw.get("scene_receipts"), (list, tuple))
@@ -125,9 +145,119 @@ class WorldCommitState:
         )
 
     def reset(self) -> None:
+        self._branch_progress.clear()
+        self._branch_fact_events.clear()
         self._scene_receipts.clear()
         self._world_transactions.clear()
         self._causal_receipts.clear()
+
+    def branch_progress_view(self) -> list[str]:
+        return list(self._branch_progress)
+
+    def branch_fact_events_view(self) -> list[dict[str, Any]]:
+        return copy.deepcopy(self._branch_fact_events)
+
+    def replace_branch_snapshot(self, facts: Sequence[str]) -> list[str]:
+        """Legacy/migration reader only. New runtime writes use branch events."""
+        current: list[str] = []
+        for item in facts:
+            fact = _text(item)
+            if fact and fact not in current:
+                current.append(fact)
+        self._branch_progress = current
+        return self.branch_progress_view()
+
+    def _apply_branch_event(
+        self,
+        *,
+        scope: RuntimeScope,
+        request_id: str,
+        operation: str,
+        fact_id: str,
+        source_kind: str,
+        owner: str,
+        scene_id: str,
+        turn: int,
+        source_refs: Sequence[str] = (),
+    ) -> bool:
+        fact = _text(fact_id)
+        op = _text(operation)
+        if op not in {"assert", "retract"}:
+            raise ValueError(f"invalid branch fact operation: {op}")
+        if not fact:
+            raise ValueError("branch fact requires fact_id")
+        if int(scope.run) < 1:
+            raise ValueError("branch fact requires run>=1")
+
+        if op == "assert" and fact in self._branch_progress:
+            return False
+        if op == "retract" and fact not in self._branch_progress:
+            return False
+
+        base_request = _text(request_id) or f"branch:{source_kind}:{turn}"
+        scoped_request = f"{base_request}:{op}:{fact}"
+        payload = {
+            "operation": op,
+            "fact_id": fact,
+            "source_kind": _text(source_kind) or "runtime",
+            "owner": _text(owner) or "world",
+            "scene_id": _text(scene_id),
+            "turn": int(turn),
+        }
+        receipt = ReceiptEnvelope.for_payload(
+            receipt_id=(
+                "branch:"
+                + canonical_payload_hash({
+                    "scope": scope.to_dict(),
+                    "request_id": scoped_request,
+                    "operation": op,
+                    "fact_id": fact,
+                })
+            ),
+            request_id=scoped_request,
+            turn_id=f"turn:{int(turn)}",
+            sequence=0,
+            scope=scope,
+            producer="WorldCommit.BranchFact",
+            source_refs=tuple(_text(item) for item in source_refs if _text(item)),
+            visibility="public",
+            base_revision=0,
+            payload=payload,
+        )
+        event = {
+            "schema_version": BRANCH_FACT_SCHEMA,
+            **payload,
+            "receipt": receipt.to_dict(),
+        }
+        receipt_id = receipt.receipt_id
+        for existing in self._branch_fact_events:
+            existing_receipt = (
+                existing.get("receipt")
+                if isinstance(existing.get("receipt"), Mapping)
+                else {}
+            )
+            if _text(existing_receipt.get("receipt_id")) != receipt_id:
+                continue
+            if canonical_payload_hash(existing) != canonical_payload_hash(event):
+                raise ReceiptConflict(
+                    f"branch receipt id reused with different payload: {receipt_id}"
+                )
+            return False
+
+        self._branch_fact_events.append(event)
+        if op == "assert":
+            self._branch_progress.append(fact)
+        else:
+            self._branch_progress = [
+                item for item in self._branch_progress if item != fact
+            ]
+        return True
+
+    def assert_branch_fact(self, **kwargs: Any) -> bool:
+        return self._apply_branch_event(operation="assert", **kwargs)
+
+    def retract_branch_fact(self, **kwargs: Any) -> bool:
+        return self._apply_branch_event(operation="retract", **kwargs)
 
     def scene_receipts_view(self) -> list[dict[str, Any]]:
         return copy.deepcopy(self._scene_receipts)

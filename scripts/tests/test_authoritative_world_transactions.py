@@ -335,8 +335,8 @@ def test_player_branch_fact_uses_player_action_entry_and_survives_save_load():
         assert session._record_player_branch_fact(
             "route_left", turn_no=1, player_input="走左边"
         ) is True
-        assert "branch:route_left" in session.player_action_receipts
-        action = session.player_action_receipts["branch:route_left"]
+        assert "branch:route_left:turn:1" in session.player_action_receipts
+        action = session.player_action_receipts["branch:route_left:turn:1"]
         assert action["action"]["value"] == "asserted"
         session.save()
 
@@ -369,7 +369,8 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     }
     debt = set(P2A_WORLD_MIGRATION_DEBT)
     assert current <= debt, f"unlisted P2a world authority debt: {sorted(current - debt)}"
-    assert debt == {"branch_progress"}
+    assert debt == set()
+    assert "branch_progress" not in debt
     assert "player_state" not in debt
     assert "world_cursor" not in debt
     assert "body_frames" not in debt

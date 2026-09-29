@@ -678,6 +678,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_player_state_projection_p2c.py",
     },
     {
+        "id": "branch_fact_state_p2c",
+        "desc": "P2c BranchFact：assert/retract 追加事件、legacy 不伪造来源、branch_progress 只读投影",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_branch_fact_state_p2c.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_branch_fact_state_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_branch_fact_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

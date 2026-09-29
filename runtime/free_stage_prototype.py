@@ -7139,13 +7139,10 @@ class FreeStageSession:
         # Structured scene facts are the authoritative receipt ledger for
         # migrated scenes. `branch_progress` remains a legacy projection while
         # other cards are being moved, never the only evidence of a player act.
-        self.scene_receipts: list[dict[str, Any]] = []
-        # Cross-scene one-time facts are not dialogue history.  A terminal
-        # transaction has one immutable outcome for this run/worldline and is
-        # the authority for props, departures and completed handoffs.
-        self.world_transactions: dict[str, dict[str, Any]] = {}
+        # P2c: WorldCommitState owns migrated world/scene/causal ledgers.
+        # Session exposes copy-only compatibility views below.
+        self._world_commit_state = world_commit.WorldCommitState()
         self.player_action_receipts: dict[str, dict[str, Any]] = {}
-        self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
         self.last_issues: list[str] = []
@@ -7202,6 +7199,18 @@ class FreeStageSession:
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
         self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
 
+
+    @property
+    def scene_receipts(self) -> list[dict[str, Any]]:
+        return self._world_commit_state.scene_receipts_view()
+
+    @property
+    def world_transactions(self) -> dict[str, dict[str, Any]]:
+        return self._world_commit_state.world_transactions_view()
+
+    @property
+    def causal_receipts(self) -> list[dict[str, Any]]:
+        return self._world_commit_state.causal_receipts_view()
 
     def _merged_opening_memories(self) -> dict[str, Any]:
         merged = dict(self.consolidated_memory_by_card)
@@ -7320,20 +7329,12 @@ class FreeStageSession:
                 error=self.close_error or "recovered_pending_close",
             )
         self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
-        self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
-        self.world_transactions = {
-            str(transaction_id): dict(record)
-            for transaction_id, record in dict(data.get("world_transactions", {})).items()
-            if str(transaction_id).strip() and isinstance(record, dict)
-        }
+        self._world_commit_state = world_commit.WorldCommitState.from_legacy(data)
         self.player_action_receipts = {
             str(action_id): dict(record)
             for action_id, record in dict(data.get("player_action_receipts", {})).items()
             if str(action_id).strip() and isinstance(record, dict)
         }
-        self.causal_receipts = [
-            dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
-        ]
         self.director_port_trace = [
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
@@ -7667,10 +7668,8 @@ class FreeStageSession:
         self.run_receipt = None
         self.branch_progress = []
         self._language_discovery_observation = None
-        self.scene_receipts = []
-        self.world_transactions = {}
+        self._world_commit_state.reset()
         self.player_action_receipts = {}
-        self.causal_receipts = []
         self.director_port_trace = []
         self.last_director_opportunity = None
         self.last_issues = []
@@ -7735,9 +7734,7 @@ class FreeStageSession:
     ) -> bool:
         """Append one observable fact once; legacy markers mirror it during migration."""
         scene_id = str(self.card.get("scene_id", "") or "")
-        if any(item.get("scene_id") == scene_id and item.get("fact_id") == fact_id for item in self.scene_receipts):
-            return False
-        self.scene_receipts.append({
+        return self._world_commit_state.append_scene_receipt({
             "scene_id": scene_id,
             "fact_id": fact_id,
             "owner": owner,
@@ -7745,7 +7742,6 @@ class FreeStageSession:
             "source_input": str(source_input),
             "source_kind": str(source_kind),
         })
-        return True
 
     def _record_director_port(self, payload: Mapping[str, Any] | dict[str, Any], *, turn_no: int) -> dict[str, Any]:
         """Append one N5 port receipt; production turns must leave a non-empty trace."""
@@ -7912,8 +7908,7 @@ class FreeStageSession:
     ) -> bool:
         """Delegate replayable world facts to the single P2a WorldCommit entry."""
         tx_id = str(transaction_id).strip()
-        result = world_commit.commit_world_fact(
-            self.world_transactions,
+        result = self._world_commit_state.commit_fact(
             scope=self._current_runtime_scope(),
             request_id=str(request_id or f"world:{tx_id}"),
             turn_id=f"turn:{int(turn_no)}",
@@ -7930,8 +7925,7 @@ class FreeStageSession:
         return result.committed
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
-        record = self.world_transactions.get(str(transaction_id).strip())
-        return dict(record) if isinstance(record, dict) else None
+        return self._world_commit_state.get_transaction(transaction_id)
 
     def _finalize_prologue_pendant(
         self,
@@ -9662,8 +9656,7 @@ class FreeStageSession:
                     turn_no=int(resolution.feasibility.intent.turn),
                     scene_effects=effects,
                 )
-                if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-                    self.causal_receipts.append(causal_receipt)
+                self._world_commit_state.append_causal_receipt(causal_receipt)
                 self._apply_actor_mind_receipt(card or self.card, decision.actor_cons, causal_receipt)
             self.ambient_actor_registry, ambient_event = establish_after_reciprocity(
                 self.ambient_actor_registry,
@@ -9782,8 +9775,7 @@ class FreeStageSession:
                 str(committed_decision.get("outcome", "")), {}
             ),
         )
-        if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-            self.causal_receipts.append(causal_receipt)
+        self._world_commit_state.append_causal_receipt(causal_receipt)
         self._apply_actor_mind_receipt(self.card, cons, causal_receipt)
         turns, _progress, _note = normalize_turns(payload)
         for item in turns:

@@ -616,6 +616,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_world_projection_p2b.py",
     },
     {
+        "id": "world_commit_state_p2c",
+        "desc": "P2c WorldCommitState：scene/transaction/causal ledgers 真正单 owner，Session 只读副本视图",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_commit_state_p2c.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_commit_state_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_commit_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

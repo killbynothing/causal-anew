@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-4 完成：World Transaction × Causal Receipt 账本 Owner）
+
+- **边界**：新增 `WorldCommitLedgerState`，只拥有 `world_transactions + causal_receipts` 两个账本；没有把 P2c-3 已独立收口的 branch/scene facts 再吞回 WorldCommit。外部兼容属性只返回深拷贝。
+- **生产迁移**：init/load/reset、`_commit_world_transaction()`、`_world_transaction()` 与两条 actor/director causal receipt append 全部改走 owner；FreeStage 不再直接赋写这两个 ledger。
+- **幂等/冲突**：causal receipt 同 ID 同 payload 重试无副作用，异 payload 硬 `ReceiptConflict`；world transaction 继续复用 P2a 的 scope/request/hash/atomic batch 规则。legacy load 保留原数据，不伪造 provenance。
+- **后继不变量**：P2a/P0a 旧测试已升级：`_commit_world_transaction` 应委托 `self._world_commit_ledger.commit_fact`；Authority Map 中 `world_transactions/causal_receipts` 直接 production writer 必须为 0。SceneFact 的 branch/scene receipt 仍保持各 1 个 reducer writer。
+- **迁移债**：`P2A_WORLD_MIGRATION_DEBT` 只剩 `run_observation_ledger / player_state / body_frames / world_cursor`；已迁集合增加 `world_transactions / causal_receipts`。不抄并行失败实验分支的“debt 全空”结论。
+- **验**：最终 Actions [36579853636](https://github.com/killbynothing/causal-anew/actions/runs/36579853636) **success**；quick **53 PASS / 0 FAIL / 163 SKIP（216 validators）**，DB checksum 前后不变。前两跑只暴露 P2a/P0a 旧 successor invariant 到期，新 P2c4 required gate 本身持续通过。
+- **报账**：未改 body/observation/player_state/world_cursor、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：只做 **P2c-5：BodyFrame + observation owner**。从 P2c4 绿基线出发，收 `body_frames + run_observation_ledger` 的 load/reset/业务 replacement writer；player_state 与 world_cursor 明确留后两刀。
+
 ### 2026-09-29（P2c-3 完成：Scene Fact 单一生产写权）
 
 - **SceneFactReducer**：新增 `runtime/scene_fact_state.py` 纯 reducer；`FreeStageSession._reduce_scene_facts()` 成为 FreeStage `branch_progress + scene_receipts` 唯一生产 writer。receipt 是 append-only 证据，branch 只是当前 active fact 的兼容索引；assert/retract/replace/observe/reset_all 均由同一入口归约。

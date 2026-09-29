@@ -14,7 +14,11 @@ if str(ROOT) not in sys.path:
 
 from runtime.causal_protocol import ReceiptConflict, RuntimeScope
 from runtime.player_action import build_player_action, commit_player_action
-from runtime.world_commit import P2A_WORLD_MIGRATION_DEBT, commit_world_fact
+from runtime.world_commit import (
+    P2A_WORLD_MIGRATION_DEBT,
+    commit_world_batch,
+    commit_world_fact,
+)
 from runtime import free_stage_prototype as proto
 
 
@@ -140,6 +144,104 @@ def test_world_commit_receipt_is_scoped_and_conflict_safe():
     else:
         raise AssertionError("same world transaction id with different outcome must conflict")
     assert json.dumps(ledger, sort_keys=True, ensure_ascii=False) == before
+
+
+def test_world_batch_is_atomic_and_has_stable_batch_id():
+    ledger = {}
+    first = commit_world_batch(
+        ledger,
+        scope=_scope(),
+        request_id="req:batch",
+        turn_id="turn:5",
+        facts=(
+            {
+                "transaction_id": "b1",
+                "kind": "public_event",
+                "outcome": "one",
+                "owner": "world",
+                "scene_id": "S1",
+                "turn": 5,
+                "public_effect": "one",
+            },
+            {
+                "transaction_id": "b2",
+                "kind": "public_event",
+                "outcome": "two",
+                "owner": "world",
+                "scene_id": "S1",
+                "turn": 5,
+                "public_effect": "two",
+            },
+        ),
+    )
+    assert first.committed_ids == ("b1", "b2")
+    assert first.records[0]["batch_id"] == first.batch_id
+    assert first.records[1]["batch_id"] == first.batch_id
+    assert first.records[0]["receipt"]["sequence"] == 0
+    assert first.records[1]["receipt"]["sequence"] == 1
+
+    retry = commit_world_batch(
+        ledger,
+        scope=_scope(),
+        request_id="req:batch",
+        turn_id="turn:5",
+        facts=(
+            {
+                "transaction_id": "b1",
+                "kind": "public_event",
+                "outcome": "one",
+                "owner": "world",
+                "scene_id": "S1",
+                "turn": 5,
+                "public_effect": "one",
+            },
+            {
+                "transaction_id": "b2",
+                "kind": "public_event",
+                "outcome": "two",
+                "owner": "world",
+                "scene_id": "S1",
+                "turn": 5,
+                "public_effect": "two",
+            },
+        ),
+    )
+    assert retry.batch_id == first.batch_id
+    assert retry.committed_ids == ()
+    assert retry.existing_ids == ("b1", "b2")
+
+    before = json.dumps(ledger, ensure_ascii=False, sort_keys=True)
+    try:
+        commit_world_batch(
+            ledger,
+            scope=_scope(),
+            request_id="req:conflict-batch",
+            turn_id="turn:6",
+            facts=(
+                {
+                    "transaction_id": "new-before-conflict",
+                    "kind": "public_event",
+                    "outcome": "new",
+                    "owner": "world",
+                    "scene_id": "S1",
+                    "turn": 6,
+                },
+                {
+                    "transaction_id": "b2",
+                    "kind": "public_event",
+                    "outcome": "DIFFERENT",
+                    "owner": "world",
+                    "scene_id": "S1",
+                    "turn": 6,
+                },
+            ),
+        )
+    except ReceiptConflict:
+        pass
+    else:
+        raise AssertionError("one conflicting fact must abort the whole batch")
+    assert json.dumps(ledger, ensure_ascii=False, sort_keys=True) == before
+    assert "new-before-conflict" not in ledger
 
 
 def test_legacy_world_transaction_retry_is_read_only_compatible():

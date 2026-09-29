@@ -13,6 +13,7 @@ from runtime.causal_protocol import (
     ReceiptEnvelope,
     RuntimeScope,
     canonical_payload_hash,
+    commit_batch_id,
 )
 
 WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
@@ -37,6 +38,14 @@ class WorldCommitResult:
     committed: bool
 
 
+@dataclass(frozen=True)
+class WorldBatchResult:
+    batch_id: str
+    records: tuple[dict[str, Any], ...]
+    committed_ids: tuple[str, ...]
+    existing_ids: tuple[str, ...]
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -55,6 +64,140 @@ def _core(record: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _build_candidate(
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    turn_id: str,
+    batch_id: str,
+    sequence: int,
+    fact: Mapping[str, Any],
+    base_revision: int,
+) -> dict[str, Any]:
+    tx_id = _text(fact.get("transaction_id"))
+    kind = _text(fact.get("kind"))
+    outcome = _text(fact.get("outcome"))
+    owner = _text(fact.get("owner"))
+    turn = int(fact.get("turn", 0) or 0)
+    if not tx_id or not kind or not outcome or not owner:
+        raise ValueError("world commit requires transaction/kind/outcome/owner")
+    if turn < 0:
+        raise ValueError("world commit turn must be >= 0")
+
+    payload = {
+        "transaction_id": tx_id,
+        "kind": kind,
+        "outcome": outcome,
+        "owner": owner,
+        "scene_id": _text(fact.get("scene_id")),
+        "turn": turn,
+        "worldline": scope.worldline,
+        "run": int(scope.run),
+        "public_effect": _text(fact.get("public_effect")),
+    }
+    refs = fact.get("source_refs") or ()
+    if not isinstance(refs, (list, tuple)):
+        raise ValueError("world commit source_refs must be list/tuple")
+    receipt = ReceiptEnvelope.for_payload(
+        receipt_id=f"world:{canonical_payload_hash({'scope': scope.to_dict(), 'transaction_id': tx_id})}",
+        request_id=request_id,
+        turn_id=_text(turn_id) or f"turn:{turn}",
+        sequence=int(sequence),
+        scope=scope,
+        producer="WorldCommit",
+        source_refs=tuple(_text(item) for item in refs if _text(item)),
+        visibility="public",
+        base_revision=int(base_revision),
+        payload=payload,
+    )
+    return {
+        "schema_version": WORLD_COMMIT_SCHEMA,
+        **payload,
+        "request_id": request_id,
+        "batch_id": batch_id,
+        "receipt": receipt.to_dict(),
+    }
+
+
+def commit_world_batch(
+    ledger: MutableMapping[str, dict[str, Any]],
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    turn_id: str,
+    facts: Sequence[Mapping[str, Any]],
+    batch_index: int = 0,
+    base_revision: int = 0,
+) -> WorldBatchResult:
+    """Validate the entire batch first, then mutate the ledger once.
+
+    Any conflict aborts before the first new fact is inserted. Retries are
+    idempotent only when fact and provenance are identical.
+    """
+    req_id = _text(request_id)
+    if not req_id:
+        raise ValueError("world commit batch requires request_id")
+    if int(scope.run) < 1:
+        raise ValueError("world commit requires run>=1")
+    if not facts:
+        raise ValueError("world commit batch requires at least one fact")
+
+    batch_id = commit_batch_id(scope, request_id=req_id, batch_index=int(batch_index))
+    candidates: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for sequence, fact in enumerate(facts):
+        candidate = _build_candidate(
+            scope=scope,
+            request_id=req_id,
+            turn_id=turn_id,
+            batch_id=batch_id,
+            sequence=sequence,
+            fact=fact,
+            base_revision=base_revision,
+        )
+        tx_id = candidate["transaction_id"]
+        if tx_id in seen:
+            raise ReceiptConflict(f"duplicate transaction id inside batch: {tx_id}")
+        seen.add(tx_id)
+        candidates.append(candidate)
+
+    resolved: list[dict[str, Any]] = []
+    new_records: list[dict[str, Any]] = []
+    committed_ids: list[str] = []
+    existing_ids: list[str] = []
+
+    # Phase 1: validate every candidate without mutating ledger.
+    for candidate in candidates:
+        tx_id = candidate["transaction_id"]
+        existing = ledger.get(tx_id)
+        if existing is None:
+            resolved.append(candidate)
+            new_records.append(candidate)
+            committed_ids.append(tx_id)
+            continue
+        if _core(existing) != _core(candidate):
+            raise ReceiptConflict(f"world transaction id reused with different fact: {tx_id}")
+        if existing.get("schema_version") != WORLD_COMMIT_SCHEMA:
+            resolved.append(dict(existing))
+            existing_ids.append(tx_id)
+            continue
+        if canonical_payload_hash(existing) != canonical_payload_hash(candidate):
+            raise ReceiptConflict(f"world transaction id reused with different provenance: {tx_id}")
+        resolved.append(dict(existing))
+        existing_ids.append(tx_id)
+
+    # Phase 2: all validation passed; now publish the new facts.
+    for candidate in new_records:
+        ledger[candidate["transaction_id"]] = candidate
+
+    return WorldBatchResult(
+        batch_id=batch_id,
+        records=tuple(dict(item) for item in resolved),
+        committed_ids=tuple(committed_ids),
+        existing_ids=tuple(existing_ids),
+    )
+
+
 def commit_world_fact(
     ledger: MutableMapping[str, dict[str, Any]],
     *,
@@ -71,62 +214,29 @@ def commit_world_fact(
     source_refs: Sequence[str] = (),
     base_revision: int = 0,
 ) -> WorldCommitResult:
-    """Commit one immutable world fact, or return the exact prior retry.
-
-    Reusing a transaction id with a different fact, scope, request, or source
-    chain is a hard conflict. Legacy records without envelopes remain readable
-    and can only be retried when their public core is identical.
-    """
-    tx_id = _text(transaction_id)
-    req_id = _text(request_id)
-    if not tx_id or not req_id or not _text(kind) or not _text(outcome) or not _text(owner):
-        raise ValueError("world commit requires transaction/request/kind/outcome/owner")
-    if int(turn) < 0:
-        raise ValueError("world commit turn must be >= 0")
-    if int(scope.run) < 1:
-        raise ValueError("world commit requires run>=1")
-
-    payload = {
-        "transaction_id": tx_id,
-        "kind": _text(kind),
-        "outcome": _text(outcome),
-        "owner": _text(owner),
-        "scene_id": _text(scene_id),
-        "turn": int(turn),
-        "worldline": scope.worldline,
-        "run": int(scope.run),
-        "public_effect": _text(public_effect),
-    }
-    receipt = ReceiptEnvelope.for_payload(
-        receipt_id=f"world:{canonical_payload_hash({'scope': scope.to_dict(), 'transaction_id': tx_id})}",
-        request_id=req_id,
-        turn_id=_text(turn_id) or f"turn:{int(turn)}",
-        sequence=0,
+    """Single-fact compatibility facade over the atomic batch boundary."""
+    result = commit_world_batch(
+        ledger,
         scope=scope,
-        producer="WorldCommit",
-        source_refs=tuple(_text(item) for item in source_refs if _text(item)),
-        visibility="public",
-        base_revision=int(base_revision),
-        payload=payload,
+        request_id=request_id,
+        turn_id=turn_id,
+        facts=(
+            {
+                "transaction_id": transaction_id,
+                "kind": kind,
+                "outcome": outcome,
+                "owner": owner,
+                "scene_id": scene_id,
+                "turn": int(turn),
+                "public_effect": public_effect,
+                "source_refs": tuple(source_refs),
+            },
+        ),
+        batch_index=0,
+        base_revision=base_revision,
     )
-    candidate = {
-        "schema_version": WORLD_COMMIT_SCHEMA,
-        **payload,
-        "request_id": req_id,
-        "receipt": receipt.to_dict(),
-    }
-
-    existing = ledger.get(tx_id)
-    if existing is not None:
-        if _core(existing) != payload:
-            raise ReceiptConflict(f"world transaction id reused with different fact: {tx_id}")
-        # Legacy pre-P2a records have no envelope. Their public fact is frozen,
-        # but we do not retroactively fabricate provenance.
-        if existing.get("schema_version") != WORLD_COMMIT_SCHEMA:
-            return WorldCommitResult(record=dict(existing), committed=False)
-        if canonical_payload_hash(existing) != canonical_payload_hash(candidate):
-            raise ReceiptConflict(f"world transaction id reused with different provenance: {tx_id}")
-        return WorldCommitResult(record=dict(existing), committed=False)
-
-    ledger[tx_id] = candidate
-    return WorldCommitResult(record=dict(candidate), committed=True)
+    tx_id = _text(transaction_id)
+    return WorldCommitResult(
+        record=dict(result.records[0]),
+        committed=tx_id in result.committed_ids,
+    )

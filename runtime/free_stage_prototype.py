@@ -3728,15 +3728,47 @@ def c16_milktea_disposition(player_input: str | dict[str, str]) -> str:
 
 
 def prologue_receipt_disposition(player_input: str | dict[str, str]) -> str:
-    """托付的回应必须由可见言行给出，沉默和绕开都不是默认同意。"""
+    """托付回应：只回答承诺/照顾，不作为挂坠 custody 的证据。"""
     text = re.sub(r"\s+", "", _player_public_input_text(player_input))
     if not text:
         return "undecided"
-    if any(token in text for token in ("不答应", "不收", "拒绝", "不想答应", "不用了")):
+    if any(token in text for token in ("不答应", "拒绝", "不想答应", "不照顾", "不照看")):
         return "declined"
-    if any(token in text for token in ("先放着", "暂时", "想想再说", "以后再说")):
+    if any(token in text for token in ("想想再说", "以后再说", "暂时答应不了")):
         return "deferred"
-    if any(token in text for token in ("我答应", "我会记住", "我记下了", "我会留意", "我收下", "好，我会", "姐罩着", "我罩着", "我会照看")):
+    if any(token in text for token in ("我答应", "我会记住", "我记下了", "我会留意", "好，我会", "姐罩着", "我罩着", "我会照看")):
+        return "accepted"
+    return "undecided"
+
+
+def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
+    """挂坠处分：只认明确物件取舍，承诺帮忙绝不等于收下物件。"""
+    text = re.sub(r"\s+", "", _player_public_input_text(player_input))
+    if not text:
+        return "undecided"
+    if any(
+        token in text
+        for token in (
+            "不收", "我不要", "这个不要", "你留着", "你自己留着",
+            "拿回去", "收回去", "不用给我",
+        )
+    ):
+        return "declined"
+    if any(
+        token in text
+        for token in (
+            "先放着", "先放这", "先搁着", "暂时放着", "我想想",
+            "想想再说", "以后再说", "下次再说", "改天再说",
+        )
+    ):
+        return "deferred"
+    if any(
+        token in text
+        for token in (
+            "我收下", "那我收下", "我就收下", "我拿着", "那我拿着",
+            "我先拿着", "我拿走", "我收着", "给我吧",
+        )
+    ):
         return "accepted"
     return "undecided"
 
@@ -10032,10 +10064,14 @@ class FreeStageSession:
         # 玩家可以先回应托付，但挂坠去向必须等“龙也已明确口头递出”之后再结算。
         # 这样「我答应帮忙」不会被误当成「我已经收下物件」。
         if self.card.get("prologue_active") and "RP4" not in self.completed:
-            receipt = prologue_receipt_disposition(parsed_input)
+            pendant_offered = "prologue_pendant_offered" in self.branch_progress
+            receipt = (
+                prologue_pendant_disposition(parsed_input)
+                if pendant_offered
+                else prologue_receipt_disposition(parsed_input)
+            )
             if receipt != "undecided":
                 marker = f"prologue_receipt_{receipt}"
-                pendant_offered = "prologue_pendant_offered" in self.branch_progress
                 if "RP3" in self.completed and pendant_offered:
                     # Preserve the existing RP4 disposition policy, but only
                     # project completion after PlayerAction→WorldCommit succeeds.

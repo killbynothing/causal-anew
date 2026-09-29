@@ -204,6 +204,38 @@ def test_session_finalize_projects_only_after_world_commit_and_conflict_is_atomi
         ) == before
 
 
+def test_entrust_and_pendant_disposition_parsers_are_separate():
+    assert proto.prologue_receipt_disposition("我答应，我会照看他们") == "accepted"
+    assert proto.prologue_pendant_disposition("我答应，我会照看他们") == "undecided"
+    assert proto.prologue_pendant_disposition("好，我收下") == "accepted"
+    assert proto.prologue_pendant_disposition("你留着吧，我不收") == "declined"
+    assert proto.prologue_pendant_disposition("先放着，我想想") == "deferred"
+    assert proto.prologue_pendant_disposition("想再见见你总要有个借口吧") == "undecided"
+
+
+def test_after_offer_entrust_promise_does_not_accept_pendant():
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="p2b-parser",
+            card_path=card,
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=_caller,
+        )
+        session.completed = ["RP1", "RP2", "RP3"]
+        session.branch_progress = ["prologue_pendant_offered"]
+        session.step({"speech": "我答应，我会照看他们", "action": "", "thought": ""})
+        assert "RP4" not in session.completed
+        assert session._world_transaction("ryuya_pendant_disposition") is None
+        assert not any(
+            key.startswith("ryuya_pendant_response:")
+            for key in session.player_action_receipts
+        )
+
+
 def test_explicit_player_response_sources_world_commit_without_smuggling_custody():
     card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
     with tempfile.TemporaryDirectory() as tmp:

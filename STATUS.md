@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2b-2 完成：咖啡馆联合矩阵 × Reflect 事实降权）
+
+- **联合矩阵**：新增 quick `cafe_joint_matrix_p2b2`，固定覆盖纯玩笑、高拍数、认真话题、stage-only 托付、words-only/action-only/完整 offer、模糊回应、收/拒/暂放、不理继续聊，并另走 accepted→继续聊天→明确离场连续链。测试调用真实 `FreeStageSession.step()` 与 isolated actor caller，只比结构，不把自然语言做黄金文本。
+- **跨层同查**：每个截面同时检查真实 actor caller packet（含 concern/prior Reflect 且不带 constraint_card）、Beat/RP、PlayerAction、World transaction、BodyFrame、player body_props、pendant observation 的 WorldCommit receipt、真实 `ExitDecision` 与 save→load。高拍数不造 RP2；stage-only 不造 RP3；单有 words/action 不算完整 offer；offer 不转 custody；模糊“我答应照顾他们”不变成收坠。
+- **自由交互**：accepted 后的 WorldCommit/custody 在 save→load 后保持，下一拍继续聊仍由 ExitPolicy 返回 continue；只有明确“先走了/回头见”才 end_run。RP4/物件结算不再暗含自动关局。
+- **Reflect 收权**：`actor_cog_loop.build_reflect_thought()` 新增只读 `pendant_disposition` 输入，生产从 `ryuya_pendant_disposition` WorldCommit 传入。accepted/declined/deferred 各自按已提交结果反思；仅有 RP4 兼容标记而无世界收据时明确“不自行补成已交付”；RP3 后只允许“明确递出→等玩家回应”，删除“下一拍必须交到手里”的强推。
+- **未裁边界**：矩阵不对 declined/deferred 是否完成 RP4 作断言，不把当前兼容实现升格为正典；挂坠“必须赠与尝试 vs 必须最终 custody”仍是 ★★★ 人裁。场卡“必交”文案未动。
+- **验**：最终 Actions `36550294313` **success**；quick **49 PASS / 0 FAIL / 163 SKIP（212 validators）**，DB checksum 前后不变。首跑 `36550154664` 的唯一红点是测试用空字符串做“不包含 thought”判断，属于测试表达式错误；修正为仅对非空 thought 检查后全绿，没有放宽运行时合同。
+- **报账**：未改 run=0、正典场卡、Seed/VOICE、A/B 挂坠固定事实、真人 a14 DB 或 LFS 真值库；**正典/人物/剧情新增 = 0**。本轮新增的是联合观测测试与 receipt-driven Reflect 工程语义。
+- **下一动**：进入 **P2c**。按 Authority Map 一类类迁移 `completed/completed_by_card/branch/scene receipts/ledger/body/world cursor` 的生产 writer，使 BeatState 与 World projection 成为唯一提交/派生路径；不在 P2c 顺手做 P3 ActorMind。
+
 ### 2026-09-29（P2b-1 完成：挂坠处分来源链 × WorldCommit 同源投影）
 
 - **投影权威**：新增 `runtime/world_projection.py`。挂坠 player props、龙也 BodyFrame、run observation ledger 不再由 `_finalize_prologue_pendant()` 三处手改，而是只读已经提交的 WorldCommit receipt 一次性派生；reducer 对输入 copy-safe、重复投影幂等。

@@ -513,11 +513,15 @@ VALIDATORS = [
     },
     {
         "id": "authoritative_world_transactions",
-        "desc": "N1 one-time world transactions: append-only terminal outcomes, save/reload and receipt consistency (zero LLM)",
+        "desc": "P2a WorldCommit/PlayerAction：单一事务提交、scope receipt、幂等冲突、生产接线与未迁债清单",
         "tier": "quick",
         "cmd": [PY, "scripts/tests/test_authoritative_world_transactions.py"],
         "triggers": [
+            "runtime/world_commit.py",
+            "runtime/player_action.py",
+            "runtime/causal_protocol.py",
             "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
             "scripts/tests/test_authoritative_world_transactions.py",
         ],
         "need": [],

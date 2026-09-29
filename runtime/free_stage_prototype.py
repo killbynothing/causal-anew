@@ -77,6 +77,8 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
+from runtime import world_commit
+from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import utterance_stream as ustream
@@ -7113,6 +7115,7 @@ class FreeStageSession:
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
         self.world_transactions: dict[str, dict[str, Any]] = {}
+        self.player_action_receipts: dict[str, dict[str, Any]] = {}
         self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
@@ -7294,6 +7297,11 @@ class FreeStageSession:
             for transaction_id, record in dict(data.get("world_transactions", {})).items()
             if str(transaction_id).strip() and isinstance(record, dict)
         }
+        self.player_action_receipts = {
+            str(action_id): dict(record)
+            for action_id, record in dict(data.get("player_action_receipts", {})).items()
+            if str(action_id).strip() and isinstance(record, dict)
+        }
         self.causal_receipts = [
             dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
         ]
@@ -7428,6 +7436,7 @@ class FreeStageSession:
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
+            "player_action_receipts": self.player_action_receipts,
             "causal_receipts": self.causal_receipts,
             "director_port_trace": self.director_port_trace[-80:],
             "last_issues": self.last_issues,
@@ -7482,16 +7491,7 @@ class FreeStageSession:
         return f"close-run:{int(self.run_no)}:{self.session_id}"
 
     def _close_scope(self) -> RuntimeScope:
-        cursor = dict(self.world_cursor or {})
-        scene_id = str(self.card.get("scene_id") or self.card_path)
-        scene_instance = f"{scene_id}:visit:{max(1, len(self.card_history))}"
-        return RuntimeScope(
-            worldline=str(cursor.get("worldline") or "WMAIN"),
-            run=int(self.run_no),
-            ch_anchor=int(cursor.get("ch_anchor") or self.card.get("ch_anchor") or 0),
-            session_id=self.session_id,
-            scene_instance_id=scene_instance,
-        )
+        return self._current_runtime_scope()
 
     def _prepare_close_commit(self) -> str:
         if not self.autosave:
@@ -7640,6 +7640,7 @@ class FreeStageSession:
         self._language_discovery_observation = None
         self.scene_receipts = []
         self.world_transactions = {}
+        self.player_action_receipts = {}
         self.causal_receipts = []
         self.director_port_trace = []
         self.last_director_opportunity = None
@@ -7831,6 +7832,43 @@ class FreeStageSession:
         )
         return receipt
 
+    def _current_runtime_scope(self) -> RuntimeScope:
+        scene_id = str(self.card.get("scene_id") or self.card_path)
+        return RuntimeScope(
+            worldline=str(self.world_cursor.get("worldline") or "WMAIN"),
+            run=int(self.world_cursor.get("run", self.run_no) or self.run_no),
+            ch_anchor=int(self.world_cursor.get("ch_anchor") or self.card.get("ch_anchor") or 0),
+            session_id=self.session_id,
+            scene_instance_id=f"{scene_id}:visit:{max(1, len(self.card_history))}",
+        )
+
+    def _commit_player_action(
+        self,
+        action_id: str,
+        *,
+        action_kind: str,
+        target: str,
+        value: str,
+        turn_no: int,
+        source_refs: tuple[str, ...] | list[str] = (),
+    ) -> dict[str, Any]:
+        record = player_action_commit.build_player_action(
+            scope=self._current_runtime_scope(),
+            request_id=f"player-action:{action_id}",
+            turn_id=f"turn:{int(turn_no)}",
+            action_id=action_id,
+            action_kind=action_kind,
+            target=target,
+            value=value,
+            turn=int(turn_no),
+            source_refs=source_refs,
+            base_revision=0,
+        )
+        return player_action_commit.commit_player_action(
+            self.player_action_receipts,
+            record,
+        ).record
+
     def _commit_world_transaction(
         self,
         transaction_id: str,
@@ -7840,29 +7878,27 @@ class FreeStageSession:
         owner: str,
         turn_no: int,
         public_effect: str = "",
+        source_refs: tuple[str, ...] | list[str] = (),
+        request_id: str = "",
     ) -> bool:
-        """Append a terminal world fact once; never let later prose rewrite it.
-
-        This deliberately records only public, replayable metadata. Private
-        reasons and raw player input stay in their respective receipt lanes.
-        """
-        transaction_id = str(transaction_id).strip()
-        if not transaction_id:
-            raise ValueError("world transaction requires a stable id")
-        if transaction_id in self.world_transactions:
-            return False
-        self.world_transactions[transaction_id] = {
-            "transaction_id": transaction_id,
-            "kind": str(kind).strip(),
-            "outcome": str(outcome).strip(),
-            "owner": str(owner).strip(),
-            "scene_id": str(self.card.get("scene_id", "")).strip(),
-            "turn": int(turn_no),
-            "worldline": str(self.world_cursor.get("worldline", "WMAIN")),
-            "run": int(self.world_cursor.get("run", self.run_no) or self.run_no),
-            "public_effect": str(public_effect).strip(),
-        }
-        return True
+        """Delegate replayable world facts to the single P2a WorldCommit entry."""
+        tx_id = str(transaction_id).strip()
+        result = world_commit.commit_world_fact(
+            self.world_transactions,
+            scope=self._current_runtime_scope(),
+            request_id=str(request_id or f"world:{tx_id}"),
+            turn_id=f"turn:{int(turn_no)}",
+            transaction_id=tx_id,
+            kind=kind,
+            outcome=outcome,
+            owner=owner,
+            scene_id=str(self.card.get("scene_id", "")).strip(),
+            turn=int(turn_no),
+            public_effect=public_effect,
+            source_refs=source_refs,
+            base_revision=0,
+        )
+        return result.committed
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
         record = self.world_transactions.get(str(transaction_id).strip())
@@ -8231,6 +8267,14 @@ class FreeStageSession:
         fact_id = str(fact_id).strip()
         if not fact_id:
             return False
+        self._commit_player_action(
+            f"branch:{fact_id}",
+            action_kind="branch_choice",
+            target=fact_id,
+            value="asserted",
+            turn_no=turn_no,
+            source_refs=(f"player-input:turn:{int(turn_no)}",),
+        )
         added = fact_id not in self.branch_progress
         if added:
             self.branch_progress.append(fact_id)

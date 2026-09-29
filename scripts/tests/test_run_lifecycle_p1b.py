@@ -54,6 +54,48 @@ def test_runtime_store_atomic_save_and_corruption_are_strict():
             raise AssertionError("corrupt snapshot must not look like a missing/new session")
 
 
+def test_close_snapshot_failure_recovers_from_outbox_without_model():
+    with tempfile.TemporaryDirectory() as tmp:
+        state_dir = Path(tmp) / "states"
+        runtime_state = Path(tmp) / "runtime_state.db"
+        session = proto.FreeStageSession(
+            session_id="p1b-snapshot-fail",
+            card_path=_card(),
+            state_dir=state_dir,
+            runtime_state_path=runtime_state,
+            autosave=True,
+            load_existing=False,
+            caller=_caller_should_not_run,
+        )
+        session.save()
+        original_save = session.runtime_store.save
+
+        def fail_main_snapshot(*args, **kwargs):
+            raise RuntimeStoreError("injected main snapshot failure")
+
+        session.runtime_store.save = fail_main_snapshot
+        assert session._mark_ended() is False
+        assert session.runtime_store.load_commit_cursor().pending is not None
+        disk = json.loads(session.runtime_store.state_path.read_text(encoding="utf-8"))
+        assert disk.get("lifecycle_state") == run_lifecycle.OPEN
+        session.runtime_store.save = original_save
+
+        resumed = proto.FreeStageSession(
+            session_id="p1b-snapshot-fail",
+            card_path=_card(),
+            state_dir=state_dir,
+            runtime_state_path=runtime_state,
+            autosave=True,
+            load_existing=True,
+            caller=_caller_should_not_run,
+        )
+        assert resumed.lifecycle_state == run_lifecycle.CLOSING
+        result = resumed.step("不得进入模型")
+        assert result["ended"] is True
+        assert result["turns"] == []
+        assert resumed.runtime_store.load_commit_cursor().pending is None
+
+
 def test_close_failure_persists_closing_and_retries_without_model():
     with tempfile.TemporaryDirectory() as tmp:
         state_dir = Path(tmp) / "states"
@@ -170,6 +212,7 @@ def test_save_as_is_read_only_and_cannot_become_second_run_writer():
 if __name__ == "__main__":
     test_legacy_ended_without_receipt_recovers_as_closing()
     test_runtime_store_atomic_save_and_corruption_are_strict()
+    test_close_snapshot_failure_recovers_from_outbox_without_model()
     test_close_failure_persists_closing_and_retries_without_model()
     test_closed_run_refuses_mutating_methods_and_reset()
     test_save_as_is_read_only_and_cannot_become_second_run_writer()

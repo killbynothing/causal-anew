@@ -94,7 +94,14 @@ from runtime.director_intent import ActorDecision, commit_actor_decision, valida
 from runtime.autonomous_decision import (
     available_autonomous_decisions, next_autonomous_decision, validate_autonomous_decision,
 )
-from runtime.causal_protocol import observation_from_packet
+from runtime.causal_protocol import (
+    PendingCommit,
+    RuntimeScope,
+    acknowledge_commit,
+    commit_batch_id,
+    observation_from_packet,
+    prepare_commit,
+)
 from runtime.director_ports import (
     build_dramaturgy_opportunity,
     build_stage_frame,
@@ -7267,6 +7274,19 @@ class FreeStageSession:
         self._run_closed = self.ended
         self.write_mode = str(data.get("write_mode") or "writable")
         self.source_session_id = str(data.get("source_session_id") or "").strip() or None
+        commit_cursor = self.runtime_store.load_commit_cursor()
+        pending_close = commit_cursor.pending
+        if (
+            pending_close is not None
+            and pending_close.request_id == self._close_request_id()
+            and self.lifecycle_state != run_lifecycle.CLOSED
+        ):
+            # The outbox is more durable than an older open JSON snapshot. A
+            # prepared close must never resurrect as writable after a crash.
+            self._set_lifecycle_state(
+                run_lifecycle.CLOSING,
+                error=self.close_error or "recovered_pending_close",
+            )
         self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
         self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
         self.world_transactions = {
@@ -7458,6 +7478,60 @@ class FreeStageSession:
         self.ended = state == run_lifecycle.CLOSED
         self._run_closed = self.ended
 
+    def _close_request_id(self) -> str:
+        return f"close-run:{int(self.run_no)}:{self.session_id}"
+
+    def _close_scope(self) -> RuntimeScope:
+        cursor = dict(self.world_cursor or {})
+        scene_id = str(self.card.get("scene_id") or self.card_path)
+        scene_instance = f"{scene_id}:visit:{max(1, len(self.card_history))}"
+        return RuntimeScope(
+            worldline=str(cursor.get("worldline") or "WMAIN"),
+            run=int(self.run_no),
+            ch_anchor=int(cursor.get("ch_anchor") or self.card.get("ch_anchor") or 0),
+            session_id=self.session_id,
+            scene_instance_id=scene_instance,
+        )
+
+    def _prepare_close_commit(self) -> str:
+        if not self.autosave:
+            return ""
+        cursor = self.runtime_store.load_commit_cursor()
+        scope = self._close_scope()
+        request_id = self._close_request_id()
+        batch_id = commit_batch_id(scope, request_id=request_id, batch_index=0)
+        pending = PendingCommit.for_payload(
+            batch_id=batch_id,
+            request_id=request_id,
+            base_revision=cursor.revision,
+            batch_index=0,
+            payload={
+                "kind": "close_run",
+                "run": int(self.run_no),
+                "session_id": self.session_id,
+                "scene_instance_id": scope.scene_instance_id,
+            },
+        )
+        prepared = prepare_commit(cursor, pending)
+        self.runtime_store.save_commit_cursor(prepared)
+        return batch_id
+
+    def _has_pending_close(self) -> bool:
+        if not self.autosave:
+            return False
+        cursor = self.runtime_store.load_commit_cursor()
+        return bool(
+            cursor.pending is not None
+            and cursor.pending.request_id == self._close_request_id()
+        )
+
+    def _ack_close_commit(self, batch_id: str) -> None:
+        if not batch_id:
+            return
+        cursor = self.runtime_store.load_commit_cursor()
+        acked = acknowledge_commit(cursor, batch_id)
+        self.runtime_store.save_commit_cursor(acked)
+
     def _persist_lifecycle_snapshot(self) -> bool:
         if not self.autosave:
             return True
@@ -7469,36 +7543,48 @@ class FreeStageSession:
             return False
 
     def _mark_ended(self) -> bool:
-        """Commit open→closing→closed. Failure stays recoverable at closing."""
-        if self.lifecycle_state == run_lifecycle.CLOSED:
+        """Durably commit open→closing→closed using the P0b outbox."""
+        if self.lifecycle_state == run_lifecycle.CLOSED and not self._has_pending_close():
             return True
+        try:
+            batch_id = self._prepare_close_commit()
+        except Exception as exc:
+            self.close_error = f"close_prepare_failed:{type(exc).__name__}:{exc}"
+            return False
+
         if self.lifecycle_state == run_lifecycle.OPEN:
             self._set_lifecycle_state(run_lifecycle.CLOSING)
-        if not self._persist_lifecycle_snapshot():
-            return False
 
-        if self.truth_db_path is None:
-            self._set_lifecycle_state(run_lifecycle.CLOSED)
+        if self.lifecycle_state == run_lifecycle.CLOSING:
             if not self._persist_lifecycle_snapshot():
-                self._set_lifecycle_state(run_lifecycle.CLOSING, error=self.close_error)
+                # Outbox was persisted first: reload will still recover this
+                # close even if the main JSON snapshot stayed open.
                 return False
-            return True
 
-        try:
-            receipt = self._close_run_once()
-        except Exception as exc:
-            self._set_lifecycle_state(
-                run_lifecycle.CLOSING,
-                error=f"close_failed:{type(exc).__name__}:{exc}",
-            )
-            self._persist_lifecycle_snapshot()
-            return False
+            if self.truth_db_path is not None:
+                try:
+                    receipt = self._close_run_once()
+                except Exception as exc:
+                    self._set_lifecycle_state(
+                        run_lifecycle.CLOSING,
+                        error=f"close_failed:{type(exc).__name__}:{exc}",
+                    )
+                    self._persist_lifecycle_snapshot()
+                    return False
+                self.run_receipt = dict(receipt) if isinstance(receipt, dict) else None
 
-        self.run_receipt = dict(receipt) if isinstance(receipt, dict) else None
-        self._set_lifecycle_state(run_lifecycle.CLOSED)
+            self._set_lifecycle_state(run_lifecycle.CLOSED)
+
+        # CLOSED may still carry an unacked outbox if the final snapshot or ack
+        # failed. Retrying here performs durability only, never a model call.
         if not self._persist_lifecycle_snapshot():
-            self._set_lifecycle_state(run_lifecycle.CLOSING, error=self.close_error)
             return False
+        try:
+            self._ack_close_commit(batch_id)
+        except Exception as exc:
+            self.close_error = f"close_ack_pending:{type(exc).__name__}:{exc}"
+            return False
+        self.close_error = None
         return True
 
     def _close_run_once(self) -> dict[str, Any] | None:
@@ -9698,7 +9784,9 @@ class FreeStageSession:
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
-        if self.lifecycle_state == run_lifecycle.CLOSING:
+        if self.lifecycle_state == run_lifecycle.CLOSING or (
+            self.lifecycle_state == run_lifecycle.CLOSED and self._has_pending_close()
+        ):
             self._mark_ended()
             return self._with_receipt({
                 "session_id": self.session_id,

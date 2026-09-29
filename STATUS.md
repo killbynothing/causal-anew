@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-5 完成：BodyFrame × Observation 单一 Owner）
+
+- **Owner**：在 `runtime/world_projection.py` 新增窄 `BodyObservationState`，只拥有 `body_frames + run_observation_ledger`；没有把 `player_state` 顺手吞进去。对外 view 全是深拷贝，调用方改返回值不能改权威状态。
+- **生产迁移**：FreeStage init/load/reset、BodyFrame ensure/visible-stage settle、挂坠 WorldCommit 投影、普通 observation append、玩家 thought ingest replacement 全部改走 owner facade；`free_stage_prototype.py` 中 `self.body_frames =`、`self.run_observation_ledger =`、`_ledger_append(` 业务写均归零。
+- **语义保持**：stage 仍可更新可见动作/相机手机等既有 BodyFrame 规则，但只在 owner 内部可变引用上归约；挂坠 custody 仍只能由已提交 WorldCommit 驱动。thought reducer 先读 copy，再把结果通过 owner replace，不获得长期 alias。
+- **load/save**：旧 snapshot 的 `body_frames/run_observation_ledger` 单向读入 owner；保存继续写兼容旧键，未给历史记录补造 receipt。save→load、WorldCommit 挂坠投影和 P2b 联合矩阵持续兼容。
+- **Authority**：新 required gate `world_projection_owner_p2c5` 证明 `body_frames / run_observation_ledger` production+tooling+unknown-alias rows 均为 0。P2a/P2c4 旧 debt 断言升级为 successor invariant；`P2A_WORLD_MIGRATION_DEBT` 现在只剩 **`player_state / world_cursor`**。
+- **验**：首跑 Actions `36593044693` 中 P2c-5 新闸 7/7 PASS，唯一红点是 P2c4 仍要求旧四项 debt；升级旧断言后 Actions [36593217603](https://github.com/killbynothing/causal-anew/actions/runs/36593217603) **success**，quick **54 PASS / 0 FAIL / 163 SKIP（217 validators）**，DB checksum 前后不变。
+- **报账**：未改 `player_state/world_cursor`、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：只做 **P2c-6：player_state owner**。收敛玩家身体/时间等当前状态的生产写入与 WorldCommit 投影，但不把 `world_cursor` 混进同一刀；后者单独 P2c-7。
+
 ### 2026-09-29（P2c-4 完成：World Transaction × Causal Receipt 账本 Owner）
 
 - **边界**：新增 `WorldCommitLedgerState`，只拥有 `world_transactions + causal_receipts` 两个账本；没有把 P2c-3 已独立收口的 branch/scene facts 再吞回 WorldCommit。外部兼容属性只返回深拷贝。

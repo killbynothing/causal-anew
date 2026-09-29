@@ -2,8 +2,11 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
+import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
@@ -126,13 +129,24 @@ def test_config_experiment_keeps_deepseek_flash_without_copying_key():
 
 
 def test_live_play_config_pins_deepseek_flash_without_thinking():
-    cfg, mode = proto.load_config()
-    assert mode in {"base_config", "experiment_config"}
-    assert cfg.get("model") == "deepseek-flash"
-    assert cfg.get("api_url") == "https://api.deepseek.com/chat/completions"
-    assert proto.chat_request_options(cfg) == {"thinking": {"type": "disabled"}}
-    # Key may be present locally; never assert its value in tests.
-    assert "api_key" in cfg
+    # Exercise the real config loader without depending on ignored local secrets.
+    with tempfile.TemporaryDirectory() as tmp:
+        base_path = Path(tmp) / "config.json"
+        with patch.object(proto, "BASE_CONFIG_PATH", base_path), patch.dict(
+            os.environ, {"C1_USE_BASE_CONFIG": "0"}
+        ):
+            clean_cfg, clean_mode = proto.load_config()
+            assert clean_mode == "experiment_config"
+            assert "api_key" not in clean_cfg
+            base_path.write_text(json.dumps({"api_key": ""}), encoding="utf-8")
+            cfg, mode = proto.load_config()
+            assert mode == "experiment_config"
+            assert "api_key" in cfg
+            assert cfg["api_key"] == ""
+            for loaded in (clean_cfg, cfg):
+                assert loaded.get("model") == "deepseek-flash"
+                assert loaded.get("api_url") == "https://api.deepseek.com/chat/completions"
+                assert proto.chat_request_options(loaded) == {"thinking": {"type": "disabled"}}
 
 
 def test_real_actor_allows_empty_mh_progress_when_scene_can_pause():

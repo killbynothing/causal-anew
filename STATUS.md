@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（GitHub 同步 × quick CI）
+
+- **同步**：P1a 提交 `6118ff1`（`feat: 收口P1a退出决策权`）；plan / P0a / P0b / P1a 四个指定分支已普通推送 origin。已 fetch 核实：P1a 是远端旧 director-gate 分支 `5acc0bb` 的正常延续；main 的既有 squash 分叉未改动。未 rebase、force push 或重新初始化。
+- **验证**：P1a 四条定向测试全 PASS；本机 quick **45 PASS / 0 FAIL / 164 SKIP**。暂存及待推送增量历史密钥模式扫描无命中，排除 DB、配置、密钥和运行态。
+- **CI**：独立分支 `loop/github-quick-ci-2026-09-29` 新增 `.github/workflows/verify.yml`，Ubuntu + Python 3.11 + LFS checkout；仅跑 quick，不注入模型密钥；前后校验已提交 DB 的 SHA256。远端 Actions 结果以该分支实际 run 为准。
+- **干净环境修复**：首次已提交源码/LFS DB 副本 quick 为 44 PASS / 1 FAIL / 164 SKIP，暴露 smoke 对 ignored `web/config.json` 的依赖；改用临时空密钥配置夹具并补无配置场景，保留模型/选项/密钥字段断言，不读取真人配置、不删测试。
+- **CI 提交前验**：修复后干净副本 quick **45 PASS / 0 FAIL / 164 SKIP**；LFS DB 哈希仍为 `5af683f316ec04067338412934b8c8ece128109c70b41d4b37ff4b7052e02852`，workflow YAML 解析通过。
+- **保留**：真人 a14 DB 保持本地未提交，SHA256 `c582c623f25088088dc13080e1985b0d1695a2c63077f555995ea50645452084`；未启动 P1b。
+- **哪里是我编的**：正典/人物/剧情新增 = 0；本轮仅版本同步与 CI 工程配置。
+
 ### 2026-09-29（P1a 完成：ExitPolicy 单一授权 × 目标冻结）
 
 - **做**：新增 `runtime/exit_policy.py`，把退出授权收为纯 `ExitRequest → ExitDecision`；Decision 自带最终 target/mode/exit_spec，生产执行层不再重新选出口。接入 `step/_maybe_transition/skip_scene/run_session/flashback return/placeholder end`，但未改 P1b close durability。

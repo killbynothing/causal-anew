@@ -1,0 +1,35 @@
+name: Quick verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  quick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+    steps:
+      - name: Checkout source and LFS database
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install offline validator dependencies
+        run: python -m pip install PyYAML requests
+      - name: Record database checksum
+        run: sha256sum data/world_truth.db > "$RUNNER_TEMP/world-truth.sha256"
+      - name: Run quick gate (no model credentials)
+        run: python scripts/verify.py --quick
+      - name: Verify database was not modified
+        if: always()
+        run: sha256sum --check "$RUNNER_TEMP/world-truth.sha256"

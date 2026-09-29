@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P1a 完成：ExitPolicy 单一授权 × 目标冻结）
+
+- **做**：新增 `runtime/exit_policy.py`，把退出授权收为纯 `ExitRequest → ExitDecision`；Decision 自带最终 target/mode/exit_spec，生产执行层不再重新选出口。接入 `step/_maybe_transition/skip_scene/run_session/flashback return/placeholder end`，但未改 P1b close durability。
+- **修**：删除 `step()` 的“MH 齐且无 exits 自动 EndRun”和 `run_session()` 的事后 `ended=True`；MH 只影响 eligibility。semantic receipt 改为 prospective 审核事实，授权后才落账；forced confirmation 持久化第一次审核 target，取消/确认不重新选路；卡 `intent_tokens` 也纳入确认口径；多出口 generic leave 先出 menu。
+- **skip**：brief 多出口不再静默取 `exits[0]`；无出口只有显式 auto-end 才可关。skip 直接写 `completed` 仍是 P2 Beat 债，本轮没顺手收。
+- **生命周期边界**：`self.ended=True` 现在只在 `_mark_ended()`；但 reset/场景切换仍写 `ended=False`，close 仍走旧 `_close_run_once`。所以 P1a 是“授权单一”，**不是**“生命周期持久化已单 writer”；后者留 P1b。
+- **闸**：新增 quick `exit_policy`、`exit_policy_production_wire`；升级 P0a authority/characterization 让已修的 `run_session` 旁路必须消失，同时保留 P1b lifecycle 多 writer 债。旧 smoke 的“MH 完成即 END”断言也升级为“完成后不自动关”。
+- **验**：`python scripts/verify.py --quick`：**45 PASS / 0 FAIL / 164 SKIP（209 validators）**。Authority Map 已重生成：**228 writer / 130 production+tooling / 19 uncertain alias / 0 parse error**。
+- **报账**：未改 run=0、场卡、Seed/VOICE、a14 或 `data/world_truth.db`；真人 DB 差异继续不进提交。**哪里是我编的：正典/人物/剧情新增 = 0**；ExitRequest/Decision、confirmation target 与 placeholder compatibility 标签是工程合同。
+- **下一动**：只做 **P1b**：open→closing→closed、close 失败可恢复、closed 禁写、reset/save_as/并发、副本写权，以及 settle 的 delete/update 只追加债。P1b 完成前不切 P2。
+
 ### 2026-09-29（P0b 完成：Receipt × Snapshot × Schema × Recovery 合同）
 
 - **做**：P0b 只建立协议与故障恢复合同，未切任何生产 writer。扩展既有 `runtime/causal_protocol.py`：`RuntimeScope`、`ReceiptEnvelope`、canonical payload hash、scope/幂等冲突检查、稳定 batch key、`PendingCommit / CommitCursor` 的 prepare/ack；没有新造第二套事件总线。

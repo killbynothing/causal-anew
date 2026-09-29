@@ -48,6 +48,7 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "ended": {"domain": "exit", "target_owner": "ExitLifecycle"},
     "_run_closed": {"domain": "exit", "target_owner": "ExitLifecycle"},
     "run_receipt": {"domain": "exit", "target_owner": "ExitLifecycle"},
+    "_last_exit_intent_exit_spec": {"domain": "exit", "target_owner": "ExitPolicy"},
     "pending_entry": {"domain": "exit", "target_owner": "ExitPolicy"},
     "ryuya_flashback_return": {"domain": "exit", "target_owner": "ExitPolicy"},
     "utterance_queue": {"domain": "delivery", "target_owner": "DeliveryCommit"},

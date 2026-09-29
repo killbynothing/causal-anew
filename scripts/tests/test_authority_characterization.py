@@ -51,11 +51,14 @@ def test_known_bug_legacy_mind_writer_is_visible_until_p3():
     assert any(row["symbol"].endswith("_tick_private_inner_states") for row in rows)
 
 
-def test_known_bug_exit_has_more_than_one_production_write_path_until_p1():
+def test_p1a_exit_bypass_removed_but_lifecycle_writers_remain_until_p1b():
     report = load_report()
     rows = production(report, "ended")
-    assert any(row["symbol"].endswith("_mark_ended") for row in rows)
-    assert any(row["symbol"].endswith("run_session") for row in rows)
+    symbols = {row["symbol"] for row in rows}
+    assert "FreeStageSession._mark_ended" in symbols
+    assert "run_session" not in symbols
+    # reset / scene transition still write ended=False. P1b owns lifecycle
+    # writer consolidation; P1a only removes competing end authorization.
     assert report["facts"]["ended"]["production_writer_count"] > 1
 
 
@@ -77,7 +80,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 if __name__ == "__main__":
     test_known_bug_multiple_beat_writers_is_visible_until_p2()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
-    test_known_bug_exit_has_more_than_one_production_write_path_until_p1()
+    test_p1a_exit_bypass_removed_but_lifecycle_writers_remain_until_p1b()
     test_known_bug_settlement_uses_mutating_sql_until_p1b()
     test_unknown_aliases_are_reported_not_hidden()
     print("PASS test_authority_characterization")

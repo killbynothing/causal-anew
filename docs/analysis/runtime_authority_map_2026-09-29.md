@@ -4,11 +4,11 @@
 
 ## 摘要
 
-- writer 记录：**223**；其中 production/tooling：**128**。
+- writer 记录：**228**；其中 production/tooling：**130**。
 - uncertain alias：**19**。这些不是已证 writer，也不能当作已排除。
 - AST 解析错误：**0**。
-- 多 production writer 的事实：**23**。
-- 本次 quick：**40 PASS / 0 FAIL / 165 SKIP**；登记 quick=205。
+- 多 production writer 的事实：**24**。
+- 本次 quick：**45 PASS / 0 FAIL / 164 SKIP**；登记 quick=209。
 - quick 预检计数与实跑计数一致：**True**。
 
 ## 五域与 writer
@@ -32,9 +32,10 @@
 | `actor_minds` | ActorMindReducer | P3 | 5 | 2 |
 | `fsm_by_cons` | ActorMindReducer | P3 | 3 | 1 |
 | `rel_state_by_cons` | ActorMindReducer | P3 | 3 | 1 |
-| `ended` | ExitLifecycle | P1 | 5 | 0 |
+| `ended` | ExitLifecycle | P1 | 4 | 0 |
 | `_run_closed` | ExitLifecycle | P1 | 2 | 0 |
 | `run_receipt` | ExitLifecycle | P1 | 3 | 0 |
+| `_last_exit_intent_exit_spec` | ExitPolicy | P1 | 3 | 0 |
 | `pending_entry` | ExitPolicy | P1 | 2 | 0 |
 | `ryuya_flashback_return` | ExitPolicy | P1 | 3 | 0 |
 | `utterance_queue` | DeliveryCommit | P2/P6 | 0 | 0 |
@@ -47,69 +48,69 @@
 
 ### `completed` → BeatReducer
 
-- `runtime/free_stage_prototype.py:7461` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7918` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
-- `runtime/free_stage_prototype.py:8547` · `FreeStageSession._emit_canon_segment` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:8909` · `FreeStageSession.start` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9787` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9911` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:10156` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:10850` · `FreeStageSession.step` · method:extend · **production** · high
-- `runtime/free_stage_prototype.py:11422` · `FreeStageSession.skip_scene` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11496` · `FreeStageSession.skip_scene` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11972` · `FreeStageSession._maybe_transition` · assign · **production** · high
-- `runtime/free_stage_prototype.py:12005` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7470` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7927` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
+- `runtime/free_stage_prototype.py:8556` · `FreeStageSession._emit_canon_segment` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:8918` · `FreeStageSession.start` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9796` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9920` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:10165` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:10859` · `FreeStageSession.step` · method:extend · **production** · high
+- `runtime/free_stage_prototype.py:11426` · `FreeStageSession.skip_scene` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11535` · `FreeStageSession.skip_scene` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12058` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12091` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `completed_by_card` → BeatReducer
 
-- `runtime/free_stage_prototype.py:7462` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7856` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
-- `runtime/free_stage_prototype.py:8697` · `FreeStageSession._canon_step_result` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10932` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10987` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11430` · `FreeStageSession.skip_scene` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11441` · `FreeStageSession.skip_scene` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11601` · `FreeStageSession._maybe_transition` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11708` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7471` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7865` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
+- `runtime/free_stage_prototype.py:8706` · `FreeStageSession._canon_step_result` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10941` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10996` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11446` · `FreeStageSession.skip_scene` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11480` · `FreeStageSession.skip_scene` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11656` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11775` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `completed_beats` → BeatReducer
 
-- `runtime/free_stage_prototype.py:7463` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9076` · `FreeStageSession._mark_frame_beats_for_progress` · pass_to_mutating_helper · **unknown_alias** · medium · frame_beat_ledger.mark_done
+- `runtime/free_stage_prototype.py:7472` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9085` · `FreeStageSession._mark_frame_beats_for_progress` · pass_to_mutating_helper · **unknown_alias** · medium · frame_beat_ledger.mark_done
 
 ### `canon_performance_state` → BeatReducer
 
-- `runtime/free_stage_prototype.py:7464` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:8487` · `FreeStageSession._canon_scene_state` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:7473` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:8496` · `FreeStageSession._canon_scene_state` · method:setdefault · **production** · high
 
 ### `branch_progress` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7479` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7818` · `FreeStageSession._ensure_opening_synopsis_and_pendant` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:7882` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
-- `runtime/free_stage_prototype.py:8076` · `FreeStageSession._record_player_branch_fact` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9438` · `FreeStageSession._append_autonomous_decision` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9789` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9796` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9806` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9845` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9849` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9872` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9877` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9885` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9900` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9902` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9924` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:10006` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10017` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10060` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10893` · `FreeStageSession.step` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11620` · `FreeStageSession._maybe_transition` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11622` · `FreeStageSession._maybe_transition` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11634` · `FreeStageSession._maybe_transition` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11702` · `FreeStageSession._maybe_transition` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11704` · `FreeStageSession._maybe_transition` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:11909` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · apply_offscreen_lives
+- `runtime/free_stage_prototype.py:7488` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7827` · `FreeStageSession._ensure_opening_synopsis_and_pendant` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:7891` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
+- `runtime/free_stage_prototype.py:8085` · `FreeStageSession._record_player_branch_fact` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9447` · `FreeStageSession._append_autonomous_decision` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9798` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9805` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9815` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9854` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9858` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9881` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9886` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9894` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9909` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9911` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9933` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:10015` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10026` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10069` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10902` · `FreeStageSession.step` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11675` · `FreeStageSession._maybe_transition` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11677` · `FreeStageSession._maybe_transition` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11771` · `FreeStageSession._maybe_transition` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11787` · `FreeStageSession._maybe_transition` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11789` · `FreeStageSession._maybe_transition` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:11995` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · apply_offscreen_lives
 - `runtime/scene_contracts.py:99` · `register_branch_progress` · assign · **production** · high
 - `runtime/scene_state.py:111` · `SceneState.load` · assign · **production** · high
 - `scripts/test_world_truth_readonly_runtime.py:37` · `test_real_save_keeps_truth_db_readonly` · method:append · **production_tooling** · high
@@ -117,87 +118,87 @@
 
 ### `scene_receipts` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7481` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7550` · `FreeStageSession._record_scene_receipt` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:7490` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7559` · `FreeStageSession._record_scene_receipt` · method:append · **production** · high
 
 ### `world_transactions` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7482` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7694` · `FreeStageSession._commit_world_transaction` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7491` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7703` · `FreeStageSession._commit_world_transaction` · assign · **production** · high
 
 ### `causal_receipts` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7483` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9392` · `FreeStageSession._append_actor_decisions` · method:append · **production** · high
-- `runtime/free_stage_prototype.py:9512` · `FreeStageSession._run_autonomous_decision` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:7492` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9401` · `FreeStageSession._append_actor_decisions` · method:append · **production** · high
+- `runtime/free_stage_prototype.py:9521` · `FreeStageSession._run_autonomous_decision` · method:append · **production** · high
 
 ### `run_observation_ledger` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7507` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7746` · `FreeStageSession._finalize_prologue_pendant` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7746` · `FreeStageSession._finalize_prologue_pendant` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:7777` · `FreeStageSession._maybe_emit_pendant_layer_c` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7777` · `FreeStageSession._maybe_emit_pendant_layer_c` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:9692` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9815` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9815` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:10870` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10870` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:10877` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10877` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:10899` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10899` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
-- `runtime/free_stage_prototype.py:11997` · `FreeStageSession._maybe_transition` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11997` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:7516` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7755` · `FreeStageSession._finalize_prologue_pendant` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7755` · `FreeStageSession._finalize_prologue_pendant` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:7786` · `FreeStageSession._maybe_emit_pendant_layer_c` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7786` · `FreeStageSession._maybe_emit_pendant_layer_c` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:9701` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9824` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9824` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:10879` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10879` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:10886` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10886` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:10908` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10908` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
+- `runtime/free_stage_prototype.py:12083` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12083` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · _ledger_append
 
 ### `player_state` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7498` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7737` · `FreeStageSession._finalize_prologue_pendant` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9628` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9661` · `FreeStageSession.step` · method:setdefault · **production** · high
-- `runtime/free_stage_prototype.py:9662` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11093` · `FreeStageSession.step` · method:update · **production** · high
-- `runtime/free_stage_prototype.py:11094` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11131` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11133` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11134` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11799` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7507` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7746` · `FreeStageSession._finalize_prologue_pendant` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9637` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9670` · `FreeStageSession.step` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:9671` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11097` · `FreeStageSession.step` · method:update · **production** · high
+- `runtime/free_stage_prototype.py:11098` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11135` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11137` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11138` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11885` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `body_frames` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7518` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7738` · `FreeStageSession._finalize_prologue_pendant` · pass_to_mutating_helper · **unknown_alias** · medium · apply_body_frame_holding
-- `runtime/free_stage_prototype.py:8916` · `FreeStageSession.start` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
-- `runtime/free_stage_prototype.py:10275` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10955` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
-- `runtime/free_stage_prototype.py:10983` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
+- `runtime/free_stage_prototype.py:7527` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7747` · `FreeStageSession._finalize_prologue_pendant` · pass_to_mutating_helper · **unknown_alias** · medium · apply_body_frame_holding
+- `runtime/free_stage_prototype.py:8925` · `FreeStageSession.start` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
+- `runtime/free_stage_prototype.py:10284` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10964` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
+- `runtime/free_stage_prototype.py:10992` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · settle_body_frames_from_npc_turns
 
 ### `world_cursor` → WorldCommit
 
-- `runtime/free_stage_prototype.py:7465` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7519` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7921` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9112` · `FreeStageSession._advance_world_cursor_for_card` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9114` · `FreeStageSession._advance_world_cursor_for_card` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7474` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7528` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7930` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
 - `runtime/free_stage_prototype.py:9121` · `FreeStageSession._advance_world_cursor_for_card` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9122` · `FreeStageSession._advance_world_cursor_for_card` · method:setdefault · **production** · high
-- `runtime/free_stage_prototype.py:11459` · `FreeStageSession.skip_scene` · pass_to_mutating_helper · **unknown_alias** · medium · self._tick_offscreen_lines
-- `runtime/free_stage_prototype.py:11912` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · self._tick_offscreen_lines
+- `runtime/free_stage_prototype.py:9123` · `FreeStageSession._advance_world_cursor_for_card` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9130` · `FreeStageSession._advance_world_cursor_for_card` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9131` · `FreeStageSession._advance_world_cursor_for_card` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:11498` · `FreeStageSession.skip_scene` · pass_to_mutating_helper · **unknown_alias** · medium · self._tick_offscreen_lines
+- `runtime/free_stage_prototype.py:11998` · `FreeStageSession._maybe_transition` · pass_to_mutating_helper · **unknown_alias** · medium · self._tick_offscreen_lines
 
 ### `private_inner_states` → ActorMindReducer
 
-- `runtime/free_stage_prototype.py:7469` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9278` · `FreeStageSession._tick_private_inner_states` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10114` · `FreeStageSession.step` · method:setdefault · **production** · high
-- `runtime/free_stage_prototype.py:10169` · `FreeStageSession.step` · method:setdefault · **production** · high
-- `runtime/free_stage_prototype.py:10478` · `FreeStageSession.step` · method:setdefault · **production** · high
-- `runtime/free_stage_prototype.py:11550` · `FreeStageSession._refresh_inner_states_on_scene_enter` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7478` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9287` · `FreeStageSession._tick_private_inner_states` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10123` · `FreeStageSession.step` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:10178` · `FreeStageSession.step` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:10487` · `FreeStageSession.step` · method:setdefault · **production** · high
+- `runtime/free_stage_prototype.py:11605` · `FreeStageSession._refresh_inner_states_on_scene_enter` · assign · **production** · high
 
 ### `prior_reflect_by_cons` → ActorMindReducer
 
-- `runtime/free_stage_prototype.py:10453` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11180` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10462` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11184` · `FreeStageSession.step` · assign · **production** · high
 
 ### `actor_minds` → ActorMindReducer
 
@@ -205,53 +206,58 @@
 - `runtime/actor_theater.py:147` · `ActorTheater._queue_public_event` · assign · **production** · high
 - `runtime/actor_theater.py:179` · `ActorTheater.run` · pass_to_mutating_helper · **unknown_alias** · medium · apply_event_receipt
 - `runtime/actor_theater.py:184` · `ActorTheater.run` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7472` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9190` · `FreeStageSession._ensure_actor_mind` · assign · **production** · high
-- `runtime/free_stage_prototype.py:9200` · `FreeStageSession._apply_actor_mind_receipt` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7481` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9199` · `FreeStageSession._ensure_actor_mind` · assign · **production** · high
+- `runtime/free_stage_prototype.py:9209` · `FreeStageSession._apply_actor_mind_receipt` · assign · **production** · high
 
 ### `fsm_by_cons` → ActorMindReducer
 
-- `runtime/free_stage_prototype.py:7470` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10282` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10768` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10768` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · ott.tick_fsm
+- `runtime/free_stage_prototype.py:7479` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10291` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10777` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10777` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · ott.tick_fsm
 
 ### `rel_state_by_cons` → ActorMindReducer
 
-- `runtime/free_stage_prototype.py:7471` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10283` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10774` · `FreeStageSession.step` · assign · **production** · high
-- `runtime/free_stage_prototype.py:10774` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · ott.tick_rel
+- `runtime/free_stage_prototype.py:7480` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10292` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10783` · `FreeStageSession.step` · assign · **production** · high
+- `runtime/free_stage_prototype.py:10783` · `FreeStageSession.step` · pass_to_mutating_helper · **unknown_alias** · medium · ott.tick_rel
 
 ### `ended` → ExitLifecycle
 
-- `runtime/free_stage_prototype.py:7433` · `FreeStageSession._mark_ended` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7476` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11498` · `FreeStageSession.skip_scene` · assign · **production** · high
-- `runtime/free_stage_prototype.py:12010` · `FreeStageSession._maybe_transition` · assign · **production** · high
-- `runtime/free_stage_prototype.py:12843` · `run_session` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7442` · `FreeStageSession._mark_ended` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7485` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11537` · `FreeStageSession.skip_scene` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12097` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `_run_closed` → ExitLifecycle
 
-- `runtime/free_stage_prototype.py:7449` · `FreeStageSession._close_run_once` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7478` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7458` · `FreeStageSession._close_run_once` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7487` · `FreeStageSession.reset` · assign · **production** · high
 
 ### `run_receipt` → ExitLifecycle
 
-- `runtime/free_stage_prototype.py:7444` · `FreeStageSession._close_run_once` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7452` · `FreeStageSession._close_run_once` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7477` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7453` · `FreeStageSession._close_run_once` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7461` · `FreeStageSession._close_run_once` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7486` · `FreeStageSession.reset` · assign · **production** · high
+
+### `_last_exit_intent_exit_spec` → ExitPolicy
+
+- `runtime/free_stage_prototype.py:11749` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:11755` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12095` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `pending_entry` → ExitPolicy
 
-- `runtime/free_stage_prototype.py:8229` · `FreeStageSession._pending_entry_target_path` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11970` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:8238` · `FreeStageSession._pending_entry_target_path` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12056` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `ryuya_flashback_return` → ExitPolicy
 
-- `runtime/free_stage_prototype.py:7515` · `FreeStageSession.reset` · assign · **production** · high
-- `runtime/free_stage_prototype.py:7858` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
-- `runtime/free_stage_prototype.py:11974` · `FreeStageSession._maybe_transition` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7524` · `FreeStageSession.reset` · assign · **production** · high
+- `runtime/free_stage_prototype.py:7867` · `FreeStageSession._maybe_enter_ryuya_flashback` · assign · **production** · high
+- `runtime/free_stage_prototype.py:12060` · `FreeStageSession._maybe_transition` · assign · **production** · high
 
 ### `sql:run_meta` → ExitLifecycle/RunRegistry
 
@@ -272,8 +278,8 @@
 | status | count |
 |---|---:|
 | full_not_run | 7 |
-| pass | 40 |
-| skip | 165 |
+| pass | 45 |
+| skip | 164 |
 
 ### SKIP 原因
 
@@ -305,7 +311,6 @@
 - 1 × 未建：scripts/tests/test_prompt_cache_observability.py
 - 1 × 未建：scripts/tests/test_actor_load_contract.py
 - 1 × 未建：scripts/tests/test_authoritative_world_transactions.py
-- 1 × 未建：scripts/tests/test_causal_protocol.py
 - 1 × 未建：scripts/tests/test_actor_mind_v2.py
 - 1 × 未建：scripts/tests/test_actor_theater.py
 - 1 × 未建：scripts/tests/test_director_ports.py

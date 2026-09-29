@@ -24,7 +24,10 @@ def test_selftest_pipeline_covers_must_happen_and_hard_checks():
     # source-card receipts remain available by card rather than being erased.
     assert ["TM1", "TM2", "TM3", "TM4"] in result["completed_by_card"].values()
     assert result["issues"] == []
-    assert any(proto.END_MARKER in item.get("text", "") for item in result["history"])
+    # P1a: source must-happen completion unlocks the audited exit but does not
+    # invent EndRun after the transition. Explicit terminal exit is covered by
+    # the ExitPolicy contract tests.
+    assert not any(proto.END_MARKER in item.get("text", "") for item in result["history"])
 
 
 def test_hard_check_catches_pre_intro_name_and_continue_leak():

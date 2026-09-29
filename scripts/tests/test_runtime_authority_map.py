@@ -50,8 +50,9 @@ def test_scanner_finds_representative_five_domain_writers():
 
     ended = writers(report, "ended", "production")
     assert any(row["symbol"].endswith("_mark_ended") for row in ended)
-    # P0a must also see external receiver writes such as session.ended, not only self.ended.
-    assert any(row["symbol"].endswith("run_session") for row in ended)
+    # P1a removed the external run_session EndRun bypass. The scanner must
+    # reflect that removal instead of freezing the old debt forever.
+    assert not any(row["symbol"].endswith("run_session") for row in ended)
 
 
 def test_scanner_separates_initialization_and_reports_callers():
@@ -65,8 +66,9 @@ def test_scanner_separates_initialization_and_reports_callers():
     ended = report["facts"]["ended"]["writers"]
     mark = next(row for row in ended if row["symbol"].endswith("_mark_ended"))
     caller_symbols = {row["caller"] for row in mark["callers"]}
-    assert "FreeStageSession.step" in caller_symbols
     assert "FreeStageSession._maybe_transition" in caller_symbols
+    assert "FreeStageSession.skip_scene" in caller_symbols
+    assert "FreeStageSession.step" not in caller_symbols
 
 
 def test_verify_inventory_is_complete_and_new_p0_gates_are_registered():

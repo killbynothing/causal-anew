@@ -75,6 +75,7 @@ from runtime import actor_context_v2 as acv2
 from runtime import runtime_state
 from runtime import entry_router
 from runtime import transition_service
+from runtime import exit_policy
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import utterance_stream as ustream
@@ -7115,6 +7116,7 @@ class FreeStageSession:
         self.public_environment_deltas: list[dict[str, Any]] = []
         self._last_exit_intent_turn: int | None = None  # T-02 J1：追踪玩家首次离场意图拍号
         self._last_exit_intent_scene_id: str | None = None  # B0-1：确认只能在同一场兑现
+        self._last_exit_intent_exit_spec: dict[str, Any] | None = None  # P1a：确认拍冻结原审核目标
         self.pending_exit_menu: dict[str, Any] | None = None  # B1-5：多出口先报路，等自由文本选择
         self._stall_escalation_fired_scenes: set[str] = set()
         self._triggered_at_clocks: set[str] = set()    # T-03 J3：追踪已触发的 at_clock 时间点（跨场持久）
@@ -7297,6 +7299,8 @@ class FreeStageSession:
         self._fired_director_beats = set(data.get("_fired_director_beats", []))
         self._last_exit_intent_turn = data.get("_last_exit_intent_turn")
         self._last_exit_intent_scene_id = data.get("_last_exit_intent_scene_id")
+        stored_exit_spec = data.get("_last_exit_intent_exit_spec")
+        self._last_exit_intent_exit_spec = dict(stored_exit_spec) if isinstance(stored_exit_spec, dict) else None
         pending_exit_menu = data.get("pending_exit_menu")
         self.pending_exit_menu = dict(pending_exit_menu) if isinstance(pending_exit_menu, dict) else None
         self._triggered_at_clocks = set(data.get("_triggered_at_clocks", []))
@@ -7405,6 +7409,11 @@ class FreeStageSession:
             "public_environment_deltas": self.public_environment_deltas,
             "_last_exit_intent_turn": self._last_exit_intent_turn,
             "_last_exit_intent_scene_id": self._last_exit_intent_scene_id,
+            "_last_exit_intent_exit_spec": (
+                dict(self._last_exit_intent_exit_spec)
+                if isinstance(self._last_exit_intent_exit_spec, dict)
+                else None
+            ),
             "pending_exit_menu": self.pending_exit_menu,
             "_triggered_at_clocks": list(self._triggered_at_clocks),
             "debug_history": self.debug_history,
@@ -11052,14 +11061,9 @@ class FreeStageSession:
         )
 
         self.last_issues = actor_errors + hard_check(self.history, self.completed, resolved_card)
-        if resolved_card.get("must_happen") and all_must_happen_complete(resolved_card, self.completed):
-            if not resolved_card.get("exits"):
-                self._mark_ended()
-                marker = {"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no}
-                if not any(END_MARKER in str(t.get("text", "")) for t in self.history):
-                    self.history.append(marker)
-                    emitted.append(marker)
 
+        # P1a: must-happen completion only changes exit eligibility. It never
+        # closes a social/free scene by itself; ExitPolicy is the sole decider.
         exit_reason = format_exit_reason(player_input, self.completed, resolved_card, self.stall)
 
         # 观测台"注入的因果记忆"数据源：读已解析卡的 memory_layers（apply_consolidated_memory
@@ -11421,19 +11425,54 @@ class FreeStageSession:
         all_ids = [str(mh.get("id")) for mh in must_happens if mh.get("id")]
         self.completed = all_ids
 
-        # Force transition
-        exits = self.card.get("exits", [])
+        # P1a: skip may still use the legacy P2 beat-completion bridge above,
+        # but exit authority is no longer implicit. Ambiguous multi-exit skips
+        # require a player choice instead of silently taking exits[0].
+        exits = [dict(item) for item in self.card.get("exits", []) if isinstance(item, dict)]
         if not exits:
-            # If no exits, we just end the session
+            decision = exit_policy.decide_exit(
+                exit_policy.ExitRequest(
+                    card=self.card,
+                    completed=tuple(self.completed),
+                    player_input="",
+                    explicit_auto_end=bool(self.card.get("auto_end_on_complete", False)),
+                    explicit_auto_end_reason="brief_skip:auto_end_on_complete",
+                )
+            )
+            if decision.action != "end_run":
+                raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
             self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
             self.completed_by_card[source_scene_id] = list(self.completed)
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
             return self.result()
+        if len(exits) != 1:
+            raise ValueError("Brief scene skip requires one unambiguous exit.")
 
-        exit_spec = dict(exits[0])
-        target_path = resolve_card_path(exit_spec.get("target_card", ""))
+        pending_entry_target_ref = None
+        if self.pending_entry is not None:
+            try:
+                pending_entry_target_ref = str(self._pending_entry_target_path())
+            except (TypeError, ValueError):
+                pending_entry_target_ref = None
+        decision = exit_policy.decide_exit(
+            exit_policy.ExitRequest(
+                card=self.card,
+                completed=tuple(self.completed),
+                player_input="",
+                branch_progress=frozenset(self._scene_fact_ids()),
+                actor_decisions=tuple(
+                    dict(item) for item in self.actor_decisions if isinstance(item, dict)
+                ),
+                selected_exit_spec=exits[0],
+                pending_entry_target_ref=pending_entry_target_ref,
+            )
+        )
+        if decision.action != "transition" or not decision.target_ref:
+            raise ValueError(f"Brief scene skip exit not authorized: {decision.reason}")
+        exit_spec = dict(decision.exit_spec or {})
+        target_path = resolve_card_path(decision.target_ref)
         target_card = load_card(target_path)
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         
@@ -11498,7 +11537,23 @@ class FreeStageSession:
         self.ended = False
         self.card_history.append(target_scene_id)
 
-        if all_must_happen_complete(target_card, self.completed) and target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER":
+        target_auto_end = bool(target_card.get("auto_end_on_complete", False)) or (
+            target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER"
+        )
+        target_exit_decision = exit_policy.decide_exit(
+            exit_policy.ExitRequest(
+                card=target_card,
+                completed=tuple(self.completed),
+                player_input="",
+                explicit_auto_end=target_auto_end,
+                explicit_auto_end_reason=(
+                    "card:auto_end_on_complete"
+                    if target_card.get("auto_end_on_complete", False)
+                    else "legacy_bridge:hospital_placeholder"
+                ),
+            )
+        )
+        if target_exit_decision.action == "end_run":
             self._mark_ended()
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
 
@@ -11627,124 +11682,160 @@ class FreeStageSession:
             exits = [item for item in self.card.get("exits", []) if isinstance(item, dict)]
             if 0 <= semantic_exit_index < len(exits):
                 semantic_exit_spec = dict(exits[semantic_exit_index])
-                receipt = str(semantic_exit_spec.get("semantic_receipt", "")).strip()
-                if receipt:
-                    self._record_scene_receipt(receipt, owner="player", turn_no=turn_no, source_input=_player_public_input_text(player_input))
-                    if receipt not in self.branch_progress:
-                        self.branch_progress.append(receipt)
-        if prologue_handoff_ready:
-            should_exit, mode = (True, "normal")
-        elif semantic_exit_spec is not None:
-            should_exit, mode = (True, "normal")
-        elif selected_exit_spec is not None:
-            should_exit, mode = (True, "normal")
-        elif p2_inside_observer and all_must_happen_complete(self.card, self.completed):
-            should_exit, mode = (True, "normal")
-        else:
-            should_exit, mode = should_trigger_exit(player_input, self.completed, self.card, self.stall)
 
-        candidate_exit = semantic_exit_spec or selected_exit_spec or choose_exit_spec(
-            self.card.get("exits", []), player_input, self.get_active_exit_state(),
-        )
-        if should_exit and not transition_service.exit_requirements_met(
-            candidate_exit, branch_progress=self._scene_fact_ids(), actor_decisions=self.actor_decisions,
-        ):
-            should_exit, mode = (False, "none")
-
-        # B0-1：mh 未齐时只允许一拍场内确认；不能要求玩家连续两拍重复说"走"。
-        # 下一拍若未明确撤回，即视为确认离场。这样既保留角色的一次反应，
-        # 也不会把"我走了"卡成两次同义输入。
+        # P1a: every exit source is converted into one immutable request. No
+        # semantic receipt is committed before this decision is authorized.
         current_scene_id = str(self.card.get("scene_id", self.card_path))
         pending_exit_confirmation = (
             self._last_exit_intent_turn is not None
             and turn_no == self._last_exit_intent_turn + 1
             and self._last_exit_intent_scene_id == current_scene_id
         )
-        if pending_exit_confirmation:
-            if EXIT_CONFIRM_CANCEL_RE.search(str(player_input or "")):
-                self._last_exit_intent_turn = None
-                self._last_exit_intent_scene_id = None
-                return None
-            should_exit, mode = (True, "forced")
+        confirmation_cancelled = bool(
+            pending_exit_confirmation
+            and EXIT_CONFIRM_CANCEL_RE.search(_player_public_input_text(player_input))
+        )
+        flashback_target_ref: str | None = None
+        if prologue_handoff_ready and isinstance(self.ryuya_flashback_return, dict):
+            flashback_target_ref = str(self.ryuya_flashback_return.get("card_path", "") or "").strip() or None
+        pending_entry_target_ref: str | None = None
+        if self.pending_entry is not None:
+            try:
+                pending_entry_target_ref = str(self._pending_entry_target_path())
+            except (TypeError, ValueError):
+                pending_entry_target_ref = None
 
-        if should_exit and mode == "forced":
-            # 第一次离场意图：记下来，只等下一拍确认。
-            if self._last_exit_intent_turn is None:
-                if EXIT_INTENT_RE.search(str(player_input or "")):
-                    self._last_exit_intent_turn = turn_no
-                    self._last_exit_intent_scene_id = current_scene_id
-                    return None
-                # stall 耗尽是导演的场内收束，不伪装成玩家的离场确认。
+        exit_decision = exit_policy.decide_exit(
+            exit_policy.ExitRequest(
+                card=self.card,
+                completed=tuple(str(x) for x in self.completed),
+                player_input=player_input,
+                stall=int(self.stall or 0),
+                active_exit_state=self.get_active_exit_state(),
+                branch_progress=frozenset(self._scene_fact_ids()),
+                actor_decisions=tuple(
+                    dict(item) for item in self.actor_decisions if isinstance(item, dict)
+                ),
+                selected_exit_spec=selected_exit_spec,
+                semantic_exit_spec=semantic_exit_spec,
+                confirmed_exit_spec=(
+                    dict(self._last_exit_intent_exit_spec)
+                    if pending_exit_confirmation and isinstance(self._last_exit_intent_exit_spec, dict)
+                    else None
+                ),
+                pending_confirmation=pending_exit_confirmation,
+                confirmation_cancelled=confirmation_cancelled,
+                force_transition=bool(
+                    p2_inside_observer
+                    and all_must_happen_complete(self.card, self.completed)
+                ),
+                force_reason="c16_inside_observer_complete",
+                standalone_end=bool(
+                    self.card.get("prologue_active")
+                    and not self.ryuya_flashback_return
+                    and self.pending_entry is None
+                ),
+                exit_menu=bool(self.card.get("exit_menu") is True),
+                flashback_target_ref=flashback_target_ref,
+                pending_entry_target_ref=pending_entry_target_ref,
+                explicit_auto_end=bool(self.card.get("auto_end_on_complete", False)),
+                explicit_auto_end_reason="card:auto_end_on_complete",
+            )
+        )
 
-        elif not should_exit:
-            # 重置 exit intent 追踪（玩家这拍没说走，或者已走 normal exit）
+        if exit_decision.confirmation_action == "set":
+            self._last_exit_intent_turn = turn_no
+            self._last_exit_intent_scene_id = current_scene_id
+            self._last_exit_intent_exit_spec = (
+                dict(exit_decision.exit_spec) if isinstance(exit_decision.exit_spec, dict) else None
+            )
+        elif exit_decision.confirmation_action == "clear":
             self._last_exit_intent_turn = None
             self._last_exit_intent_scene_id = None
+            self._last_exit_intent_exit_spec = None
+
+        if exit_decision.action in {"continue", "await_confirmation"}:
             return None
-        else:
-            # normal exit，正常放行进
-            pass
 
-        # Standalone prologue has no target scene to jump to. Once the player
-        # actually chooses to leave, close the run in place. RP completion by
-        # itself never reaches this block because should_trigger_exit() still
-        # requires observable player exit intent.
-        if (
-            should_exit
-            and self.card.get("prologue_active")
-            and not self.ryuya_flashback_return
-            and self.pending_entry is None
-        ):
-            has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
-            pendant_tx = self._world_transaction("ryuya_pendant_disposition")
-            if not has_receipt and pendant_tx is not None:
-                outcome = str(pendant_tx.get("outcome") or "accepted")
-                self.branch_progress.append(f"prologue_receipt_{outcome}")
-            elif not has_receipt:
-                self.branch_progress.append("prologue_receipt_deferred")
-                self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+        # A semantic receipt may satisfy this same exit's requirement, but it
+        # becomes a world fact only after the single ExitPolicy authorizes it.
+        if exit_decision.authorized:
+            for receipt in exit_decision.prospective_branch_facts:
+                self._record_scene_receipt(
+                    receipt,
+                    owner="player",
+                    turn_no=turn_no,
+                    source_input=_player_public_input_text(player_input),
+                )
+                if receipt not in self.branch_progress:
+                    self.branch_progress.append(receipt)
 
+        if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
             self.completed_by_card[source_scene_id] = list(self.completed)
-            if mode == "forced":
-                unresolved = [mh for mh in card_must_happen_ids(self.card) if mh not in self.completed]
-                unresolved_str = ", ".join(unresolved) if unresolved else "无"
-                self._write_delta(
-                    [
-                        {
-                            "type": "early_exit",
-                            "run_no": self.run_no,
-                            "scene_id": source_scene_id,
-                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
-                            "desc": f"forced_exit: 玩家连续离场意图，mh 未齐({unresolved_str})",
-                            "delta": 1.0,
-                            "severity": 1,
-                            "handled": "resolved_offscreen",
-                            "input_digest": "",
-                            "witnesses": [],
-                            "verdict": "early_exit_recorded",
-                            "source_log": {"forced_exit": True, "unresolved_mh": unresolved, "turn": turn_no},
-                        }
-                    ],
+
+            # Legacy café accounting remains an execution concern for now; the
+            # authority to end came only from ExitPolicy.
+            if self.card.get("prologue_active") and not self.ryuya_flashback_return:
+                has_receipt = any(
+                    str(item).startswith("prologue_receipt_")
+                    for item in self.branch_progress
                 )
-            else:
-                self._write_delta(
-                    [
-                        {
-                            "type": "normal_exit",
-                            "run_no": self.run_no,
-                            "scene_id": source_scene_id,
-                            "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
-                            "desc": f"normal_exit: mh 已全齐({', '.join(self.completed) or '无'})，玩家正常离场",
-                            "delta": 0.0,
-                            "severity": 0,
-                            "handled": "normal",
-                            "input_digest": "",
-                            "witnesses": [],
-                            "verdict": "normal_exit_recorded",
-                        }
-                    ],
-                )
+                pendant_tx = self._world_transaction("ryuya_pendant_disposition")
+                if not has_receipt and pendant_tx is not None:
+                    outcome = str(pendant_tx.get("outcome") or "accepted")
+                    self.branch_progress.append(f"prologue_receipt_{outcome}")
+                elif not has_receipt:
+                    self.branch_progress.append("prologue_receipt_deferred")
+                    self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+
+                if exit_decision.mode == "forced":
+                    unresolved = [
+                        mh for mh in card_must_happen_ids(self.card)
+                        if mh not in self.completed
+                    ]
+                    unresolved_str = ", ".join(unresolved) if unresolved else "无"
+                    self._write_delta(
+                        [
+                            {
+                                "type": "early_exit",
+                                "run_no": self.run_no,
+                                "scene_id": source_scene_id,
+                                "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
+                                "desc": f"forced_exit: 玩家连续离场意图，mh 未齐({unresolved_str})",
+                                "delta": 1.0,
+                                "severity": 1,
+                                "handled": "resolved_offscreen",
+                                "input_digest": "",
+                                "witnesses": [],
+                                "verdict": "early_exit_recorded",
+                                "source_log": {
+                                    "forced_exit": True,
+                                    "unresolved_mh": unresolved,
+                                    "turn": turn_no,
+                                },
+                            }
+                        ],
+                    )
+                else:
+                    self._write_delta(
+                        [
+                            {
+                                "type": "normal_exit",
+                                "run_no": self.run_no,
+                                "scene_id": source_scene_id,
+                                "ch_anchor": int(self.card.get("ch_anchor", 0) or 0),
+                                "desc": f"normal_exit: mh 已全齐({', '.join(self.completed) or '无'})，玩家正常离场",
+                                "delta": 0.0,
+                                "severity": 0,
+                                "handled": "normal",
+                                "input_digest": "",
+                                "witnesses": [],
+                                "verdict": "normal_exit_recorded",
+                            }
+                        ],
+                    )
+
             self._mark_ended()
             if not any(END_MARKER in str(item.get("text", "")) for item in self.history):
                 marker = {
@@ -11758,9 +11849,7 @@ class FreeStageSession:
             return None
 
         exits = self.card.get("exits", [])
-        if not exits:
-            return None
-        if selected_exit_spec is None and self.card.get("exit_menu") is True and len(exits) > 1:
+        if exit_decision.action == "show_menu":
             choices = []
             for index, spec in enumerate(exits[:3], start=1):
                 hint = str(spec.get("trigger") or spec.get("bridge_hint") or "继续往前走").strip()
@@ -11780,15 +11869,12 @@ class FreeStageSession:
             self.history.append(menu_turn)
             emitted.append(menu_turn)
             return None
-        exit_spec = selected_exit_spec or choose_exit_spec(exits, player_input, self.get_active_exit_state())
-        returning_flashback = bool(self.card.get("prologue_active") and self.ryuya_flashback_return)
-        return_frame = dict(self.ryuya_flashback_return) if returning_flashback else None
-        if returning_flashback and return_frame:
-            target_path = resolve_card_path(return_frame.get("card_path", ""))
-        elif exit_spec.get("target_pending_entry"):
-            target_path = self._pending_entry_target_path()
-        else:
-            target_path = resolve_card_path(exit_spec.get("target_card", ""))
+        if exit_decision.action != "transition" or not exit_decision.target_ref:
+            return None
+        exit_spec = dict(exit_decision.exit_spec or {})
+        returning_flashback = exit_decision.target_kind == "flashback_return"
+        return_frame = dict(self.ryuya_flashback_return) if returning_flashback and self.ryuya_flashback_return else None
+        target_path = resolve_card_path(exit_decision.target_ref)
         target_card = load_card(target_path)
         target_card, applied_actor_commitments = self._apply_actor_commitments_to_target(
             target_card, target_path,
@@ -11866,7 +11952,7 @@ class FreeStageSession:
             self.consolidated_memory_by_card[source_scene_id] = mc
 
         # T-02 J1 forced_exit：标记未齐 mh 为 resolved_offscreen，入 δ 账本
-        if mode == "forced":
+        if exit_decision.mode == "forced":
             unresolved = [mh for mh in card_must_happen_ids(self.card) if mh not in self.completed]
             unresolved_str = ", ".join(unresolved) if unresolved else "无"
             self._write_delta(
@@ -11887,7 +11973,7 @@ class FreeStageSession:
                     }
                 ],
             )
-        elif mode == "normal":
+        elif exit_decision.mode == "normal":
             self._write_delta(
                 [
                     {
@@ -11953,7 +12039,7 @@ class FreeStageSession:
             "bridge": bridge,
             "consolidation_hint": get_consolidation_hint(self.card, self.consolidated_memory_by_card.get(source_scene_id, {})),
             "degradations": degradations,
-            "exit_mode": mode,  # T-02 J1: normal | forced
+            "exit_mode": exit_decision.mode,  # P1a: audited normal | forced
             "applied_actor_commitments": applied_actor_commitments,
             # T-03 X4 转场时钟报道
             "clock_report": {
@@ -11964,9 +12050,9 @@ class FreeStageSession:
 
         self.card_path = target_path
         self.card = target_card
-        if exit_spec.get("target_pending_entry") and not returning_flashback:
-            # The target has been consumed; do not allow a later save reload
-            # to jump back through a stale opening choice.
+        if exit_decision.target_kind == "pending_entry" and not returning_flashback:
+            # The exact target was already audited by ExitPolicy; consuming the
+            # approved opening choice is an execution effect, not a re-decision.
             self.pending_entry = None
         if returning_flashback and return_frame:
             self.completed = [str(x) for x in (return_frame.get("completed") or [])]
@@ -12006,6 +12092,7 @@ class FreeStageSession:
             self.stall = 0
         self._last_exit_intent_turn = None  # T-02 J1：离场意图追踪重置
         self._last_exit_intent_scene_id = None
+        self._last_exit_intent_exit_spec = None
         self.pending_exit_menu = None
         self.ended = False
         self.card_history.append(target_scene_id)
@@ -12038,7 +12125,23 @@ class FreeStageSession:
             emitted.extend(entered_canon_turns)
             transition_marker["canon_turns"] = [dict(item) for item in entered_canon_turns]
 
-        if all_must_happen_complete(target_card, self.completed) and target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER":
+        target_auto_end = bool(target_card.get("auto_end_on_complete", False)) or (
+            target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER"
+        )
+        target_exit_decision = exit_policy.decide_exit(
+            exit_policy.ExitRequest(
+                card=target_card,
+                completed=tuple(self.completed),
+                player_input="",
+                explicit_auto_end=target_auto_end,
+                explicit_auto_end_reason=(
+                    "card:auto_end_on_complete"
+                    if target_card.get("auto_end_on_complete", False)
+                    else "legacy_bridge:hospital_placeholder"
+                ),
+            )
+        )
+        if target_exit_decision.action == "end_run":
             self._mark_ended()
             self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no})
 
@@ -12829,19 +12932,10 @@ def run_session(
         session.step(player_input)
         session._drain_utterance_queue_to_history()
     
-    res = session.result()
-    source_card = load_card(Path(card_path))
-    if (
-        all_must_happen_complete(source_card, res["completed"])
-        and not any(END_MARKER in str(t.get("text", "")) for t in res["history"])
-    ):
-        res["ended"] = True
-        last_turn = res["history"][-1]["turn"] if res["history"] else 1
-        marker = {"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": last_turn}
-        res["history"].append(marker)
-        session.history.append(marker)
-        session.ended = True
-    return res
+    # P1a: one-shot mode observes the same ExitPolicy decisions as the
+    # incremental session. It no longer invents an EndRun merely because the
+    # source card's must-happen list became complete.
+    return session.result()
 
 
 def fixed_selftest_actor(**kwargs: Any) -> str:

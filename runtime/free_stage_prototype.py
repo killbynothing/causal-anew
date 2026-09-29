@@ -7898,7 +7898,14 @@ class FreeStageSession:
         record = self.world_transactions.get(str(transaction_id).strip())
         return dict(record) if isinstance(record, dict) else None
 
-    def _finalize_prologue_pendant(self, disposition: str, *, turn_no: int) -> bool:
+    def _finalize_prologue_pendant(
+        self,
+        disposition: str,
+        *,
+        turn_no: int,
+        source_refs: tuple[str, ...] | list[str] = (),
+        request_id: str = "",
+    ) -> bool:
         """Commit disposition first; derive compatibility projections from its receipt."""
         disposition = str(disposition).strip()
         if disposition not in {"accepted", "declined", "deferred"}:
@@ -7913,6 +7920,8 @@ class FreeStageSession:
                 "pendant_transferred_to_player" if disposition == "accepted"
                 else "pendant_retained_by_ryuya"
             ),
+            source_refs=source_refs,
+            request_id=request_id,
         )
         transaction = self._world_transaction("ryuya_pendant_disposition")
         if not isinstance(transaction, dict):
@@ -7935,6 +7944,36 @@ class FreeStageSession:
             source_kind="world_transaction",
         )
         return committed_now
+
+    def _commit_player_pendant_response(
+        self,
+        disposition: str,
+        *,
+        turn_no: int,
+    ) -> bool:
+        """PlayerAction records the response; WorldCommit owns its world effect."""
+        disposition = str(disposition).strip()
+        if disposition not in {"accepted", "declined", "deferred"}:
+            raise ValueError(f"invalid pendant disposition: {disposition}")
+        action_id = f"ryuya_pendant_response:{int(turn_no)}"
+        action = self._commit_player_action(
+            action_id,
+            action_kind="item_disposition_response",
+            target="I.PENDANT_ANCHOR",
+            value=disposition,
+            turn_no=turn_no,
+            source_refs=(f"player-input:turn:{int(turn_no)}",),
+        )
+        receipt = action.get("receipt") if isinstance(action.get("receipt"), dict) else {}
+        receipt_id = str(receipt.get("receipt_id") or "").strip()
+        if not receipt_id:
+            raise RuntimeError("player pendant response did not produce a receipt")
+        return self._finalize_prologue_pendant(
+            disposition,
+            turn_no=turn_no,
+            source_refs=(receipt_id,),
+            request_id=f"world-from:{action_id}",
+        )
 
     def _pendant_accepted(self) -> bool:
         tx = self._world_transaction("ryuya_pendant_disposition") or {}
@@ -9998,10 +10037,12 @@ class FreeStageSession:
                 marker = f"prologue_receipt_{receipt}"
                 pendant_offered = "prologue_pendant_offered" in self.branch_progress
                 if "RP3" in self.completed and pendant_offered:
+                    # Preserve the existing RP4 disposition policy, but only
+                    # project completion after PlayerAction→WorldCommit succeeds.
+                    self._commit_player_pendant_response(receipt, turn_no=turn_no)
                     self.completed.append("RP4")
                     if marker not in self.branch_progress:
                         self.branch_progress.append(marker)
-                    self._finalize_prologue_pendant(receipt, turn_no=turn_no)
                 else:
                     # Before an explicit pendant offer this is only a response to
                     # the entrust / conversation, never proof of item transfer.

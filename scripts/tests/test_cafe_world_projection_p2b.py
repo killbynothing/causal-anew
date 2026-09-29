@@ -204,6 +204,61 @@ def test_session_finalize_projects_only_after_world_commit_and_conflict_is_atomi
         ) == before
 
 
+def test_explicit_player_response_sources_world_commit_without_smuggling_custody():
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="p2b-source",
+            card_path=card,
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=_caller,
+        )
+        assert session._commit_player_pendant_response("accepted", turn_no=7) is True
+        action = session.player_action_receipts["ryuya_pendant_response:7"]
+        action_payload = action["action"]
+        assert action_payload["value"] == "accepted"
+        action_blob = json.dumps(action_payload, ensure_ascii=False)
+        assert "custody" not in action_blob
+        assert "holding" not in action_blob
+        tx = session._world_transaction("ryuya_pendant_disposition")
+        assert tx["receipt"]["source_refs"] == [action["receipt"]["receipt_id"]]
+        assert tx["request_id"] == "world-from:ryuya_pendant_response:7"
+
+
+def test_step_does_not_complete_rp4_before_conflicting_world_commit():
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="p2b-rp4-order",
+            card_path=card,
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=_caller,
+        )
+        session.completed = ["RP1", "RP2", "RP3"]
+        session.branch_progress = ["prologue_pendant_offered"]
+        session._finalize_prologue_pendant("accepted", turn_no=1)
+        # Existing terminal world fact conflicts with a later decline. The
+        # player's decline remains a valid PlayerAction, but RP4 must not jump
+        # ahead of a failed world settlement.
+        try:
+            session.step({"speech": "不收", "action": "", "thought": ""})
+        except ReceiptConflict:
+            pass
+        else:
+            raise AssertionError("conflicting terminal world fact must surface as a conflict")
+        assert "RP4" not in session.completed
+        assert "ryuya_pendant_response:1" in session.player_action_receipts
+        action = session.player_action_receipts["ryuya_pendant_response:1"]
+        assert action["action"]["value"] == "declined"
+        assert session._world_transaction("ryuya_pendant_disposition")["outcome"] == "accepted"
+
+
 def test_finalize_projection_survives_save_load():
     card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
     with tempfile.TemporaryDirectory() as tmp:

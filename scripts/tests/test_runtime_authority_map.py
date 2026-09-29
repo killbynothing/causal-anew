@@ -43,16 +43,19 @@ def test_scanner_finds_representative_five_domain_writers():
     assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
 
     world_tx = writers(report, "world_transactions", "production")
-    # P2a moves business append authority out of FreeStageSession. Reset remains
-    # an explicit compatibility writer until P2c, but the commit helper itself
-    # must no longer assign into the ledger.
-    assert any(row["symbol"].endswith("FreeStageSession.reset") for row in world_tx)
-    assert not any(row["symbol"].endswith("_commit_world_transaction") for row in world_tx)
+    assert world_tx == []
+    scene_receipts = writers(report, "scene_receipts", "production")
+    causal_receipts = writers(report, "causal_receipts", "production")
+    assert scene_receipts == []
+    assert causal_receipts == []
+
+    # P2c moves all three ledgers into WorldCommitState. Session helper may
+    # delegate, but it may not regain a mutable compatibility ledger.
     commit_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
     helper_start = commit_source.index("    def _commit_world_transaction(")
     helper_end = commit_source.index("\n    def _world_transaction(", helper_start)
     helper_source = commit_source[helper_start:helper_end]
-    assert "world_commit.commit_world_fact" in helper_source
+    assert "_world_commit_state.commit_fact" in helper_source
     assert "self.world_transactions[" not in helper_source
 
     mind = writers(report, "private_inner_states", "production")

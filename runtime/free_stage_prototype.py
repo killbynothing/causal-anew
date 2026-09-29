@@ -7166,14 +7166,6 @@ class FreeStageSession:
         self._triggered_at_clocks: set[str] = set()    # T-03 J3：追踪已触发的 at_clock 时间点（跨场持久）
         self.debug_history: list[dict[str, Any]] = []
         self._fired_director_beats: set[str] = set()
-        self.player_state: dict[str, Any] = {
-            "injury": "正常/良好",
-            "status": "行动中",
-            "convergence_rate": 100,
-            "energy": 0.78,
-            "physical": "good",
-            "elapsed_minutes": 0,
-        }
         self._world_projection_state = world_projection.WorldProjectionState()
         self.utterance_pending_queue: list[dict[str, Any]] = []
         self.companion_pending_queue: list[dict[str, Any]] = []
@@ -7217,6 +7209,10 @@ class FreeStageSession:
     @property
     def world_cursor(self) -> dict[str, Any]:
         return self._world_cursor_state.view()
+
+    @property
+    def player_state(self) -> dict[str, Any]:
+        return self._world_projection_state.player_state_view()
 
     @property
     def body_frames(self) -> dict[str, Any]:
@@ -7405,16 +7401,6 @@ class FreeStageSession:
         pending_exit_menu = data.get("pending_exit_menu")
         self.pending_exit_menu = dict(pending_exit_menu) if isinstance(pending_exit_menu, dict) else None
         self._triggered_at_clocks = set(data.get("_triggered_at_clocks", []))
-        self.player_state = dict(
-            data.get(
-                "player_state",
-                {"injury": "正常/良好", "status": "行动中", "convergence_rate": 100, "energy": 0.78, "physical": "good", "elapsed_minutes": 0},
-            )
-        )
-        self.player_state.setdefault("convergence_rate", 100)
-        self.player_state.setdefault("energy", 0.78)
-        self.player_state.setdefault("physical", "good")
-        self.player_state.setdefault("elapsed_minutes", 0)
         self._world_projection_state = world_projection.WorldProjectionState.from_legacy(data)
         self.utterance_pending_queue = [
             dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
@@ -7711,14 +7697,6 @@ class FreeStageSession:
         self.public_environment_deltas = []
         self.debug_history = []
         self._fired_director_beats = set()
-        self.player_state = {
-            "injury": "正常/良好",
-            "status": "行动中",
-            "convergence_rate": 100,
-            "energy": 0.78,
-            "physical": "good",
-            "elapsed_minutes": 0,
-        }
         self._triggered_at_clocks: set[str] = set()
         self._world_projection_state.reset()
         self.utterance_pending_queue = []
@@ -7985,9 +7963,8 @@ class FreeStageSession:
         transaction = self._world_transaction("ryuya_pendant_disposition")
         if not isinstance(transaction, dict):
             raise RuntimeError("pendant disposition commit did not produce a world transaction")
-        self.player_state = self._world_projection_state.apply_world_transaction(
+        self._world_projection_state.apply_world_transaction(
             transaction,
-            player_state=self.player_state,
             session_id=self.session_id,
         )
         self._ensure_body_frames(self.card)
@@ -9932,7 +9909,7 @@ class FreeStageSession:
             })
 
         turn_no = len(self.inputs) + 1
-        self.player_state["elapsed_minutes"] = self.player_state.get("elapsed_minutes", 0) + 2
+        self._world_projection_state.advance_elapsed(2)
 
         # ── T-03 J3 at_clock 时钟触发器 ─────────────────────────────────────────
         # 每拍：计算当前时钟，检查是否有 at_clock 到点
@@ -9965,8 +9942,7 @@ class FreeStageSession:
         if violation:
             self._record_player_violation(violation)
         if is_oob and violation and violation.get("handled") == "blocked":
-            current_conv = self.player_state.setdefault("convergence_rate", 100)
-            self.player_state["convergence_rate"] = max(0, current_conv - 10)
+            self._world_projection_state.reduce_convergence(10)
 
         # ── T-05 J2 预言闸：记录玩家触及未来知识的预言 ───────────────────
         prophecy = parsed_input.get("prophecy")
@@ -11392,9 +11368,10 @@ class FreeStageSession:
             turn_degradations.extend(transition.get("degradations", []))
             offscreen_player_state = self.card.pop("_offscreen_player_state", None) if isinstance(self.card, dict) else None
             if isinstance(offscreen_player_state, dict):
-                preserved_elapsed = self.player_state.get("elapsed_minutes", 0)
-                self.player_state.update(offscreen_player_state)
-                self.player_state["elapsed_minutes"] = preserved_elapsed
+                self._world_projection_state.update_player_fields(
+                    offscreen_player_state,
+                    preserve=("elapsed_minutes",),
+                )
         player_visible_turns = [
             dict(item) for item in self.history
             if item.get("turn") == turn_no
@@ -11431,10 +11408,12 @@ class FreeStageSession:
                 boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
 
         if "choiceA_brace" in self.branch_progress:
-            self.player_state["injury"] = "肋骨骨折 (重伤残血)"
+            self._world_projection_state.set_player_field("injury", "肋骨骨折 (重伤残血)")
         elif "B1_dog" in self.branch_progress:
-            self.player_state["injury"] = "无明显外伤"
-        self.player_state["status"] = "行动中" if not self.ended else "已完成"
+            self._world_projection_state.set_player_field("injury", "无明显外伤")
+        self._world_projection_state.set_player_field(
+            "status", "行动中" if not self.ended else "已完成"
+        )
         self.last_degradations = turn_degradations
 
         intro_done_snapshot = intro_done_for_card(
@@ -12184,7 +12163,7 @@ class FreeStageSession:
         next_entry_context = EntryContext.from_dict(exit_spec.get("entry_context"))
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
-        self.player_state["elapsed_minutes"] = 0
+        self._world_projection_state.set_player_field("elapsed_minutes", 0)
         target_scene_id = target_card.get("scene_id", str(target_path))
         target_exit_state = str(exit_spec.get("exit_state", "converged")).strip() or "converged"
         self.active_exit_state_by_card[str(target_scene_id)] = target_exit_state

@@ -663,6 +663,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_cursor_state_p2c.py",
     },
     {
+        "id": "player_state_projection_p2c",
+        "desc": "P2c player_state 投影单 owner：时间/伤势/状态/物件均经 WorldProjectionState",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_player_state_projection_p2c.py"],
+        "triggers": [
+            "runtime/world_projection.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_player_state_projection_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_player_state_projection_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

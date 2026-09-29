@@ -16,6 +16,17 @@ PENDANT_PROP = "古铜色金属挂坠项链"
 RYUYA_BODY_ID = "B.ryuya.WMAIN"
 
 
+def default_player_state() -> dict[str, Any]:
+    return {
+        "injury": "正常/良好",
+        "status": "行动中",
+        "convergence_rate": 100,
+        "energy": 0.78,
+        "physical": "good",
+        "elapsed_minutes": 0,
+    }
+
+
 @dataclass(frozen=True)
 class WorldProjectionResult:
     player_state: dict[str, Any]
@@ -33,9 +44,13 @@ class WorldProjectionState:
     def __init__(
         self,
         *,
+        player_state: Mapping[str, Any] | None = None,
         body_frames: Mapping[str, Any] | None = None,
         observation_ledger: Sequence[Mapping[str, Any]] = (),
     ) -> None:
+        self._player_state = default_player_state()
+        if isinstance(player_state, Mapping):
+            self._player_state.update(copy.deepcopy(dict(player_state)))
         self._body_frames = copy.deepcopy(dict(body_frames or {}))
         self._observation_ledger = [
             copy.deepcopy(dict(item))
@@ -47,14 +62,54 @@ class WorldProjectionState:
     def from_legacy(cls, raw: Mapping[str, Any]) -> "WorldProjectionState":
         frames = raw.get("body_frames")
         ledger = raw.get("run_observation_ledger")
+        player = raw.get("player_state")
         return cls(
+            player_state=player if isinstance(player, Mapping) else None,
             body_frames=frames if isinstance(frames, Mapping) else {},
             observation_ledger=ledger if isinstance(ledger, (list, tuple)) else (),
         )
 
     def reset(self) -> None:
+        self._player_state = default_player_state()
         self._body_frames.clear()
         self._observation_ledger.clear()
+
+    def player_state_view(self) -> dict[str, Any]:
+        return copy.deepcopy(self._player_state)
+
+    def set_player_field(self, key: str, value: Any) -> dict[str, Any]:
+        name = str(key or "").strip()
+        if not name:
+            raise ValueError("player state field is required")
+        self._player_state[name] = copy.deepcopy(value)
+        return self.player_state_view()
+
+    def update_player_fields(
+        self,
+        fields: Mapping[str, Any],
+        *,
+        preserve: Sequence[str] = (),
+    ) -> dict[str, Any]:
+        saved = {
+            str(key): copy.deepcopy(self._player_state.get(str(key)))
+            for key in preserve
+        }
+        self._player_state.update(copy.deepcopy(dict(fields)))
+        for key, value in saved.items():
+            self._player_state[key] = value
+        return self.player_state_view()
+
+    def advance_elapsed(self, minutes: int) -> int:
+        current = int(self._player_state.get("elapsed_minutes", 0) or 0)
+        current += int(minutes)
+        self._player_state["elapsed_minutes"] = current
+        return current
+
+    def reduce_convergence(self, amount: int) -> int:
+        current = int(self._player_state.get("convergence_rate", 100) or 0)
+        current = max(0, current - int(amount))
+        self._player_state["convergence_rate"] = current
+        return current
 
     def body_frames_view(self) -> dict[str, Any]:
         return copy.deepcopy(self._body_frames)
@@ -103,19 +158,19 @@ class WorldProjectionState:
         self,
         record: Mapping[str, Any],
         *,
-        player_state: Mapping[str, Any] | None,
         session_id: str = "",
     ) -> dict[str, Any]:
         projected = project_world_transaction(
             record,
-            player_state=player_state,
+            player_state=self._player_state,
             body_frames=self._body_frames,
             observation_ledger=self._observation_ledger,
             session_id=session_id,
         )
+        self._player_state = copy.deepcopy(projected.player_state)
         self._body_frames = copy.deepcopy(projected.body_frames)
         self._observation_ledger = copy.deepcopy(projected.observation_ledger)
-        return copy.deepcopy(projected.player_state)
+        return self.player_state_view()
 
 
 def _world_receipt_id(record: Mapping[str, Any]) -> str:

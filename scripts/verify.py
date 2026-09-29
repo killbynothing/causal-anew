@@ -681,6 +681,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_scene_fact_authority_p2c3.py",
     },
     {
+        "id": "world_commit_ledger_p2c4",
+        "desc": "P2c-4 world_transactions × causal_receipts 单一 owner：copy-only view、幂等冲突、load/reset/生产接线",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_commit_ledger_p2c4.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_commit_ledger_p2c4.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_commit_ledger_p2c4.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

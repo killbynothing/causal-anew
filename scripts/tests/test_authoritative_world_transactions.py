@@ -366,8 +366,15 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     debt = set(P2A_WORLD_MIGRATION_DEBT)
     migrated = set(P2A_WORLD_MIGRATED_FACTS)
     assert debt.isdisjoint(migrated)
-    assert {"body_frames", "player_state", "world_cursor"} <= debt
-    assert {"branch_progress", "scene_receipts"} <= migrated
+    assert debt == {"player_state", "world_cursor"}
+    assert {
+        "branch_progress",
+        "scene_receipts",
+        "world_transactions",
+        "causal_receipts",
+        "run_observation_ledger",
+        "body_frames",
+    } <= migrated
 
     current = {
         fact
@@ -379,7 +386,12 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
         f"unlisted P2 world authority family: {sorted(current - debt - migrated)}"
     )
     projection_owned = {"branch_progress", "scene_receipts"}
-    ledger_owned = {"world_transactions", "causal_receipts"}
+    ledger_owned = {
+        "world_transactions",
+        "causal_receipts",
+        "run_observation_ledger",
+        "body_frames",
+    }
     assert projection_owned | ledger_owned <= migrated
     for fact in migrated:
         meta = report["facts"][fact]

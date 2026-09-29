@@ -95,7 +95,8 @@ def test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains():
 def test_unknown_aliases_are_reported_not_hidden():
     report = load_report()
     assert report["summary"]["unknown_alias_count"] > 0
-    assert "body_frames" in report["summary"]["facts_with_unknown_aliases"]
+    assert "body_frames" not in report["summary"]["facts_with_unknown_aliases"]
+    assert "run_observation_ledger" not in report["summary"]["facts_with_unknown_aliases"]
 
 
 if __name__ == "__main__":

@@ -696,6 +696,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_commit_ledger_p2c4.py",
     },
     {
+        "id": "world_projection_owner_p2c5",
+        "desc": "P2c-5 BodyFrame×observation 单一 owner：copy-only、load/reset、thought/WorldCommit/visible-stage 接线、零直写/alias",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_projection_owner_p2c5.py"],
+        "triggers": [
+            "runtime/world_projection.py",
+            "runtime/world_commit.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/thought_delta.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_projection_owner_p2c5.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_projection_owner_p2c5.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

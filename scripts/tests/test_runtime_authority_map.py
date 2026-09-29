@@ -43,7 +43,17 @@ def test_scanner_finds_representative_five_domain_writers():
     assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
 
     world_tx = writers(report, "world_transactions", "production")
-    assert any(row["symbol"].endswith("_commit_world_transaction") for row in world_tx)
+    # P2a moves business append authority out of FreeStageSession. Reset remains
+    # an explicit compatibility writer until P2c, but the commit helper itself
+    # must no longer assign into the ledger.
+    assert any(row["symbol"].endswith("FreeStageSession.reset") for row in world_tx)
+    assert not any(row["symbol"].endswith("_commit_world_transaction") for row in world_tx)
+    commit_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    helper_start = commit_source.index("    def _commit_world_transaction(")
+    helper_end = commit_source.index("\n    def _world_transaction(", helper_start)
+    helper_source = commit_source[helper_start:helper_end]
+    assert "world_commit.commit_world_fact" in helper_source
+    assert "self.world_transactions[" not in helper_source
 
     mind = writers(report, "private_inner_states", "production")
     assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)

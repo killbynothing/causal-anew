@@ -76,6 +76,7 @@ from runtime import runtime_state
 from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
+from runtime import run_lifecycle
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import utterance_stream as ustream
@@ -7088,9 +7089,13 @@ class FreeStageSession:
         self.active_exit_state_by_card: dict[str, str] = {}
         self.stall = 0
         self.inputs: list[str] = []
-        self.ended = False
+        self.lifecycle_state = run_lifecycle.OPEN
+        self.close_error: str | None = None
+        self.ended = False  # compatibility projection; production writes go through _set_lifecycle_state
         self.run_receipt: dict[str, Any] | None = None
-        self._run_closed = False
+        self._run_closed = False  # compatibility projection
+        self.write_mode = "writable"
+        self.source_session_id: str | None = None
         self.branch_progress: list[str] = []
         self._language_discovery_observation: str | None = None
         # Structured scene facts are the authoritative receipt ledger for
@@ -7254,10 +7259,14 @@ class FreeStageSession:
             str(item) for item in data.get("stall_escalation_fired_scenes", []) if str(item).strip()
         }
         self.inputs = [str(x) for x in data.get("inputs", [])]
-        self.ended = bool(data.get("ended", False))
         stored_receipt = data.get("run_receipt")
         self.run_receipt = dict(stored_receipt) if isinstance(stored_receipt, dict) else None
-        self._run_closed = bool(data.get("run_closed") or self.run_receipt)
+        self.lifecycle_state = run_lifecycle.derive_state(data)
+        self.close_error = str(data.get("close_error") or "").strip() or None
+        self.ended = self.lifecycle_state == run_lifecycle.CLOSED
+        self._run_closed = self.ended
+        self.write_mode = str(data.get("write_mode") or "writable")
+        self.source_session_id = str(data.get("source_session_id") or "").strip() or None
         self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
         self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
         self.world_transactions = {
@@ -7389,9 +7398,13 @@ class FreeStageSession:
             "sediment_S": getattr(self, "sediment_S", 0.0),
             "scar_info": dict(getattr(self, "scar_info", {}) or {}),
             "inputs": self.inputs,
+            "lifecycle_state": self.lifecycle_state,
+            "close_error": self.close_error,
             "ended": self.ended,
             "run_receipt": dict(self.run_receipt) if self.run_receipt else None,
             "run_closed": bool(self._run_closed),
+            "write_mode": self.write_mode,
+            "source_session_id": self.source_session_id,
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
@@ -7438,35 +7451,88 @@ class FreeStageSession:
         self.runtime_store.save(payload)
         sync_bonds_to_runtime_state(self.run_no, self.branch_progress, self.runtime_state_path)
 
-    def _mark_ended(self) -> None:
-        self.ended = True
-        self._close_run_once()
+    def _set_lifecycle_state(self, state: str, *, error: str | None = None) -> None:
+        run_lifecycle.validate_transition(self.lifecycle_state, state)
+        self.lifecycle_state = state
+        self.close_error = str(error or "").strip() or None
+        self.ended = state == run_lifecycle.CLOSED
+        self._run_closed = self.ended
 
-    def _close_run_once(self) -> dict[str, Any] | None:
-        if self._run_closed and self.run_receipt:
-            return self.run_receipt
-        if self.truth_db_path is None or int(self.run_no) < 1:
-            return None
-        from runtime.end_run import close_run
+    def _persist_lifecycle_snapshot(self) -> bool:
+        if not self.autosave:
+            return True
+        try:
+            self.runtime_store.save(self._state_payload())
+            return True
+        except Exception as exc:
+            self.close_error = f"snapshot_write_failed:{type(exc).__name__}:{exc}"
+            return False
+
+    def _mark_ended(self) -> bool:
+        """Commit open→closing→closed. Failure stays recoverable at closing."""
+        if self.lifecycle_state == run_lifecycle.CLOSED:
+            return True
+        if self.lifecycle_state == run_lifecycle.OPEN:
+            self._set_lifecycle_state(run_lifecycle.CLOSING)
+        if not self._persist_lifecycle_snapshot():
+            return False
+
+        if self.truth_db_path is None:
+            self._set_lifecycle_state(run_lifecycle.CLOSED)
+            if not self._persist_lifecycle_snapshot():
+                self._set_lifecycle_state(run_lifecycle.CLOSING, error=self.close_error)
+                return False
+            return True
 
         try:
-            self.run_receipt = close_run(
-                self.truth_db_path,
-                int(self.run_no),
-                opening_id=self.opening_id,
-            )
-            self._run_closed = True
+            receipt = self._close_run_once()
         except Exception as exc:
-            print(f"[end_run] WARN 关局失败（游玩不中断）: {exc}")
-            self.run_receipt = None
-        return self.run_receipt
+            self._set_lifecycle_state(
+                run_lifecycle.CLOSING,
+                error=f"close_failed:{type(exc).__name__}:{exc}",
+            )
+            self._persist_lifecycle_snapshot()
+            return False
+
+        self.run_receipt = dict(receipt) if isinstance(receipt, dict) else None
+        self._set_lifecycle_state(run_lifecycle.CLOSED)
+        if not self._persist_lifecycle_snapshot():
+            self._set_lifecycle_state(run_lifecycle.CLOSING, error=self.close_error)
+            return False
+        return True
+
+    def _close_run_once(self) -> dict[str, Any] | None:
+        if self.truth_db_path is None or int(self.run_no) < 1:
+            return self.run_receipt
+        from runtime.end_run import close_run
+        return close_run(
+            self.truth_db_path,
+            int(self.run_no),
+            opening_id=self.opening_id,
+        )
+
+    def _assert_writable(self, operation: str) -> None:
+        if self.write_mode != "writable":
+            raise RuntimeError(
+                f"session is read-only snapshot ({self.source_session_id or 'unknown source'}); "
+                f"{operation} is not allowed"
+            )
+        if self.lifecycle_state != run_lifecycle.OPEN:
+            raise RuntimeError(
+                f"run lifecycle is {self.lifecycle_state}; {operation} is not allowed"
+            )
 
     def _with_receipt(self, result: dict[str, Any]) -> dict[str, Any]:
-        if self.run_receipt:
+        result["lifecycle_state"] = self.lifecycle_state
+        result["close_pending"] = self.lifecycle_state == run_lifecycle.CLOSING
+        if self.close_error:
+            result["close_error"] = self.close_error
+        if self.ended and self.run_receipt:
             result["receipt"] = dict(self.run_receipt)
         return result
 
     def reset(self) -> None:
+        self._assert_writable("reset")
         self.completed = []
         self.completed_by_card = {}
         self.completed_beats = {}
@@ -7482,9 +7548,8 @@ class FreeStageSession:
         self.active_exit_state_by_card = {}
         self.stall = 0
         self.inputs = []
-        self.ended = False
+        self._set_lifecycle_state(run_lifecycle.OPEN)
         self.run_receipt = None
-        self._run_closed = False
         self.branch_progress = []
         self._language_discovery_observation = None
         self.scene_receipts = []
@@ -8113,7 +8178,12 @@ class FreeStageSession:
                 else None
             ),
             "eligible_entries": self.get_eligible_entries(),
-            "receipt": dict(self.run_receipt) if self.run_receipt else None,
+            "lifecycle_state": self.lifecycle_state,
+            "close_pending": self.lifecycle_state == run_lifecycle.CLOSING,
+            "close_error": self.close_error,
+            "write_mode": self.write_mode,
+            "source_session_id": self.source_session_id,
+            "receipt": dict(self.run_receipt) if self.ended and self.run_receipt else None,
         }
 
     def _player_channels_snapshot(
@@ -8773,6 +8843,7 @@ class FreeStageSession:
         self.stream_hold = False
 
     def set_stream_hold(self, hold: bool) -> dict[str, Any]:
+        self._assert_writable("stream_hold")
         self.stream_hold = bool(hold)
         if self.autosave:
             self.save()
@@ -8787,6 +8858,7 @@ class FreeStageSession:
         }
 
     def advance_utterance(self) -> dict[str, Any]:
+        self._assert_writable("advance_utterance")
         turns: list[dict[str, Any]] = []
         if not self.stream_hold and self.utterance_pending_queue:
             item = dict(self.utterance_pending_queue.pop(0))
@@ -8903,6 +8975,7 @@ class FreeStageSession:
             self.history.append(dict(self.companion_pending_queue.pop(0)))
 
     def start(self) -> list[dict[str, Any]]:
+        self._assert_writable("start")
         has_real_turns = any(item.get("role") in {"player", "npc"} and item.get("turn", 0) > 0 for item in self.history)
         if not self.history and not has_real_turns:
             synopsis_turns = self._ensure_opening_synopsis_and_pendant()
@@ -9623,15 +9696,27 @@ class FreeStageSession:
         return resolved, applied
 
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
+        if self.write_mode != "writable":
+            self._assert_writable("step")
+        if self.lifecycle_state == run_lifecycle.CLOSING:
+            self._mark_ended()
+            return self._with_receipt({
+                "session_id": self.session_id,
+                "turns": [],
+                "completed": self.completed,
+                "issues": self.last_issues,
+                "ended": self.ended,
+                "surface": self.surface(),
+            })
         if self.ended:
-            return {
+            return self._with_receipt({
                 "session_id": self.session_id,
                 "turns": [],
                 "completed": self.completed,
                 "issues": self.last_issues,
                 "ended": True,
                 "surface": self.surface(),
-            }
+            })
 
         turn_no = len(self.inputs) + 1
         self.player_state["elapsed_minutes"] = self.player_state.get("elapsed_minutes", 0) + 2
@@ -11417,6 +11502,7 @@ class FreeStageSession:
         generating an interlude narrative, performing memory consolidation,
         and transitioning to the next card.
         """
+        self._assert_writable("skip_scene")
         if self.card.get("pacing") != "brief":
             raise ValueError("Only brief scenes can be skipped.")
 
@@ -11441,10 +11527,11 @@ class FreeStageSession:
             )
             if decision.action != "end_run":
                 raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
-            self._mark_ended()
+            closed = self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
             self.completed_by_card[source_scene_id] = list(self.completed)
-            self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
+            if closed:
+                self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
             return self.result()
         if len(exits) != 1:
@@ -11534,7 +11621,7 @@ class FreeStageSession:
         self.card = target_card
         self.completed = []
         self.stall = 0
-        self.ended = False
+        self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
 
         target_auto_end = bool(target_card.get("auto_end_on_complete", False)) or (
@@ -11554,8 +11641,8 @@ class FreeStageSession:
             )
         )
         if target_exit_decision.action == "end_run":
-            self._mark_ended()
-            self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
+            if self._mark_ended():
+                self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
 
         self.save()
         
@@ -11836,8 +11923,8 @@ class FreeStageSession:
                         ],
                     )
 
-            self._mark_ended()
-            if not any(END_MARKER in str(item.get("text", "")) for item in self.history):
+            closed = self._mark_ended()
+            if closed and not any(END_MARKER in str(item.get("text", "")) for item in self.history):
                 marker = {
                     "role": "marker",
                     "speaker": "系统记录",
@@ -12094,7 +12181,7 @@ class FreeStageSession:
         self._last_exit_intent_scene_id = None
         self._last_exit_intent_exit_spec = None
         self.pending_exit_menu = None
-        self.ended = False
+        self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
         self._refresh_inner_states_on_scene_enter(target_card)
 
@@ -12142,8 +12229,8 @@ class FreeStageSession:
             )
         )
         if target_exit_decision.action == "end_run":
-            self._mark_ended()
-            self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no})
+            if self._mark_ended():
+                self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": turn_no})
 
         return transition_marker
 

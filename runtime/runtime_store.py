@@ -28,16 +28,36 @@ class RuntimeStore:
     def load(self) -> dict[str, Any] | None:
         if not self.state_path.exists():
             return None
-        try:
-            raw = json.loads(self.state_path.read_text(encoding="utf-8"))
-        except Exception:
-            return None
-        return raw if isinstance(raw, dict) else None
-
-    def save(self, payload: dict[str, Any]) -> None:
-        self.state_dir.mkdir(parents=True, exist_ok=True)
         with SESSION_FILE_LOCK:
-            self.state_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+            try:
+                raw = json.loads(self.state_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError) as exc:
+                raise RuntimeStoreError(f"invalid session snapshot: {exc}") from exc
+        if not isinstance(raw, dict):
+            raise RuntimeStoreError("session snapshot must contain an object")
+        return raw
+
+    def save(
+        self,
+        payload: dict[str, Any],
+        *,
+        failpoint: str | None = None,
+    ) -> None:
+        """Atomically replace the session snapshot; never expose partial JSON."""
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        temp_path = self.state_path.with_name(self.state_path.name + ".tmp")
+        encoded = json.dumps(payload, ensure_ascii=False, indent=2)
+        with SESSION_FILE_LOCK:
+            try:
+                temp_path.write_text(encoded, encoding="utf-8")
+                if failpoint == "after_temp_write":
+                    raise RuntimeStoreError("injected failure after temp write")
+                if failpoint not in (None, "after_temp_write"):
+                    raise RuntimeStoreError(f"unknown failpoint: {failpoint}")
+                os.replace(temp_path, self.state_path)
+            finally:
+                if temp_path.exists():
+                    temp_path.unlink()
 
     def load_commit_cursor(self) -> CommitCursor:
         """Strictly load the P0b pending/ack outbox cursor.
@@ -87,3 +107,5 @@ class RuntimeStore:
         with SESSION_FILE_LOCK:
             if self.state_path.exists():
                 self.state_path.unlink()
+            if self.commit_state_path.exists():
+                self.commit_state_path.unlink()

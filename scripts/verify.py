@@ -579,6 +579,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_exit_policy_production_wire.py",
     },
     {
+        "id": "run_lifecycle_p1b",
+        "desc": "P1b open→closing→closed、close失败恢复、closed禁写、save_as只读副本、原子snapshot",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_run_lifecycle_p1b.py"],
+        "triggers": [
+            "runtime/run_lifecycle.py",
+            "runtime/runtime_store.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/file_locks.py",
+            "web/server.py",
+            "scripts/tests/test_run_lifecycle_p1b.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_run_lifecycle_p1b.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

@@ -12,6 +12,7 @@ import urllib.request
 import urllib.error
 import urllib.parse
 import webbrowser
+from contextlib import ExitStack
 from pathlib import Path
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from threading import Timer
@@ -31,7 +32,7 @@ except ImportError as e:
     print(f"[ERROR] 无法从 {DELIVERY_DIR} 导入 npc_test_client.py，请确认该文件夹及文件存在。原因为: {e}")
     sys.exit(1)
 
-from file_locks import CONFIG_LOCK, SESSION_FILE_LOCK
+from file_locks import CONFIG_LOCK, SESSION_FILE_LOCK, session_request_lock
 from runtime.runtime_state import load_run_bonds
 
 try:
@@ -188,7 +189,20 @@ def handle_free_stage_request(req_data, config, state_dir=None, caller=None, tru
             return res_lst
         return data
 
-    res = _handle_free_stage_request_raw(req_data, config, state_dir, caller, truth_db=truth_db)
+    op = req_data.get("op") or "player_say"
+    lock_ids: list[str] = []
+    if op not in {"list_sessions", "list_openings", "get_bond_archive"}:
+        if req_data.get("session_id"):
+            lock_ids.append(str(req_data.get("session_id")))
+        if op in {"save_as", "delete_session"} and req_data.get("target_session_id"):
+            lock_ids.append(str(req_data.get("target_session_id")))
+    if lock_ids:
+        with ExitStack() as stack:
+            for sid in sorted(set(lock_ids)):
+                stack.enter_context(session_request_lock(sid))
+            res = _handle_free_stage_request_raw(req_data, config, state_dir, caller, truth_db=truth_db)
+    else:
+        res = _handle_free_stage_request_raw(req_data, config, state_dir, caller, truth_db=truth_db)
     return redact_sensitive_director_fields(res)
 
 def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None, truth_db=None):
@@ -249,16 +263,24 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         tgt_file = os.path.join(s_dir, f"{tgt_id}.json")
         if not os.path.exists(src_file):
             return {"status": "error", "error": f"source session {src_id} not found"}
-        import shutil
+        if os.path.exists(tgt_file):
+            return {"status": "error", "error": f"target session {tgt_id} already exists"}
         try:
             with SESSION_FILE_LOCK:
-                shutil.copyfile(src_file, tgt_file)
-                with open(tgt_file, "r", encoding="utf-8") as f:
+                with open(src_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                 data["session_id"] = tgt_id
-                with open(tgt_file, "w", encoding="utf-8") as f:
-                    json.dump(data, f, ensure_ascii=False, indent=2)
-            return {"status": "ok", "session_id": tgt_id}
+                data["write_mode"] = "snapshot_read_only"
+                data["source_session_id"] = src_id
+                temp_file = tgt_file + ".tmp"
+                try:
+                    with open(temp_file, "w", encoding="utf-8") as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    os.replace(temp_file, tgt_file)
+                finally:
+                    if os.path.exists(temp_file):
+                        os.remove(temp_file)
+            return {"status": "ok", "session_id": tgt_id, "write_mode": "snapshot_read_only"}
         except Exception as e:
             return {"status": "error", "error": f"save_as failed: {str(e)}"}
 
@@ -532,6 +554,14 @@ def _handle_free_stage_request_raw(req_data, config, state_dir=None, caller=None
         caller=caller,
         truth_db=Path(truth_db) if truth_db else DB_PATH,
     )
+    if getattr(session, "write_mode", "writable") != "writable" and op in {
+        "reset", "start", "skip_scene", "stream_hold", "advance_utterance", "player_say"
+    }:
+        return {
+            "status": "error",
+            "error": "saved snapshot is read-only; create/fork a writable run instead",
+            "session_id": session.session_id,
+        }
     if op == "reset":
         session.reset()
         card_pacing = getattr(session, "card", {}).get("pacing", "standard") if hasattr(session, "card") else "standard"

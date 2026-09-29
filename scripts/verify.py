@@ -649,6 +649,19 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_p2c_authority_targets.py",
     },
     {
+        "id": "p2c_beat_reducer_core",
+        "desc": "P2c BeatReducer 核心：receipt幂等、revisit身份、legacy无伪来源、显式switch/restore",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_p2c_beat_reducer_core.py"],
+        "triggers": [
+            "runtime/beat_reducer.py",
+            "scripts/tests/test_p2c_beat_reducer_core.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_p2c_beat_reducer_core.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

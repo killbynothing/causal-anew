@@ -279,7 +279,7 @@ def test_legacy_scene_contract_branch_state_has_distinct_name_and_migrates():
         "path_set": [{"id": "left"}, {"id": "right"}],
         "combine_threshold": 1,
         "exit_states": [
-            {"id": "left_exit", "requires_paths": ["left"]},
+            {"id": "branched_left", "requires_paths": ["left"]},
         ],
     }
     binding = {"covered": True, "node_id": "NODE-X", "contract": contract}

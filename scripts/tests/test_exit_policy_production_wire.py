@@ -31,10 +31,16 @@ def test_maybe_transition_uses_one_exit_policy_decider():
     assert "should_trigger_exit(" not in source
     assert "choose_exit_spec(" not in source
 
-    decision_pos = source.index("exit_policy.decide_exit")
-    fact_pos = source.index("self._reduce_scene_facts")
-    assert fact_pos > decision_pos
-    assert "if exit_decision.authorized:" in source
+    semantic_pos = source.index("semantic_exit_spec: dict[str, Any] | None = None")
+    decision_pos = source.index("exit_decision = exit_policy.decide_exit", semantic_pos)
+    authorized_pos = source.index("if exit_decision.authorized:", decision_pos)
+    fact_pos = source.index("self._reduce_scene_facts(", authorized_pos)
+    # P2c may reduce unrelated scene facts earlier in this function. The P1a
+    # invariant is narrower: a semantic exit's prospective fact cannot be
+    # committed between selection and ExitDecision, and its write stays under
+    # the explicit authorized branch.
+    assert "self._reduce_scene_facts(" not in source[semantic_pos:decision_pos]
+    assert decision_pos < authorized_pos < fact_pos
     assert "self.branch_progress.append(" not in source
     assert "self._record_scene_receipt(" not in source
 

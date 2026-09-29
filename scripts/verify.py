@@ -633,6 +633,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_joint_matrix_p2b2.py",
     },
     {
+        "id": "p2c_authority_targets",
+        "desc": "P2c Beat/World 目标 writer 动态清单：当前生产路径、unknown alias、迁移债必须可见",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_p2c_authority_targets.py"],
+        "triggers": [
+            "scripts/audit_runtime_authority.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/world_commit.py",
+            "runtime/world_projection.py",
+            "scripts/tests/test_p2c_authority_targets.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_p2c_authority_targets.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

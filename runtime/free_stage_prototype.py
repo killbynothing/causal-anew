@@ -8134,7 +8134,7 @@ class FreeStageSession:
             raise RuntimeError("pendant disposition commit did not produce a world transaction")
         projected_player_state = self._body_observation_state.apply_world_transaction(
             transaction,
-            player_state=self.player_state,
+            player_state=self._player_state_owner.view(),
             session_id=self.session_id,
         )
         self._replace_player_state(projected_player_state)

@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P0b 完成：Receipt × Snapshot × Schema × Recovery 合同）
+
+- **做**：P0b 只建立协议与故障恢复合同，未切任何生产 writer。扩展既有 `runtime/causal_protocol.py`：`RuntimeScope`、`ReceiptEnvelope`、canonical payload hash、scope/幂等冲突检查、稳定 batch key、`PendingCommit / CommitCursor` 的 prepare/ack；没有新造第二套事件总线。
+- **Snapshot**：新增 `runtime/runtime_snapshots.py`，`WorldSnapshot / ActorSnapshot` 用 canonical JSON 冻结 payload，调用方拿到的始终是新副本；只做只读协议视图，尚未接 `FreeStageSession`。
+- **迁移**：新增 `runtime/session_schema.py` + v1/v2 fixtures。证明 `free_stage.session.v1 → v2` 纯内存、非破坏、未知版本拒绝、禁止降级；**生产仍明确写 v1，未 import 新迁移模块**。仓内旧 `session_opening_migration` 是 bridge→narrate 的另一语义，P0b 新闸使用 `session_schema_migration`，没有劫持旧名字。
+- **耐久边界**：自审后明确 **pending/ack 只有一个权威**：session v2 只保存 `snapshot_revision + last_committed_batch_id`；待提交游标只在 `RuntimeStore` 的 `.commit.json` outbox sidecar。sidecar 用 temp+`os.replace` 原子替换，损坏文件硬报错；故障注入已证明失败不会覆盖旧 durable outbox。现有主 session `load/save` 仍保持旧实现，属于 P1b 债。
+- **DB**：P0b 没有 DDL/表迁移。未来 commit batch 的稳定键字段定为 `worldline/run/session_id/scene_instance_id/request_id/batch_index`；真正 DB unique/index 要到对应 writer 迁移阶段走既有 import/迁移流程。
+- **闸**：补齐历史登记但缺失的 `test_causal_protocol.py`，并新增 `test_receipt_protocol.py`、`test_session_schema_migration.py`。三条定向测试全通过；全 `python scripts/verify.py --quick`：**43 PASS / 0 FAIL / 164 SKIP（207 validators）**。原 `causal_protocol` 从 SKIP 变真实 PASS，新加两条 P0b required gate。
+- **报账**：未改 run=0、场卡、Seed/VOICE、a14、生产 session schema 或 P1/P2 writer；`data/world_truth.db` 既有真人运行态仍不纳入提交。**哪里是我编的：正典/人物/剧情新增 = 0**；receipt/snapshot/outbox/schema 是工程协议。
+- **下一动**：只做 **P1a**：统一 ExitRequest → ExitDecision、目标解析与最终前置条件闸；先用 legacy 只读桥。P1b 前不改 close durability，P2 前不切 World/Beat writer。
+
 ### 2026-09-29（P0a 完成：Authority Map × required gate）
 
 - **做**：只实施重构计划 P0a，不改 runtime 生产行为。新增 `scripts/audit_runtime_authority.py`，静态扫描 runtime/web/scripts 的 tracked state 属性写、容器 mutator、局部别名/疑似 mutating helper、关键 SQL DML，并给 direct writer 建 best-effort caller 索引；同时读取 `scripts/verify.py` 登记表。

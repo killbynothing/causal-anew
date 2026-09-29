@@ -1,0 +1,24 @@
+{
+  "schema_version": "free_stage.session.v2",
+  "session_id": "fixture-p0b",
+  "run_no": 7,
+  "card_path": "runtime/free_stage_card_ryuya_prologue.json",
+  "opening_id": "pline_ryuya_cafe",
+  "world_cursor": {
+    "worldline": "WMAIN",
+    "run": 7,
+    "ch_anchor": 1,
+    "scene_id": "OPENING_RYUYA_PROLOGUE_001"
+  },
+  "completed": ["RP1", "RP2"],
+  "branch_progress": ["fixture_branch"],
+  "actor_minds": {
+    "C.ryuya.W1": {
+      "schema_version": 1,
+      "actor_cons": "C.ryuya.W1"
+    }
+  },
+  "ended": false,
+  "snapshot_revision": 0,
+  "last_committed_batch_id": null
+}

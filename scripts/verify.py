@@ -537,6 +537,20 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_causal_protocol.py",
     },
     {
+        "id": "receipt_protocol",
+        "desc": "P0b receipt envelope × scope × idempotency × pending/ack × immutable snapshots",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_receipt_protocol.py"],
+        "triggers": [
+            "runtime/causal_protocol.py",
+            "runtime/runtime_snapshots.py",
+            "scripts/tests/test_receipt_protocol.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_receipt_protocol.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",
@@ -643,6 +657,22 @@ VALIDATORS = [
         "need_db": False,
         "need": [],
         "need_file": "scripts/tests/test_authority_characterization.py",
+    },
+    {
+        "id": "session_schema_migration",
+        "desc": "P0b session v1→v2 纯内存迁移：非破坏、未知版本拒写、生产仍停 v1",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_session_schema_migration.py"],
+        "triggers": [
+            "runtime/session_schema.py",
+            "runtime/causal_protocol.py",
+            "scripts/tests/test_session_schema_migration.py",
+            "scripts/tests/fixtures/session_schema_v1_p0b.json",
+            "scripts/tests/fixtures/session_schema_v2_p0b.json",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_session_schema_migration.py",
     },
     {
         "id": "scene_personality",

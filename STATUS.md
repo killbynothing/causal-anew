@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-6 完成：PlayerState 单一 Owner）
+
+- **Owner**：新增 `runtime/player_state.py` 的 `PlayerStateOwner`；`player_state` 对外只返回深拷贝，生产不再持有可写 dict。现有 runtime 默认值与额外 legacy keys 均保留。
+- **生产迁移**：init/load/reset、每拍 `elapsed_minutes +2`、OOB convergence 扣减、转场 offscreen patch（保留 elapsed）、branch→injury/status、挂坠 WorldCommit→body_props、场景切换 elapsed 归零全部改走 owner facade。**本轮只迁权威，没有改变“每拍 +2 分钟”旧语义。**
+- **别名闸**：首跑发现挂坠投影仍把 copy-only `self.player_state` 传给可变 helper，被 Authority Map 正确标成 unknown alias；未加白名单，而是改成 owner 直接提供 snapshot 再投影。最终 `self.player_state = / [] / update / setdefault` 业务写均归零。
+- **Authority**：required gate `player_state_owner_p2c6` 覆盖 copy-only、时间/收敛/offscreen/branch reducer、WorldCommit body_props、save/load、Authority Map 与静态直写扫描。`player_state` production/tooling/unknown-alias rows 最终为 0。
+- **迁移债**：`P2A_WORLD_MIGRATION_DEBT` 现在只剩 **`world_cursor`**；`player_state` 已进入 migrated facts。旧 P2a/P2c4/P2c5 debt 断言均升级为 successor invariant。
+- **验**：首跑 Actions `36594545506` 仅因 player_state alias 红；修掉真实 alias 后 [Actions 36594799111](https://github.com/killbynothing/causal-anew/actions/runs/36594799111) **success**，quick **55 PASS / 0 FAIL / 163 SKIP（218 validators）**，DB checksum 前后不变。
+- **报账**：未改 `world_cursor`、时间推进语义、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：只做 **P2c-7 world_cursor owner**。收口场景/worldline/run/ch_anchor 当前坐标的初始化/load/转场写权；做完后重新生成 Authority Map，确认 P2A migration debt 可归零，再决定是否进入 P3。
+
 ### 2026-09-29（P2c-5 完成：BodyFrame × Observation 单一 Owner）
 
 - **Owner**：在 `runtime/world_projection.py` 新增窄 `BodyObservationState`，只拥有 `body_frames + run_observation_ledger`；没有把 `player_state` 顺手吞进去。对外 view 全是深拷贝，调用方改返回值不能改权威状态。

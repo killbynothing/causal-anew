@@ -7111,7 +7111,10 @@ class FreeStageSession:
         self.completed_by_card: dict[str, list[str]] = {}
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
-        self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
+        self._world_cursor_state = world_commit.WorldCursorState(
+            _card_cursor(self.card, self.run_no),
+            run_no=self.run_no,
+        )
         self.offscreen_ledger: dict[str, Any] = {}
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
@@ -7212,6 +7215,10 @@ class FreeStageSession:
         return self._world_commit_state.causal_receipts_view()
 
     @property
+    def world_cursor(self) -> dict[str, Any]:
+        return self._world_cursor_state.view()
+
+    @property
     def body_frames(self) -> dict[str, Any]:
         return self._world_projection_state.body_frames_view()
 
@@ -7284,8 +7291,8 @@ class FreeStageSession:
             for scene_id, state in dict(data.get("canon_performance_state", {})).items()
             if isinstance(state, dict)
         }
-        self.world_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
-        stored_run = data.get("run_no", self.world_cursor.get("run", self.run_no))
+        loaded_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
+        stored_run = data.get("run_no", loaded_cursor.get("run", self.run_no))
         try:
             stored_run = int(stored_run)
         except (TypeError, ValueError):
@@ -7293,8 +7300,7 @@ class FreeStageSession:
         if stored_run < 1:
             stored_run = 1
         self.run_no = stored_run
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", "WMAIN")
+        self._world_cursor_state.replace(loaded_cursor, run_no=self.run_no)
         self.offscreen_ledger = dict(data.get("offscreen_ledger") or {})
         self.heart_stages = {
             str(k): int(v)
@@ -7374,7 +7380,7 @@ class FreeStageSession:
         if domain_state is not None:
             fields = domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
-            self.world_cursor = fields["world_cursor"]
+            self._world_cursor_state.replace(fields["world_cursor"], run_no=self.run_no)
             self.branch_progress = fields["branch_progress"]
             self.entry_context = fields["entry_context"]
         self.last_issues = [str(x) for x in data.get("last_issues", [])]
@@ -7675,7 +7681,6 @@ class FreeStageSession:
         self.completed_by_card = {}
         self.completed_beats = {}
         self.canon_performance_state = {}
-        self.world_cursor = _card_cursor(self.card, self.run_no)
         self.offscreen_ledger = {}
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
@@ -7727,7 +7732,10 @@ class FreeStageSession:
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
         self._ensure_body_frames(self.card)
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._world_cursor_state.reset(
+            _card_cursor(self.card, self.run_no),
+            run_no=self.run_no,
+        )
         from runtime.scars_reader import read_run_scars
 
         node_id = str(self.card.get("node_id") or self.opening_id or "").strip()
@@ -8186,7 +8194,10 @@ class FreeStageSession:
         self.completed = []
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._world_cursor_state.replace(
+            _card_cursor(self.card, self.run_no),
+            run_no=self.run_no,
+        )
         self._refresh_inner_states_on_scene_enter(self.card)
 
         entry = str(self.card.get("entry_hook") or "").strip()
@@ -9388,21 +9399,22 @@ class FreeStageSession:
 
     def _advance_world_cursor_for_card(self, target_card: dict[str, Any]) -> list[dict[str, str]]:
         degradations: list[dict[str, str]] = []
-        old_cursor = dict(self.world_cursor or _card_cursor(self.card, self.run_no))
+        old_cursor = self.world_cursor or _card_cursor(self.card, self.run_no)
         target_clock = _card_clock(target_card, str(old_cursor.get("world_clock", "00:00")))
         try:
             target_ch = int(target_card.get("ch_anchor", old_cursor.get("ch_anchor", 0)) or 0)
-            self.world_cursor = world_calendar.advance(old_cursor, ch_anchor=target_ch, world_clock=target_clock)
+            self._world_cursor_state.advance(
+                ch_anchor=target_ch,
+                world_clock=target_clock,
+                run_no=self.run_no,
+            )
         except (TypeError, ValueError) as exc:
-            self.world_cursor = old_cursor
             degradations.append(make_degradation(
                 "world_calendar",
                 "cursor_not_advanced",
                 "target card cursor rejected",
                 detail=str(exc),
             ))
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", old_cursor.get("worldline", "WMAIN"))
         return degradations
 
     def _tick_offscreen_lines(self, from_cursor: dict[str, Any], to_cursor: dict[str, Any]) -> list[dict[str, str]]:

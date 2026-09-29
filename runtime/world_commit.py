@@ -9,6 +9,7 @@ import copy
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Sequence
 
+from runtime import world_calendar
 from runtime.causal_protocol import (
     ReceiptConflict,
     ReceiptEnvelope,
@@ -24,8 +25,58 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 P2A_WORLD_MIGRATION_DEBT = (
     "branch_progress",
     "player_state",
-    "world_cursor",
 )
+
+
+class WorldCursorState:
+    """P2c owner for run/worldline/time coordinates."""
+
+    def __init__(self, cursor: Mapping[str, Any], *, run_no: int) -> None:
+        self._cursor: dict[str, Any] = {}
+        self.replace(cursor, run_no=run_no)
+
+    def view(self) -> dict[str, Any]:
+        return copy.deepcopy(self._cursor)
+
+    def replace(self, cursor: Mapping[str, Any], *, run_no: int | None = None) -> dict[str, Any]:
+        raw = copy.deepcopy(dict(cursor or {}))
+        run = int(run_no if run_no is not None else raw.get("run", 0) or 0)
+        if run < 1:
+            raise ValueError("world cursor requires run>=1")
+        raw["run"] = run
+        raw["worldline"] = str(raw.get("worldline") or "WMAIN")
+        raw["ch_anchor"] = int(raw.get("ch_anchor", 0) or 0)
+        raw["world_clock"] = str(raw.get("world_clock") or "00:00")
+        self._cursor = raw
+        return self.view()
+
+    def reset(self, cursor: Mapping[str, Any], *, run_no: int) -> dict[str, Any]:
+        return self.replace(cursor, run_no=run_no)
+
+    def set_run(self, run_no: int) -> dict[str, Any]:
+        run = int(run_no)
+        if run < 1:
+            raise ValueError("world cursor requires run>=1")
+        self._cursor = world_calendar.with_run(self._cursor, run)
+        self._cursor.setdefault("worldline", "WMAIN")
+        return self.view()
+
+    def advance(
+        self,
+        *,
+        ch_anchor: int | None = None,
+        world_clock: str | None = None,
+        run_no: int | None = None,
+    ) -> dict[str, Any]:
+        new = world_calendar.advance(
+            self._cursor,
+            ch_anchor=ch_anchor,
+            world_clock=world_clock,
+        )
+        return self.replace(
+            new,
+            run_no=int(run_no) if run_no is not None else int(self._cursor["run"]),
+        )
 
 
 class WorldCommitState:

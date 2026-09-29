@@ -3840,7 +3840,7 @@ def repair_ryuya_forced_pendant_transfer(
     entrust_ready: bool,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Protect player agency: an undecided player cannot be made to accept the pendant."""
-    if not entrust_ready or prologue_receipt_disposition(player_input) != "undecided":
+    if not entrust_ready or prologue_pendant_disposition(player_input) != "undecided":
         return turns, []
     forced_re = re.compile(
         r"(塞进|塞到|按进|按到|放进|放到).{0,6}(你|她).{0,4}(手|手心|掌心)"

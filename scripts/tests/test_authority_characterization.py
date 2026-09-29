@@ -35,18 +35,18 @@ def production(report, fact):
     ]
 
 
-def test_p2c1_scene_beat_writers_are_single_but_frame_ledger_debt_remains():
+def test_p2c2_scene_and_frame_beat_writers_are_single():
     report = load_report()
     completed = production(report, "completed")
     by_card = production(report, "completed_by_card")
+    frame = production(report, "completed_beats")
     assert {row["symbol"] for row in completed} == {"FreeStageSession._reduce_beat_state"}
     assert {row["symbol"] for row in by_card} == {"FreeStageSession._reduce_beat_state"}
+    assert {row["symbol"] for row in frame} == {"FreeStageSession._reduce_frame_beats"}
     assert report["facts"]["completed"]["production_writer_count"] == 1
     assert report["facts"]["completed_by_card"]["production_writer_count"] == 1
-
-    frame = report["facts"]["completed_beats"]
-    assert frame["production_writer_count"] >= 1
-    assert frame["unknown_alias_count"] >= 1
+    assert report["facts"]["completed_beats"]["production_writer_count"] == 1
+    assert report["facts"]["completed_beats"]["unknown_alias_count"] == 0
 
 
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
@@ -86,7 +86,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 
 if __name__ == "__main__":
-    test_p2c1_scene_beat_writers_are_single_but_frame_ledger_debt_remains()
+    test_p2c2_scene_and_frame_beat_writers_are_single()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

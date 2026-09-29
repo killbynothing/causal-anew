@@ -7111,6 +7111,7 @@ class FreeStageSession:
         self.completed: list[str] = []
         self.completed_by_card: dict[str, list[str]] = {}
         self.beat_receipts: list[dict[str, Any]] = []
+        self.frame_beat_receipts: list[dict[str, Any]] = []
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
         self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
@@ -7241,6 +7242,9 @@ class FreeStageSession:
         }
         self.beat_receipts = [
             dict(item) for item in data.get("beat_receipts", []) if isinstance(item, dict)
+        ]
+        self.frame_beat_receipts = [
+            dict(item) for item in data.get("frame_beat_receipts", []) if isinstance(item, dict)
         ]
         self.completed_beats = {
             str(k): [str(x) for x in v]
@@ -7445,6 +7449,7 @@ class FreeStageSession:
             "completed": self.completed,
             "completed_by_card": self.completed_by_card,
             "beat_receipts": [dict(item) for item in self.beat_receipts[-200:]],
+            "frame_beat_receipts": [dict(item) for item in self.frame_beat_receipts[-200:]],
             "completed_beats": self.completed_beats,
             "canon_performance_state": self.canon_performance_state,
             "world_cursor": self.world_cursor,
@@ -7660,7 +7665,12 @@ class FreeStageSession:
             turn_no=len(self.inputs),
         )
         self.beat_receipts = []
-        self.completed_beats = {}
+        self._reduce_frame_beats(
+            "reset_all",
+            source_kind="session_reset",
+            turn_no=len(self.inputs),
+        )
+        self.frame_beat_receipts = []
         self.canon_performance_state = {}
         self.world_cursor = _card_cursor(self.card, self.run_no)
         self.offscreen_ledger = {}
@@ -7775,6 +7785,42 @@ class FreeStageSession:
             ):
                 self.beat_receipts.append(dict(receipt))
         return list(reduced.added)
+
+    def _reduce_frame_beats(
+        self,
+        operation: str,
+        *,
+        frame_id: str = "",
+        beat_ids: tuple[str, ...] | list[str] = (),
+        turn_no: int = 0,
+        source_kind: str,
+        evidence_refs: tuple[str, ...] | list[str] = (),
+    ) -> list[str]:
+        """Single production writer for cross-view completed_beats."""
+        reduced = beat_state.reduce_frame_beats(
+            completed_beats=self.completed_beats,
+            run=int(self.run_no),
+            frame_id=frame_id,
+            operation=operation,
+            beat_ids=beat_ids,
+            turn_no=int(turn_no),
+            source_kind=source_kind,
+            evidence_refs=evidence_refs,
+        )
+        self.completed_beats = {
+            str(key): list(value)
+            for key, value in reduced.completed_beats.items()
+        }
+        receipt = reduced.receipt
+        if isinstance(receipt, dict):
+            receipt_id = str(receipt.get("receipt_id") or "").strip()
+            if receipt_id and not any(
+                str(item.get("receipt_id") or "") == receipt_id
+                for item in self.frame_beat_receipts
+                if isinstance(item, dict)
+            ):
+                self.frame_beat_receipts.append(dict(receipt))
+        return list(reduced.added_keys)
 
     def _record_scene_receipt(
         self,
@@ -9419,15 +9465,50 @@ class FreeStageSession:
                 emitted.append(warning_turn)
                 self.player_violation_warning_levels.append(level)
 
-    def _mark_frame_beats_for_progress(self, card: dict[str, Any], progress: list[str]) -> None:
+    def _mark_frame_beats_for_progress(
+        self,
+        card: dict[str, Any],
+        progress: list[str],
+        *,
+        turn_no: int,
+    ) -> None:
         frame_id = _card_frame_id(card)
         if not frame_id or not progress:
             return
         items = _must_happen_by_id(card)
+        beats: list[str] = []
         for item_id in progress:
-            beats = list(items.get(item_id, {}).get("frame_beat") or [])
-            if beats:
-                frame_beat_ledger.mark_done(self.completed_beats, self.run_no, frame_id, beats)
+            for beat_id in list(items.get(item_id, {}).get("frame_beat") or []):
+                beat = str(beat_id or "").strip()
+                if beat and beat not in beats:
+                    beats.append(beat)
+        if not beats:
+            return
+
+        evidence_refs: list[str] = []
+        progress_set = set(progress)
+        for receipt in self.beat_receipts:
+            if not isinstance(receipt, dict):
+                continue
+            added = {
+                str(item).strip()
+                for item in receipt.get("added", [])
+                if str(item).strip()
+            }
+            if not (added & progress_set):
+                continue
+            receipt_id = str(receipt.get("receipt_id") or "").strip()
+            if receipt_id and receipt_id not in evidence_refs:
+                evidence_refs.append(receipt_id)
+
+        self._reduce_frame_beats(
+            "mark_done",
+            frame_id=frame_id,
+            beat_ids=beats,
+            turn_no=turn_no,
+            source_kind="scene_beat_projection",
+            evidence_refs=evidence_refs,
+        )
 
     def _resolve_frame_beat_view(self, card: dict[str, Any]) -> dict[str, Any]:
         frame_id = _card_frame_id(card)
@@ -11312,7 +11393,11 @@ class FreeStageSession:
                     newly_settled=facts_this_turn,
                 )
             turns = repair_same_turn_content_overlap(turns, speaker_plan)
-            self._mark_frame_beats_for_progress(resolved_card, new_progress)
+            self._mark_frame_beats_for_progress(
+                resolved_card,
+                newly_completed,
+                turn_no=turn_no,
+            )
             _maybe_emit_director_beats(
                 resolved_card,
                 self.completed,

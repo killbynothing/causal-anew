@@ -138,3 +138,112 @@ def reduce_beat_state(
         added=tuple(added),
         receipt=receipt,
     )
+
+
+FRAME_BEAT_RECEIPT_SCHEMA = "free_stage.frame_beat_transition.v1"
+FRAME_BEAT_VALID_OPERATIONS = {"mark_done", "reset_all"}
+
+
+@dataclass(frozen=True)
+class FrameBeatReduceResult:
+    completed_beats: dict[str, list[str]]
+    added_keys: tuple[str, ...] = ()
+    receipt: dict[str, Any] | None = None
+
+
+def _clean_frame_ledger(value: Mapping[str, Any] | None) -> dict[str, list[str]]:
+    out: dict[str, list[str]] = {}
+    for raw_run, raw_keys in dict(value or {}).items():
+        run_key = str(raw_run or "").strip()
+        if not run_key or not isinstance(raw_keys, (list, tuple)):
+            continue
+        out[run_key] = _clean_ids(raw_keys)
+    return out
+
+
+def _frame_beat_key(frame_id: str, beat_id: str) -> str:
+    return f"{frame_id}::{beat_id}"
+
+
+def reduce_frame_beats(
+    *,
+    completed_beats: Mapping[str, Any] | None,
+    run: int,
+    frame_id: str,
+    operation: str,
+    beat_ids: Sequence[Any] = (),
+    turn_no: int = 0,
+    source_kind: str,
+    evidence_refs: Sequence[Any] = (),
+) -> FrameBeatReduceResult:
+    """Pure reducer for cross-view physical beat completion.
+
+    The stable key remains (frame_id, beat_id) inside a run bucket. reset_all
+    preserves legacy session-reset semantics and never emits a completion
+    receipt. Callers never pass their mutable ledger to a mutating helper.
+    """
+    op = str(operation or "").strip()
+    if op not in FRAME_BEAT_VALID_OPERATIONS:
+        raise ValueError(f"unsupported frame beat operation: {op}")
+    source = str(source_kind or "").strip()
+    if not source:
+        raise ValueError("frame beat operation requires source_kind")
+    turn = int(turn_no)
+    if turn < 0:
+        raise ValueError("frame beat turn must be >= 0")
+
+    ledger = _clean_frame_ledger(completed_beats)
+    if op == "reset_all":
+        return FrameBeatReduceResult(completed_beats={})
+
+    run_no = int(run)
+    frame = str(frame_id or "").strip()
+    if run_no < 1:
+        raise ValueError("frame beat mark_done requires run>=1")
+    if not frame:
+        raise ValueError("frame beat mark_done requires frame_id")
+
+    requested = _clean_ids(beat_ids)
+    if not requested:
+        return FrameBeatReduceResult(completed_beats=ledger)
+
+    bucket = list(ledger.get(str(run_no), []))
+    seen = set(bucket)
+    added_keys: list[str] = []
+    added_beats: list[str] = []
+    for beat_id in requested:
+        key = _frame_beat_key(frame, beat_id)
+        if key in seen:
+            continue
+        bucket.append(key)
+        seen.add(key)
+        added_keys.append(key)
+        added_beats.append(beat_id)
+    ledger[str(run_no)] = bucket
+
+    receipt = None
+    if added_keys:
+        payload = {
+            "schema_version": FRAME_BEAT_RECEIPT_SCHEMA,
+            "run": run_no,
+            "frame_id": frame,
+            "turn": turn,
+            "operation": "mark_done",
+            "added": list(added_beats),
+            "added_keys": list(added_keys),
+            "source_kind": source,
+            "evidence_refs": [
+                str(item).strip()
+                for item in evidence_refs
+                if str(item).strip()
+            ],
+        }
+        blob = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        payload["receipt_id"] = "frame-beat:" + hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
+        receipt = payload
+
+    return FrameBeatReduceResult(
+        completed_beats={key: list(value) for key, value in ledger.items()},
+        added_keys=tuple(added_keys),
+        receipt=receipt,
+    )

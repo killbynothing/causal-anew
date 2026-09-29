@@ -11,6 +11,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 TARGET_FIELDS = (
+    "beat_state",
     "completed",
     "completed_by_card",
     "completed_beats",
@@ -26,6 +27,7 @@ TARGET_FIELDS = (
 )
 
 EXPECTED_OWNERS = {
+    "beat_state": "BeatReducer",
     "completed": "BeatReducer",
     "completed_by_card": "BeatReducer",
     "completed_beats": "BeatReducer",

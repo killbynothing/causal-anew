@@ -28,6 +28,7 @@ DEFAULT_JSON = ROOT / "docs" / "analysis" / "runtime_authority_map_2026-09-29.js
 DEFAULT_MD = ROOT / "docs" / "analysis" / "runtime_authority_map_2026-09-29.md"
 
 FIELD_SPECS: dict[str, dict[str, str]] = {
+    "beat_state": {"domain": "beat", "target_owner": "BeatReducer"},
     "completed": {"domain": "beat", "target_owner": "BeatReducer"},
     "completed_by_card": {"domain": "beat", "target_owner": "BeatReducer"},
     "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},

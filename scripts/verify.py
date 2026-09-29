@@ -662,6 +662,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_p2c_beat_reducer_core.py",
     },
     {
+        "id": "p2c_beat_production_wire",
+        "desc": "P2c Beat1生产接线：completed/by_card零业务writer，BeatState唯一入口，skip/save-load过Reducer",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_p2c_beat_production_wire.py"],
+        "triggers": [
+            "runtime/beat_reducer.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_p2c_beat_production_wire.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_p2c_beat_production_wire.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

@@ -11451,12 +11451,22 @@ class FreeStageSession:
                 if isinstance(r, dict) and str(r.get("text") or "").strip()
             ]
             decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+            pendant_tx = (
+                self._world_transaction("ryuya_pendant_disposition")
+                if resolved_card.get("prologue_active")
+                else None
+            )
             reflect = cogloop.build_reflect_thought(
                 cons_id=str(cons),
                 decide=decide if isinstance(decide, dict) else {},
                 spoken_texts=spoken_texts,
                 player_speech=speech,
                 completed_after=self.completed,
+                pendant_disposition=(
+                    str((pendant_tx or {}).get("outcome") or "")
+                    if isinstance(pendant_tx, dict)
+                    else ""
+                ),
             )
             if reflect:
                 cogloop.stamp_reflect_on_packet(pkt, reflect)

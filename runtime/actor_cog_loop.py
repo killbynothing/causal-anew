@@ -152,6 +152,7 @@ def build_reflect_thought(
     spoken_texts: list[str],
     player_speech: str = "",
     completed_after: list[str] | set[str] | None = None,
+    pendant_disposition: str = "",
 ) -> dict[str, Any] | None:
     """Minimal reflection: one private conclusion when the beat moved."""
     done = {str(x) for x in (completed_after or [])}
@@ -163,10 +164,17 @@ def build_reflect_thought(
     marriage_cue = any(k in player for k in ("定情", "信物", "结婚", "老婆", "妻子", "婚"))
 
     thought = ""
-    if "RP4" in done:
-        thought = "挂坠已经交出去了；分别要像平常一样，别拖成仪式。"
+    pendant = str(pendant_disposition or "").strip()
+    if pendant == "accepted":
+        thought = "对方已经明确收下挂坠；去向已由世界收据结算，分别照常聊，不再重复递交。"
+    elif pendant == "declined":
+        thought = "对方已经明确不收挂坠；别追着再塞，也别把拒绝改写成接受，先回到正常谈话。"
+    elif pendant == "deferred":
+        thought = "对方暂时没有收下挂坠；先把这件事放下，别追问、别替对方决定后续去向。"
+    elif "RP4" in done:
+        thought = "RP4 已有兼容进度标记，但挂坠去向没有可引用的世界收据；不要自行补成已交付。"
     elif "RP3" in done:
-        thought = "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。"
+        thought = "托付说清了；挂坠若要赠与，只能明确递出后等对方回应，不能替对方收下，也不要重宣托付。"
     elif "RP2" in done:
         thought = "托付的口已经开了；还要看对方是否接住禁名与照顾的事。"
     elif marriage_cue:

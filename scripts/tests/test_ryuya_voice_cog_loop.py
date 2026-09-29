@@ -372,7 +372,7 @@ def test_reflect_closes_into_next_decide():
         "conversation_contract": {"participation_mode": "speak"},
     }
     prior = {
-        "thought": "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。",
+        "thought": "托付说清了；挂坠若要赠与，只能明确递出后等对方回应，不能替对方收下。",
         "band": "pendant",
         "turn_no": 3,
     }

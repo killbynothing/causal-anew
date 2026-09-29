@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2b-2 完成：咖啡馆固定输入联合矩阵）
+
+- **矩阵**：新增 quick `cafe_joint_matrix_p2b2`，用 `RecordingCaller → fixed_selftest_actor` 记录真实 `FreeStageSession.step()` caller payload，同时保持完全离线、确定性。矩阵不是拼 parser 单测，而是一整拍穿过 actor packet、Beat/RP、PlayerAction、WorldCommit、BodyFrame、observation、ExitDecision 与 autosave。
+- **覆盖**：明确接受（speech / action 两种）、拒绝、暂放、只答应托付、继续聊天；另验 accepted 后继续聊不自动 EndRun、accepted 后明确告别才关闭，且已提交 world transaction / PlayerAction 不被二次重写。
+- **来源链**：真实 actor caller 请求必须携带 `actor_context_packet / conversation_contract / observable_player / output_contract`；处分场景的 WorldCommit `source_refs` 必须指向 PlayerAction receipt，观察账必须指向同一 WorldCommit receipt。
+- **save/load**：accepted 的 RP4 当前投影、world outcome/receipt、player action、挂坠 custody、Ryuya holding 与 observation ledger 在 save→load 后结构一致；单纯 load 不调用 caller，模型 payload 不成为持久状态权威。
+- **★★★ 边界**：deferred 当前仍会进入 RP4，这是**现有兼容行为的 characterization**，不是正典裁决。测试名称/注释显式保留 `pending_human_review` 语义；未修改卡中“必交”口径，也未决定 A/B 固定事实粒度。
+- **验**：GitHub Actions [36586799352](https://github.com/killbynothing/causal-anew/actions/runs/36586799352) **success**；quick **49 PASS / 0 FAIL / 163 SKIP（212 validators）**，`data/world_truth.db` checksum 前后不变；4 条 P2b-2 联合测试全 PASS。
+- **报账**：P2b-2 没有修改生产 runtime、run=0、场卡、Seed/VOICE、正典或真人 a14 DB；只新增确定性 required gate 与进度文档。**正典/人物/剧情新增 = 0**。
+- **结论/下一动**：P2b 的“挂坠来源链 + 同源投影 + parser 解耦 + 联合矩阵”机器侧完成。下一 loop 进入 **P2c**：收 `completed/branch/scene receipts/ledger/body/player/world_cursor` 等剩余事实 writer；兼容读取可留，业务旁路必须逐项归零。
+
 ### 2026-09-29（P2b-1 完成：挂坠处分来源链 × WorldCommit 同源投影）
 
 - **投影权威**：新增 `runtime/world_projection.py`。挂坠 player props、龙也 BodyFrame、run observation ledger 不再由 `_finalize_prologue_pendant()` 三处手改，而是只读已经提交的 WorldCommit receipt 一次性派生；reducer 对输入 copy-safe、重复投影幂等。

@@ -1,5 +1,18 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2b-1 完成：挂坠处分来源链 × WorldCommit 同源投影）
+
+- **投影权威**：新增 `runtime/world_projection.py`。挂坠 player props、龙也 BodyFrame、run observation ledger 不再由 `_finalize_prologue_pendant()` 三处手改，而是只读已经提交的 WorldCommit receipt 一次性派生；reducer 对输入 copy-safe、重复投影幂等。
+- **stage 降权**：`settle_body_frames_from_npc_turns()` 中“递/塞/交挂坠”不再凭舞台动作清空 `I.PENDANT_ANCHOR`。stage 只记录可见动作；custody 只能由已提交的挂坠处分 WorldCommit 改。相机/手机原有 BodyFrame 规则保留。
+- **玩家来源链**：明确 offer 后的接受/拒绝/暂放先写 `PlayerAction(item_disposition_response)`，再由 WorldCommit 的 `source_refs` 指回该行为 receipt，成功后才维持现有 RP4 兼容投影。WorldCommit 冲突时玩家行为可保留，但 RP4 不先写半截。
+- **parser 解耦**：`prologue_receipt_disposition()` 只管托付承诺；新增 `prologue_pendant_disposition()` 只认明确物件取舍。于是“我答应照顾他们”不再等于“我收下挂坠”；支持言语及动作通道的收/拒/暂放，沉默、玩笑、继续聊天和 thought-only 均保持 undecided。
+- **事实收窄**：accepted 的 public effect 仍是 `pendant_transferred_to_player`；declined/deferred 只写 `pendant_not_in_player_custody`，不再超证据声称“仍由龙也持有”。具体桌面/手中位置继续由后续世界事实裁定。
+- **兼容边界**：天安门 turn-0 开局梗概的“既有挂坠事实”仍走 WorldCommit→projection，但不伪造一张当前玩家 PlayerAction。旧存档 `_pendant_accepted()` 的 body_prop fallback 暂保留到 P2c migration。
+- **闸**：新增 quick `cafe_world_projection_p2b`；覆盖 accepted/declined/deferred 三投影、stage-only 不转 custody、非挂坠 BodyFrame 不回归、conflict 不让 RP4 抢跑、save/load、turn-0 seed、不混入 custody 的 PlayerAction、言语/动作处分矩阵。
+- **验**：本分支最终 Actions [36546969065](https://github.com/killbynothing/causal-anew/actions/runs/36546969065) **success**；quick **48 PASS / 0 FAIL / 163 SKIP（211 validators）**，DB checksum 前后不变。parser 拆分首次 run 36546413067 只暴露旧挂坠修复器误用托付 parser；改读新物件 parser 后 36546541698 绿。
+- **报账**：未改 run=0、正典场卡、Seed/VOICE、挂坠 A/B 固定事实粒度或真人 a14 DB；**正典/人物/剧情新增 = 0**。本轮只收事实来源与投影一致性。
+- **下一动**：继续 **P2b-2**，用固定咖啡馆输入矩阵捕获真实 caller payload、Beat/RP、World/PlayerAction、BodyFrame、观察账、ExitDecision 与 save→load 联合结果。暂放是否完成 RP4 继续 ★★★，测试只记录当前兼容结果，不把它升格为裁决。
+
 ### 2026-09-29（P2a 完成：WorldCommit × PlayerAction × 原子 batch）
 
 - **分权**：新增 `runtime/player_action.py` 与 `runtime/world_commit.py`。PlayerAction receipt 只记录玩家行为（kind/target/value/turn），不允许把 custody、holding、world outcome 偷进玩家行为权；WorldCommit 只接受已经授权的世界事实，不负责替剧情做语义决定。

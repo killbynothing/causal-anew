@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2c-3 完成：Scene Fact 单一生产写权）
+
+- **SceneFactReducer**：新增 `runtime/scene_fact_state.py` 纯 reducer；`FreeStageSession._reduce_scene_facts()` 成为 FreeStage `branch_progress + scene_receipts` 唯一生产 writer。receipt 是 append-only 证据，branch 只是当前 active fact 的兼容索引；assert/retract/replace/observe/reset_all 均由同一入口归约。
+- **主链旁路归零**：FreeStage 中 `self.branch_progress.append`、`self.scene_receipts.append` 业务写归零；ExitPolicy 的 prospective semantic exit 仍只在 `ExitDecision.authorized` 后经 SceneFactReducer 落事实，P1a 不变量没有被 P2c 重构绕过。
+- **旧同名状态拆分**：legacy `SceneState.branch_progress` 实际是 scene-contract 的 `{node_id:[path_id]}` 路由进度，不是 WorldCommit 世界事实。已改名为 `contract_branch_progress`；旧 JSON 的 `branch_progress` 只做单向 load migration，新 snapshot 只写新键，`scene_contracts/scene_api` 同步改用新名。
+- **审计卫生**：Authority scanner 现在把通用 `load()` 归为 load_migration，并把 `scripts/test_*.py` 识别为 test，避免把真实迁移/测试工具冒充生产 writer。不是白名单遮旁路，P2c3 required gate 已证明 `branch_progress/scene_receipts` production writer 都只剩 `_reduce_scene_facts`，unknown alias=0。
+- **后继不变量**：P1a 的旧“函数中首次出现 fact writer 必须在 ExitDecision 后”升级为语义级断言：semantic exit 选择→ExitDecision 之间不得写 scene fact，prospective fact 只能位于 `if exit_decision.authorized` 分支。旧测试没有删除。
+- **验**：最终 Actions [36578353544](https://github.com/killbynothing/causal-anew/actions/runs/36578353544) **success**；quick **52 PASS / 0 FAIL / 163 SKIP（215 validators）**，DB checksum 前后不变。前一轮 36578024494 中 Authority 单 writer 已先通过，红点仅为新增 migration fixture 与 P1a 旧位置断言，均按真实语义修正。
+- **报账**：未改 player_state/world_cursor/body/observation 的剩余 P2c writer、P3 ActorMind、run=0、正典卡、Seed/VOICE、★★★ 挂坠裁决或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：开 **P2c integration**。从本已绿 P2c3 链头出发，逐域吸收并重新验证实验分支 `loop/world-beat-p2c-2026-09-29` 中的剩余 WorldCommit owner 工作；该实验分支当前最终 CI 是红的，禁止直接 merge/抄“debt==0”结论。迁移顺序：world_transactions/causal receipts → body/observation → player_state → world_cursor，每域单独 required gate。
+
 ### 2026-09-29（P2c-2 完成：跨视角 Frame Beat 单一生产写权）
 
 - **Frame BeatReducer**：在 `runtime/beat_state.py` 增加纯 `reduce_frame_beats()`，保持既有 `run + frame_id::beat_id` 稳定键、ordered/idempotent append 与 run 隔离。调用方不再把 session 可变 `completed_beats` 直接交给 `beat_ledger.mark_done()`。

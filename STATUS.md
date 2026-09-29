@@ -7,6 +7,7 @@
 - **CI**：独立分支 `loop/github-quick-ci-2026-09-29` 新增 `.github/workflows/verify.yml`，Ubuntu + Python 3.11 + LFS checkout；仅跑 quick，不注入模型密钥；前后校验已提交 DB 的 SHA256。远端 Actions 结果以该分支实际 run 为准。
 - **干净环境修复**：首次已提交源码/LFS DB 副本 quick 为 44 PASS / 1 FAIL / 164 SKIP，暴露 smoke 对 ignored `web/config.json` 的依赖；改用临时空密钥配置夹具并补无配置场景，保留模型/选项/密钥字段断言，不读取真人配置、不删测试。
 - **CI 提交前验**：修复后干净副本 quick **45 PASS / 0 FAIL / 164 SKIP**；LFS DB 哈希仍为 `5af683f316ec04067338412934b8c8ece128109c70b41d4b37ff4b7052e02852`，workflow YAML 解析通过。
+- **远端验收**：CI 提交 `88bc6b9` 已普通推送；首次因 OAuth 缺 `workflow` 权限被拒，用户补授权后成功。[GitHub Actions 36539243584](https://github.com/killbynothing/causal-anew/actions/runs/36539243584) **success**，Ubuntu quick 通过且 DB 校验通过。五个目标分支均已同步；P1b 未启动。
 - **保留**：真人 a14 DB 保持本地未提交，SHA256 `c582c623f25088088dc13080e1985b0d1695a2c63077f555995ea50645452084`；未启动 P1b。
 - **哪里是我编的**：正典/人物/剧情新增 = 0；本轮仅版本同步与 CI 工程配置。
 

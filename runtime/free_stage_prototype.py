@@ -77,6 +77,7 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
+from runtime import world_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import utterance_stream as ustream
@@ -7113,6 +7114,8 @@ class FreeStageSession:
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
         self.world_transactions: dict[str, dict[str, Any]] = {}
+        self.world_commit_receipts: list[dict[str, Any]] = []
+        self.player_action_receipts: list[dict[str, Any]] = []
         self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
@@ -7294,6 +7297,12 @@ class FreeStageSession:
             for transaction_id, record in dict(data.get("world_transactions", {})).items()
             if str(transaction_id).strip() and isinstance(record, dict)
         }
+        self.world_commit_receipts = [
+            dict(item) for item in data.get("world_commit_receipts", []) if isinstance(item, dict)
+        ]
+        self.player_action_receipts = [
+            dict(item) for item in data.get("player_action_receipts", []) if isinstance(item, dict)
+        ]
         self.causal_receipts = [
             dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
         ]
@@ -7428,6 +7437,8 @@ class FreeStageSession:
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
+            "world_commit_receipts": self.world_commit_receipts,
+            "player_action_receipts": self.player_action_receipts,
             "causal_receipts": self.causal_receipts,
             "director_port_trace": self.director_port_trace[-80:],
             "last_issues": self.last_issues,
@@ -7640,6 +7651,8 @@ class FreeStageSession:
         self._language_discovery_observation = None
         self.scene_receipts = []
         self.world_transactions = {}
+        self.world_commit_receipts = []
+        self.player_action_receipts = []
         self.causal_receipts = []
         self.director_port_trace = []
         self.last_director_opportunity = None
@@ -7849,20 +7862,28 @@ class FreeStageSession:
         transaction_id = str(transaction_id).strip()
         if not transaction_id:
             raise ValueError("world transaction requires a stable id")
-        if transaction_id in self.world_transactions:
-            return False
-        self.world_transactions[transaction_id] = {
-            "transaction_id": transaction_id,
-            "kind": str(kind).strip(),
-            "outcome": str(outcome).strip(),
-            "owner": str(owner).strip(),
-            "scene_id": str(self.card.get("scene_id", "")).strip(),
-            "turn": int(turn_no),
-            "worldline": str(self.world_cursor.get("worldline", "WMAIN")),
-            "run": int(self.world_cursor.get("run", self.run_no) or self.run_no),
-            "public_effect": str(public_effect).strip(),
-        }
-        return True
+        proposal = world_commit.WorldTransactionProposal(
+            transaction_id=transaction_id,
+            kind=str(kind).strip(),
+            outcome=str(outcome).strip(),
+            owner=str(owner).strip(),
+            scene_id=str(self.card.get("scene_id", "")).strip(),
+            turn=int(turn_no),
+            worldline=str(self.world_cursor.get("worldline", "WMAIN")),
+            run=int(self.world_cursor.get("run", self.run_no) or self.run_no),
+            public_effect=str(public_effect).strip(),
+        )
+        next_transactions, receipt = world_commit.commit_transaction(
+            self.world_transactions,
+            proposal,
+        )
+        self.world_transactions = next_transactions
+        if receipt.status == "committed" and not any(
+            item.get("receipt_id") == receipt.receipt_id
+            for item in self.world_commit_receipts
+        ):
+            self.world_commit_receipts.append(receipt.to_dict())
+        return receipt.status == "committed"
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
         record = self.world_transactions.get(str(transaction_id).strip())
@@ -8561,6 +8582,8 @@ class FreeStageSession:
             "branch_progress": list(self.branch_progress),
             "scene_receipts": [dict(item) for item in self.scene_receipts],
             "world_transactions": [dict(item) for _, item in sorted(self.world_transactions.items())],
+            "world_commit_receipts": [dict(item) for item in self.world_commit_receipts],
+            "player_action_receipts": [dict(item) for item in self.player_action_receipts],
             "causal_receipts": [dict(item) for item in self.causal_receipts],
             "director_port_trace": [dict(item) for item in self.director_port_trace[-40:]],
             "actor_minds": {
@@ -11431,6 +11454,8 @@ class FreeStageSession:
             "branch_progress": list(self.branch_progress),
             "scene_receipts": [dict(item) for item in self.scene_receipts],
             "world_transactions": [dict(item) for _, item in sorted(self.world_transactions.items())],
+            "world_commit_receipts": [dict(item) for item in self.world_commit_receipts],
+            "player_action_receipts": [dict(item) for item in self.player_action_receipts],
             "causal_receipts": [dict(item) for item in self.causal_receipts],
             "director_port_trace": [dict(item) for item in self.director_port_trace[-40:]],
             "actor_minds": {

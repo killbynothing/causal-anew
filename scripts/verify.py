@@ -596,6 +596,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_run_lifecycle_p1b.py",
     },
     {
+        "id": "world_commit_p2a",
+        "desc": "P2a WorldCommit/PlayerAction：同键幂等、冲突零副作用、玩家行为不越权写世界事实",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_commit_p2a.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/player_action.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_world_commit_p2a.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_commit_p2a.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

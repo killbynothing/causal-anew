@@ -379,8 +379,12 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     )
     for fact in migrated:
         meta = report["facts"][fact]
-        assert meta["production_writer_count"] == 1
-        assert meta["unknown_alias_count"] == 0
+        details = [
+            (row["symbol"], row["line"], row["write_kind"], row["classification"])
+            for row in meta["writers"]
+        ]
+        assert meta["production_writer_count"] == 1, details
+        assert meta["unknown_alias_count"] == 0, details
 
 
 if __name__ == "__main__":

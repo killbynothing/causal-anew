@@ -32,9 +32,11 @@ def test_maybe_transition_uses_one_exit_policy_decider():
     assert "choose_exit_spec(" not in source
 
     decision_pos = source.index("exit_policy.decide_exit")
-    receipt_pos = source.index("self._record_scene_receipt")
-    assert receipt_pos > decision_pos
+    fact_pos = source.index("self._reduce_scene_facts")
+    assert fact_pos > decision_pos
     assert "if exit_decision.authorized:" in source
+    assert "self.branch_progress.append(" not in source
+    assert "self._record_scene_receipt(" not in source
 
 
 def test_step_and_one_shot_no_longer_invent_endrun_from_mh_completion():

@@ -53,9 +53,13 @@ def test_p2c3_scene_fact_writers_are_single():
     report = load_report()
     for fact in ("branch_progress", "scene_receipts"):
         rows = production(report, fact)
-        assert {row["symbol"] for row in rows} == {"FreeStageSession._reduce_scene_facts"}
-        assert report["facts"][fact]["production_writer_count"] == 1
-        assert report["facts"][fact]["unknown_alias_count"] == 0
+        details = [
+            (row["symbol"], row["line"], row["write_kind"], row["classification"])
+            for row in report["facts"][fact]["writers"]
+        ]
+        assert {row["symbol"] for row in rows} == {"FreeStageSession._reduce_scene_facts"}, details
+        assert report["facts"][fact]["production_writer_count"] == 1, details
+        assert report["facts"][fact]["unknown_alias_count"] == 0, details
 
 
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():

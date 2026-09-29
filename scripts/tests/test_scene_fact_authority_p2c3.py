@@ -270,11 +270,15 @@ def test_authority_map_has_one_scene_fact_writer_and_no_alias_debt():
     report = _report()
     for fact in ("branch_progress", "scene_receipts"):
         rows = _production(report, fact)
+        details = [
+            (row["symbol"], row["line"], row["write_kind"], row["classification"])
+            for row in report["facts"][fact]["writers"]
+        ]
         assert {row["symbol"] for row in rows} == {
             "FreeStageSession._reduce_scene_facts"
-        }
-        assert report["facts"][fact]["production_writer_count"] == 1
-        assert report["facts"][fact]["unknown_alias_count"] == 0
+        }, details
+        assert report["facts"][fact]["production_writer_count"] == 1, details
+        assert report["facts"][fact]["unknown_alias_count"] == 0, details
 
 
 def test_free_stage_has_no_direct_business_mutators():

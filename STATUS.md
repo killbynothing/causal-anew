@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P2a 完成：WorldCommit × PlayerAction × 原子 batch）
+
+- **分权**：新增 `runtime/player_action.py` 与 `runtime/world_commit.py`。PlayerAction receipt 只记录玩家行为（kind/target/value/turn），不允许把 custody、holding、world outcome 偷进玩家行为权；WorldCommit 只接受已经授权的世界事实，不负责替剧情做语义决定。
+- **生产接线**：`FreeStageSession._commit_world_transaction()` 不再直接写 `self.world_transactions`，统一委托 `world_commit.commit_world_fact()`；新世界事务自带 RuntimeScope、request/turn、payload hash、source_refs 与 WorldCommit receipt。旧 pre-P2a transaction 可只读重放，绝不补造来源。
+- **PlayerAction 接线**：新增 `player_action_receipts` 持久账本；现有 `_record_player_branch_fact()` 先经 PlayerAction 提交，再保留 legacy branch/scene receipt 投影。save/load 已覆盖。
+- **幂等/冲突**：同 transaction/action ID 完全同 payload 可重试；同 ID 异 payload/provenance 硬报 `ReceiptConflict` 且 ledger 不变。新增原子 `commit_world_batch()`：稳定 `commit_batch_id`、receipt sequence，先校验整批再发布；任一冲突整批零部分副作用。
+- **迁移债**：`P2A_WORLD_MIGRATION_DEBT` 机器列出当前 Authority Map 中仍由兼容路径写的 `branch_progress / scene_receipts / world_transactions(reset/load) / causal_receipts / run_observation_ledger / player_state / body_frames / world_cursor`。P2a 不冒充 World 已全收口；这些由 P2b/P2c 逐项缩减。
+- **闸**：补齐历史已登记但长期缺失的 `scripts/tests/test_authoritative_world_transactions.py`，原 quick SKIP 变真实 PASS；同时升级 P0a world writer 断言，要求 `_commit_world_transaction` 不再直接写 ledger。
+- **验**：最终 GitHub Actions [36545087570](https://github.com/killbynothing/causal-anew/actions/runs/36545087570) **success**；quick **47 PASS / 0 FAIL / 163 SKIP（210 validators）**，DB checksum 前后不变。首次接线 run 36544703141 仅因 P0a 旧 writer 断言到期而红，新 P2a 七条测试当时已全 PASS；升级断言后 36544870471 先绿，再补 batch 原子性。
+- **报账**：未改 run=0、场卡、Seed/VOICE、挂坠 A/B 正典粒度或真人 a14 DB。**哪里是我编的：正典/人物/剧情新增 = 0**；WorldCommit/PlayerAction/batch 是工程协议。
+- **下一动**：进入 **P2b 非正典竖切**，先迁挂坠处分后的 player props / Ryuya BodyFrame / observation ledger 派生一致性和来源链；★★★ 的“必须赠与尝试 vs 必须最终 custody”仍不代裁，暂放是否算 RP4 完成也不写死。
+
 ### 2026-09-29（P1b 完成：生命周期耐久 × outbox 恢复 × 追加式结算）
 
 - **生命周期**：新增 `runtime/run_lifecycle.py`，可写 run 只允许 `open → closing → closed`；`ended/run_closed` 降为兼容投影，生产只由 `_set_lifecycle_state()` 写。closed run 的 reset/start/skip/stream/step 等写操作不能复活；closing 的下一次 step 只重试原 close，不调用模型。

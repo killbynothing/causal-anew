@@ -193,7 +193,7 @@ def test_session_facade_persists_beat_receipt_and_projection():
         assert resumed.beat_receipts == [receipt]
 
 
-def test_authority_map_has_one_scene_beat_writer_and_keeps_frame_debt_visible():
+def test_authority_map_has_one_scene_beat_writer_and_p2c2_resolves_frame_debt():
     report = _report()
     completed = _production(report, "completed")
     by_card = _production(report, "completed_by_card")
@@ -202,11 +202,12 @@ def test_authority_map_has_one_scene_beat_writer_and_keeps_frame_debt_visible():
     assert report["facts"]["completed"]["production_writer_count"] == 1
     assert report["facts"]["completed_by_card"]["production_writer_count"] == 1
 
-    # P2c-1 does not hide the next sub-loop: frame beat ledger still has a
-    # reset writer plus an alias-passed mark_done path that must be migrated.
-    frame = report["facts"]["completed_beats"]
-    assert frame["production_writer_count"] >= 1
-    assert frame["unknown_alias_count"] >= 1
+    # P2c-2 is the required successor invariant: the previously frozen
+    # completed_beats alias debt must now be gone, not silently deleted.
+    frame = _production(report, "completed_beats")
+    assert {row["symbol"] for row in frame} == {"FreeStageSession._reduce_frame_beats"}
+    assert report["facts"]["completed_beats"]["production_writer_count"] == 1
+    assert report["facts"]["completed_beats"]["unknown_alias_count"] == 0
 
 
 def test_free_stage_has_no_direct_business_append_or_by_card_subscript_writer():

@@ -1,0 +1,91 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""P0a required gate: authority scanner must find representative writers."""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+from functools import lru_cache
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+AUDIT = ROOT / "scripts" / "audit_runtime_authority.py"
+
+
+def load_audit():
+    spec = importlib.util.spec_from_file_location("runtime_authority_audit", AUDIT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+@lru_cache(maxsize=1)
+def get_report():
+    return load_audit().build_report(False)
+
+
+def writers(report, fact, *classes):
+    rows = report["facts"][fact]["writers"]
+    if not classes:
+        return rows
+    return [row for row in rows if row["classification"] in set(classes)]
+
+
+def test_scanner_finds_representative_five_domain_writers():
+    report = get_report()
+    assert report["parse_errors"] == []
+
+    completed = writers(report, "completed", "production")
+    assert any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
+    assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+
+    world_tx = writers(report, "world_transactions", "production")
+    assert any(row["symbol"].endswith("_commit_world_transaction") for row in world_tx)
+
+    mind = writers(report, "private_inner_states", "production")
+    assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)
+
+    ended = writers(report, "ended", "production")
+    assert any(row["symbol"].endswith("_mark_ended") for row in ended)
+    # P0a must also see external receiver writes such as session.ended, not only self.ended.
+    assert any(row["symbol"].endswith("run_session") for row in ended)
+
+
+def test_scanner_separates_initialization_and_reports_callers():
+    report = get_report()
+    completed = report["facts"]["completed"]["writers"]
+
+    init_rows = [row for row in completed if row["symbol"].endswith("FreeStageSession.__init__")]
+    assert init_rows
+    assert all(row["classification"] == "initialization" for row in init_rows)
+
+    ended = report["facts"]["ended"]["writers"]
+    mark = next(row for row in ended if row["symbol"].endswith("_mark_ended"))
+    caller_symbols = {row["caller"] for row in mark["callers"]}
+    assert "FreeStageSession.step" in caller_symbols
+    assert "FreeStageSession._maybe_transition" in caller_symbols
+
+
+def test_verify_inventory_is_complete_and_new_p0_gates_are_registered():
+    report = get_report()
+    quick = [row for row in report["verify_inventory"] if row["tier"] == "quick"]
+    ids = [row["id"] for row in quick]
+
+    assert len(ids) == len(set(ids))
+    assert len(ids) >= 203
+    assert "runtime_authority_map" in ids
+    assert "authority_characterization" in ids
+
+    by_id = {row["id"]: row for row in quick}
+    assert by_id["runtime_authority_map"]["need_file_exists"] is True
+    assert by_id["authority_characterization"]["need_file_exists"] is True
+
+
+if __name__ == "__main__":
+    test_scanner_finds_representative_five_domain_writers()
+    test_scanner_separates_initialization_and_reports_callers()
+    test_verify_inventory_is_complete_and_new_p0_gates_are_registered()
+    print("PASS test_runtime_authority_map")

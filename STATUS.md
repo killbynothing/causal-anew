@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-29（P0a 完成：Authority Map × required gate）
+
+- **做**：只实施重构计划 P0a，不改 runtime 生产行为。新增 `scripts/audit_runtime_authority.py`，静态扫描 runtime/web/scripts 的 tracked state 属性写、容器 mutator、局部别名/疑似 mutating helper、关键 SQL DML，并给 direct writer 建 best-effort caller 索引；同时读取 `scripts/verify.py` 登记表。
+- **产物**：`docs/analysis/runtime_authority_map_2026-09-29.json`（机器原件）+ 同名 `.md`（人读投影）。每条 writer 带 semantic fact、current/target owner、classification、scope、caller、confidence、removal phase。
+- **结果**：**223 writer / 128 production+tooling / 19 uncertain alias / 0 AST parse error**；23 个 tracked fact 有多 production writer。19 条 uncertain alias 明确保留为对应域切换前的阻断项，不把 AST 没证明的东西当不存在。
+- **闸**：新增 quick ID `runtime_authority_map` 与 `authority_characterization`。前者保证 Beat/World/Mind/Exit 代表 writer、外部 `session.ended`、初始化分类、caller、verify inventory 可被抓；后者把现有多 Beat writer、legacy mind、Exit 多写路、settlement DELETE/UPDATE、unknown alias 冻结为 KNOWN_BUG 证据，后续修复必须与新 invariant 同步改，不准删用例变绿。
+- **验**：正式报告附带实跑 `python scripts/verify.py --quick`：**40 PASS / 0 FAIL / 165 SKIP**；quick 登记从 203 增至 **205**，静态 precheck 与实跑计数一致。两条 P0a 定向测试单独运行也通过。
+- **报账**：未改 run=0、场卡、Seed/VOICE、runtime 行为或真人存档；`data/world_truth.db` 的既有 a14 运行态差异继续不进提交。**哪里是我编的：正典/人物/剧情新增 = 0**；target owner/removal phase/扫描启发式是工程元数据。
+- **下一动**：只做 **P0b**：最小 receipt envelope、immutable snapshot、schema migration fixtures、pending/ack 与恢复游标合同。P0b 稳定前不提前切 ExitPolicy/World writer。
+
 ### 2026-09-29（重构计划细化：源码核查完成，实施从 P0a 开始）
 
 - **判断**：需要结构性重构，重点是唯一写入权与提交边界。AST 核准 `free_stage_prototype.py` 13,539 行、`FreeStageSession` 5,054 行、`step()` 1,765 行。原有机制保留，先收权再拆文件。

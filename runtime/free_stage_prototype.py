@@ -11326,7 +11326,7 @@ class FreeStageSession:
                 emitted,
             )
             scene_id = str(resolved_card.get("scene_id", self.card_path))
-                self.stall = 0 if new_progress else self.stall + 1
+            self.stall = 0 if new_progress else self.stall + 1
             if stall_escalation:
                 self._stall_escalation_fired_scenes.add(current_scene_id)
             if is_oob and oob_bridge:

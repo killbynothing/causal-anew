@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2c-1 完成：BeatReducer 接管 completed）
+
+- **权威**：新增 `runtime/beat_reducer.py`。当前场 `completed` 的生产完成/恢复/清空不再由 `FreeStageSession` 直接写；Session 的 `completed` 仅为 copy-safe 兼容投影，生产写统一经过 `BeatReducer`。
+- **来源**：Beat 完成收据记录 `scene_id / turn / source_kind / source_ref / operation`。canon segment、opening seed、玩家挂坠 WorldCommit、十六中 canon route、可见闲聊 RP1、observed progress、brief skip、flashback return 均使用明确来源，不把行政 skip 或 legacy restore 伪装成玩家行为。
+- **存档迁移**：snapshot 新增 `beat_state=free_stage.beat_state.v1`，同时保留旧 `completed` 兼容投影。旧档只有 `completed` 时由 `legacy_load` receipt 单向迁入；已有 beat_state 时以新状态为准，不让旧投影覆盖。
+- **旁路**：`FreeStageSession` 源码已无 `self.completed = / append / extend / clear / remove` 生产修改。Authority gate 要求 `completed` production writer 全部位于 `runtime/beat_reducer.py`，P0a 的“多 Beat writer”旧反例由新单 owner invariant 接棒。
+- **兼容**：保留 `completed` property setter 仅供旧测试/adapter，setter 自身仍委托 reducer 并标 `compat_assignment`；生产源不得调用直接赋值。跨场进入清 current Beat，完整 session reset 才清 Beat receipt 历史。
+- **闸**：新增 quick `beat_reducer_p2c1`，覆盖去重/来源、legacy migration、新旧状态优先级、copy-safe 投影、save→load receipt 一致、compat setter 和 Authority Map 零 FreeStage production writer。
+- **验**：GitHub Actions [36716073010](https://github.com/killbynothing/causal-anew/actions/runs/36716073010) **success**；quick **50 PASS / 0 FAIL / 163 SKIP（213 validators）**；`data/world_truth.db` checksum 前后不变。首次 run 36715790573 仅因 Authority Map 测试错误要求 `from_state` 被标成“直接 writer”而红，生产 reducer 自身测试当时已全 PASS；修正扫描断言后绿。
+- **报账**：未改 run=0、场卡、Seed/VOICE、★★★ 挂坠事实粒度或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：继续 **P2c-2 Beat 附属状态**，先收 `completed_by_card / completed_beats / canon_performance_state` 的生产写权，再碰 29 路 `branch_progress`；不提前进入 P3。
+
 ### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
 
 - **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。

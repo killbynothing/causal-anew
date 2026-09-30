@@ -8,6 +8,7 @@ unknown ids remain unresolved.
 from __future__ import annotations
 
 import copy
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence

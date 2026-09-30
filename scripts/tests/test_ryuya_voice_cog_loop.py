@@ -217,7 +217,12 @@ def test_prologue_exit_defaults_deferred_without_receipt():
             "completed": [],
             "branch_progress": [],
         }
-        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        sess._commit_beats(
+            ["RP1", "RP2", "RP3", "RP4"],
+            source_kind="test_fixture",
+            turn_no=0,
+            event_id="fixture:ryuya-voice:rp1234",
+        )
         sess.branch_progress = []
         assert sess._world_transaction("ryuya_pendant_disposition") is None
         # Drive the exit branch via a step that sees MH complete.

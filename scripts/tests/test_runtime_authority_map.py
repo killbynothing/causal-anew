@@ -69,9 +69,12 @@ def test_scanner_finds_representative_five_domain_writers():
 
 def test_scanner_separates_initialization_and_reports_callers():
     report = get_report()
-    completed = report["facts"]["completed"]["writers"]
+    world_tx = report["facts"]["world_transactions"]["writers"]
 
-    init_rows = [row for row in completed if row["symbol"].endswith("FreeStageSession.__init__")]
+    init_rows = [
+        row for row in world_tx
+        if row["symbol"].endswith("FreeStageSession.__init__")
+    ]
     assert init_rows
     assert all(row["classification"] == "initialization" for row in init_rows)
 

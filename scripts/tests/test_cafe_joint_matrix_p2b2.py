@@ -85,7 +85,14 @@ def _new_session(
         autosave=True,
         load_existing=False,
     )
-    session.completed = [str(x) for x in completed]
+    fixture_completed = [str(x) for x in completed]
+    if fixture_completed:
+        session._commit_beats(
+            fixture_completed,
+            source_kind="test_fixture",
+            turn_no=0,
+            event_id=f"fixture:joint-matrix:{name}",
+        )
     session.branch_progress = [str(x) for x in branch]
     if old_inputs:
         session.inputs = [f"old-{i}" for i in range(old_inputs)]

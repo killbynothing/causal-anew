@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2c-2 完成：Beat 附属状态单 owner）
+
+- **BeatState v2**：`BeatReducer` 现同时持有 current `completed`、`completed_by_card`、跨视角 `completed_beats` frame ledger、`canon_performance_state`。Session 暴露的三个附属字段均为深拷贝兼容投影，不再借出可变权威 dict。
+- **迁移**：`free_stage.beat_state.v2` 写入三类附属状态；reader 保留 v1。P2c-1 的 v1 snapshot 会从旧顶层 `completed_by_card/completed_beats/canon_performance_state` 单向迁入 v2，不丢跨场/跨视角/canon cursor。
+- **跨场快照**：原 8 处 `completed_by_card[scene]=...` 生产写统一改为 `BeatReducer.snapshot_scene()`，来源仍是当前权威 `completed`，结果/read projection copy-safe。
+- **frame ledger**：Session 不再把 `completed_beats` dict 交给 `beat_ledger.mark_done()` 就地改。Reducer 先复制、调用纯 ledger 规则、规范化后整体提交；幂等、append-only、run 隔离测试通过。
+- **canon cursor**：`_canon_scene_state()` 只返回 reducer 的深拷贝；segment complete/hidden/pending stop/player position 都经 `update_canon_scene()`。C16 的 follow/divert 特例也改走同一 API，Session 局部 alias 不再拥有写权。
+- **权威闸**：Authority Map 将 `_completed_by_card/_completed_beats/_canon_performance_state` 聚合回三个公开语义；三域 production writer 必须全部位于 `runtime/beat_reducer.py`，不得出现 `FreeStageSession.*`。
+- **验**：GitHub Actions [36717442079](https://github.com/killbynothing/causal-anew/actions/runs/36717442079) **success**；quick **51 PASS / 0 FAIL / 163 SKIP（214 validators）**；`data/world_truth.db` checksum 前后不变。
+- **报账**：未改 run=0、场卡、Seed/VOICE、★★★ 挂坠事实粒度或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：进入 **P2c-3 World receipt/branch**，先把 `branch_progress + scene_receipts` 收成唯一世界事实/投影入口，再处理 observation/player/body/cursor；不提前进入 P3。
+
 ### 2026-09-30（P2c-1 完成：BeatReducer 接管 completed）
 
 - **权威**：新增 `runtime/beat_reducer.py`。当前场 `completed` 的生产完成/恢复/清空不再由 `FreeStageSession` 直接写；Session 的 `completed` 仅为 copy-safe 兼容投影，生产写统一经过 `BeatReducer`。

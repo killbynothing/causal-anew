@@ -77,6 +77,7 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
+from runtime import beat_state
 from runtime import world_commit
 from runtime import world_projection
 from runtime import player_action as player_action_commit
@@ -7107,6 +7108,10 @@ class FreeStageSession:
             self.card = resolve_card_must_happen_variants(self.card, "converged")
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
+        initial_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.beat_events: dict[str, dict[str, Any]] = {}
+        self.beat_scene_visits: dict[str, int] = {initial_scene_id: 1}
+        self.beat_scene_instance_id = beat_state.scene_instance_id(initial_scene_id, 1)
         self.completed: list[str] = []
         self.completed_by_card: dict[str, list[str]] = {}
         self.completed_beats: dict[str, list[str]] = {}
@@ -7231,12 +7236,39 @@ class FreeStageSession:
             self.entry_context = stored_entry_context
         self.card_history = [str(x) for x in data.get("card_history", [self.card.get("scene_id", str(self.card_path))])]
         self.history = list(data.get("history", []))
-        self.completed = [str(x) for x in data.get("completed", [])]
-        self.completed_by_card = {
+        legacy_completed = [str(x) for x in data.get("completed", [])]
+        legacy_completed_by_card = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_by_card", {})).items()
             if isinstance(v, list)
         }
+        raw_beat_events = data.get("beat_events")
+        raw_beat_visits = data.get("beat_scene_visits")
+        raw_beat_instance = str(data.get("beat_scene_instance_id") or "").strip()
+        if isinstance(raw_beat_events, dict) and isinstance(raw_beat_visits, dict) and raw_beat_instance:
+            self.beat_events = {
+                str(event_id): dict(record)
+                for event_id, record in raw_beat_events.items()
+                if str(event_id).strip() and isinstance(record, dict)
+            }
+            self.beat_scene_visits = {
+                str(scene_id): int(visit)
+                for scene_id, visit in raw_beat_visits.items()
+                if str(scene_id).strip() and int(visit or 0) >= 1
+            }
+            self.beat_scene_instance_id = raw_beat_instance
+        else:
+            (
+                self.beat_events,
+                self.beat_scene_visits,
+                self.beat_scene_instance_id,
+            ) = beat_state.migrate_legacy(
+                current_scene_id=str(self.card.get("scene_id", self.card_path)),
+                card_history=self.card_history,
+                completed=legacy_completed,
+                completed_by_card=legacy_completed_by_card,
+            )
+        self._beat_sync_projections()
         self.completed_beats = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_beats", {})).items()
@@ -7437,6 +7469,9 @@ class FreeStageSession:
             "domain_state": domain_state.to_dict(),
             "card_history": self.card_history,
             "history": self.history,
+            "beat_events": self.beat_events,
+            "beat_scene_visits": self.beat_scene_visits,
+            "beat_scene_instance_id": self.beat_scene_instance_id,
             "completed": self.completed,
             "completed_by_card": self.completed_by_card,
             "completed_beats": self.completed_beats,
@@ -7645,6 +7680,97 @@ class FreeStageSession:
         if self.ended and self.run_receipt:
             result["receipt"] = dict(self.run_receipt)
         return result
+
+    def _beat_sync_projections(self) -> None:
+        self.completed = beat_state.project_completed(
+            self.beat_events,
+            self.beat_scene_instance_id,
+        )
+        self.completed_by_card = beat_state.project_completed_by_card(
+            self.beat_events,
+            self.beat_scene_visits,
+        )
+
+    def _beat_complete(
+        self,
+        beat_id: str,
+        *,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> bool:
+        result = beat_state.commit_completion(
+            self.beat_events,
+            scene_id=str(self.card.get("scene_id", self.card_path)),
+            scene_instance_id=self.beat_scene_instance_id,
+            beat_id=str(beat_id),
+            turn=int(turn_no),
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
+        self._beat_sync_projections()
+        return result.committed
+
+    def _beat_complete_many(
+        self,
+        beat_ids: tuple[str, ...] | list[str],
+        *,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> list[str]:
+        committed: list[str] = []
+        for beat_id in beat_ids:
+            beat = str(beat_id or "").strip()
+            if beat and self._beat_complete(
+                beat,
+                turn_no=turn_no,
+                source_kind=source_kind,
+                source_ref=source_ref,
+            ):
+                committed.append(beat)
+        return committed
+
+    def _beat_enter_scene(
+        self,
+        scene_id: str,
+        *,
+        restore_instance_id: str | None = None,
+        legacy_completed: tuple[str, ...] | list[str] = (),
+    ) -> None:
+        sid = str(scene_id or "").strip()
+        if not sid:
+            raise ValueError("beat scene enter requires scene_id")
+        if restore_instance_id:
+            self.beat_scene_instance_id = str(restore_instance_id)
+            visit = beat_state.visit_from_instance(sid, self.beat_scene_instance_id)
+            self.beat_scene_visits[sid] = max(self.beat_scene_visits.get(sid, 0), visit)
+            if not beat_state.project_completed(self.beat_events, self.beat_scene_instance_id):
+                for beat_id in legacy_completed:
+                    beat = str(beat_id or "").strip()
+                    if beat:
+                        beat_state.commit_completion(
+                            self.beat_events,
+                            scene_id=sid,
+                            scene_instance_id=self.beat_scene_instance_id,
+                            beat_id=beat,
+                            turn=0,
+                            source_kind="legacy_flashback_return",
+                            source_ref="return_frame.completed",
+                            legacy=True,
+                        )
+        else:
+            visit = self.beat_scene_visits.get(sid, 0) + 1
+            self.beat_scene_visits[sid] = visit
+            self.beat_scene_instance_id = beat_state.scene_instance_id(sid, visit)
+        self._beat_sync_projections()
+
+    def _beat_reset_all(self) -> None:
+        sid = str(self.card.get("scene_id", self.card_path))
+        self.beat_events = {}
+        self.beat_scene_visits = {sid: 1}
+        self.beat_scene_instance_id = beat_state.scene_instance_id(sid, 1)
+        self._beat_sync_projections()
 
     def reset(self) -> None:
         self._assert_writable("reset")
@@ -8815,7 +8941,12 @@ class FreeStageSession:
         for beat_id in segment.get("completes", []):
             beat = str(beat_id or "").strip()
             if beat and beat not in self.completed:
-                self.completed.append(beat)
+                self._beat_complete(
+                    beat,
+                    turn_no=turn_no,
+                    source_kind="canon_segment",
+                    source_ref=segment_id,
+                )
             if beat and receipt_owner:
                 self._record_scene_receipt(
                     beat,
@@ -9180,7 +9311,12 @@ class FreeStageSession:
             if scene_id == "CARD_WEICHU_ZHANGCHEN_HIRE":
                 for bid in ["WH1"]:
                     if bid not in self.completed:
-                        self.completed.append(bid)
+                        self._beat_complete(
+                            bid,
+                            turn_no=0,
+                            source_kind="opening_seed",
+                            source_ref="CARD_WEICHU_ZHANGCHEN_HIRE",
+                        )
             elif self.card.get("prologue_active"):
                 # 直接开序幕卡：龙也 LLM 即兴先开口（天气/初遇/身份皆可）；无写死雨句。
                 # 勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
@@ -10079,7 +10215,12 @@ class FreeStageSession:
                     # Preserve the existing RP4 disposition policy, but only
                     # project completion after PlayerAction→WorldCommit succeeds.
                     self._commit_player_pendant_response(receipt, turn_no=turn_no)
-                    self.completed.append("RP4")
+                    self._beat_complete(
+                        "RP4",
+                        turn_no=turn_no,
+                        source_kind="pendant_disposition",
+                        source_ref=f"prologue_receipt_{receipt}",
+                    )
                     if marker not in self.branch_progress:
                         self.branch_progress.append(marker)
                 else:
@@ -10202,7 +10343,12 @@ class FreeStageSession:
                     hidden_segments.append("C16_GATE_WATCH_CONTINUATION")
                 for beat in ("ZG3", "ZG4"):
                     if beat not in self.completed:
-                        self.completed.append(beat)
+                        self._beat_complete(
+                            beat,
+                            turn_no=turn_no,
+                            source_kind="canon_hidden_continuation",
+                            source_ref="C16_GATE_WATCH_CONTINUATION",
+                        )
                 canon_state["pending_stop"] = ""
                 canon_state["player_position"] = "shop_counter_zhangchen_path"
                 transition = self._maybe_transition(player_input, turn_no, [])
@@ -10447,7 +10593,12 @@ class FreeStageSession:
             ) if self.ryuya_flashback_return else max(0, len(self.inputs))
             # 闲聊已发生 = 可记账的场面进度，不是玩家闸。
             if flash_beats >= 1 and "RP1" not in self.completed:
-                self.completed.append("RP1")
+                self._beat_complete(
+                    "RP1",
+                    turn_no=turn_no,
+                    source_kind="social_presence",
+                    source_ref="prologue_banter_elapsed",
+                )
             topic_hit = ryuya_deep_topic_interface(
                 {"speech": speech, "action": action},
                 self.history,
@@ -11141,7 +11292,12 @@ class FreeStageSession:
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
             newly_completed = [mh for mh in new_progress if mh not in set(self.completed)]
-            self.completed.extend(new_progress)
+            self._beat_complete_many(
+                tuple(new_progress),
+                turn_no=turn_no,
+                source_kind="observed_progress",
+                source_ref="actor_visible_turns",
+            )
             must_happen_by_id = {
                 str(item.get("id", "") or "").strip(): item
                 for item in resolved_card.get("must_happen", [])
@@ -11709,7 +11865,12 @@ class FreeStageSession:
         # Complete all must_happens
         must_happens = self.card.get("must_happen", [])
         all_ids = [str(mh.get("id")) for mh in must_happens if mh.get("id")]
-        self.completed = all_ids
+        self._beat_complete_many(
+            tuple(all_ids),
+            turn_no=len(self.inputs) + 1,
+            source_kind="brief_skip",
+            source_ref="explicit_skip_scene",
+        )
 
         # P1a: skip may still use the legacy P2 beat-completion bridge above,
         # but exit authority is no longer implicit. Ambiguous multi-exit skips

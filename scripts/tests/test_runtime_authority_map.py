@@ -70,6 +70,22 @@ def test_scanner_finds_representative_five_domain_writers():
     assert not any(row["symbol"].endswith("run_session") for row in ended)
 
 
+def test_scanner_keeps_legacy_scene_branch_writers_visible_separately():
+    report = get_report()
+    free_stage_branch = writers(report, "branch_progress", "production", "production_tooling")
+    assert free_stage_branch == []
+
+    legacy = writers(
+        report,
+        "scene_runtime_branch_progress",
+        "production",
+        "production_tooling",
+    )
+    paths = {row["path"] for row in legacy}
+    assert "runtime/scene_contracts.py" in paths
+    assert "web/scene_api.py" in paths
+
+
 def test_scanner_separates_initialization_and_reports_callers():
     report = get_report()
     completed = report["facts"]["completed"]["writers"]
@@ -110,6 +126,7 @@ def test_verify_inventory_is_complete_and_new_p0_gates_are_registered():
 
 if __name__ == "__main__":
     test_scanner_finds_representative_five_domain_writers()
+    test_scanner_keeps_legacy_scene_branch_writers_visible_separately()
     test_scanner_separates_initialization_and_reports_callers()
     test_verify_inventory_is_complete_and_new_p0_gates_are_registered()
     print("PASS test_runtime_authority_map")

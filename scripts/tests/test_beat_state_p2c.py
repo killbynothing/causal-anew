@@ -204,13 +204,115 @@ def test_rp4_completion_is_sourced_by_world_receipt_and_survives_save_load():
         assert resumed.beat_states == session.beat_states
 
 
+def test_completed_and_completed_by_card_have_one_projection_writer():
+    source = inspect.getsource(proto.FreeStageSession)
+    completed_assigners = []
+    per_card_assigners = []
+    for name in dir(proto.FreeStageSession):
+        value = getattr(proto.FreeStageSession, name, None)
+        if not callable(value):
+            continue
+        try:
+            body = inspect.getsource(value)
+        except (OSError, TypeError):
+            continue
+        if "self.completed =" in body:
+            completed_assigners.append(name)
+        if "self.completed_by_card =" in body:
+            per_card_assigners.append(name)
+        assert "self.completed_by_card[" not in body
+    assert completed_assigners == ["_sync_beat_projections"]
+    assert per_card_assigners == ["_sync_beat_projections"]
+    assert "self.completed.append(" not in source
+    assert "self.completed.extend(" not in source
+
+
+def test_completed_by_card_projects_latest_visit_and_legacy_history():
+    states = {}
+    legacy_scope = RuntimeScope(
+        worldline="WMAIN", run=1, ch_anchor=0, session_id="s",
+        scene_instance_id="SCENE_A:legacy:abc",
+    )
+    beat_state.seed_completed(
+        states, scope=legacy_scope, scene_id="SCENE_A",
+        completed=["A0"], source_kind="legacy_completed_by_card",
+        source_ref="legacy:A",
+    )
+    visit1 = RuntimeScope(
+        worldline="WMAIN", run=1, ch_anchor=1, session_id="s",
+        scene_instance_id="SCENE_A:visit:2",
+    )
+    beat_state.seed_completed(
+        states, scope=visit1, scene_id="SCENE_A",
+        completed=["A1"], source_kind="deterministic_evidence",
+        source_ref="receipt:A1",
+    )
+    visit2 = RuntimeScope(
+        worldline="WMAIN", run=1, ch_anchor=1, session_id="s",
+        scene_instance_id="SCENE_A:visit:5",
+    )
+    beat_state.seed_completed(
+        states, scope=visit2, scene_id="SCENE_A",
+        completed=["A2"], source_kind="deterministic_evidence",
+        source_ref="receipt:A2",
+    )
+    assert beat_state.project_completed_by_scene(states)["SCENE_A"] == ["A2"]
+
+
+def test_same_scene_revisit_uses_fresh_event_ids():
+    states = {}
+    first = RuntimeScope(
+        worldline="WMAIN", run=1, ch_anchor=1, session_id="s",
+        scene_instance_id="SCENE_X:visit:1",
+    )
+    second = RuntimeScope(
+        worldline="WMAIN", run=1, ch_anchor=1, session_id="s",
+        scene_instance_id="SCENE_X:visit:3",
+    )
+    e1 = beat_state.commit_beat(
+        states, scope=first, scene_id="SCENE_X", beat_id="B1", turn=1,
+        source_kind="deterministic_evidence", evidence_refs=("r1",),
+    ).event
+    e2 = beat_state.seed_completed(
+        states, scope=second, scene_id="SCENE_X", completed=["B1"],
+        source_kind="flashback_restore", source_ref="flashback:visit1",
+    )
+    state2 = states[second.scene_instance_id]
+    event2 = next(iter(state2["events"].values()))
+    assert e1["event_id"] != event2["event_id"]
+    assert e1["scope"]["scene_instance_id"] != event2["scope"]["scene_instance_id"]
+    assert e2 == ["B1"]
+
+
+def test_legacy_completed_by_card_migration_preserves_history_without_player_evidence():
+    states = {}
+    beat_state.migrate_legacy_completed_by_card(
+        states,
+        worldline="WMAIN",
+        run=1,
+        session_id="legacy-s",
+        completed_by_card={"OLD_A": ["A1"], "OLD_B": ["B1", "B2"]},
+    )
+    projection = beat_state.project_completed_by_scene(states)
+    assert projection == {"OLD_A": ["A1"], "OLD_B": ["B1", "B2"]}
+    events = [
+        row
+        for state in states.values()
+        for row in state["events"].values()
+    ]
+    assert events
+    assert all(row["source_kind"] == "legacy_completed_by_card" for row in events)
+    assert not any(
+        ref.startswith("player:")
+        for row in events
+        for ref in row["evidence_refs"]
+    )
+
+
 def test_adapter_debt_is_explicit_not_silently_claimed_done():
     assert set(beat_state.P2C_BEAT_ADAPTER_DEBT) == {
         "legacy_load",
-        "reset",
-        "scene_enter",
         "flashback_restore",
-        "completed_by_card_projection",
     }
 
 

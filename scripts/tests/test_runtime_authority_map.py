@@ -39,11 +39,11 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["parse_errors"] == []
 
     completed = writers(report, "completed", "production")
-    # P2c-1 removes business step completion writes. Remaining direct writers
-    # are explicit load/reset/scene-transition adapters until the next knife.
-    assert not any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
-    assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
-    assert not any(row["write_kind"] in {"method:append", "method:extend"} for row in completed)
+    completed_by_card = writers(report, "completed_by_card", "production")
+    # P2c-2: both are read-only compatibility projections; projection methods
+    # are classified separately and no production writer remains.
+    assert completed == []
+    assert completed_by_card == []
 
     beat_states = report["facts"]["beat_states"]["writers"]
     assert beat_states

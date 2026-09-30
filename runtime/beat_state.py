@@ -16,10 +16,7 @@ BEAT_EVENT_SCHEMA = "free_stage.beat_event.v1"
 
 P2C_BEAT_ADAPTER_DEBT = (
     "legacy_load",
-    "reset",
-    "scene_enter",
     "flashback_restore",
-    "completed_by_card_projection",
 )
 
 
@@ -161,15 +158,20 @@ def completed_for_scope(
     return [str(x) for x in (state.get("completed_order") or []) if str(x).strip()]
 
 
-def migrate_legacy_completed(
+def seed_completed(
     states: MutableMapping[str, dict[str, Any]],
     *,
     scope: RuntimeScope,
     scene_id: str,
     completed: Sequence[str],
+    source_kind: str,
     source_ref: str,
 ) -> list[str]:
-    """One-way adapter. It never invents a player action or visible evidence."""
+    """Explicit adapter seed. Never invents player action or visible evidence."""
+    kind = _text(source_kind)
+    ref = _text(source_ref)
+    if not kind or not ref:
+        raise ValueError("beat adapter seed requires source_kind/source_ref")
     for index, beat in enumerate(completed):
         beat_id = _text(beat)
         if not beat_id:
@@ -180,18 +182,108 @@ def migrate_legacy_completed(
             scene_id=scene_id,
             beat_id=beat_id,
             turn=0,
-            source_kind="legacy_snapshot",
-            evidence_refs=(source_ref,),
+            source_kind=kind,
+            evidence_refs=(ref,),
             event_id=(
-                "beat:legacy:"
+                "beat:seed:"
                 + canonical_payload_hash(
                     {
                         "scope": scope.to_dict(),
                         "beat_id": beat_id,
                         "index": index,
-                        "source_ref": source_ref,
+                        "source_kind": kind,
+                        "source_ref": ref,
                     }
                 )
             ),
         )
     return completed_for_scope(states, scope)
+
+
+def migrate_legacy_completed(
+    states: MutableMapping[str, dict[str, Any]],
+    *,
+    scope: RuntimeScope,
+    scene_id: str,
+    completed: Sequence[str],
+    source_ref: str,
+) -> list[str]:
+    return seed_completed(
+        states,
+        scope=scope,
+        scene_id=scene_id,
+        completed=completed,
+        source_kind="legacy_snapshot",
+        source_ref=source_ref,
+    )
+
+
+def _scope_visit_rank(scope_raw: Mapping[str, Any] | None) -> tuple[int, str]:
+    raw = dict(scope_raw or {})
+    instance = _text(raw.get("scene_instance_id"))
+    if ":visit:" in instance:
+        tail = instance.rsplit(":visit:", 1)[-1]
+        try:
+            return (2, f"{int(tail):012d}")
+        except ValueError:
+            return (2, tail)
+    if ":legacy:" in instance:
+        return (0, instance)
+    return (1, instance)
+
+
+def project_completed_by_scene(
+    states: Mapping[str, Mapping[str, Any]],
+) -> dict[str, list[str]]:
+    """Latest scene instance wins; legacy synthetic scopes rank below real visits."""
+    chosen: dict[str, tuple[tuple[int, str], list[str]]] = {}
+    for state in states.values():
+        if not isinstance(state, Mapping):
+            continue
+        scene_id = _text(state.get("scene_id"))
+        if not scene_id:
+            continue
+        completed = [
+            str(x) for x in (state.get("completed_order") or [])
+            if str(x).strip()
+        ]
+        rank = _scope_visit_rank(state.get("scope") if isinstance(state.get("scope"), Mapping) else {})
+        previous = chosen.get(scene_id)
+        if previous is None or rank >= previous[0]:
+            chosen[scene_id] = (rank, completed)
+    return {scene_id: list(value[1]) for scene_id, value in chosen.items()}
+
+
+def migrate_legacy_completed_by_card(
+    states: MutableMapping[str, dict[str, Any]],
+    *,
+    worldline: str,
+    run: int,
+    session_id: str,
+    completed_by_card: Mapping[str, Sequence[str]],
+) -> None:
+    """Preserve historical per-scene progress from pre-BeatState snapshots."""
+    for scene_id, completed in completed_by_card.items():
+        sid = _text(scene_id)
+        if not sid:
+            continue
+        scope = RuntimeScope(
+            worldline=_text(worldline) or "WMAIN",
+            run=int(run),
+            ch_anchor=0,
+            session_id=_text(session_id),
+            scene_instance_id=(
+                f"{sid}:legacy:"
+                + canonical_payload_hash(
+                    {"session_id": session_id, "scene_id": sid}
+                )[:12]
+            ),
+        )
+        seed_completed(
+            states,
+            scope=scope,
+            scene_id=sid,
+            completed=completed,
+            source_kind="legacy_completed_by_card",
+            source_ref=f"legacy-completed-by-card:{sid}",
+        )

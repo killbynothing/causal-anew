@@ -35,15 +35,12 @@ def production(report, fact):
     ]
 
 
-def test_p2c1_business_beat_writers_are_removed_but_adapter_debt_remains():
+def test_p2c2_completed_views_have_zero_production_writers():
     report = load_report()
-    rows = production(report, "completed")
-    symbols = {row["symbol"] for row in rows}
-    assert "FreeStageSession.step" not in symbols
-    assert "FreeStageSession.skip_scene" in symbols
-    assert "FreeStageSession.reset" in symbols
-    assert report["facts"]["completed"]["production_writer_count"] > 1
-    assert not any(row["write_kind"] in {"method:append", "method:extend"} for row in rows)
+    assert production(report, "completed") == []
+    assert production(report, "completed_by_card") == []
+    assert report["facts"]["completed"]["production_writer_count"] == 0
+    assert report["facts"]["completed_by_card"]["production_writer_count"] == 0
 
 
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
@@ -83,7 +80,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 
 if __name__ == "__main__":
-    test_p2c1_business_beat_writers_are_removed_but_adapter_debt_remains()
+    test_p2c2_completed_views_have_zero_production_writers()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

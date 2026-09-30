@@ -1,5 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2b-2 完成：咖啡馆联合矩阵 × 再见语义消歧）
+
+- **联合矩阵**：新增 quick `cafe_vertical_matrix_p2b2`，真实走 `FreeStageSession.step()`，固定“明确收 / 明确拒 / 明确暂放 / 只答应托付 / 继续聊天 / action 接过”六类输入，同时捕获 actor caller 的真实 `actor_context_packet`、RP4 兼容投影、PlayerAction、WorldCommit、BodyFrame、player props、observation、ExitDecision 与 save→load 结果。
+- **caller 同源**：accepted 后 actor caller 看到的 Ryuya `body_frame_now.holding=None`；declined/deferred/未处分继续看到 `I.PENDANT_ANCHOR`。不是 observer 才变，角色本拍上下文也使用提交后的世界投影。
+- **兼容边界**：当前实现下 accepted/declined/deferred 都仍投影 RP4=true；矩阵将 deferred 明确标注为 **characterization only**，不把它升格为 ★★★ 正典裁决。托付承诺/继续聊天保持 RP4=false 且无挂坠 PlayerAction/WorldCommit。
+- **真实红灯**：首轮矩阵抓到“想再见见你总要有个借口吧”被全局 `再见` 正则误判为当前离场，ExitPolicy 返回 `await_confirmation`。新增 future-reunion 消歧：`想再见见你 / 希望以后再见到你` 不算离场；真正 `再见，我先走了 / 回头见 / 告辞` 仍算退出。
+- **验**：修复提交 `562de55` 后 GitHub Actions `36663350316` quick **49 PASS / 0 FAIL / 163 SKIP**，DB checksum 前后不变。初始矩阵提交 `5a4304e` 的失败仅为上述真实 exit 语义 bug。
+- **报账**：未改 run=0、正典卡、Seed/VOICE、挂坠 A/B 固定事实粒度或真人 a14 DB；**正典/人物/剧情新增 = 0**。本轮只冻结生产联合结果并修输入语义误判。
+- **下一动**：进入 **P2c**。先把 BeatState/BeatReducer 建为 `completed` 的唯一业务 owner，并迁移咖啡馆/天安门/十六中与 skip/canon/flashback/load 的兼容写路；World 侧继续缩 `P2A_WORLD_MIGRATION_DEBT`。不提前做 P3 心智。
+
 ### 2026-09-29（P2b-1 完成：挂坠处分来源链 × WorldCommit 同源投影）
 
 - **投影权威**：新增 `runtime/world_projection.py`。挂坠 player props、龙也 BodyFrame、run observation ledger 不再由 `_finalize_prologue_pendant()` 三处手改，而是只读已经提交的 WorldCommit receipt 一次性派生；reducer 对输入 copy-safe、重复投影幂等。

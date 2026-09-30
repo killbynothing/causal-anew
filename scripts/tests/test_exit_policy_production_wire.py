@@ -14,6 +14,17 @@ if str(ROOT) not in sys.path:
 from runtime import free_stage_prototype as proto
 
 
+
+def _seed_completed(session, beat_ids):
+    return session._complete_beats(
+        list(beat_ids),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_refs=("test-fixture",),
+        request_id=f"test-fixture:{session.session_id}:{','.join(beat_ids)}",
+    )
+
+
 def _dummy_caller(**kwargs):
     return json.dumps(
         {
@@ -182,7 +193,7 @@ def test_no_exit_completed_scene_stays_open_without_explicit_auto_end():
             autosave=False,
             caller=_dummy_caller,
         )
-        session.completed = ["M1"]
+        _seed_completed(session, ["M1"])
         emitted = []
         assert session._maybe_transition(
             {"speech": "再聊一会儿", "action": "", "thought": ""},

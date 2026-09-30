@@ -17,6 +17,17 @@ from runtime.world_commit import commit_world_fact
 from runtime.world_projection import PENDANT_PROP, RYUYA_BODY_ID, project_world_transaction
 
 
+
+def _seed_completed(session, beat_ids):
+    return session._complete_beats(
+        list(beat_ids),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_refs=("test-fixture",),
+        request_id=f"test-fixture:{session.session_id}:{','.join(beat_ids)}",
+    )
+
+
 def _scope():
     return RuntimeScope(
         worldline="WMAIN",
@@ -243,7 +254,7 @@ def test_after_offer_entrust_promise_does_not_accept_pendant():
             load_existing=False,
             caller=_caller,
         )
-        session.completed = ["RP1", "RP2", "RP3"]
+        _seed_completed(session, ["RP1", "RP2", "RP3"])
         session.branch_progress = ["prologue_pendant_offered"]
         session.step({"speech": "我答应，我会照看他们", "action": "", "thought": ""})
         assert "RP4" not in session.completed
@@ -290,7 +301,7 @@ def test_step_does_not_complete_rp4_before_conflicting_world_commit():
             load_existing=False,
             caller=_caller,
         )
-        session.completed = ["RP1", "RP2", "RP3"]
+        _seed_completed(session, ["RP1", "RP2", "RP3"])
         session.branch_progress = ["prologue_pendant_offered"]
         session._finalize_prologue_pendant("accepted", turn_no=1)
         # Existing terminal world fact conflicts with a later decline. The

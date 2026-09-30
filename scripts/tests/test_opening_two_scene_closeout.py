@@ -18,6 +18,17 @@ from runtime.free_stage_prototype import (
 )
 
 
+
+def _seed_completed(session, beat_ids):
+    return session._complete_beats(
+        list(beat_ids),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_refs=("test-fixture",),
+        request_id=f"test-fixture:{session.session_id}:{','.join(beat_ids)}",
+    )
+
+
 def _dummy_caller(**_kwargs):
     return json.dumps(
         {
@@ -154,7 +165,7 @@ def test_standalone_ryuya_prologue_completion_only_unlocks_exit():
             autosave=False,
             caller=_dummy_caller,
         )
-        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        _seed_completed(sess, ["RP1", "RP2", "RP3", "RP4"])
         captured = []
         sess._write_delta = lambda events: captured.extend(events) or len(events)
 

@@ -16,6 +16,17 @@ from runtime import actor_context_v2 as acv2
 from runtime.free_stage_prototype import FreeStageSession, build_actor_context_packet, call_actor_packet
 
 
+
+def _seed_completed(session, beat_ids):
+    return session._complete_beats(
+        list(beat_ids),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_refs=("test-fixture",),
+        request_id=f"test-fixture:{session.session_id}:{','.join(beat_ids)}",
+    )
+
+
 DB = ROOT / "data" / "world_truth.db"
 
 
@@ -217,7 +228,7 @@ def test_prologue_exit_defaults_deferred_without_receipt():
             "completed": [],
             "branch_progress": [],
         }
-        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        _seed_completed(sess, ["RP1", "RP2", "RP3", "RP4"])
         sess.branch_progress = []
         assert sess._world_transaction("ryuya_pendant_disposition") is None
         # Drive the exit branch via a step that sees MH complete.

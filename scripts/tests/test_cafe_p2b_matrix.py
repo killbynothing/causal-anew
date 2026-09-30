@@ -18,6 +18,17 @@ from runtime.run_observation_ledger import append_observation
 from runtime.world_projection import PENDANT_PROP, RYUYA_BODY_ID
 
 
+
+def _seed_completed(session, beat_ids):
+    return session._complete_beats(
+        list(beat_ids),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_refs=("test-fixture",),
+        request_id=f"test-fixture:{session.session_id}:{','.join(beat_ids)}",
+    )
+
+
 CARD = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
 
 
@@ -111,7 +122,7 @@ def _offered_session(
         intent_caller=None,
         truth_db=None,
     )
-    session.completed = ["RP1", "RP2", "RP3"]
+    _seed_completed(session, ["RP1", "RP2", "RP3"])
     session.branch_progress = ["prologue_pendant_offered"]
     session.run_observation_ledger = _offer_ledger(session_id)
     session.prior_reflect_by_cons["C.ryuya.W1"] = {
@@ -214,7 +225,7 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        joke.completed = ["RP1"]
+        _seed_completed(joke, ["RP1"])
         joke.inputs = [{"speech": "闲聊", "action": "", "thought": ""}] * 20
         joke.step({"speech": "想再见见你总要有个借口吧", "action": "", "thought": ""})
         assert "RP2" not in joke.completed
@@ -235,7 +246,7 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        serious.completed = ["RP1"]
+        _seed_completed(serious, ["RP1"])
         serious.step({"speech": "你今天怎么了，有事就说。", "action": "", "thought": ""})
         assert "RP2" in serious.completed
         assert "RP3" not in serious.completed
@@ -257,7 +268,7 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        stage.completed = ["RP1", "RP2"]
+        _seed_completed(stage, ["RP1", "RP2"])
         stage.step({"speech": "你说。", "action": "", "thought": ""})
         assert "RP3" not in stage.completed
 

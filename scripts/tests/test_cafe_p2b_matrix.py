@@ -111,7 +111,12 @@ def _offered_session(
         intent_caller=None,
         truth_db=None,
     )
-    session.completed = ["RP1", "RP2", "RP3"]
+    session._beat_complete_many(
+        ("RP1", "RP2", "RP3"),
+        turn_no=0,
+        source_kind="test_fixture",
+        source_ref="p2b_offered_session",
+    )
     session.branch_progress = ["prologue_pendant_offered"]
     session.run_observation_ledger = _offer_ledger(session_id)
     session.prior_reflect_by_cons["C.ryuya.W1"] = {

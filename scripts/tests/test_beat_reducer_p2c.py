@@ -137,6 +137,33 @@ def test_session_completed_is_read_only_projection_and_scope_matches_beat_instan
             raise AssertionError("completed must have no production setter")
 
 
+def test_intro_completion_reprojects_disclosure_turn_labels():
+    card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
+    turns = [
+        {
+            "role": "npc",
+            "speaker": "银发青年",
+            "text": "那还真是方便呢，很巧的是我也听得懂中文。",
+            "stage": "",
+            "turn": 3,
+        },
+        {
+            "role": "npc",
+            "speaker": "懒散青年",
+            "text": "我是折原修哉，他是川口秋人，这位是坂本晴明。",
+            "stage": "",
+            "turn": 3,
+        },
+    ]
+    introduced = proto._npc_introduced_to_player_after_turn(card, [], turns, 0)
+    projected = proto.resolve_actor_speaker_labels(turns, card, True, introduced)
+    labels = [row["speaker"] for row in projected]
+    assert "坂本晴明" in labels
+    assert "折原修哉" in labels
+    assert "银发青年" not in labels
+    assert "懒散青年" not in labels
+
+
 def test_scene_history_window_does_not_reaudit_prior_scene_under_new_card():
     with tempfile.TemporaryDirectory() as tmp:
         session = proto.FreeStageSession(

@@ -11227,12 +11227,44 @@ class FreeStageSession:
                     new_progress = [mh for mh in new_progress if mh in {"RP1"}]
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
+            intro_done_before_commit = intro_done_for_card(
+                resolved_card,
+                self.completed,
+                history=self.history,
+                player_profile=self.player_profile,
+            )
             newly_completed = self._complete_beats(
                 new_progress,
                 turn_no=turn_no,
                 source_kind="observed_progress",
                 source_refs=(f"visible-turn:{turn_no}",),
             )
+            intro_done_after_commit = intro_done_for_card(
+                resolved_card,
+                self.completed,
+                progress=new_progress,
+                turns=turns,
+                history=self.history,
+                player_profile=self.player_profile,
+            )
+            if not intro_done_before_commit and intro_done_after_commit:
+                # The same visible beat may disclose names and complete the
+                # intro gate. Re-project its bubble labels after the Beat
+                # commit, before the turns enter history. This keeps the
+                # pre-intro guard strict without leaving descriptors on the
+                # disclosure beat itself.
+                introduced_after = _npc_introduced_to_player_after_turn(
+                    resolved_card,
+                    self.history,
+                    turns,
+                    0,
+                )
+                turns = resolve_actor_speaker_labels(
+                    turns,
+                    resolved_card,
+                    True,
+                    introduced_after,
+                )
             must_happen_by_id = {
                 str(item.get("id", "") or "").strip(): item
                 for item in resolved_card.get("must_happen", [])

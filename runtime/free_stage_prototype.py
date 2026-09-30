@@ -104,6 +104,7 @@ from runtime.causal_protocol import (
     commit_batch_id,
     observation_from_packet,
     prepare_commit,
+    canonical_payload_hash,
 )
 from runtime.director_ports import (
     build_dramaturgy_opportunity,
@@ -138,6 +139,7 @@ from runtime import opening_top_tier as ott
 from runtime import actor_cog_loop as cogloop
 from runtime import director_harness
 from runtime import beat_evidence
+from runtime import beat_state
 from runtime.agent_module_slots import project_agent_modules
 
 
@@ -7108,6 +7110,7 @@ class FreeStageSession:
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
         self.completed: list[str] = []
+        self.beat_states: dict[str, dict[str, Any]] = {}
         self.completed_by_card: dict[str, list[str]] = {}
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
@@ -7231,7 +7234,7 @@ class FreeStageSession:
             self.entry_context = stored_entry_context
         self.card_history = [str(x) for x in data.get("card_history", [self.card.get("scene_id", str(self.card_path))])]
         self.history = list(data.get("history", []))
-        self.completed = [str(x) for x in data.get("completed", [])]
+        legacy_completed = [str(x) for x in data.get("completed", [])]
         self.completed_by_card = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_by_card", {})).items()
@@ -7321,6 +7324,19 @@ class FreeStageSession:
             )
         self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
         self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
+        for item in self.scene_receipts:
+            if not str(item.get("receipt_id") or "").strip():
+                item["receipt_id"] = self._scene_receipt_id(item)
+        self.beat_states = beat_state.normalize_states(data.get("beat_states"))
+        if not self.beat_states and legacy_completed:
+            beat_state.migrate_legacy_completed(
+                self.beat_states,
+                scope=self._current_runtime_scope(),
+                scene_id=str(self.card.get("scene_id", self.card_path)),
+                completed=legacy_completed,
+                source_ref=f"legacy-session:{self.session_id}",
+            )
+        self._sync_completed_projection()
         self.world_transactions = {
             str(transaction_id): dict(record)
             for transaction_id, record in dict(data.get("world_transactions", {})).items()
@@ -7438,6 +7454,7 @@ class FreeStageSession:
             "card_history": self.card_history,
             "history": self.history,
             "completed": self.completed,
+            "beat_states": copy.deepcopy(self.beat_states),
             "completed_by_card": self.completed_by_card,
             "completed_beats": self.completed_beats,
             "canon_performance_state": self.canon_performance_state,
@@ -7649,6 +7666,7 @@ class FreeStageSession:
     def reset(self) -> None:
         self._assert_writable("reset")
         self.completed = []
+        self.beat_states = {}
         self.completed_by_card = {}
         self.completed_beats = {}
         self.canon_performance_state = {}
@@ -7724,6 +7742,20 @@ class FreeStageSession:
         if self.autosave:
             self.save()
 
+    def _scene_receipt_id(self, row: Mapping[str, Any]) -> str:
+        return "scene:" + canonical_payload_hash(
+            {
+                "session_id": self.session_id,
+                "scene_id": str(row.get("scene_id") or ""),
+                "scene_instance_id": str(row.get("scene_instance_id") or ""),
+                "fact_id": str(row.get("fact_id") or ""),
+                "owner": str(row.get("owner") or ""),
+                "turn": int(row.get("turn", 0) or 0),
+                "source_kind": str(row.get("source_kind") or ""),
+                "source_input": str(row.get("source_input") or ""),
+            }
+        )
+
     def _record_scene_receipt(
         self,
         fact_id: str,
@@ -7732,20 +7764,66 @@ class FreeStageSession:
         turn_no: int,
         source_input: str = "",
         source_kind: str = "player_input",
-    ) -> bool:
-        """Append one observable fact once; legacy markers mirror it during migration."""
+    ) -> dict[str, Any]:
+        """Append one observable fact once and return its stable evidence receipt."""
         scene_id = str(self.card.get("scene_id", "") or "")
-        if any(item.get("scene_id") == scene_id and item.get("fact_id") == fact_id for item in self.scene_receipts):
-            return False
-        self.scene_receipts.append({
+        for item in self.scene_receipts:
+            if item.get("scene_id") == scene_id and item.get("fact_id") == fact_id:
+                if not str(item.get("receipt_id") or "").strip():
+                    item["receipt_id"] = self._scene_receipt_id(item)
+                return dict(item)
+        row = {
             "scene_id": scene_id,
-            "fact_id": fact_id,
-            "owner": owner,
+            "scene_instance_id": self._current_runtime_scope().scene_instance_id,
+            "fact_id": str(fact_id),
+            "owner": str(owner),
             "turn": int(turn_no),
             "source_input": str(source_input),
             "source_kind": str(source_kind),
-        })
-        return True
+        }
+        row["receipt_id"] = self._scene_receipt_id(row)
+        self.scene_receipts.append(row)
+        return dict(row)
+
+    def _ensure_current_beat_state(self) -> None:
+        scope = self._current_runtime_scope()
+        if beat_state.scene_key(scope) in self.beat_states or not self.completed:
+            return
+        beat_state.migrate_legacy_completed(
+            self.beat_states,
+            scope=scope,
+            scene_id=str(self.card.get("scene_id", self.card_path)),
+            completed=list(self.completed),
+            source_ref=f"adapter:completed-projection:{scope.scene_instance_id}",
+        )
+
+    def _sync_completed_projection(self) -> list[str]:
+        self.completed = beat_state.completed_for_scope(
+            self.beat_states,
+            self._current_runtime_scope(),
+        )
+        return list(self.completed)
+
+    def _commit_beat(
+        self,
+        beat_id: str,
+        *,
+        turn_no: int,
+        source_kind: str,
+        evidence_refs: tuple[str, ...] | list[str],
+    ) -> bool:
+        self._ensure_current_beat_state()
+        result = beat_state.commit_beat(
+            self.beat_states,
+            scope=self._current_runtime_scope(),
+            scene_id=str(self.card.get("scene_id", self.card_path)),
+            beat_id=beat_id,
+            turn=int(turn_no),
+            source_kind=source_kind,
+            evidence_refs=evidence_refs,
+        )
+        self._sync_completed_projection()
+        return result.committed
 
     def _record_director_port(self, payload: Mapping[str, Any] | dict[str, Any], *, turn_no: int) -> dict[str, Any]:
         """Append one N5 port receipt; production turns must leave a non-empty trace."""
@@ -8812,17 +8890,27 @@ class FreeStageSession:
                 str(cons).strip() for cons in present_after if str(cons).strip()
             ]
         receipt_owner = str(segment.get("receipt_owner", "") or "").strip()
+        segment_id = str(segment.get("segment_id", "") or "").strip() or "canon_segment"
         for beat_id in segment.get("completes", []):
             beat = str(beat_id or "").strip()
-            if beat and beat not in self.completed:
-                self.completed.append(beat)
-            if beat and receipt_owner:
-                self._record_scene_receipt(
+            if not beat:
+                continue
+            if receipt_owner:
+                receipt = self._record_scene_receipt(
                     beat,
                     owner=receipt_owner,
                     turn_no=turn_no,
                     source_kind="canon_segment",
                 )
+                evidence_refs = (str(receipt["receipt_id"]),)
+            else:
+                evidence_refs = (f"canon:{segment_id}",)
+            self._commit_beat(
+                beat,
+                turn_no=turn_no,
+                source_kind="canon_segment",
+                evidence_refs=evidence_refs,
+            )
         return emitted
 
     def _apply_canon_segment_world_effects(self, segment: dict[str, Any], *, turn_no: int) -> None:
@@ -9178,9 +9266,12 @@ class FreeStageSession:
                 if str(segment.get("trigger", "") or "").strip() == "on_start":
                     canon_turns.extend(self._emit_canon_segment(segment, turn_no=0))
             if scene_id == "CARD_WEICHU_ZHANGCHEN_HIRE":
-                for bid in ["WH1"]:
-                    if bid not in self.completed:
-                        self.completed.append(bid)
+                self._commit_beat(
+                    "WH1",
+                    turn_no=0,
+                    source_kind="opening_seed",
+                    evidence_refs=("card:CARD_WEICHU_ZHANGCHEN_HIRE:on_start",),
+                )
             elif self.card.get("prologue_active"):
                 # 直接开序幕卡：龙也 LLM 即兴先开口（天气/初遇/身份皆可）；无写死雨句。
                 # 勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
@@ -10079,7 +10170,18 @@ class FreeStageSession:
                     # Preserve the existing RP4 disposition policy, but only
                     # project completion after PlayerAction→WorldCommit succeeds.
                     self._commit_player_pendant_response(receipt, turn_no=turn_no)
-                    self.completed.append("RP4")
+                    pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                    world_receipt = (
+                        pendant_tx.get("receipt")
+                        if isinstance(pendant_tx.get("receipt"), dict)
+                        else {}
+                    )
+                    self._commit_beat(
+                        "RP4",
+                        turn_no=turn_no,
+                        source_kind="world_transaction",
+                        evidence_refs=(str(world_receipt.get("receipt_id") or "world:pendant"),),
+                    )
                     if marker not in self.branch_progress:
                         self.branch_progress.append(marker)
                 else:
@@ -10201,8 +10303,12 @@ class FreeStageSession:
                 if "C16_GATE_WATCH_CONTINUATION" not in hidden_segments:
                     hidden_segments.append("C16_GATE_WATCH_CONTINUATION")
                 for beat in ("ZG3", "ZG4"):
-                    if beat not in self.completed:
-                        self.completed.append(beat)
+                    self._commit_beat(
+                        beat,
+                        turn_no=turn_no,
+                        source_kind="canon_segment",
+                        evidence_refs=("canon:C16_GATE_WATCH_CONTINUATION",),
+                    )
                 canon_state["pending_stop"] = ""
                 canon_state["player_position"] = "shop_counter_zhangchen_path"
                 transition = self._maybe_transition(player_input, turn_no, [])
@@ -10447,7 +10553,12 @@ class FreeStageSession:
             ) if self.ryuya_flashback_return else max(0, len(self.inputs))
             # 闲聊已发生 = 可记账的场面进度，不是玩家闸。
             if flash_beats >= 1 and "RP1" not in self.completed:
-                self.completed.append("RP1")
+                self._commit_beat(
+                    "RP1",
+                    turn_no=turn_no,
+                    source_kind="player_turn_presence",
+                    evidence_refs=(f"player-input:turn:{int(turn_no)}",),
+                )
             topic_hit = ryuya_deep_topic_interface(
                 {"speech": speech, "action": action},
                 self.history,
@@ -11141,22 +11252,32 @@ class FreeStageSession:
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
             newly_completed = [mh for mh in new_progress if mh not in set(self.completed)]
-            self.completed.extend(new_progress)
             must_happen_by_id = {
                 str(item.get("id", "") or "").strip(): item
                 for item in resolved_card.get("must_happen", [])
                 if isinstance(item, dict) and str(item.get("id", "") or "").strip()
             }
             for beat in new_progress:
-                receipt_owner = str(must_happen_by_id.get(beat, {}).get("receipt_owner", "") or "").strip()
+                receipt_owner = str(
+                    must_happen_by_id.get(beat, {}).get("receipt_owner", "") or ""
+                ).strip()
                 if receipt_owner:
-                    self._record_scene_receipt(
+                    receipt = self._record_scene_receipt(
                         beat,
                         owner=receipt_owner,
                         turn_no=turn_no,
                         source_input=_player_public_input_text(player_input),
                         source_kind="observed_progress",
                     )
+                    evidence_refs = (str(receipt["receipt_id"]),)
+                else:
+                    evidence_refs = (f"evidence:visible-turn:{int(turn_no)}:{beat}",)
+                self._commit_beat(
+                    beat,
+                    turn_no=turn_no,
+                    source_kind="deterministic_evidence",
+                    evidence_refs=evidence_refs,
+                )
 
             # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
             # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
@@ -11706,10 +11827,21 @@ class FreeStageSession:
         if self.card.get("pacing") != "brief":
             raise ValueError("Only brief scenes can be skipped.")
 
-        # Complete all must_happens
+        # Explicit skip is an event source, never a direct completed writer.
         must_happens = self.card.get("must_happen", [])
         all_ids = [str(mh.get("id")) for mh in must_happens if mh.get("id")]
-        self.completed = all_ids
+        skip_ref = (
+            f"skip:{self.session_id}:"
+            f"{self._current_runtime_scope().scene_instance_id}:"
+            f"{len(self.inputs)}"
+        )
+        for beat in all_ids:
+            self._commit_beat(
+                beat,
+                turn_no=len(self.inputs),
+                source_kind="scene_skip",
+                evidence_refs=(skip_ref,),
+            )
 
         # P1a: skip may still use the legacy P2 beat-completion bridge above,
         # but exit authority is no longer implicit. Ambiguous multi-exit skips

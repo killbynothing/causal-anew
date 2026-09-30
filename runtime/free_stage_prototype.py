@@ -12080,8 +12080,7 @@ class FreeStageSession:
         if ready_canon is not None:
             burst = self._emit_canon_burst(ready_canon, turn_no=turn_no)
             emitted.extend(burst)
-            scene_id = str(self.card.get("scene_id", self.card_path))
-                return None
+            return None
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
         # policy below: RP completion unlocks leaving; it never means "leave now".

@@ -35,14 +35,24 @@ def production(report, fact):
     ]
 
 
-def test_p2c_completed_projection_has_one_business_writer():
+def test_p2c_completed_has_zero_business_writers_and_one_projection_writer():
     report = load_report()
     completed = production(report, "completed")
     completed_by_card = production(report, "completed_by_card")
-    assert {row["symbol"] for row in completed} == {"FreeStageSession._sync_beat_projections"}
-    assert {row["symbol"] for row in completed_by_card} == {"FreeStageSession._sync_beat_projections"}
-    assert report["facts"]["completed"]["production_writer_count"] == 1
-    assert report["facts"]["completed_by_card"]["production_writer_count"] == 1
+    assert completed == []
+    assert completed_by_card == []
+    assert report["facts"]["completed"]["production_writer_count"] == 0
+    assert report["facts"]["completed_by_card"]["production_writer_count"] == 0
+    completed_projection = [
+        row for row in report["facts"]["completed"]["writers"]
+        if row["classification"] == "projection"
+    ]
+    by_card_projection = [
+        row for row in report["facts"]["completed_by_card"]["writers"]
+        if row["classification"] == "projection"
+    ]
+    assert {row["symbol"] for row in completed_projection} == {"FreeStageSession._sync_beat_projections"}
+    assert {row["symbol"] for row in by_card_projection} == {"FreeStageSession._sync_beat_projections"}
 
 
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
@@ -82,7 +92,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 
 if __name__ == "__main__":
-    test_p2c_completed_projection_has_one_business_writer()
+    test_p2c_completed_has_zero_business_writers_and_one_projection_writer()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

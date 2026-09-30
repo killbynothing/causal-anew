@@ -758,7 +758,7 @@ VALIDATORS = [
     },
     {
         "id": "session_schema_migration",
-        "desc": "P0b session v1→v2 纯内存迁移：非破坏、未知版本拒写、生产仍停 v1",
+        "desc": "P2c session v2 激活：v1→v2 非破坏迁移、未知版本拒写、BeatState 域迁移后落 v2",
         "tier": "quick",
         "cmd": [PY, "scripts/tests/test_session_schema_migration.py"],
         "triggers": [

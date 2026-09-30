@@ -8,6 +8,7 @@ unknown ids remain unresolved.
 from __future__ import annotations
 
 import copy
+from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
 from runtime.causal_protocol import canonical_payload_hash

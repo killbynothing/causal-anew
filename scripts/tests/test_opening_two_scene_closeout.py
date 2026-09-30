@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 sys.path[:0] = [str(ROOT), str(ROOT / "runtime")]
 
+from runtime import beat_state
 from runtime.free_stage_prototype import (
     FreeStageSession,
     opening_scene_secret_leak_violations,
@@ -154,7 +155,15 @@ def test_standalone_ryuya_prologue_completion_only_unlocks_exit():
             autosave=False,
             caller=_dummy_caller,
         )
-        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        beat_state.seed_completed(
+            sess.beat_states,
+            scope=sess._current_runtime_scope(),
+            scene_id=str(sess.card.get("scene_id")),
+            completed=["RP1", "RP2", "RP3", "RP4"],
+            source_kind="test_fixture",
+            source_ref="fixture:standalone-complete",
+        )
+        sess._sync_beat_projections()
         captured = []
         sess._write_delta = lambda events: captured.extend(events) or len(events)
 

@@ -39,8 +39,12 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["parse_errors"] == []
 
     completed = writers(report, "completed", "production")
-    assert any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
-    assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+    assert completed == []
+    beat_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert "self.beat_state = beat_reducer.BeatState.empty" in beat_source
+    assert "self._beat_complete(" in beat_source
+    assert "self._beat_complete_many(" in beat_source
+    assert "self._beat_replace(" in beat_source
 
     world_tx = writers(report, "world_transactions", "production")
     # P2a moves business append authority out of FreeStageSession. Reset remains
@@ -69,12 +73,15 @@ def test_scanner_finds_representative_five_domain_writers():
 def test_scanner_separates_initialization_and_reports_callers():
     report = get_report()
     completed = report["facts"]["completed"]["writers"]
-
-    init_rows = [row for row in completed if row["symbol"].endswith("FreeStageSession.__init__")]
-    assert init_rows
-    assert all(row["classification"] == "initialization" for row in init_rows)
+    assert not [
+        row for row in completed
+        if row["classification"] in {"production", "production_tooling", "initialization"}
+    ]
 
     ended = report["facts"]["ended"]["writers"]
+    init_rows = [row for row in ended if row["symbol"].endswith("FreeStageSession.__init__")]
+    assert init_rows
+    assert all(row["classification"] == "initialization" for row in init_rows)
     lifecycle_writer = next(
         row for row in ended
         if row["symbol"].endswith("_set_lifecycle_state")

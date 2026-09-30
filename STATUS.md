@@ -1,5 +1,19 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2c-Beat 完成：BeatReducer 唯一写权 × scene instance）
+
+- **Beat 权威**：新增 `runtime/beat_state.py`。FreeStageSession 的 `completed/completed_by_card` 改成无 setter 的只读投影；业务完成只经 `BeatReducer.complete()` 生成带 RuntimeScope 的 Beat receipt。canon segment、RP4、十六中隐藏续段、闲聊 RP1、普通 evidence、brief skip 均已迁入口。
+- **scene instance**：同一 scene 重访生成新的 `scene:visit:n`，不继承旧 Beat；闪回进入新 instance，返回恢复原 instance。WorldCommit 的 RuntimeScope 也改读同一个 active Beat scene instance，避免 Beat/World 坐标各猜各的。
+- **旧存档**：v1 `completed/completed_by_card` 只迁成 `legacy_snapshot` Beat receipt，并标记 `legacy_snapshot_no_player_receipt`；不伪造玩家行为来源。
+- **测试/旧夹具**：生产对象不加 setter。原先直接 `session.completed=[...]` 的 P2b/P1a 测试统一改走 `_complete_beats(... source_kind=test_fixture)`。live Authority Map gate 已要求 Session `completed` production writer=0。
+- **额外实修**：收 Beat 时暴露两条旧姓名门控债并修复：① hard_check 不再用最终 completed/未来姓名绑定倒灌审过去；② synthetic companion 晚于第一次 redaction 插入时，最终 stream boundary 会再跑统一姓名门控。介绍前泄漏与介绍后描述名禁用规则本身未放宽。
+- **历史窗口**：新增并持久化当前 scene history 起点，场级 hard_check 不再把上一场对白套当前卡规则；legacy snapshot 无可靠边界时从 reload 后的新输出开始审。
+- **闸**：新增 quick `beat_reducer_p2c`；覆盖 receipt 幂等、重访隔离、闪回/instance、legacy migration、save/load、无 setter、逐拍姓名时间箭头、late companion 门控。smoke 真实跑通后不再有描述名/实名倒灌。
+- **验**：GitHub Actions [36699417445](https://github.com/killbynothing/causal-anew/actions/runs/36699417445) **success**；quick **50 PASS / 0 FAIL / 163 SKIP（213 validators）**；`data/world_truth.db` checksum 前后不变。
+- **边界**：P2c **未完成**。本轮只收 Beat 域；`branch_progress / scene_receipts / run_observation_ledger / player_state / body_frames / world_cursor` 等世界域兼容 writer 仍待逐域迁移。完整 Authority Map 机器报告在 P2c 全域收尾时统一重生成，当前 required gate 以 live 扫描为准。
+- **报账**：未改 run=0、场卡、Seed/VOICE、★★★ 挂坠事实粒度或真人 a14 DB。**正典/人物/剧情新增 = 0**。
+- **下一动**：P2c 下一小域只收 **scene_receipts**，把场内事实收据从 Session 可变 dict 迁成 receipt/world-derived 投影；不同时吞 branch_progress，避免两个域一起失真。
+
 ### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
 
 - **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。

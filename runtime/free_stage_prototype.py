@@ -11227,12 +11227,6 @@ class FreeStageSession:
                     new_progress = [mh for mh in new_progress if mh in {"RP1"}]
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
-            intro_done_before_commit = intro_done_for_card(
-                resolved_card,
-                self.completed,
-                history=self.history,
-                player_profile=self.player_profile,
-            )
             newly_completed = self._complete_beats(
                 new_progress,
                 turn_no=turn_no,
@@ -11247,12 +11241,10 @@ class FreeStageSession:
                 history=self.history,
                 player_profile=self.player_profile,
             )
-            if not intro_done_before_commit and intro_done_after_commit:
-                # The same visible beat may disclose names and complete the
-                # intro gate. Re-project its bubble labels after the Beat
-                # commit, before the turns enter history. This keeps the
-                # pre-intro guard strict without leaving descriptors on the
-                # disclosure beat itself.
+            if intro_done_after_commit:
+                # Once the intro gate is satisfied, every mappable bubble in
+                # this beat uses the public real-name projection. This also
+                # repairs labels redacted earlier in the same disclosure beat.
                 introduced_after = _npc_introduced_to_player_after_turn(
                     resolved_card,
                     self.history,

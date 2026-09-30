@@ -75,9 +75,11 @@ def test_scanner_separates_initialization_and_reports_callers():
     init_rows = [row for row in completed if row["symbol"].endswith("BeatReducer.__init__")]
     assert init_rows
     assert all(row["classification"] == "initialization" for row in init_rows)
-    load_rows = [row for row in completed if row["symbol"].endswith("BeatReducer.from_state")]
-    assert load_rows
-    assert all(row["classification"] == "load_migration" for row in load_rows)
+    # from_state is the migration entry, but the direct writes it delegates
+    # to are __init__/replace_current. Do not mislabel callers as direct writers.
+    reducer_source = (ROOT / "runtime" / "beat_reducer.py").read_text(encoding="utf-8")
+    assert "def from_state(" in reducer_source
+    assert 'source_kind="legacy_load"' in reducer_source
 
     ended = report["facts"]["ended"]["writers"]
     lifecycle_writer = next(

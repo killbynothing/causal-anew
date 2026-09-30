@@ -1,5 +1,18 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
+
+- **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。
+- **offer 证据**：words-only / action-only 均不建立 offer，必须“口头明确赠与 + 可见递物”同时成立；stage-only 托付不能完成 RP3。
+- **节拍与 caller**：高拍数玩笑不会自动完成 RP2/RP3，认真转题可推进 RP2；caller payload 必须带真实 cog decide / prior Reflect / 当下 BodyFrame，accept 后 caller 看到龙也 holding 已清，拒/暂放仍看到挂坠在龙也身体帧。
+- **处分矩阵**：模糊回应、托付承诺、不理继续聊均不产生挂坠 PlayerAction/WorldCommit/RP4；收/拒/暂放产生同源 PlayerAction→WorldCommit→observation，accepted 才给 player props 并清 Ryuya holding。
+- **★★★ 保留**：测试**不规定 deferred 是否应当完成 RP4**；只要求当前 Beat 投影不得早于成功 WorldCommit，且 save→load 前后保持同一结果。正典粒度仍留人裁。
+- **退出**：accepted 后继续聊保持 open；只有明确离场才走 ExitPolicy 并 closed，世界事务不被离场重复改写。
+- **持久化**：每个矩阵 case 都做 save→load，对比 world transactions、player action receipts、props、BodyFrame、observation ledger、completed、lifecycle/ended。
+- **验**：GitHub Actions [36680855865](https://github.com/killbynothing/causal-anew/actions/runs/36680855865) **success**；quick **49 PASS / 0 FAIL / 163 SKIP（212 validators）**；`data/world_truth.db` checksum 前后不变。
+- **报账**：本轮只新增联合验收，不改场卡/Seed/VOICE/run=0/挂坠 A-B 正典或真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：进入 **P2c**，把 `completed/branch/scene receipts/run_observation/player_state/body_frames/world_cursor` 等剩余世界/Beat writer 逐域迁到唯一提交/派生入口，Authority Map 本域生产旁路收零；不提前进入 P3 ActorMind。
+
 ### 2026-09-29（P2b-1 完成：挂坠处分来源链 × WorldCommit 同源投影）
 
 - **投影权威**：新增 `runtime/world_projection.py`。挂坠 player props、龙也 BodyFrame、run observation ledger 不再由 `_finalize_prologue_pendant()` 三处手改，而是只读已经提交的 WorldCommit receipt 一次性派生；reducer 对输入 copy-safe、重复投影幂等。

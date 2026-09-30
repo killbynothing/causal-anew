@@ -40,7 +40,10 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     },
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},
     "causal_receipts": {"domain": "world", "target_owner": "WorldCommit"},
-    "run_observation_ledger": {"domain": "world", "target_owner": "WorldCommit"},
+    "run_observation_ledger": {
+        "domain": "world_projection",
+        "target_owner": "ObservationLedger",
+    },
     "player_state": {"domain": "player_world", "target_owner": "WorldCommit"},
     "body_frames": {"domain": "world", "target_owner": "WorldCommit"},
     "world_cursor": {"domain": "world", "target_owner": "WorldCommit"},

@@ -131,11 +131,7 @@ from runtime.intent_runtime import (
 )
 from runtime.ambient_actor import establish_after_reciprocity, hydrate_resolution as hydrate_ambient_resolution
 from runtime.world_coordinates import project_world_coordinates
-from runtime.run_observation_ledger import (
-    append_observation as _ledger_append,
-    boost_importance as _ledger_boost,
-    high_importance_facts as _ledger_high,
-)
+from runtime.run_observation_ledger import ObservationLedgerState
 from runtime import opening_top_tier as ott
 from runtime import actor_cog_loop as cogloop
 from runtime import director_harness
@@ -7176,7 +7172,7 @@ class FreeStageSession:
             "physical": "good",
             "elapsed_minutes": 0,
         }
-        self.run_observation_ledger: list[dict[str, Any]] = []
+        self.observation_state = ObservationLedgerState.empty()
         self.utterance_pending_queue: list[dict[str, Any]] = []
         self.companion_pending_queue: list[dict[str, Any]] = []
         self.stream_hold: bool = False
@@ -7400,9 +7396,9 @@ class FreeStageSession:
         self.player_state.setdefault("energy", 0.78)
         self.player_state.setdefault("physical", "good")
         self.player_state.setdefault("elapsed_minutes", 0)
-        self.run_observation_ledger = [
-            dict(item) for item in data.get("run_observation_ledger", []) if isinstance(item, dict)
-        ]
+        self.observation_state = ObservationLedgerState.from_snapshot(
+            data.get("run_observation_ledger", [])
+        )
         self.utterance_pending_queue = [
             dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
         ]
@@ -7733,6 +7729,35 @@ class FreeStageSession:
         )
 
     @property
+    def run_observation_ledger(self) -> list[dict[str, Any]]:
+        """Read-only compatibility view owned by ObservationLedgerState."""
+        return self.observation_state.rows
+
+    def _observe(
+        self,
+        *,
+        kind: str,
+        fact_text: str,
+        turn: int = 0,
+        scene_id: str = "",
+        session_id: str = "",
+        run_id: int | str = 1,
+        extra: dict[str, Any] | None = None,
+    ) -> bool:
+        return self.observation_state.append(
+            kind=kind,
+            fact_text=fact_text,
+            turn=turn,
+            scene_id=scene_id,
+            session_id=session_id,
+            run_id=run_id,
+            extra=extra,
+        )
+
+    def _observation_replace(self, rows: Any) -> None:
+        self.observation_state.replace(rows)
+
+    @property
     def branch_progress(self) -> list[str]:
         """Legacy branch view; production mutations belong to FactProjection."""
         return self.fact_projection.branch_progress
@@ -7853,7 +7878,7 @@ class FreeStageSession:
             "elapsed_minutes": 0,
         }
         self._triggered_at_clocks: set[str] = set()
-        self.run_observation_ledger = []
+        self.observation_state.reset()
         self.utterance_pending_queue = []
         self.companion_pending_queue = []
         self.stream_hold = False
@@ -8125,7 +8150,7 @@ class FreeStageSession:
         )
         self.player_state = projected.player_state
         self.body_frames = projected.body_frames
-        self.run_observation_ledger = projected.observation_ledger
+        self._observation_replace(projected.observation_ledger)
         ensure_card_body_frames(self.card, self.body_frames)
         self._record_scene_receipt(
             "ryuya_pendant_disposition",
@@ -8187,9 +8212,7 @@ class FreeStageSession:
         if not turns:
             return []
         self._pendant_layer_c_emitted = True
-        self.run_observation_ledger = _ledger_append(
-            self.run_observation_ledger,
-            turn=turn_no,
+        self._observe(turn=turn_no,
             scene_id=str(self.card.get("scene_id", "")),
             fact_text="挂坠层C短闪回：雨声/旧桌/递坠",
             kind="pendant_layer_c",
@@ -10310,9 +10333,7 @@ class FreeStageSession:
             }
             for fact_key, (kind, text) in _OBS_FACT_MAP.items():
                 if fact_key in facts_this_turn:
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
-                        turn=turn_no, scene_id=scene_id_for_obs,
+                    self._observe(turn=turn_no, scene_id=scene_id_for_obs,
                         fact_text=text, kind=kind,
                     )
 
@@ -11394,16 +11415,12 @@ class FreeStageSession:
             # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
             # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
             if "RP3" in newly_completed:
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
-                    turn=turn_no,
+                self._observe(turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
                     kind="entrust",
                 )
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
-                    turn=turn_no,
+                self._observe(turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="禁名警告已说出：说了会有危险，会死人",
                     kind="name_ban_warning",
@@ -11427,9 +11444,7 @@ class FreeStageSession:
                     and str(row.get("kind") or "") == "pendant_offer"
                     for row in self.run_observation_ledger
                 ):
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
-                        turn=turn_no,
+                    self._observe(turn=turn_no,
                         scene_id=str(self.card.get("scene_id", "")),
                         fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
                         kind="pendant_offer",
@@ -12641,9 +12656,7 @@ class FreeStageSession:
                 self.history.append(look)
                 emitted.append(look)
                 self._pendant_look_emitted = True
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
-                    turn=turn_no,
+                self._observe(turn=turn_no,
                     scene_id=str(target_scene_id),
                     fact_text="回场时玩家看向随身吊坠",
                     kind="pendant",

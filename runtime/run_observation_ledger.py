@@ -143,3 +143,74 @@ def append_from_branch_fact(
         scene_id=scene_id,
         session_id=session_id,
     )
+
+class ObservationLedgerState:
+    """Single append/replace authority for the run-scoped observation view."""
+
+    def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
+        self._rows = [dict(row) for row in (rows or []) if isinstance(row, dict)]
+
+    @classmethod
+    def empty(cls) -> "ObservationLedgerState":
+        return cls([])
+
+    @classmethod
+    def from_snapshot(cls, rows: Any) -> "ObservationLedgerState":
+        if rows is None:
+            return cls.empty()
+        if not isinstance(rows, list):
+            raise ValueError("run_observation_ledger must be a list")
+        return cls([dict(row) for row in rows if isinstance(row, dict)])
+
+    @property
+    def rows(self) -> list[dict[str, Any]]:
+        return [dict(row) for row in self._rows]
+
+    def append(
+        self,
+        *,
+        kind: str,
+        fact_text: str,
+        turn: int = 0,
+        scene_id: str = "",
+        session_id: str = "",
+        run_id: int | str = 1,
+        extra: dict[str, Any] | None = None,
+    ) -> bool:
+        before = len(self._rows)
+        self._rows = append_observation(
+            self._rows,
+            kind=kind,
+            fact_text=fact_text,
+            turn=turn,
+            scene_id=scene_id,
+            session_id=session_id,
+            run_id=run_id,
+            extra=extra,
+        )
+        return len(self._rows) > before
+
+    def boost(
+        self,
+        obs_id: str,
+        amount: int,
+        *,
+        caused_by_event: str = "",
+    ) -> bool:
+        before = self.rows
+        self._rows = boost_importance(
+            self._rows,
+            obs_id,
+            amount,
+            caused_by_event=caused_by_event,
+        )
+        return self._rows != before
+
+    def replace(self, rows: Any) -> None:
+        if not isinstance(rows, list):
+            raise ValueError("observation ledger replacement must be a list")
+        self._rows = [dict(row) for row in rows if isinstance(row, dict)]
+
+    def reset(self) -> None:
+        self._rows = []
+

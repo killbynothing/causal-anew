@@ -7109,9 +7109,6 @@ class FreeStageSession:
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
         self.beat_reducer = beat_reducer.BeatReducer()
-        self.completed_by_card: dict[str, list[str]] = {}
-        self.completed_beats: dict[str, list[str]] = {}
-        self.canon_performance_state: dict[str, dict[str, Any]] = {}
         self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
         self.offscreen_ledger: dict[str, Any] = {}
         self.heart_stages: dict[str, int] = {}
@@ -7230,6 +7227,33 @@ class FreeStageSession:
             source_ref="FreeStageSession.completed.setter",
         )
 
+    @property
+    def completed_by_card(self) -> dict[str, list[str]]:
+        return self.beat_reducer.completed_by_card_view()
+
+    @completed_by_card.setter
+    def completed_by_card(self, value: dict[str, list[str]]) -> None:
+        self.beat_reducer.replace_completed_by_card(value)
+
+    @property
+    def completed_beats(self) -> dict[str, list[str]]:
+        return self.beat_reducer.completed_beats_view()
+
+    @completed_beats.setter
+    def completed_beats(self, value: dict[str, list[str]]) -> None:
+        self.beat_reducer.replace_completed_beats(value)
+
+    @property
+    def canon_performance_state(self) -> dict[str, dict[str, Any]]:
+        return self.beat_reducer.canon_performance_state_view()
+
+    @canon_performance_state.setter
+    def canon_performance_state(self, value: dict[str, dict[str, Any]]) -> None:
+        self.beat_reducer.replace_canon_performance_state(value)
+
+    def _snapshot_completed_scene(self, scene_id: str) -> list[str]:
+        return self.beat_reducer.snapshot_scene(scene_id, self.completed)
+
     def _beat_scene_id(self) -> str:
         return str(self.card.get("scene_id") or self.card_path)
 
@@ -7303,23 +7327,11 @@ class FreeStageSession:
         self.beat_reducer = beat_reducer.BeatReducer.from_state(
             data.get("beat_state"),
             legacy_completed=[str(x) for x in data.get("completed", [])],
+            legacy_completed_by_card=data.get("completed_by_card"),
+            legacy_completed_beats=data.get("completed_beats"),
+            legacy_canon_performance_state=data.get("canon_performance_state"),
             scene_id=str(self.card.get("scene_id") or self.card_path),
         )
-        self.completed_by_card = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_by_card", {})).items()
-            if isinstance(v, list)
-        }
-        self.completed_beats = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_beats", {})).items()
-            if isinstance(v, list)
-        }
-        self.canon_performance_state = {
-            str(scene_id): dict(state)
-            for scene_id, state in dict(data.get("canon_performance_state", {})).items()
-            if isinstance(state, dict)
-        }
         self.world_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
         stored_run = data.get("run_no", self.world_cursor.get("run", self.run_no))
         try:
@@ -7723,9 +7735,6 @@ class FreeStageSession:
     def reset(self) -> None:
         self._assert_writable("reset")
         self.beat_reducer.reset_all()
-        self.completed_by_card = {}
-        self.completed_beats = {}
-        self.canon_performance_state = {}
         self.world_cursor = _card_cursor(self.card, self.run_no)
         self.offscreen_ledger = {}
         self.heart_stages = {}
@@ -8185,7 +8194,7 @@ class FreeStageSession:
             return []
 
         source_scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._snapshot_completed_scene(source_scene_id)
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         self.ryuya_flashback_return = {
             "card_path": str(self.card_path),
@@ -8829,20 +8838,7 @@ class FreeStageSession:
 
     def _canon_scene_state(self) -> dict[str, Any]:
         scene_id = str(self.card.get("scene_id", self.card_path))
-        state = self.canon_performance_state.setdefault(
-            scene_id,
-            {
-                "completed_segments": [],
-                "not_visible_segments": [],
-                "pending_stop": "",
-                "player_position": "",
-            },
-        )
-        state.setdefault("completed_segments", [])
-        state.setdefault("not_visible_segments", [])
-        state.setdefault("pending_stop", "")
-        state.setdefault("player_position", "")
-        return state
+        return self.beat_reducer.canon_scene_state(scene_id)
 
     def _emit_canon_segment(self, segment: dict[str, Any], *, turn_no: int) -> list[dict[str, Any]]:
         segment_id = str(segment.get("segment_id", "") or "").strip()
@@ -8874,11 +8870,17 @@ class FreeStageSession:
             progressive_intro=True,
         )
         self.history.extend(emitted)
-        completed_segments.append(segment_id)
-        state["pending_stop"] = str(segment.get("interrupt_after", "") or "").strip()
         player_position = str(segment.get("player_position_after", "") or "").strip()
+        canon_update: dict[str, Any] = {
+            "completed_segment": segment_id,
+            "pending_stop": str(segment.get("interrupt_after", "") or "").strip(),
+        }
         if player_position:
-            state["player_position"] = player_position
+            canon_update["player_position"] = player_position
+        self.beat_reducer.update_canon_scene(
+            str(self.card.get("scene_id", self.card_path)),
+            **canon_update,
+        )
         self._apply_canon_segment_world_effects(segment, turn_no=turn_no)
         present_after = segment.get("present_after")
         if isinstance(present_after, list):
@@ -9044,7 +9046,7 @@ class FreeStageSession:
         transition: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[scene_id] = list(self.completed)
+        self._snapshot_completed_scene(scene_id)
         self.stall = 0
         self.last_degradations = []
         self.last_issues = hard_check(self.history, self.completed, self.card)
@@ -9430,13 +9432,20 @@ class FreeStageSession:
         for item_id in progress:
             beats = list(items.get(item_id, {}).get("frame_beat") or [])
             if beats:
-                frame_beat_ledger.mark_done(self.completed_beats, self.run_no, frame_id, beats)
+                self.beat_reducer.mark_frame_beats(
+                    run=self.run_no,
+                    frame_id=frame_id,
+                    beat_ids=beats,
+                )
 
     def _resolve_frame_beat_view(self, card: dict[str, Any]) -> dict[str, Any]:
         frame_id = _card_frame_id(card)
         if not frame_id:
             return card
-        done = frame_beat_ledger.completed_beats(self.completed_beats, self.run_no, frame_id)
+        done = self.beat_reducer.frame_completed_beats(
+            run=self.run_no,
+            frame_id=frame_id,
+        )
         if not done:
             return card
         live: list[dict[str, Any]] = []
@@ -10288,20 +10297,19 @@ class FreeStageSession:
                     self.branch_progress.append("watch")
                 if "c16_p2_follow_zhangchen" not in self.branch_progress:
                     self.branch_progress.append("c16_p2_follow_zhangchen")
-                completed_segments = canon_state.setdefault("completed_segments", [])
-                if "C16_GATE_WATCH_CONTINUATION" not in completed_segments:
-                    completed_segments.append("C16_GATE_WATCH_CONTINUATION")
-                hidden_segments = canon_state.setdefault("not_visible_segments", [])
-                if "C16_GATE_WATCH_CONTINUATION" not in hidden_segments:
-                    hidden_segments.append("C16_GATE_WATCH_CONTINUATION")
+                self.beat_reducer.update_canon_scene(
+                    str(self.card.get("scene_id", self.card_path)),
+                    completed_segment="C16_GATE_WATCH_CONTINUATION",
+                    hidden_segment="C16_GATE_WATCH_CONTINUATION",
+                    pending_stop="",
+                    player_position="shop_counter_zhangchen_path",
+                )
                 self._complete_beats(
                     ("ZG3", "ZG4"),
                     turn_no=turn_no,
                     source_kind="canon_route",
                     source_ref="follow_zhangchen:C16_GATE_WATCH_CONTINUATION",
                 )
-                canon_state["pending_stop"] = ""
-                canon_state["player_position"] = "shop_counter_zhangchen_path"
                 transition = self._maybe_transition(player_input, turn_no, [])
                 if transition:
                     return self._canon_step_result(
@@ -10314,8 +10322,11 @@ class FreeStageSession:
                 if "c16_counter_encounter_cancelled" not in self.branch_progress:
                     self.branch_progress.append("c16_counter_encounter_cancelled")
                     self._record_c16_encounter_diversion(encounter_diversion, turn_no, player_input)
-                canon_state["pending_stop"] = "P1_ROUTE_DIVERGED"
-                canon_state["player_position"] = "diverted_from_counter_encounter"
+                self.beat_reducer.update_canon_scene(
+                    str(self.card.get("scene_id", self.card_path)),
+                    pending_stop="P1_ROUTE_DIVERGED",
+                    player_position="diverted_from_counter_encounter",
+                )
                 bridge = {
                     "role": "bridge",
                     "speaker": "旁白",
@@ -11331,7 +11342,7 @@ class FreeStageSession:
                 emitted,
             )
             scene_id = str(resolved_card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._snapshot_completed_scene(scene_id)
             self.stall = 0 if new_progress else self.stall + 1
             if stall_escalation:
                 self._stall_escalation_fired_scenes.add(current_scene_id)
@@ -11386,7 +11397,7 @@ class FreeStageSession:
                     self.body_frames, resolved_card, auto_canon_turns
                 )
                 ensure_card_body_frames(resolved_card, self.body_frames)
-                self.completed_by_card[scene_id] = list(self.completed)
+                self._snapshot_completed_scene(scene_id)
             note_item = {
                 "role": "director_note",
                 "speaker": "导演暗注",
@@ -11843,7 +11854,7 @@ class FreeStageSession:
                 raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
             closed = self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
+            self._snapshot_completed_scene(source_scene_id)
             if closed:
                 self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
@@ -11878,7 +11889,7 @@ class FreeStageSession:
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         
         # Save completed by card
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._snapshot_completed_scene(source_scene_id)
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         
         # Consolidation
@@ -12054,7 +12065,7 @@ class FreeStageSession:
             burst = self._emit_canon_burst(ready_canon, turn_no=turn_no)
             emitted.extend(burst)
             scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._snapshot_completed_scene(scene_id)
             return None
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
@@ -12173,7 +12184,7 @@ class FreeStageSession:
 
         if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
+            self._snapshot_completed_scene(source_scene_id)
 
             # Legacy café accounting remains an execution concern for now; the
             # authority to end came only from ExitPolicy.

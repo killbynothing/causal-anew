@@ -35,8 +35,23 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
         "semantic_fact": "completed",
     },
     "completed_by_card": {"domain": "beat", "target_owner": "BeatReducer"},
+    "_completed_by_card": {
+        "domain": "beat",
+        "target_owner": "BeatReducer",
+        "semantic_fact": "completed_by_card",
+    },
     "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},
+    "_completed_beats": {
+        "domain": "beat",
+        "target_owner": "BeatReducer",
+        "semantic_fact": "completed_beats",
+    },
     "canon_performance_state": {"domain": "beat", "target_owner": "BeatReducer"},
+    "_canon_performance_state": {
+        "domain": "beat",
+        "target_owner": "BeatReducer",
+        "semantic_fact": "canon_performance_state",
+    },
     "branch_progress": {"domain": "world", "target_owner": "WorldCommit"},
     "scene_receipts": {"domain": "world", "target_owner": "WorldCommit"},
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},

@@ -649,6 +649,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_beat_reducer_p2c1.py",
     },
     {
+        "id": "beat_ancillary_p2c2",
+        "desc": "P2c-2 Beat附属状态：跨场快照、frame ledger、canon cursor 单owner与v1迁移",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_beat_ancillary_p2c2.py"],
+        "triggers": [
+            "runtime/beat_reducer.py",
+            "runtime/beat_ledger.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_beat_ancillary_p2c2.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_beat_ancillary_p2c2.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

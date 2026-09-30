@@ -649,6 +649,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_beat_state_p2c.py",
     },
     {
+        "id": "fact_projection_p2c",
+        "desc": "P2c FactProjection：branch/scene receipt兼容投影、来源链、生产writer归零",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_fact_projection_p2c.py"],
+        "triggers": [
+            "runtime/fact_projection.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_fact_projection_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_fact_projection_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

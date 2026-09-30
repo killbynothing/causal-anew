@@ -32,8 +32,8 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "completed_by_card": {"domain": "beat", "target_owner": "BeatReducer"},
     "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},
     "canon_performance_state": {"domain": "beat", "target_owner": "BeatReducer"},
-    "branch_progress": {"domain": "world", "target_owner": "WorldCommit"},
-    "scene_receipts": {"domain": "world", "target_owner": "WorldCommit"},
+    "branch_progress": {"domain": "world_projection", "target_owner": "FactProjection"},
+    "scene_receipts": {"domain": "world_projection", "target_owner": "FactProjection"},
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},
     "causal_receipts": {"domain": "world", "target_owner": "WorldCommit"},
     "run_observation_ledger": {"domain": "world", "target_owner": "WorldCommit"},
@@ -65,6 +65,7 @@ SQL_TABLE_SPECS: dict[str, dict[str, str]] = {
 REMOVAL_PHASE_BY_DOMAIN = {
     "beat": "P2c",
     "world": "P2c",
+    "world_projection": "P2c",
     "player_world": "P2",
     "mind_legacy": "P3",
     "mind": "P3",

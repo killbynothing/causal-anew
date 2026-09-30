@@ -98,7 +98,7 @@ def test_session_projects_scene_receipt_into_frame_receipt_and_save_load():
         "scene_id": "FRAME_VIEW_A",
         "scene_frame": {"frame_id": "F.SHARED"},
         "must_happen": [
-            {"id": "M1", "frame_beat": ["BE1", "BE2"]},
+            {"id": "RP1", "frame_beat": ["BE1", "BE2"]},
             {"id": "LOCAL", "frame_beat": []},
         ],
     }
@@ -115,14 +115,17 @@ def test_session_projects_scene_receipt_into_frame_receipt_and_save_load():
         )
         added = session._reduce_beat_state(
             "complete",
-            beat_ids=["M1"],
+            beat_ids=["RP1"],
             turn_no=2,
             source_kind="fixture_visible",
             evidence_refs=("visible-output:2",),
-            scene_id="FRAME_VIEW_A",
         )
-        assert added == ["M1"]
-        scene_receipt = dict(session.beat_receipts[-1])
+        assert added == ["RP1"]
+        active = beat_state.active_scene(session.beat_state)
+        evidence_ids = active["satisfied"]["RP1"]["evidence_ids"]
+        assert len(evidence_ids) == 1
+        scene_evidence_id = evidence_ids[0]
+        assert session.beat_receipts == []
 
         session._mark_frame_beats_for_progress(
             synthetic,
@@ -135,7 +138,7 @@ def test_session_projects_scene_receipt_into_frame_receipt_and_save_load():
         assert len(session.frame_beat_receipts) == 1
         frame_receipt = dict(session.frame_beat_receipts[0])
         assert frame_receipt["added"] == ["BE1", "BE2"]
-        assert frame_receipt["evidence_refs"] == [scene_receipt["receipt_id"]]
+        assert frame_receipt["evidence_refs"] == [scene_evidence_id]
 
         # Retry does not duplicate keys or receipts.
         session._mark_frame_beats_for_progress(synthetic, added, turn_no=2)

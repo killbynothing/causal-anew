@@ -95,6 +95,65 @@ def test_same_beat_retry_is_idempotent():
     assert len(beat_state.receipts_for_current(twice.state)) == 1
 
 
+def test_session_completed_is_read_only_projection_and_roundtrips():
+    import json
+    import tempfile
+    from runtime import free_stage_prototype as proto
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        card_path = root / "card.json"
+        card_path.write_text(json.dumps(card(), ensure_ascii=False), encoding="utf-8")
+        session = proto.FreeStageSession(
+            session_id="beat-session",
+            card_path=card_path,
+            state_dir=root / "states",
+            runtime_state_path=root / "runtime.db",
+            autosave=True,
+            load_existing=False,
+            caller=lambda **kwargs: json.dumps({"turns": [], "mh_progress": []}),
+        )
+        session._commit_beats(
+            ["B1"],
+            source_kind="test",
+            turn_no=1,
+            event_id="test:1",
+        )
+        assert session.completed == ["B1"]
+        leaked = session.completed
+        leaked.append("FAKE")
+        assert session.completed == ["B1"]
+        session.save()
+
+        resumed = proto.FreeStageSession(
+            session_id="beat-session",
+            card_path=card_path,
+            state_dir=root / "states",
+            runtime_state_path=root / "runtime.db",
+            autosave=True,
+            load_existing=True,
+            caller=lambda **kwargs: json.dumps({"turns": [], "mh_progress": []}),
+        )
+        assert resumed.completed == ["B1"]
+        assert resumed._state_payload()["beat_state"]["schema_version"] == beat_state.BEAT_STATE_SCHEMA
+
+
+def test_free_stage_has_no_direct_completed_writer():
+    import inspect
+    from runtime import free_stage_prototype as proto
+
+    source = inspect.getsource(proto.FreeStageSession)
+    for token in (
+        "self.completed =",
+        "self.completed.append(",
+        "self.completed.extend(",
+        "self.completed_by_card =",
+        "self.completed_by_card[",
+    ):
+        assert token not in source, token
+    assert "beat_state_store.commit_beats" in source
+
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

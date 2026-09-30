@@ -80,10 +80,17 @@ def test_unknown_aliases_are_reported_not_hidden():
     assert "body_frames" in report["summary"]["facts_with_unknown_aliases"]
 
 
+def test_p2c1_legacy_completed_projections_have_no_production_writer():
+    report = load_report()
+    assert production(report, "completed") == []
+    assert production(report, "completed_by_card") == []
+
+
 if __name__ == "__main__":
     test_known_bug_multiple_beat_writers_is_visible_until_p2()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()
     test_unknown_aliases_are_reported_not_hidden()
+    test_p2c1_legacy_completed_projections_have_no_production_writer()
     print("PASS test_authority_characterization")

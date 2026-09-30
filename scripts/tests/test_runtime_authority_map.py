@@ -39,8 +39,9 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["parse_errors"] == []
 
     completed = writers(report, "completed", "production")
-    assert any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
-    assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+    assert completed == []
+    completed_by_card = writers(report, "completed_by_card", "production")
+    assert completed_by_card == []
 
     world_tx = writers(report, "world_transactions", "production")
     # P2a moves business append authority out of FreeStageSession. Reset remains

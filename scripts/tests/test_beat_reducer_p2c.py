@@ -137,6 +137,29 @@ def test_session_completed_is_read_only_projection_and_scope_matches_beat_instan
             raise AssertionError("completed must have no production setter")
 
 
+def test_scene_history_window_does_not_reaudit_prior_scene_under_new_card():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="beat-history-window",
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=lambda **kwargs: json.dumps({"turns": [], "mh_progress": []}),
+        )
+        session.history.extend([
+            {"role": "npc", "speaker": "圆脸青年", "text": "借一下视频。", "stage": "", "turn": 1},
+            {"role": "npc", "speaker": "银发青年", "text": "麻烦你了。", "stage": "", "turn": 1},
+        ])
+        session._begin_scene_history_window()
+        session.history.append({
+            "role": "npc", "speaker": "张尘", "text": "到了下一场。", "stage": "", "turn": 2
+        })
+        window = session._current_scene_history()
+        assert len(window) == 1
+        assert window[0]["speaker"] == "张尘"
+
+
 def test_save_load_preserves_receipts_and_projection():
     with tempfile.TemporaryDirectory() as tmp:
         state_dir = Path(tmp) / "states"

@@ -7108,6 +7108,7 @@ class FreeStageSession:
             self.card = resolve_card_must_happen_variants(self.card, "converged")
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
+        self._scene_history_start_index = 0
         self.beats = beat_state.BeatReducer.new(
             str(self.card.get("scene_id", self.card_path))
         )
@@ -7243,6 +7244,13 @@ class FreeStageSession:
     def _resume_beat_scene(self, scene_id: str, scene_instance_id: str | None = None) -> str:
         return self.beats.resume_scene(scene_id, scene_instance_id)
 
+    def _current_scene_history(self) -> list[dict[str, Any]]:
+        start = max(0, min(len(self.history), int(self._scene_history_start_index or 0)))
+        return self.history[start:]
+
+    def _begin_scene_history_window(self) -> None:
+        self._scene_history_start_index = len(self.history)
+
     def _merged_opening_memories(self) -> dict[str, Any]:
         merged = dict(self.consolidated_memory_by_card)
         opening_block = project_opening_memory_for_card(
@@ -7271,6 +7279,13 @@ class FreeStageSession:
             self.entry_context = stored_entry_context
         self.card_history = [str(x) for x in data.get("card_history", [self.card.get("scene_id", str(self.card_path))])]
         self.history = list(data.get("history", []))
+        raw_scene_start = data.get("scene_history_start_index")
+        if isinstance(raw_scene_start, int) and not isinstance(raw_scene_start, bool):
+            self._scene_history_start_index = max(0, min(len(self.history), raw_scene_start))
+        else:
+            # Legacy snapshots have no reliable per-scene history boundary.
+            # Do not re-audit old scenes under the currently loaded card.
+            self._scene_history_start_index = len(self.history)
         self.completed_beats = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_beats", {})).items()
@@ -7480,6 +7495,7 @@ class FreeStageSession:
             "domain_state": domain_state.to_dict(),
             "card_history": self.card_history,
             "history": self.history,
+            "scene_history_start_index": int(self._scene_history_start_index),
             "beat_state": self.beats.to_dict(),
             "completed": self.completed,
             "completed_by_card": self.completed_by_card,
@@ -7763,6 +7779,7 @@ class FreeStageSession:
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
         # + delayed flashback replace the mandatory front-door prologue.
         self.history = []
+        self._scene_history_start_index = 0
         self.runtime_store.delete()
         if self.autosave:
             self.save()
@@ -8174,6 +8191,7 @@ class FreeStageSession:
         self.history.append(bridge)
         emitted: list[dict[str, Any]] = [dict(bridge)]
 
+        self._begin_scene_history_window()
         self.card_path = RYUYA_PROLOGUE_CARD_PATH
         self.card = load_card(self.card_path)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
@@ -11416,7 +11434,11 @@ class FreeStageSession:
             speaker_plan=speaker_plan,
         )
 
-        self.last_issues = actor_errors + hard_check(self.history, self.completed, resolved_card)
+        self.last_issues = actor_errors + hard_check(
+            self._current_scene_history(),
+            self.completed,
+            resolved_card,
+        )
 
         # P1a: must-happen completion only changes exit eligibility. It never
         # closes a social/free scene by itself; ExitPolicy is the sole decider.
@@ -12390,6 +12412,10 @@ class FreeStageSession:
             "turn": turn_no,
         }
         self.history.append(bridge)
+
+        # The bridge closes the source scene. Target-scene guards must not
+        # re-audit prior-scene dialogue under the target card's rules.
+        self._begin_scene_history_window()
 
         transition_marker = {
             "source_scene_id": source_scene_id,

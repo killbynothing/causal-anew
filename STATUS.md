@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-09-30（P2c-1 完成：BeatReducer 事件账 × scene instance × 零 production Beat writer）
+
+- **Beat 权威**：新增 `runtime/beat_state.py`。MH completion 以 `beat-complete:{scene_instance}:{beat}` 事件为权威，重复 completion 幂等且首个证据保留；`completed / completed_by_card` 降为只读兼容投影。
+- **scene instance**：普通重访同一 scene 会创建新 visit，不继承旧 MH；龙也闪回保存原 `beat_scene_instance_id`，返回时恢复原 instance。旧 snapshot 迁移只标 `legacy_snapshot`，不伪造玩家 receipt。
+- **生产 writer**：canon segment、opening seed、RP4 兼容 completion、C16 hidden continuation、prologue RP1、visible progress、brief skip 均改走 `_beat_complete/_beat_complete_many`。8 处 `completed_by_card[...] = ...` 直写撤掉。
+- **旧 fixture**：P2b/龙也/两场收口测试不再直接塞 `session.completed`，统一显式 seed BeatEvents。没有给 production 增加 setter 或“发现 projection 被改就自动补事件”的后门。
+- **Authority Map**：`completed` 与 `completed_by_card` 当前 **production writer = 0**；唯一剩余写路是分类为 `projection` 的 `_beat_sync_projections`。P0a characterization 已从“多 writer 必须可见”升级为“多 writer 必须消失”。
+- **验**：GitHub Actions [36683970543](https://github.com/killbynothing/causal-anew/actions/runs/36683970543) **success**；quick **50 PASS / 0 FAIL / 163 SKIP**；`data/world_truth.db: OK`。
+- **报账**：未改场卡、Seed/VOICE、run=0、★★★ 挂坠粒度或真人 a14 DB；正典/人物/剧情新增 = 0。
+- **P2c 尚未完成**：`branch_progress / scene_receipts / run_observation_ledger / player_state / body_frames / world_cursor` 等 World 域仍有生产 writer；下一刀只收 branch + scene receipt，不提前进 P3。
+
 ### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
 
 - **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。

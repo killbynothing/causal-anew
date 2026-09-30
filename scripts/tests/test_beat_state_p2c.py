@@ -125,7 +125,7 @@ def test_session_business_completion_uses_beat_commit_not_append_extend():
     assert "self.completed.extend(" not in source
 
     skip_source = inspect.getsource(proto.FreeStageSession.skip_scene)
-    assert "self.completed =" not in skip_source
+    assert "self.completed = all_ids" not in skip_source
     assert "self._commit_beat(" in skip_source
 
     canon_source = inspect.getsource(proto.FreeStageSession._emit_canon_segment)

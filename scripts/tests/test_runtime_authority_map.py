@@ -39,8 +39,14 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["parse_errors"] == []
 
     completed = writers(report, "completed", "production")
-    assert any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
+    # P2c-1 removes business step completion writes. Remaining direct writers
+    # are explicit load/reset/scene-transition adapters until the next knife.
+    assert not any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
     assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+    assert not any(row["write_kind"] in {"method:append", "method:extend"} for row in completed)
+
+    beat_states = report["facts"]["beat_states"]["writers"]
+    assert beat_states
 
     world_tx = writers(report, "world_transactions", "production")
     # P2a moves business append authority out of FreeStageSession. Reset remains

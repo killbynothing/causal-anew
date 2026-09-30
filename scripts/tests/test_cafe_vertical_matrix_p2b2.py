@@ -106,7 +106,12 @@ def _run_case(
             load_existing=False,
             caller=caller,
         )
-        session.completed = ["RP1", "RP2", "RP3"]
+        session._satisfy_beats(
+            ["RP1", "RP2", "RP3"],
+            turn_no=0,
+            source_kind="test_fixture",
+            source_refs=(f"fixture:p2b2:{name}",),
+        )
         session.branch_progress = ["prologue_pendant_offered"]
         assert session.body_frames[RYUYA_BODY_ID]["holding"] == "I.PENDANT_ANCHOR"
         session.save()

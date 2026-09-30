@@ -106,7 +106,7 @@ def test_flashback_return_frame_persists_beat_instance():
     assert 'return_frame.get("beat_scene_instance_id")' in return_source
 
 
-def test_authority_map_has_only_beat_projection_writers():
+def test_authority_map_has_zero_production_beat_projection_writers():
     import importlib.util
     audit = ROOT / "scripts" / "audit_runtime_authority.py"
     spec = importlib.util.spec_from_file_location("p2c1_authority_audit", audit)
@@ -116,13 +116,18 @@ def test_authority_map_has_only_beat_projection_writers():
     spec.loader.exec_module(module)
     report = module.build_report(False)
     for fact in ("completed", "completed_by_card"):
-        rows = [
+        production_rows = [
             row for row in report["facts"][fact]["writers"]
             if row["classification"] in {"production", "production_tooling"}
         ]
-        assert {row["symbol"] for row in rows} == {
+        projection_rows = [
+            row for row in report["facts"][fact]["writers"]
+            if row["classification"] == "projection"
+        ]
+        assert production_rows == [], (fact, production_rows)
+        assert {row["symbol"] for row in projection_rows} == {
             "FreeStageSession._beat_sync_projections"
-        }, (fact, rows)
+        }, (fact, projection_rows)
 
 
 def test_save_load_preserves_beat_event_ledger():

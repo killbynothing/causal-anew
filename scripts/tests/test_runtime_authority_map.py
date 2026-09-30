@@ -38,12 +38,18 @@ def test_scanner_finds_representative_five_domain_writers():
     report = get_report()
     assert report["parse_errors"] == []
 
-    completed = writers(report, "completed", "production")
-    assert {row["symbol"] for row in completed} == {
+    completed = writers(report, "completed", "production", "production_tooling")
+    completed_by_card = writers(
+        report, "completed_by_card", "production", "production_tooling"
+    )
+    assert completed == []
+    assert completed_by_card == []
+    completed_projection = writers(report, "completed", "projection")
+    by_card_projection = writers(report, "completed_by_card", "projection")
+    assert {row["symbol"] for row in completed_projection} == {
         "FreeStageSession._beat_sync_projections"
     }
-    completed_by_card = writers(report, "completed_by_card", "production")
-    assert {row["symbol"] for row in completed_by_card} == {
+    assert {row["symbol"] for row in by_card_projection} == {
         "FreeStageSession._beat_sync_projections"
     }
 

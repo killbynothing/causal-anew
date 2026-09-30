@@ -137,6 +137,45 @@ def test_session_completed_is_read_only_projection_and_scope_matches_beat_instan
             raise AssertionError("completed must have no production setter")
 
 
+def test_late_synthetic_companion_still_passes_name_gate():
+    card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
+    plan = {
+        "companion_actors": [
+            {
+                "cons": "C.akito.WMAIN",
+                "participation_mode": "side",
+            }
+        ]
+    }
+    turns = proto.ustream.enrich_turns_with_companion_queue(
+        [
+            {
+                "role": "npc",
+                "speaker": "折原真纪",
+                "cons": "C.maki.WMAIN",
+                "text": "先别挤。",
+                "stage": "",
+            }
+        ],
+        plan,
+        card,
+        turn_no=1,
+    )
+    assert any(row.get("speaker") == "川口秋人" for row in turns)
+    introduced = proto._npc_introduced_to_player_after_turn(card, [], turns, 0)
+    gated = proto.resolve_actor_speaker_labels(turns, card, False, introduced)
+    gated = proto.redact_pre_intro(
+        gated,
+        False,
+        card,
+        introduced,
+        progressive_intro=True,
+    )
+    assert not any(row.get("speaker") == "川口秋人" for row in gated)
+    akito = next(row for row in gated if row.get("cons") == "C.akito.WMAIN")
+    assert akito["speaker"] == proto.pre_intro_name("C.akito.WMAIN")
+
+
 def test_hard_check_does_not_apply_final_intro_state_backwards():
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     history = [

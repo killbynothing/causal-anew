@@ -11393,6 +11393,35 @@ class FreeStageSession:
             turns = ustream.enrich_turns_with_companion_queue(
                 turns, speaker_plan, resolved_card, turn_no=turn_no,
             )
+            # Companion/synthetic lines are appended after the first actor-name
+            # gate. Run the same player-facing label policy once more at the
+            # final stream boundary so late inserts cannot leak real names.
+            stream_intro_done = intro_done_for_card(
+                resolved_card,
+                self.completed,
+                turns=turns,
+                history=self.history,
+                player_profile=self.player_profile,
+            )
+            stream_introduced_cons = _npc_introduced_to_player_after_turn(
+                resolved_card,
+                self.history,
+                turns,
+                0,
+            )
+            turns = resolve_actor_speaker_labels(
+                turns,
+                resolved_card,
+                stream_intro_done,
+                stream_introduced_cons,
+            )
+            turns = redact_pre_intro(
+                turns,
+                stream_intro_done,
+                resolved_card,
+                stream_introduced_cons,
+                progressive_intro=True,
+            )
             stream_response_turns.extend(
                 self._push_stream_turns(
                     turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,

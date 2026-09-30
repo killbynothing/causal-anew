@@ -143,8 +143,8 @@ def test_authority_map_zeroes_player_state_writers_and_aliases():
     assert rows == [], rows
     assert meta["production_writer_count"] == 0
     assert meta["unknown_alias_count"] == 0
-    assert set(P2A_WORLD_MIGRATION_DEBT) == {"world_cursor"}
-    assert "player_state" in set(P2A_WORLD_MIGRATED_FACTS)
+    assert set(P2A_WORLD_MIGRATION_DEBT) == set()
+    assert {"player_state", "world_cursor"} <= set(P2A_WORLD_MIGRATED_FACTS)
 
 
 def test_free_stage_has_no_direct_player_state_mutation():

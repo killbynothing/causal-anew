@@ -36,6 +36,7 @@ from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
 from runtime import beat_state
 from runtime import heart_gate, world_calendar
+from runtime import world_cursor_state
 from runtime import offscreen_tick as offscreen_kernel
 from runtime.scene_runtime import bid_turn_taking, build_agent_state
 from runtime.offscreen_tick import render_offscreen_narrative, run_offscreen_ticks
@@ -7120,7 +7121,9 @@ class FreeStageSession:
         self.frame_beat_receipts: list[dict[str, Any]] = []
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
-        self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
+        self._world_cursor_owner = world_cursor_state.WorldCursorOwner(
+            _card_cursor(self.card, self.run_no)
+        )
         self.offscreen_ledger: dict[str, Any] = {}
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
@@ -7270,7 +7273,17 @@ class FreeStageSession:
             for scene_id, state in dict(data.get("canon_performance_state", {})).items()
             if isinstance(state, dict)
         }
-        self.world_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
+        domain_state = SessionDomainState.from_dict(data.get("domain_state"))
+        domain_fields = domain_state.legacy_fields() if domain_state is not None else None
+        cursor_source = (
+            domain_fields["world_cursor"]
+            if isinstance(domain_fields, dict)
+            else data.get("world_cursor")
+        )
+        self._world_cursor_owner = world_cursor_state.WorldCursorOwner.from_legacy(
+            cursor_source if isinstance(cursor_source, dict) else None,
+            fallback=_card_cursor(self.card, self.run_no),
+        )
         stored_run = data.get("run_no", self.world_cursor.get("run", self.run_no))
         try:
             stored_run = int(stored_run)
@@ -7279,8 +7292,7 @@ class FreeStageSession:
         if stored_run < 1:
             stored_run = 1
         self.run_no = stored_run
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", "WMAIN")
+        self._world_cursor_owner.set_run(self.run_no)
         self.offscreen_ledger = dict(data.get("offscreen_ledger") or {})
         self.heart_stages = {
             str(k): int(v)
@@ -7354,14 +7366,11 @@ class FreeStageSession:
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
         self.last_director_opportunity = data.get("last_director_opportunity")
-        # New saves carry one explicit domain envelope.  Keep reading the
-        # legacy fields first so historical saves remain valid, then let a
-        # well-formed envelope win as the authoritative migration boundary.
-        domain_state = SessionDomainState.from_dict(data.get("domain_state"))
+        # New saves carry one explicit domain envelope. It may seed owner
+        # state during load, but never writes the public world_cursor view.
         if domain_state is not None:
-            fields = domain_state.legacy_fields()
+            fields = domain_fields or domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
-            self.world_cursor = fields["world_cursor"]
             self.branch_progress = fields["branch_progress"]
             self.entry_context = fields["entry_context"]
         self.last_issues = [str(x) for x in data.get("last_issues", [])]
@@ -7670,7 +7679,6 @@ class FreeStageSession:
         )
         self.frame_beat_receipts = []
         self.canon_performance_state = {}
-        self.world_cursor = _card_cursor(self.card, self.run_no)
         self.offscreen_ledger = {}
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
@@ -7720,7 +7728,7 @@ class FreeStageSession:
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
         self._ensure_body_frames(self.card)
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._replace_world_cursor(_card_cursor(self.card, self.run_no))
         from runtime.scars_reader import read_run_scars
 
         node_id = str(self.card.get("node_id") or self.opening_id or "").strip()
@@ -8069,6 +8077,17 @@ class FreeStageSession:
     def causal_receipts(self) -> list[dict[str, Any]]:
         """Copy-only compatibility view; append through WorldCommitLedgerState only."""
         return self._world_commit_ledger.causal_receipts_view()
+
+    @property
+    def world_cursor(self) -> dict[str, Any]:
+        """Copy-only world cursor; mutation authority lives in WorldCursorOwner."""
+        return self._world_cursor_owner.view()
+
+    def _replace_world_cursor(self, cursor: dict[str, Any]) -> dict[str, Any]:
+        return self._world_cursor_owner.replace(cursor)
+
+    def _set_world_cursor_run(self, run: int) -> dict[str, Any]:
+        return self._world_cursor_owner.set_run(run)
 
     @property
     def player_state(self) -> dict[str, Any]:
@@ -8490,7 +8509,7 @@ class FreeStageSession:
         )
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._replace_world_cursor(_card_cursor(self.card, self.run_no))
         self._refresh_inner_states_on_scene_enter(self.card)
 
         entry = str(self.card.get("entry_hook") or "").strip()
@@ -9753,21 +9772,22 @@ class FreeStageSession:
 
     def _advance_world_cursor_for_card(self, target_card: dict[str, Any]) -> list[dict[str, str]]:
         degradations: list[dict[str, str]] = []
-        old_cursor = dict(self.world_cursor or _card_cursor(self.card, self.run_no))
+        old_cursor = self.world_cursor or _card_cursor(self.card, self.run_no)
         target_clock = _card_clock(target_card, str(old_cursor.get("world_clock", "00:00")))
         try:
             target_ch = int(target_card.get("ch_anchor", old_cursor.get("ch_anchor", 0)) or 0)
-            self.world_cursor = world_calendar.advance(old_cursor, ch_anchor=target_ch, world_clock=target_clock)
+            self._world_cursor_owner.advance(
+                ch_anchor=target_ch,
+                world_clock=target_clock,
+            )
         except (TypeError, ValueError) as exc:
-            self.world_cursor = old_cursor
+            # WorldCursorOwner is atomic: rejection leaves old_cursor intact.
             degradations.append(make_degradation(
                 "world_calendar",
                 "cursor_not_advanced",
                 "target card cursor rejected",
                 detail=str(exc),
             ))
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", old_cursor.get("worldline", "WMAIN"))
         return degradations
 
     def _tick_offscreen_lines(self, from_cursor: dict[str, Any], to_cursor: dict[str, Any]) -> list[dict[str, str]]:

@@ -39,7 +39,7 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "run_observation_ledger": {"domain": "world", "target_owner": "WorldCommit"},
     "player_state": {"domain": "player_world", "target_owner": "WorldCommit"},
     "body_frames": {"domain": "world", "target_owner": "WorldCommit"},
-    "world_cursor": {"domain": "world", "target_owner": "WorldCommit"},
+    "world_cursor": {"domain": "world", "target_owner": "WorldCursorOwner"},
     "private_inner_states": {"domain": "mind_legacy", "target_owner": "ActorMindReducer"},
     "prior_reflect_by_cons": {"domain": "mind_legacy", "target_owner": "ActorMindReducer"},
     "actor_minds": {"domain": "mind", "target_owner": "ActorMindReducer"},

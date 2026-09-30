@@ -26,7 +26,20 @@ def test_selftest_pipeline_covers_must_happen_and_hard_checks():
     # run_session follows the accepted invitation into the target card; the
     # source-card receipts remain available by card rather than being erased.
     assert ["TM1", "TM2", "TM3", "TM4"] in result["completed_by_card"].values()
-    assert result["issues"] == [], result["issues"]
+    assert result["issues"] == [], {
+        "issues": result["issues"],
+        "history": [
+            {
+                "turn": item.get("turn"),
+                "role": item.get("role"),
+                "speaker": item.get("speaker"),
+                "text": str(item.get("text", ""))[:120],
+                "mh_progress": item.get("mh_progress"),
+            }
+            for item in result["history"]
+            if item.get("role") in {"npc", "director_note", "bridge"}
+        ],
+    }
     # P1a: source must-happen completion unlocks the audited exit but does not
     # invent EndRun after the transition. Explicit terminal exit is covered by
     # the ExitPolicy contract tests.

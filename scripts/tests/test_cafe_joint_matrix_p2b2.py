@@ -85,7 +85,14 @@ def _new_session(
         autosave=True,
         load_existing=False,
     )
-    session.completed = [str(x) for x in completed]
+    if completed:
+        session._reduce_beat_state(
+            "complete",
+            beat_ids=[str(x) for x in completed],
+            turn_no=0,
+            source_kind="test_fixture_seed",
+            evidence_refs=(f"fixture:{name}:completed",),
+        )
     session.branch_progress = [str(x) for x in branch]
     if old_inputs:
         session.inputs = [f"old-{i}" for i in range(old_inputs)]

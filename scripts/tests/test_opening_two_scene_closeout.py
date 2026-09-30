@@ -154,7 +154,13 @@ def test_standalone_ryuya_prologue_completion_only_unlocks_exit():
             autosave=False,
             caller=_dummy_caller,
         )
-        sess.completed = ["RP1", "RP2", "RP3", "RP4"]
+        sess._reduce_beat_state(
+            "complete",
+            beat_ids=["RP1", "RP2", "RP3", "RP4"],
+            turn_no=4,
+            source_kind="test_fixture_seed",
+            evidence_refs=("fixture:standalone-prologue-complete",),
+        )
         captured = []
         sess._write_delta = lambda events: captured.extend(events) or len(events)
 

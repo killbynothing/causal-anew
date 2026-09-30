@@ -337,7 +337,7 @@ def _clean_frame_ledger(value: Mapping[str, Any] | None) -> dict[str, list[str]]
         run_key = str(raw_run or "").strip()
         if not run_key or not isinstance(raw_keys, (list, tuple)):
             continue
-        out[run_key] = _clean_ids(raw_keys)
+        out[run_key] = _unique(raw_keys)
     return out
 
 
@@ -383,7 +383,7 @@ def reduce_frame_beats(
     if not frame:
         raise ValueError("frame beat mark_done requires frame_id")
 
-    requested = _clean_ids(beat_ids)
+    requested = _unique(beat_ids)
     if not requested:
         return FrameBeatReduceResult(completed_beats=ledger)
 

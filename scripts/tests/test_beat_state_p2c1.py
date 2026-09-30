@@ -65,7 +65,45 @@ def test_runtime_append_paths_delegate_to_beat_reducer():
     source = inspect.getsource(proto.FreeStageSession)
     assert "self.completed.append(" not in source
     assert "self.completed.extend(" not in source
+    assert "self.completed_by_card[" not in source
+    assignment_lines = [
+        line.strip()
+        for line in source.splitlines()
+        if "self.completed =" in line
+    ]
+    assert assignment_lines == [
+        "self.completed = beat_state.project_completed(",
+    ]
     assert "beat_state.commit_completion" in inspect.getsource(proto.FreeStageSession._beat_complete)
+
+
+def test_session_scene_revisit_gets_new_instance_and_flashback_contract_restores_old_one():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="p2c-visit",
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=_caller,
+        )
+        sid = str(session.card.get("scene_id", session.card_path))
+        first = session.beat_scene_instance_id
+        session._beat_complete("A1", turn_no=1, source_kind="fixture")
+        session.card_history.append(sid)
+        session._beat_enter_scene(sid)
+        second = session.beat_scene_instance_id
+        assert second != first
+        assert session.completed == []
+        session._beat_enter_scene(sid, restore_instance_id=first)
+        assert session.completed == ["A1"]
+
+
+def test_flashback_return_frame_persists_beat_instance():
+    enter_source = inspect.getsource(proto.FreeStageSession._maybe_enter_ryuya_flashback)
+    return_source = inspect.getsource(proto.FreeStageSession._maybe_transition)
+    assert '"beat_scene_instance_id": self.beat_scene_instance_id' in enter_source
+    assert 'return_frame.get("beat_scene_instance_id")' in return_source
 
 
 def test_save_load_preserves_beat_event_ledger():

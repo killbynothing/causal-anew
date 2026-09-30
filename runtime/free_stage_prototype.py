@@ -7774,8 +7774,10 @@ class FreeStageSession:
 
     def reset(self) -> None:
         self._assert_writable("reset")
-        self.completed = []
-        self.completed_by_card = {}
+        self.beat_events = {}
+        self.beat_scene_visits = {}
+        self.beat_scene_instance_id = ""
+        self._beat_sync_projections()
         self.completed_beats = {}
         self.canon_performance_state = {}
         self.world_cursor = _card_cursor(self.card, self.run_no)
@@ -7843,6 +7845,7 @@ class FreeStageSession:
         )
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card_history = [self.card.get("scene_id", str(self.card_path))]
+        self._beat_reset_all()
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
         # + delayed flashback replace the mandatory front-door prologue.
         self.history = []
@@ -8237,11 +8240,12 @@ class FreeStageSession:
             return []
 
         source_scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._beat_sync_projections()
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         self.ryuya_flashback_return = {
             "card_path": str(self.card_path),
             "completed": list(self.completed),
+            "beat_scene_instance_id": self.beat_scene_instance_id,
             "stall": int(self.stall or 0),
             "scene_id": source_scene_id,
         }
@@ -8299,9 +8303,10 @@ class FreeStageSession:
                 ryuya_persona["knowledge_gate"] = list(gate)
                 if rel:
                     ryuya_persona["memory_context"] = list(rel)
-        self.completed = []
         self.stall = 0
-        self.card_history.append(str(self.card.get("scene_id", self.card_path)))
+        flashback_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.card_history.append(flashback_scene_id)
+        self._beat_enter_scene(flashback_scene_id)
         self.world_cursor = _card_cursor(self.card, self.run_no)
         self._refresh_inner_states_on_scene_enter(self.card)
 
@@ -9096,7 +9101,7 @@ class FreeStageSession:
         transition: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[scene_id] = list(self.completed)
+        self._beat_sync_projections()
         self.stall = 0
         self.last_degradations = []
         self.last_issues = hard_check(self.history, self.completed, self.card)
@@ -11379,7 +11384,7 @@ class FreeStageSession:
                 emitted,
             )
             scene_id = str(resolved_card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._beat_sync_projections()
             self.stall = 0 if new_progress else self.stall + 1
             if stall_escalation:
                 self._stall_escalation_fired_scenes.add(current_scene_id)
@@ -11434,7 +11439,7 @@ class FreeStageSession:
                     self.body_frames, resolved_card, auto_canon_turns
                 )
                 ensure_card_body_frames(resolved_card, self.body_frames)
-                self.completed_by_card[scene_id] = list(self.completed)
+                self._beat_sync_projections()
             note_item = {
                 "role": "director_note",
                 "speaker": "导演暗注",
@@ -11890,7 +11895,7 @@ class FreeStageSession:
                 raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
             closed = self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
+            self._beat_sync_projections()
             if closed:
                 self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
@@ -11925,7 +11930,7 @@ class FreeStageSession:
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         
         # Save completed by card
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._beat_sync_projections()
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         
         # Consolidation
@@ -11980,10 +11985,10 @@ class FreeStageSession:
 
         self.card_path = target_path
         self.card = target_card
-        self.completed = []
         self.stall = 0
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
+        self._beat_enter_scene(str(target_scene_id))
 
         target_auto_end = bool(target_card.get("auto_end_on_complete", False)) or (
             target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER"
@@ -12101,7 +12106,7 @@ class FreeStageSession:
             burst = self._emit_canon_burst(ready_canon, turn_no=turn_no)
             emitted.extend(burst)
             scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._beat_sync_projections()
             return None
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
@@ -12220,8 +12225,7 @@ class FreeStageSession:
 
         if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
-
+            self._beat_sync_projections()
             # Legacy café accounting remains an execution concern for now; the
             # authority to end came only from ExitPolicy.
             if self.card.get("prologue_active") and not self.ryuya_flashback_return:
@@ -12503,7 +12507,6 @@ class FreeStageSession:
             # approved opening choice is an execution effect, not a re-decision.
             self.pending_entry = None
         if returning_flashback and return_frame:
-            self.completed = [str(x) for x in (return_frame.get("completed") or [])]
             self.stall = int(return_frame.get("stall") or 0)
             self.ryuya_flashback_return = None
             self._commit_world_transaction(
@@ -12536,7 +12539,6 @@ class FreeStageSession:
                     kind="pendant",
                 )
         else:
-            self.completed = []
             self.stall = 0
         self._last_exit_intent_turn = None  # T-02 J1：离场意图追踪重置
         self._last_exit_intent_scene_id = None
@@ -12544,6 +12546,14 @@ class FreeStageSession:
         self.pending_exit_menu = None
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
+        if returning_flashback and return_frame:
+            self._beat_enter_scene(
+                str(target_scene_id),
+                restore_instance_id=str(return_frame.get("beat_scene_instance_id") or "") or None,
+                legacy_completed=tuple(str(x) for x in (return_frame.get("completed") or [])),
+            )
+        else:
+            self._beat_enter_scene(str(target_scene_id))
         self._refresh_inner_states_on_scene_enter(target_card)
 
         # 每张目标卡都欠玩家一次可见的入场介绍。闪回返回原场时不再重播入场。

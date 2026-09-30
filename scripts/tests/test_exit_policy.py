@@ -34,6 +34,30 @@ def req(c, **kw):
     return ExitRequest(**base)
 
 
+def test_future_reunion_phrase_is_not_current_exit_intent():
+    social = card(exits=[{"target_pending_entry": True}])
+    completed = ("M1",)
+
+    for line in (
+        "想再见见你总要有个借口吧",
+        "我希望以后还能再见到你",
+        "下次再见到你再说",
+    ):
+        assert not __import__("runtime.transition_service", fromlist=["x"]).has_global_exit_intent(line)
+        decision = decide_exit(
+            req(
+                social,
+                completed=completed,
+                player_input={"speech": line, "action": "", "thought": ""},
+                pending_entry_target_ref="runtime/approved.json",
+            )
+        )
+        assert decision.action == "continue", (line, decision.to_dict())
+
+    for line in ("再见，我先走了", "那我先走了，回头见", "告辞"):
+        assert __import__("runtime.transition_service", fromlist=["x"]).has_global_exit_intent(line)
+
+
 def test_mh_complete_without_exit_contract_does_not_end():
     decision = decide_exit(req(card(exits=[]), completed=("M1",)))
     assert decision.action == "continue"
@@ -251,6 +275,7 @@ def test_pending_entry_target_must_exist_before_transition():
 
 
 if __name__ == "__main__":
+    test_future_reunion_phrase_is_not_current_exit_intent()
     test_mh_complete_without_exit_contract_does_not_end()
     test_explicit_auto_end_is_opt_in_only()
     test_semantic_receipt_is_prospective_until_authorized()

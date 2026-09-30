@@ -121,7 +121,7 @@ def decide_exit(req: ExitRequest) -> ExitDecision:
         and any(str(token) and str(token) in text for token in spec.get("intent_tokens", ()))
     ]
     declared_intent = bool(matched_exit_specs)
-    explicit_intent = bool(transition_service.EXIT_INTENT_RE.search(text)) or declared_intent
+    explicit_intent = transition_service.has_global_exit_intent(text) or declared_intent
 
     prospective: tuple[str, ...] = ()
     if isinstance(req.semantic_exit_spec, Mapping):

@@ -17,6 +17,22 @@ EXIT_INTENT_RE = re.compile(
     re.IGNORECASE,
 )
 
+# “再见”既可以是 goodbye，也可能只是“再次见到”。退出解析必须先
+# 屏蔽明确的未来重逢短语，不能因为一句“想再见见你”就让场景进入离场确认。
+FUTURE_REUNION_RE = re.compile(
+    r"(?:(?:想|还想|希望|盼着|为了|下次|以后|改天).{0,8})?"
+    r"再见(?:见|到)(?:你|他|她|他们|她们|大家)"
+    r"|(?:想|还想|希望|盼着).{0,8}再见(?:你|他|她|他们|她们|大家)"
+)
+
+
+def strip_future_reunion_phrases(text: str) -> str:
+    return FUTURE_REUNION_RE.sub("", str(text or ""))
+
+
+def has_global_exit_intent(text: str) -> bool:
+    return bool(EXIT_INTENT_RE.search(strip_future_reunion_phrases(text)))
+
 
 def player_input_text(player_input: str | dict[str, str]) -> str:
     if isinstance(player_input, dict):
@@ -94,7 +110,7 @@ def should_trigger_exit(
     mh_complete = all_must_happen_complete(card, completed)
     text = player_input_text(player_input)
     intent_exits = _matching_exit_intents(card, text)
-    has_intent = bool(EXIT_INTENT_RE.search(text)) or bool(intent_exits)
+    has_intent = has_global_exit_intent(text) or bool(intent_exits)
     if not mh_complete and any(not bool(spec.get("allow_forced_exit_before_must", True)) for spec in intent_exits):
         has_intent = False
     phone_ids = set(hard_phone_ids or set())

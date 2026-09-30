@@ -7325,8 +7325,9 @@ class FreeStageSession:
                 run_lifecycle.CLOSING,
                 error=self.close_error or "recovered_pending_close",
             )
+        stored_fact_projection = data.get("fact_projection")
         self.fact_projection = fact_projection.RuntimeFactProjection.from_snapshot(
-            data.get("fact_projection"),
+            stored_fact_projection,
             legacy_branches=data.get("branch_progress", []),
             legacy_scene_receipts=data.get("scene_receipts", []),
         )
@@ -7355,13 +7356,17 @@ class FreeStageSession:
             fields = domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
             self.world_cursor = fields["world_cursor"]
-            self.fact_projection.replace_branches(
-                fields["branch_progress"],
-                source_kind="domain_state_load",
-                source_ref="domain_state",
-                turn=0,
-                scene_id=str(self.card.get("scene_id", "")),
-            )
+            # P2c: domain_state.branch_progress is a legacy duplicate. It may
+            # seed old snapshots, but must never overwrite a persisted
+            # fact_projection and destroy its provenance.
+            if not isinstance(stored_fact_projection, dict):
+                self.fact_projection.replace_branches(
+                    fields["branch_progress"],
+                    source_kind="domain_state_load",
+                    source_ref="domain_state",
+                    turn=0,
+                    scene_id=str(self.card.get("scene_id", "")),
+                )
             self.entry_context = fields["entry_context"]
         self.last_issues = [str(x) for x in data.get("last_issues", [])]
         self.last_degradations = list(data.get("last_degradations", []))

@@ -633,6 +633,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_vertical_matrix_p2b2.py",
     },
     {
+        "id": "beat_state_p2c",
+        "desc": "P2c-1 BeatState/BeatReducer：evidence驱动、v1 legacy迁移、scene instance隔离、completed只作投影",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_beat_state_p2c.py"],
+        "triggers": [
+            "runtime/beat_state.py",
+            "runtime/session_schema.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_beat_state_p2c.py",
+            "scripts/tests/test_session_schema_migration.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_beat_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

@@ -34,6 +34,7 @@ from delta_db import dual_write_delta_events
 import test_scene_experience as exp
 from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
+from runtime import beat_state
 from runtime import heart_gate, world_calendar
 from runtime import offscreen_tick as offscreen_kernel
 from runtime.scene_runtime import bid_turn_taking, build_agent_state
@@ -77,6 +78,7 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
+from runtime import session_schema
 from runtime import world_commit
 from runtime import world_projection
 from runtime import player_action as player_action_commit
@@ -1891,7 +1893,7 @@ def append_delta_events(ledger_path, events):
     return dual_write_delta_events(ledger_path, events, WORLD_TRUTH_DB_PATH)
 
 OPENING_SCHEDULES_PATH = ROOT / "web" / "schedules.json"
-SESSION_SCHEMA_VERSION = "free_stage.session.v1"
+SESSION_SCHEMA_VERSION = session_schema.SESSION_SCHEMA_V2
 END_MARKER = "<<< 本场结束 >>>"
 BRANCH_EXCLUSIVE_GROUPS = (
     frozenset({"intervene", "watch"}),
@@ -7107,8 +7109,14 @@ class FreeStageSession:
             self.card = resolve_card_must_happen_variants(self.card, "converged")
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
-        self.completed: list[str] = []
-        self.completed_by_card: dict[str, list[str]] = {}
+        initial_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.beat_state: dict[str, Any] = beat_state.new_state(
+            scene_id=initial_scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(initial_scene_id, 1),
+            required_ids=card_must_happen_ids(self.card),
+        )
+        self.completed: list[str] = beat_state.active_completed(self.beat_state)
+        self.completed_by_card: dict[str, list[str]] = beat_state.completed_by_scene(self.beat_state)
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
         self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
@@ -7216,6 +7224,11 @@ class FreeStageSession:
         data = self.runtime_store.load()
         if data is None:
             return
+        data = session_schema.migrate_session_payload(
+            data,
+            target_version=SESSION_SCHEMA_VERSION,
+        )
+        session_schema.validate_session_payload(data)
         self.card_path = resolve_card_path(data.get("card_path", self.card_path))
         self.card = load_card(self.card_path)
         self.initial_card_path = self.card_path
@@ -7231,12 +7244,24 @@ class FreeStageSession:
             self.entry_context = stored_entry_context
         self.card_history = [str(x) for x in data.get("card_history", [self.card.get("scene_id", str(self.card_path))])]
         self.history = list(data.get("history", []))
-        self.completed = [str(x) for x in data.get("completed", [])]
-        self.completed_by_card = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_by_card", {})).items()
-            if isinstance(v, list)
-        }
+        current_scene_id = str(self.card.get("scene_id", self.card_path))
+        raw_beat_state = data.get("beat_state")
+        if isinstance(raw_beat_state, dict):
+            self.beat_state = beat_state.load_state(raw_beat_state)
+        else:
+            visit = max(1, sum(1 for item in self.card_history if str(item) == current_scene_id))
+            self.beat_state = beat_state.migrate_legacy(
+                scene_id=current_scene_id,
+                scene_instance_id=beat_state.make_scene_instance_id(current_scene_id, visit),
+                required_ids=card_must_happen_ids(self.card),
+                completed=[str(x) for x in data.get("completed", [])],
+                completed_by_card={
+                    str(k): [str(x) for x in v]
+                    for k, v in dict(data.get("completed_by_card", {})).items()
+                    if isinstance(v, list)
+                },
+            )
+        self._sync_beat_projections()
         self.completed_beats = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_beats", {})).items()
@@ -7425,8 +7450,16 @@ class FreeStageSession:
             branch_progress=self.branch_progress,
             entry_context=self.entry_context,
         )
+        commit_cursor = self.runtime_store.load_commit_cursor()
+        snapshot_revision = int(commit_cursor.revision)
+        last_committed_batch_id = commit_cursor.last_committed_batch_id
+        if self.lifecycle_state == run_lifecycle.CLOSED and commit_cursor.pending is not None:
+            snapshot_revision += 1
+            last_committed_batch_id = commit_cursor.pending.batch_id
         return {
             "schema_version": SESSION_SCHEMA_VERSION,
+            "snapshot_revision": snapshot_revision,
+            "last_committed_batch_id": last_committed_batch_id,
             "session_id": self.session_id,
             "run_no": int(self.run_no),
             "card_path": str(self.card_path),
@@ -7437,6 +7470,7 @@ class FreeStageSession:
             "domain_state": domain_state.to_dict(),
             "card_history": self.card_history,
             "history": self.history,
+            "beat_state": self.beat_state,
             "completed": self.completed,
             "completed_by_card": self.completed_by_card,
             "completed_beats": self.completed_beats,
@@ -7646,10 +7680,66 @@ class FreeStageSession:
             result["receipt"] = dict(self.run_receipt)
         return result
 
+    def _sync_beat_projections(self) -> None:
+        self.completed = beat_state.active_completed(self.beat_state)
+        self.completed_by_card = beat_state.completed_by_scene(self.beat_state)
+
+    def _activate_beat_scene(
+        self,
+        card: dict[str, Any],
+        *,
+        turn_no: int,
+        source_kind: str,
+        restore_completed: list[str] | tuple[str, ...] = (),
+        restore_source_refs: list[str] | tuple[str, ...] = (),
+    ) -> None:
+        scene_id = str(card.get("scene_id", self.card_path))
+        visit = sum(1 for item in self.card_history if str(item) == scene_id) + 1
+        self.beat_state = beat_state.activate_scene(
+            self.beat_state,
+            scene_id=scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(scene_id, visit),
+            required_ids=card_must_happen_ids(card),
+            restore_completed=restore_completed,
+            restore_source_kind=source_kind,
+            restore_source_refs=restore_source_refs,
+            turn=int(turn_no),
+        )
+        self._sync_beat_projections()
+
+    def _satisfy_beats(
+        self,
+        beat_ids: list[str] | tuple[str, ...],
+        *,
+        turn_no: int,
+        source_kind: str,
+        source_refs: list[str] | tuple[str, ...],
+    ) -> list[str]:
+        beats = [str(item).strip() for item in beat_ids if str(item).strip()]
+        if not beats:
+            return []
+        active = beat_state.active_scene(self.beat_state)
+        refs = [str(item).strip() for item in source_refs if str(item).strip()]
+        evidence_id = beat_state.evidence_id_for(
+            scene_instance_id=str(active["scene_instance_id"]),
+            source_kind=source_kind,
+            turn=int(turn_no),
+            beat_ids=beats,
+            source_refs=refs,
+        )
+        self.beat_state, newly = beat_state.satisfy_beats(
+            self.beat_state,
+            beat_ids=beats,
+            evidence_id=evidence_id,
+            source_kind=source_kind,
+            source_refs=refs,
+            turn=int(turn_no),
+        )
+        self._sync_beat_projections()
+        return newly
+
     def reset(self) -> None:
         self._assert_writable("reset")
-        self.completed = []
-        self.completed_by_card = {}
         self.completed_beats = {}
         self.canon_performance_state = {}
         self.world_cursor = _card_cursor(self.card, self.run_no)
@@ -7717,6 +7807,13 @@ class FreeStageSession:
         )
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card_history = [self.card.get("scene_id", str(self.card_path))]
+        reset_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.beat_state = beat_state.new_state(
+            scene_id=reset_scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(reset_scene_id, 1),
+            required_ids=card_must_happen_ids(self.card),
+        )
+        self._sync_beat_projections()
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
         # + delayed flashback replace the mandatory front-door prologue.
         self.history = []
@@ -8111,7 +8208,6 @@ class FreeStageSession:
             return []
 
         source_scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[source_scene_id] = list(self.completed)
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         self.ryuya_flashback_return = {
             "card_path": str(self.card_path),
@@ -8173,7 +8269,11 @@ class FreeStageSession:
                 ryuya_persona["knowledge_gate"] = list(gate)
                 if rel:
                     ryuya_persona["memory_context"] = list(rel)
-        self.completed = []
+        self._activate_beat_scene(
+            self.card,
+            turn_no=turn_no,
+            source_kind="flashback_enter",
+        )
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
         self.world_cursor = _card_cursor(self.card, self.run_no)
@@ -8812,11 +8912,20 @@ class FreeStageSession:
                 str(cons).strip() for cons in present_after if str(cons).strip()
             ]
         receipt_owner = str(segment.get("receipt_owner", "") or "").strip()
-        for beat_id in segment.get("completes", []):
-            beat = str(beat_id or "").strip()
-            if beat and beat not in self.completed:
-                self.completed.append(beat)
-            if beat and receipt_owner:
+        completed_ids = [
+            str(beat_id or "").strip()
+            for beat_id in segment.get("completes", [])
+            if str(beat_id or "").strip()
+        ]
+        if completed_ids:
+            self._satisfy_beats(
+                completed_ids,
+                turn_no=turn_no,
+                source_kind="canon_segment",
+                source_refs=(f"canon-segment:{segment_id}",),
+            )
+        for beat in completed_ids:
+            if receipt_owner:
                 self._record_scene_receipt(
                     beat,
                     owner=receipt_owner,
@@ -8965,7 +9074,6 @@ class FreeStageSession:
         transition: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[scene_id] = list(self.completed)
         self.stall = 0
         self.last_degradations = []
         self.last_issues = hard_check(self.history, self.completed, self.card)
@@ -9178,9 +9286,12 @@ class FreeStageSession:
                 if str(segment.get("trigger", "") or "").strip() == "on_start":
                     canon_turns.extend(self._emit_canon_segment(segment, turn_no=0))
             if scene_id == "CARD_WEICHU_ZHANGCHEN_HIRE":
-                for bid in ["WH1"]:
-                    if bid not in self.completed:
-                        self.completed.append(bid)
+                self._satisfy_beats(
+                    ["WH1"],
+                    turn_no=0,
+                    source_kind="opening_seed",
+                    source_refs=(f"card-start:{scene_id}",),
+                )
             elif self.card.get("prologue_active"):
                 # 直接开序幕卡：龙也 LLM 即兴先开口（天气/初遇/身份皆可）；无写死雨句。
                 # 勿预勾 RP1——预勾会让 want ladder 跳过闲聊带。
@@ -10079,7 +10190,20 @@ class FreeStageSession:
                     # Preserve the existing RP4 disposition policy, but only
                     # project completion after PlayerAction→WorldCommit succeeds.
                     self._commit_player_pendant_response(receipt, turn_no=turn_no)
-                    self.completed.append("RP4")
+                    pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                    pendant_receipt = (
+                        pendant_tx.get("receipt")
+                        if isinstance(pendant_tx.get("receipt"), dict)
+                        else {}
+                    )
+                    self._satisfy_beats(
+                        ["RP4"],
+                        turn_no=turn_no,
+                        source_kind="world_transaction",
+                        source_refs=(
+                            str(pendant_receipt.get("receipt_id") or "world:ryuya_pendant_disposition"),
+                        ),
+                    )
                     if marker not in self.branch_progress:
                         self.branch_progress.append(marker)
                 else:
@@ -10200,9 +10324,12 @@ class FreeStageSession:
                 hidden_segments = canon_state.setdefault("not_visible_segments", [])
                 if "C16_GATE_WATCH_CONTINUATION" not in hidden_segments:
                     hidden_segments.append("C16_GATE_WATCH_CONTINUATION")
-                for beat in ("ZG3", "ZG4"):
-                    if beat not in self.completed:
-                        self.completed.append(beat)
+                self._satisfy_beats(
+                    ["ZG3", "ZG4"],
+                    turn_no=turn_no,
+                    source_kind="canon_route_bridge",
+                    source_refs=("canon:C16_GATE_WATCH_CONTINUATION",),
+                )
                 canon_state["pending_stop"] = ""
                 canon_state["player_position"] = "shop_counter_zhangchen_path"
                 transition = self._maybe_transition(player_input, turn_no, [])
@@ -10447,7 +10574,12 @@ class FreeStageSession:
             ) if self.ryuya_flashback_return else max(0, len(self.inputs))
             # 闲聊已发生 = 可记账的场面进度，不是玩家闸。
             if flash_beats >= 1 and "RP1" not in self.completed:
-                self.completed.append("RP1")
+                self._satisfy_beats(
+                    ["RP1"],
+                    turn_no=turn_no,
+                    source_kind="scene_presence",
+                    source_refs=(f"history:player-turn:{turn_no}",),
+                )
             topic_hit = ryuya_deep_topic_interface(
                 {"speech": speech, "action": action},
                 self.history,
@@ -11140,8 +11272,15 @@ class FreeStageSession:
                     new_progress = [mh for mh in new_progress if mh in {"RP1"}]
                 elif flash_beats < 3:
                     new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
-            newly_completed = [mh for mh in new_progress if mh not in set(self.completed)]
-            self.completed.extend(new_progress)
+            newly_completed = self._satisfy_beats(
+                new_progress,
+                turn_no=turn_no,
+                source_kind="observed_progress",
+                source_refs=(
+                    f"actor-output:turn:{turn_no}",
+                    f"player-input:turn:{turn_no}",
+                ),
+            )
             must_happen_by_id = {
                 str(item.get("id", "") or "").strip(): item
                 for item in resolved_card.get("must_happen", [])
@@ -11223,7 +11362,6 @@ class FreeStageSession:
                 emitted,
             )
             scene_id = str(resolved_card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
             self.stall = 0 if new_progress else self.stall + 1
             if stall_escalation:
                 self._stall_escalation_fired_scenes.add(current_scene_id)
@@ -11278,7 +11416,6 @@ class FreeStageSession:
                     self.body_frames, resolved_card, auto_canon_turns
                 )
                 ensure_card_body_frames(resolved_card, self.body_frames)
-                self.completed_by_card[scene_id] = list(self.completed)
             note_item = {
                 "role": "director_note",
                 "speaker": "导演暗注",
@@ -11706,10 +11843,16 @@ class FreeStageSession:
         if self.card.get("pacing") != "brief":
             raise ValueError("Only brief scenes can be skipped.")
 
-        # Complete all must_happens
+        # Explicit system skip evidence completes the brief scene; it is never
+        # fabricated as a player action.
         must_happens = self.card.get("must_happen", [])
         all_ids = [str(mh.get("id")) for mh in must_happens if mh.get("id")]
-        self.completed = all_ids
+        self._satisfy_beats(
+            all_ids,
+            turn_no=len(self.inputs) + 1,
+            source_kind="brief_skip",
+            source_refs=(f"system:brief-skip:{self.card.get('scene_id', self.card_path)}",),
+        )
 
         # P1a: skip may still use the legacy P2 beat-completion bridge above,
         # but exit authority is no longer implicit. Ambiguous multi-exit skips
@@ -11729,7 +11872,6 @@ class FreeStageSession:
                 raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
             closed = self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
             if closed:
                 self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
@@ -11764,7 +11906,6 @@ class FreeStageSession:
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         
         # Save completed by card
-        self.completed_by_card[source_scene_id] = list(self.completed)
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         
         # Consolidation
@@ -11819,7 +11960,11 @@ class FreeStageSession:
 
         self.card_path = target_path
         self.card = target_card
-        self.completed = []
+        self._activate_beat_scene(
+            target_card,
+            turn_no=len(self.inputs) + 1,
+            source_kind="scene_enter",
+        )
         self.stall = 0
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
@@ -11940,7 +12085,6 @@ class FreeStageSession:
             burst = self._emit_canon_burst(ready_canon, turn_no=turn_no)
             emitted.extend(burst)
             scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
             return None
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
@@ -12059,7 +12203,6 @@ class FreeStageSession:
 
         if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
 
             # Legacy café accounting remains an execution concern for now; the
             # authority to end came only from ExitPolicy.
@@ -12342,7 +12485,13 @@ class FreeStageSession:
             # approved opening choice is an execution effect, not a re-decision.
             self.pending_entry = None
         if returning_flashback and return_frame:
-            self.completed = [str(x) for x in (return_frame.get("completed") or [])]
+            self._activate_beat_scene(
+                target_card,
+                turn_no=turn_no,
+                source_kind="flashback_return_restore",
+                restore_completed=tuple(str(x) for x in (return_frame.get("completed") or [])),
+                restore_source_refs=(f"flashback-return:{source_scene_id}",),
+            )
             self.stall = int(return_frame.get("stall") or 0)
             self.ryuya_flashback_return = None
             self._commit_world_transaction(
@@ -12375,7 +12524,11 @@ class FreeStageSession:
                     kind="pendant",
                 )
         else:
-            self.completed = []
+            self._activate_beat_scene(
+                target_card,
+                turn_no=turn_no,
+                source_kind="scene_enter",
+            )
             self.stall = 0
         self._last_exit_intent_turn = None  # T-02 J1：离场意图追踪重置
         self._last_exit_intent_scene_id = None

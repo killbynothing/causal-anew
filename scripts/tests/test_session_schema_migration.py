@@ -94,10 +94,15 @@ def test_downgrade_is_forbidden():
         raise AssertionError("v2 -> v1 downgrade must be forbidden")
 
 
-def test_p0b_does_not_switch_free_stage_production_schema():
+def test_p2c_switches_free_stage_production_to_v2_without_destroying_v1_source():
     source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
-    assert 'SESSION_SCHEMA_VERSION = "free_stage.session.v1"' in source
-    assert "runtime.session_schema" not in source
+    assert "SESSION_SCHEMA_VERSION = session_schema.SESSION_SCHEMA_V2" in source
+    assert "session_schema.migrate_session_payload" in source
+    _, raw = load("session_schema_v1_p0b.json")
+    before = copy.deepcopy(raw)
+    migrated = migrate_session_payload(raw)
+    assert raw == before
+    assert migrated["schema_version"] == SESSION_SCHEMA_V2
 
 
 if __name__ == "__main__":
@@ -105,5 +110,5 @@ if __name__ == "__main__":
     test_v2_migration_is_idempotent_but_returns_copy()
     test_unknown_or_malformed_versions_are_rejected()
     test_downgrade_is_forbidden()
-    test_p0b_does_not_switch_free_stage_production_schema()
+    test_p2c_switches_free_stage_production_to_v2_without_destroying_v1_source()
     print("PASS test_session_schema_migration")

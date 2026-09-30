@@ -1,8 +1,8 @@
-"""P0b in-memory session schema migration contract.
+"""Session schema migration contract.
 
-Production FreeStageSession remains on free_stage.session.v1 during P0b.
-This module proves deterministic, non-destructive migration behavior before any
-reader/writer is switched to v2.
+P0b proved v1 to v2 in memory. P2c activates v2 in FreeStageSession while
+keeping migration deterministic and non-destructive. Domain-specific BeatState
+migration happens only after the referenced card has been loaded.
 """
 from __future__ import annotations
 

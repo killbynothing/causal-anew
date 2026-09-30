@@ -6011,21 +6011,56 @@ def _speaker_label_leaks_unbound_name(speaker: str, cons: str) -> str | None:
 def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[str, Any] | None = None) -> list[str]:
     issues = []
 
-    
-    intro_done_turns = set()
+    # Time must flow forward in validation too.  A name learned on turn 3
+    # cannot legalize a turn-1 speaker label, and a final completed snapshot
+    # cannot retroactively make pre-intro descriptors illegal.
+    intro_done_turns: set[int] = set()
     for item in history:
         if item.get("role") == "director_note":
             progress = item.get("mh_progress", [])
             if "MH2" in progress or "T3" in progress or "TM3" in progress:
-                intro_done_turns.add(item.get("turn", 0))
-    min_intro_turn = min(intro_done_turns) if intro_done_turns else None
-    # Progressive referent binding: already-bound cons may legally show real speaker labels.
-    known_bound: set[str] = set()
+                intro_done_turns.add(int(item.get("turn", 0) or 0))
+
+    binding_rows: list[dict[str, Any]] = []
     if card is not None:
-        known_bound = _npc_introduced_to_player_after_turn(card, history, None, 0)
+        binding_rows = [
+            row
+            for row in build_player_name_binding_ledger(card, history)
+            if row.get("knowledge_kind") == "referent_bound"
+        ]
+        if _is_c16_family_card(card):
+            intro_targets = set(_c16_intro_npc_cons(card))
+        elif str(card.get("scene_id") or "") in {
+            "OPENING_TIANANMEN_001",
+            "OPENING_TIANANMEN_002",
+            "OPENING_CAFE_001",
+        }:
+            persona_cards = card.get("persona_cards") or {}
+            intro_targets = {
+                cons for cons in MAIN_TRIO
+                if cons in persona_cards
+            }
+        else:
+            intro_targets = set()
+
+        if intro_targets:
+            first_bound_turn: dict[str, int] = {}
+            for row in binding_rows:
+                cons = str(row.get("cons") or "")
+                if cons not in intro_targets:
+                    continue
+                turn = int(row.get("source_turn", 0) or 0)
+                if turn <= 0:
+                    continue
+                if cons not in first_bound_turn or turn < first_bound_turn[cons]:
+                    first_bound_turn[cons] = turn
+            if intro_targets <= set(first_bound_turn):
+                intro_done_turns.add(max(first_bound_turn[cons] for cons in intro_targets))
+
+    min_intro_turn = min(intro_done_turns) if intro_done_turns else None
 
     for idx, item in enumerate(history):
-        turn_no = item.get("turn", 0)
+        turn_no = int(item.get("turn", 0) or 0)
         if turn_no == 0:
             continue
         role = item.get("role")
@@ -6033,23 +6068,26 @@ def hard_check(history: list[dict[str, Any]], completed: list[str], card: dict[s
         text = item.get("text", "")
         stage = item.get("stage", "")
 
+        known_bound = {
+            str(row.get("cons") or "")
+            for row in binding_rows
+            if int(row.get("source_turn", 0) or 0) <= turn_no
+        }
+        known_bound.discard("")
+
         if min_intro_turn is not None:
-            if turn_no >= min_intro_turn:
-                curr_intro_done = True
-            else:
-                curr_intro_done = False
+            curr_intro_done = turn_no >= min_intro_turn
         else:
-            if card is not None:
-                if card.get("scene_id") in ["OPENING_TIANANMEN_001", "OPENING_TIANANMEN_002", "OPENING_CAFE_001"]:
-                    intro_id = "T3" if card.get("scene_id") == "OPENING_TIANANMEN_001" else ("TM3" if card.get("scene_id") == "OPENING_TIANANMEN_002" else "MH2")
-                    if intro_id in completed:
-                        curr_intro_done = True
-                    else:
-                        curr_intro_done = False
-                else:
-                    curr_intro_done = True
-            else:
-                curr_intro_done = False
+            # Non-opening cards do not use the descriptor/introduction gate.
+            curr_intro_done = bool(
+                card is not None
+                and str(card.get("scene_id") or "") not in {
+                    "OPENING_TIANANMEN_001",
+                    "OPENING_TIANANMEN_002",
+                    "OPENING_CAFE_001",
+                }
+                and not _is_c16_family_card(card)
+            )
 
         if role == "npc":
 

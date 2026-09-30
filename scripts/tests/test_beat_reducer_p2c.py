@@ -137,6 +137,79 @@ def test_session_completed_is_read_only_projection_and_scope_matches_beat_instan
             raise AssertionError("completed must have no production setter")
 
 
+def test_hard_check_does_not_apply_final_intro_state_backwards():
+    card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
+    history = [
+        {
+            "role": "npc",
+            "speaker": "圆脸青年",
+            "text": "能借一下视频吗？",
+            "stage": "",
+            "turn": 1,
+        },
+        {
+            "role": "npc",
+            "speaker": "银发青年",
+            "text": "嗯。",
+            "stage": "",
+            "turn": 2,
+        },
+        {
+            "role": "npc",
+            "speaker": "折原修哉",
+            "text": "我是折原修哉，他是川口秋人，这位是坂本晴明。",
+            "stage": "",
+            "turn": 3,
+        },
+    ]
+    issues = proto.hard_check(
+        history,
+        completed=["TM1", "TM2", "TM3"],
+        card=card,
+    )
+    assert not any("descriptor used as introduced name" in item for item in issues), issues
+
+    history.append({
+        "role": "npc",
+        "speaker": "圆脸青年",
+        "text": "介绍完以后还这样叫。",
+        "stage": "",
+        "turn": 4,
+    })
+    issues = proto.hard_check(
+        history,
+        completed=["TM1", "TM2", "TM3"],
+        card=card,
+    )
+    assert any("descriptor used as introduced name" in item for item in issues), issues
+
+
+def test_hard_check_does_not_let_future_binding_legalize_past_name_leak():
+    card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
+    history = [
+        {
+            "role": "npc",
+            "speaker": "川口秋人",
+            "text": "还没介绍，我先漏名字。",
+            "stage": "",
+            "turn": 1,
+        },
+        {
+            "role": "npc",
+            "speaker": "折原修哉",
+            "text": "我是折原修哉，他是川口秋人，这位是坂本晴明。",
+            "stage": "",
+            "turn": 3,
+        },
+    ]
+    issues = proto.hard_check(
+        history,
+        completed=["TM1", "TM2", "TM3"],
+        card=card,
+    )
+    assert any("pre-intro real name" in item for item in issues), issues
+
+
 def test_intro_completion_reprojects_disclosure_turn_labels():
     card = proto.load_json(ROOT / "runtime" / "free_stage_card_tiananmen_v2.json")
     turns = [

@@ -78,6 +78,7 @@ from runtime import entry_router
 from runtime import transition_service
 from runtime import exit_policy
 from runtime import run_lifecycle
+from runtime import session_schema
 from runtime import scene_fact_state
 from runtime import world_commit
 from runtime import world_projection
@@ -1889,7 +1890,7 @@ def append_delta_events(ledger_path, events):
     return dual_write_delta_events(ledger_path, events, WORLD_TRUTH_DB_PATH)
 
 OPENING_SCHEDULES_PATH = ROOT / "web" / "schedules.json"
-SESSION_SCHEMA_VERSION = "free_stage.session.v1"
+SESSION_SCHEMA_VERSION = session_schema.SESSION_SCHEMA_V2
 END_MARKER = "<<< 本场结束 >>>"
 BRANCH_EXCLUSIVE_GROUPS = (
     frozenset({"intervene", "watch"}),
@@ -7105,8 +7106,16 @@ class FreeStageSession:
             self.card = resolve_card_must_happen_variants(self.card, "converged")
         self.card_history: list[str] = [self.card.get("scene_id", str(self.card_path))]
         self.history: list[dict[str, Any]] = []
-        self.completed: list[str] = []
-        self.completed_by_card: dict[str, list[str]] = {}
+        initial_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.beat_state: dict[str, Any] = beat_state.new_state(
+            scene_id=initial_scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(initial_scene_id, 1),
+            required_ids=card_must_happen_ids(self.card),
+        )
+        self.completed: list[str] = beat_state.active_completed(self.beat_state)
+        self.completed_by_card: dict[str, list[str]] = beat_state.completed_by_scene(self.beat_state)
+        # Legacy trace remains readable during migration; new scene-beat evidence
+        # lives inside beat_state and is never dual-authored here.
         self.beat_receipts: list[dict[str, Any]] = []
         self.frame_beat_receipts: list[dict[str, Any]] = []
         self.completed_beats: dict[str, list[str]] = {}
@@ -7207,6 +7216,11 @@ class FreeStageSession:
         data = self.runtime_store.load()
         if data is None:
             return
+        data = session_schema.migrate_session_payload(
+            data,
+            target_version=SESSION_SCHEMA_VERSION,
+        )
+        session_schema.validate_session_payload(data)
         self.card_path = resolve_card_path(data.get("card_path", self.card_path))
         self.card = load_card(self.card_path)
         self.initial_card_path = self.card_path
@@ -7222,12 +7236,24 @@ class FreeStageSession:
             self.entry_context = stored_entry_context
         self.card_history = [str(x) for x in data.get("card_history", [self.card.get("scene_id", str(self.card_path))])]
         self.history = list(data.get("history", []))
-        self.completed = [str(x) for x in data.get("completed", [])]
-        self.completed_by_card = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_by_card", {})).items()
-            if isinstance(v, list)
-        }
+        current_scene_id = str(self.card.get("scene_id", self.card_path))
+        raw_beat_state = data.get("beat_state")
+        if isinstance(raw_beat_state, dict):
+            self.beat_state = beat_state.load_state(raw_beat_state)
+        else:
+            visit = max(1, sum(1 for item in self.card_history if str(item) == current_scene_id))
+            self.beat_state = beat_state.migrate_legacy(
+                scene_id=current_scene_id,
+                scene_instance_id=beat_state.make_scene_instance_id(current_scene_id, visit),
+                required_ids=card_must_happen_ids(self.card),
+                completed=[str(x) for x in data.get("completed", [])],
+                completed_by_card={
+                    str(k): [str(x) for x in v]
+                    for k, v in dict(data.get("completed_by_card", {})).items()
+                    if isinstance(v, list)
+                },
+            )
+        self._sync_beat_projections()
         self.beat_receipts = [
             dict(item) for item in data.get("beat_receipts", []) if isinstance(item, dict)
         ]
@@ -7402,8 +7428,16 @@ class FreeStageSession:
             branch_progress=list(self.branch_progress),
             entry_context=self.entry_context,
         )
+        commit_cursor = self.runtime_store.load_commit_cursor()
+        snapshot_revision = int(commit_cursor.revision)
+        last_committed_batch_id = commit_cursor.last_committed_batch_id
+        if self.lifecycle_state == run_lifecycle.CLOSED and commit_cursor.pending is not None:
+            snapshot_revision += 1
+            last_committed_batch_id = commit_cursor.pending.batch_id
         return {
             "schema_version": SESSION_SCHEMA_VERSION,
+            "snapshot_revision": snapshot_revision,
+            "last_committed_batch_id": last_committed_batch_id,
             "session_id": self.session_id,
             "run_no": int(self.run_no),
             "card_path": str(self.card_path),
@@ -7414,6 +7448,7 @@ class FreeStageSession:
             "domain_state": domain_state.to_dict(),
             "card_history": self.card_history,
             "history": self.history,
+            "beat_state": self.beat_state,
             "completed": self.completed,
             "completed_by_card": self.completed_by_card,
             "beat_receipts": [dict(item) for item in self.beat_receipts[-200:]],
@@ -7627,11 +7662,6 @@ class FreeStageSession:
 
     def reset(self) -> None:
         self._assert_writable("reset")
-        self._reduce_beat_state(
-            "reset_all",
-            source_kind="session_reset",
-            turn_no=len(self.inputs),
-        )
         self.beat_receipts = []
         self._reduce_frame_beats(
             "reset_all",
@@ -7701,12 +7731,82 @@ class FreeStageSession:
         )
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card_history = [self.card.get("scene_id", str(self.card_path))]
+        reset_scene_id = str(self.card.get("scene_id", self.card_path))
+        self.beat_state = beat_state.new_state(
+            scene_id=reset_scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(reset_scene_id, 1),
+            required_ids=card_must_happen_ids(self.card),
+        )
+        self._sync_beat_projections()
         # Old Tiananmen turn-0 Longye exposition is retired.  Opening synopsis
         # + delayed flashback replace the mandatory front-door prologue.
         self.history = []
         self.runtime_store.delete()
         if self.autosave:
             self.save()
+
+    def _sync_beat_projections(self) -> None:
+        """Compatibility fields are read-only projections of authoritative BeatState."""
+        self.completed = beat_state.active_completed(self.beat_state)
+        self.completed_by_card = beat_state.completed_by_scene(self.beat_state)
+
+    def _activate_beat_scene(
+        self,
+        card: dict[str, Any],
+        *,
+        turn_no: int,
+        source_kind: str,
+        restore_completed: list[str] | tuple[str, ...] = (),
+        restore_source_refs: list[str] | tuple[str, ...] = (),
+    ) -> None:
+        scene_id = str(card.get("scene_id", self.card_path))
+        visit = sum(1 for item in self.card_history if str(item) == scene_id) + 1
+        self.beat_state = beat_state.activate_scene(
+            self.beat_state,
+            scene_id=scene_id,
+            scene_instance_id=beat_state.make_scene_instance_id(scene_id, visit),
+            required_ids=card_must_happen_ids(card),
+            restore_completed=restore_completed,
+            restore_source_kind=source_kind,
+            restore_source_refs=restore_source_refs,
+            turn=int(turn_no),
+        )
+        self._sync_beat_projections()
+
+    def _satisfy_beats(
+        self,
+        beat_ids: list[str] | tuple[str, ...],
+        *,
+        turn_no: int,
+        source_kind: str,
+        source_refs: list[str] | tuple[str, ...],
+    ) -> list[str]:
+        beats = [str(item).strip() for item in beat_ids if str(item).strip()]
+        if not beats:
+            return []
+        refs = [str(item).strip() for item in source_refs if str(item).strip()]
+        if not refs:
+            raise beat_state.BeatStateError(
+                f"beat satisfaction requires source_refs: {source_kind}"
+            )
+        active = beat_state.active_scene(self.beat_state)
+        evidence_id = beat_state.evidence_id_for(
+            scene_instance_id=str(active["scene_instance_id"]),
+            source_kind=source_kind,
+            turn=int(turn_no),
+            beat_ids=beats,
+            source_refs=refs,
+        )
+        self.beat_state, newly = beat_state.satisfy_beats(
+            self.beat_state,
+            beat_ids=beats,
+            evidence_id=evidence_id,
+            source_kind=source_kind,
+            source_refs=refs,
+            turn=int(turn_no),
+        )
+        self._sync_beat_projections()
+        return newly
 
     def _reduce_beat_state(
         self,
@@ -7718,37 +7818,44 @@ class FreeStageSession:
         evidence_refs: tuple[str, ...] | list[str] = (),
         scene_id: str | None = None,
     ) -> list[str]:
-        """Single production writer for scene beat completion compatibility fields."""
+        """Compatibility facade: all business changes go through BeatState."""
+        op = str(operation or "").strip()
         target_scene_id = str(
-            scene_id
-            or self.card.get("scene_id")
-            or self.card_path
+            scene_id or self.card.get("scene_id") or self.card_path
         ).strip()
-        reduced = beat_state.reduce_beat_state(
-            completed=self.completed,
-            completed_by_card=self.completed_by_card,
-            scene_id=target_scene_id,
-            operation=operation,
-            beat_ids=beat_ids,
-            turn_no=int(turn_no),
-            source_kind=source_kind,
-            evidence_refs=evidence_refs,
-        )
-        self.completed = list(reduced.completed)
-        self.completed_by_card = {
-            str(key): list(value)
-            for key, value in reduced.completed_by_card.items()
-        }
-        receipt = reduced.receipt
-        if isinstance(receipt, dict):
-            receipt_id = str(receipt.get("receipt_id") or "").strip()
-            if receipt_id and not any(
-                str(item.get("receipt_id") or "") == receipt_id
-                for item in self.beat_receipts
-                if isinstance(item, dict)
-            ):
-                self.beat_receipts.append(dict(receipt))
-        return list(reduced.added)
+        if op in {"complete", "replace_complete"}:
+            return self._satisfy_beats(
+                beat_ids,
+                turn_no=int(turn_no),
+                source_kind=source_kind,
+                source_refs=evidence_refs,
+            )
+        if op == "snapshot":
+            self._sync_beat_projections()
+            return []
+        if op in {"enter_empty", "restore"}:
+            live_scene_id = str(self.card.get("scene_id", self.card_path)).strip()
+            if target_scene_id != live_scene_id:
+                raise beat_state.BeatStateError(
+                    f"beat scene/card mismatch: requested={target_scene_id} live={live_scene_id}"
+                )
+            self._activate_beat_scene(
+                self.card,
+                turn_no=int(turn_no),
+                source_kind=source_kind,
+                restore_completed=(beat_ids if op == "restore" else ()),
+                restore_source_refs=(evidence_refs if op == "restore" else ()),
+            )
+            return []
+        if op == "reset_all":
+            self.beat_state = beat_state.new_state(
+                scene_id=target_scene_id,
+                scene_instance_id=beat_state.make_scene_instance_id(target_scene_id, 1),
+                required_ids=card_must_happen_ids(self.card),
+            )
+            self._sync_beat_projections()
+            return []
+        raise beat_state.BeatStateError(f"unsupported beat facade operation: {op}")
 
     def _reduce_frame_beats(
         self,
@@ -8036,12 +8143,23 @@ class FreeStageSession:
 
     def _current_runtime_scope(self) -> RuntimeScope:
         scene_id = str(self.card.get("scene_id") or self.card_path)
+        active_instance = ""
+        if isinstance(getattr(self, "beat_state", None), dict):
+            try:
+                active_instance = str(
+                    beat_state.active_scene(self.beat_state).get("scene_instance_id") or ""
+                ).strip()
+            except beat_state.BeatStateError:
+                active_instance = ""
         return RuntimeScope(
             worldline=str(self.world_cursor.get("worldline") or "WMAIN"),
             run=int(self.world_cursor.get("run", self.run_no) or self.run_no),
             ch_anchor=int(self.world_cursor.get("ch_anchor") or self.card.get("ch_anchor") or 0),
             session_id=self.session_id,
-            scene_instance_id=f"{scene_id}:visit:{max(1, len(self.card_history))}",
+            scene_instance_id=(
+                active_instance
+                or f"{scene_id}:visit:{max(1, len(self.card_history))}"
+            ),
         )
 
     def _commit_player_action(
@@ -9585,20 +9703,16 @@ class FreeStageSession:
             return
 
         evidence_refs: list[str] = []
-        progress_set = set(progress)
-        for receipt in self.beat_receipts:
-            if not isinstance(receipt, dict):
+        active = beat_state.active_scene(self.beat_state)
+        satisfied = active.get("satisfied") if isinstance(active.get("satisfied"), dict) else {}
+        for item_id in progress:
+            row = satisfied.get(str(item_id)) if isinstance(satisfied, dict) else None
+            if not isinstance(row, dict):
                 continue
-            added = {
-                str(item).strip()
-                for item in receipt.get("added", [])
-                if str(item).strip()
-            }
-            if not (added & progress_set):
-                continue
-            receipt_id = str(receipt.get("receipt_id") or "").strip()
-            if receipt_id and receipt_id not in evidence_refs:
-                evidence_refs.append(receipt_id)
+            for evidence_id in row.get("evidence_ids") or []:
+                ref = str(evidence_id or "").strip()
+                if ref and ref not in evidence_refs:
+                    evidence_refs.append(ref)
 
         self._reduce_frame_beats(
             "mark_done",

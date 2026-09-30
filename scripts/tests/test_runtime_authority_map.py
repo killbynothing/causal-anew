@@ -40,10 +40,12 @@ def test_scanner_finds_representative_five_domain_writers():
 
     completed = writers(report, "completed", "production")
     completed_by_card = writers(report, "completed_by_card", "production")
-    assert {row["symbol"] for row in completed} == {"FreeStageSession._reduce_beat_state"}
-    assert {row["symbol"] for row in completed_by_card} == {"FreeStageSession._reduce_beat_state"}
-    assert not any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
-    assert not any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+    assert completed == []
+    assert completed_by_card == []
+    completed_projection = writers(report, "completed", "projection")
+    by_card_projection = writers(report, "completed_by_card", "projection")
+    assert {row["symbol"] for row in completed_projection} == {"FreeStageSession._sync_beat_projections"}
+    assert {row["symbol"] for row in by_card_projection} == {"FreeStageSession._sync_beat_projections"}
 
     world_tx = writers(report, "world_transactions", "production")
     # P2c-4 moves load/reset/business mutation behind WorldCommitLedgerState.

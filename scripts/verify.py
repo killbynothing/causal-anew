@@ -635,7 +635,7 @@ VALIDATORS = [
     },
     {
         "id": "beat_authority_p2c1",
-        "desc": "P2c-1 BeatReducer 单一生产写权：completed/completed_by_card 收口、receipt、save/load、frame debt 保留",
+        "desc": "P2c-1 兼容闸：authoritative BeatState evidence、completed零业务writer、frame owner保留",
         "tier": "quick",
         "cmd": [PY, "scripts/tests/test_beat_authority_p2c1.py"],
         "triggers": [
@@ -728,6 +728,22 @@ VALIDATORS = [
         "need_db": False,
         "need": [],
         "need_file": "scripts/tests/test_player_state_owner_p2c6.py",
+    },
+    {
+        "id": "beat_state_p2c",
+        "desc": "P2c authoritative BeatState：evidence驱动、v1 legacy迁移、scene instance隔离、completed只作投影",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_beat_state_p2c.py"],
+        "triggers": [
+            "runtime/beat_state.py",
+            "runtime/session_schema.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_beat_state_p2c.py",
+            "scripts/tests/test_session_schema_migration.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_beat_state_p2c.py",
     },
     {
         "id": "actor_mind_v2",
@@ -839,7 +855,7 @@ VALIDATORS = [
     },
     {
         "id": "session_schema_migration",
-        "desc": "P0b session v1→v2 纯内存迁移：非破坏、未知版本拒写、生产仍停 v1",
+        "desc": "P2c session v2 激活：v1→v2 非破坏迁移、未知版本拒写、BeatState 域迁移后落 v2",
         "tier": "quick",
         "cmd": [PY, "scripts/tests/test_session_schema_migration.py"],
         "triggers": [

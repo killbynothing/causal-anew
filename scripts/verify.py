@@ -648,6 +648,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_scene_fact_world_commit_p2c.py",
     },
     {
+        "id": "scene_fact_production_p2c",
+        "desc": "P2c-2b FreeStage SceneFact：branch/receipt只由WorldCommit事件投影，revoke不删历史，legacy/load/save兼容",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_scene_fact_production_p2c.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/session_domain_state.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_scene_fact_production_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_scene_fact_production_p2c.py",
+    },
+    {
         "id": "beat_state_p2c",
         "desc": "P2c-1 BeatState：业务完成只经事件提交，completed 为兼容投影，skip/canon/世界处分/证据均有来源",
         "tier": "quick",

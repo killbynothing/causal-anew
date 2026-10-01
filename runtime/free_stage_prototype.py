@@ -7137,12 +7137,10 @@ class FreeStageSession:
         self._run_closed = False  # compatibility projection
         self.write_mode = "writable"
         self.source_session_id: str | None = None
-        self.branch_progress: list[str] = []
+        self.scene_fact_ledger: dict[str, Any] = world_commit.new_scene_fact_ledger()
+        self.branch_progress: list[str] = []  # compatibility projection only
         self._language_discovery_observation: str | None = None
-        # Structured scene facts are the authoritative receipt ledger for
-        # migrated scenes. `branch_progress` remains a legacy projection while
-        # other cards are being moved, never the only evidence of a player act.
-        self.scene_receipts: list[dict[str, Any]] = []
+        self.scene_receipts: list[dict[str, Any]] = []  # compatibility projection only
         # Cross-scene one-time facts are not dialogue history.  A terminal
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
@@ -7322,9 +7320,11 @@ class FreeStageSession:
                 run_lifecycle.CLOSING,
                 error=self.close_error or "recovered_pending_close",
             )
-        self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
-        self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
-        for item in self.scene_receipts:
+        legacy_branch_progress = [str(x) for x in data.get("branch_progress", [])]
+        legacy_scene_receipts = [
+            dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)
+        ]
+        for item in legacy_scene_receipts:
             if not str(item.get("receipt_id") or "").strip():
                 item["receipt_id"] = self._scene_receipt_id(item)
         self.beat_states = beat_state.normalize_states(data.get("beat_states"))
@@ -7374,8 +7374,21 @@ class FreeStageSession:
             fields = domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
             self.world_cursor = fields["world_cursor"]
-            self.branch_progress = fields["branch_progress"]
+            legacy_branch_progress = fields["branch_progress"]
             self.entry_context = fields["entry_context"]
+        self.scene_fact_ledger = world_commit.normalize_scene_fact_ledger(
+            data.get("scene_fact_ledger")
+        )
+        if not self.scene_fact_ledger.get("event_order") and (
+            legacy_branch_progress or legacy_scene_receipts
+        ):
+            world_commit.migrate_legacy_scene_facts(
+                self.scene_fact_ledger,
+                scope=self._current_runtime_scope(),
+                branch_progress=legacy_branch_progress,
+                scene_receipts=legacy_scene_receipts,
+            )
+        self._sync_scene_fact_projections()
         self.last_issues = [str(x) for x in data.get("last_issues", [])]
         self.last_degradations = list(data.get("last_degradations", []))
         self.player_violations = list(data.get("player_violations", []))
@@ -7491,6 +7504,7 @@ class FreeStageSession:
             "run_closed": bool(self._run_closed),
             "write_mode": self.write_mode,
             "source_session_id": self.source_session_id,
+            "scene_fact_ledger": copy.deepcopy(self.scene_fact_ledger),
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
@@ -7693,9 +7707,9 @@ class FreeStageSession:
         self.inputs = []
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.run_receipt = None
-        self.branch_progress = []
+        self.scene_fact_ledger = world_commit.new_scene_fact_ledger()
+        self._sync_scene_fact_projections()
         self._language_discovery_observation = None
-        self.scene_receipts = []
         self.world_transactions = {}
         self.player_action_receipts = {}
         self.causal_receipts = []
@@ -7767,6 +7781,73 @@ class FreeStageSession:
             }
         )
 
+    def _sync_scene_fact_projections(self) -> tuple[list[str], list[dict[str, Any]]]:
+        self.branch_progress = world_commit.project_branch_progress(self.scene_fact_ledger)
+        self.scene_receipts = world_commit.project_scene_receipts(self.scene_fact_ledger)
+        return list(self.branch_progress), [dict(item) for item in self.scene_receipts]
+
+    def _assert_branch_fact(
+        self,
+        fact_id: str,
+        *,
+        turn_no: int,
+        owner: str = "world",
+        source_kind: str,
+        source_refs: tuple[str, ...] | list[str] = (),
+        source_input: str = "",
+        request_id: str = "",
+    ) -> bool:
+        fact = str(fact_id or "").strip()
+        if not fact:
+            return False
+        scope = self._current_runtime_scope()
+        req = str(request_id or "").strip() or (
+            f"branch:{scope.scene_instance_id}:{fact}:turn:{int(turn_no)}:{source_kind}"
+        )
+        result = world_commit.assert_branch_fact(
+            self.scene_fact_ledger,
+            scope=scope,
+            request_id=req,
+            fact_id=fact,
+            owner=str(owner or "world"),
+            turn=int(turn_no),
+            source_kind=str(source_kind),
+            source_refs=tuple(str(x) for x in source_refs if str(x).strip()),
+            source_input=str(source_input or ""),
+        )
+        self._sync_scene_fact_projections()
+        return result.committed
+
+    def _revoke_branch_facts(
+        self,
+        fact_ids: Iterable[str],
+        *,
+        turn_no: int,
+        owner: str = "world",
+        source_kind: str,
+        source_refs: tuple[str, ...] | list[str] = (),
+        request_id: str = "",
+    ) -> tuple[str, ...]:
+        facts = tuple(str(item).strip() for item in fact_ids if str(item).strip())
+        if not facts:
+            return ()
+        scope = self._current_runtime_scope()
+        req = str(request_id or "").strip() or (
+            f"revoke:{scope.scene_instance_id}:turn:{int(turn_no)}:{source_kind}"
+        )
+        revoked = world_commit.revoke_branch_facts(
+            self.scene_fact_ledger,
+            scope=scope,
+            request_id=req,
+            fact_ids=facts,
+            owner=str(owner or "world"),
+            turn=int(turn_no),
+            source_kind=str(source_kind),
+            source_refs=tuple(str(x) for x in source_refs if str(x).strip()),
+        )
+        self._sync_scene_fact_projections()
+        return revoked
+
     def _record_scene_receipt(
         self,
         fact_id: str,
@@ -7775,25 +7856,26 @@ class FreeStageSession:
         turn_no: int,
         source_input: str = "",
         source_kind: str = "player_input",
+        source_refs: tuple[str, ...] | list[str] = (),
     ) -> dict[str, Any]:
-        """Append one observable fact once and return its stable evidence receipt."""
-        scene_id = str(self.card.get("scene_id", "") or "")
-        for item in self.scene_receipts:
-            if item.get("scene_id") == scene_id and item.get("fact_id") == fact_id:
-                if not str(item.get("receipt_id") or "").strip():
-                    item["receipt_id"] = self._scene_receipt_id(item)
-                return dict(item)
-        row = {
-            "scene_id": scene_id,
-            "scene_instance_id": self._current_runtime_scope().scene_instance_id,
-            "fact_id": str(fact_id),
-            "owner": str(owner),
-            "turn": int(turn_no),
-            "source_input": str(source_input),
-            "source_kind": str(source_kind),
-        }
-        row["receipt_id"] = self._scene_receipt_id(row)
-        self.scene_receipts.append(row)
+        """Record one observable fact through WorldCommit, then project legacy rows."""
+        fact = str(fact_id or "").strip()
+        if not fact:
+            raise ValueError("scene receipt requires fact_id")
+        scope = self._current_runtime_scope()
+        row, _ = world_commit.record_scene_receipt(
+            self.scene_fact_ledger,
+            scope=scope,
+            request_id=f"scene-receipt:{scope.scene_instance_id}:{fact}",
+            scene_id=str(self.card.get("scene_id", "") or ""),
+            fact_id=fact,
+            owner=str(owner),
+            turn=int(turn_no),
+            source_kind=str(source_kind),
+            source_input=str(source_input or ""),
+            source_refs=tuple(str(x) for x in source_refs if str(x).strip()),
+        )
+        self._sync_scene_fact_projections()
         return dict(row)
 
     def _ensure_current_beat_state(self) -> None:
@@ -8163,8 +8245,15 @@ class FreeStageSession:
             )
         if self._world_transaction("ryuya_pendant_disposition") is None:
             self._finalize_prologue_pendant("accepted", turn_no=0)
-            if "prologue_receipt_accepted" not in self.branch_progress:
-                self.branch_progress.append("prologue_receipt_accepted")
+            pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+            world_receipt = pendant_tx.get("receipt") if isinstance(pendant_tx.get("receipt"), dict) else {}
+            self._assert_branch_fact(
+                "prologue_receipt_accepted",
+                turn_no=0,
+                owner="world",
+                source_kind="world_transaction",
+                source_refs=(str(world_receipt.get("receipt_id") or "world:pendant"),),
+            )
         return turns
 
     def _flashback_already_played(self) -> bool:
@@ -8229,12 +8318,17 @@ class FreeStageSession:
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
         # 梗概已记账「挂坠已收」；闪回是可演重演，不能让 branch_progress / 记忆层
         # 写着「已经给过」导致龙也跳过托付与递坠。世界账本 world_transactions 仍保留交付事实。
-        self.branch_progress = [
-            item
-            for item in self.branch_progress
-            if not str(item).startswith("prologue_receipt_")
-            and not str(item).startswith("prologue_early_receipt_")
-        ]
+        self._revoke_branch_facts(
+            [
+                item for item in self.branch_progress
+                if str(item).startswith("prologue_receipt_")
+                or str(item).startswith("prologue_early_receipt_")
+            ],
+            turn_no=turn_no,
+            owner="world",
+            source_kind="flashback_replay_mask",
+            source_refs=(f"flashback-return:{source_scene_instance_id}",),
+        )
         layers = self.card.setdefault("memory_layers", {})
         if isinstance(layers, dict):
             rel = [
@@ -8403,12 +8497,8 @@ class FreeStageSession:
         )
 
     def _scene_fact_ids(self) -> set[str]:
-        """Facts are sourced from receipts first; old saves may only have markers."""
-        return {
-            str(item.get("fact_id", "")).strip()
-            for item in self.scene_receipts
-            if str(item.get("fact_id", "")).strip()
-        } | set(self.branch_progress)
+        """Compatibility fact set projected from the single SceneFact ledger."""
+        return world_commit.active_scene_fact_ids(self.scene_fact_ledger)
 
     def _record_player_branch_fact(
         self,
@@ -8417,29 +8507,39 @@ class FreeStageSession:
         turn_no: int,
         player_input: str | dict[str, str],
     ) -> bool:
-        """Write a player-visible choice to both the legacy marker and receipt ledger."""
+        """PlayerAction records the choice; SceneFact projects the active marker."""
         fact_id = str(fact_id).strip()
         if not fact_id:
             return False
-        self._commit_player_action(
-            f"branch:{fact_id}",
+        scope = self._current_runtime_scope()
+        action_id = f"branch:{scope.scene_instance_id}:{fact_id}:turn:{int(turn_no)}"
+        action = self._commit_player_action(
+            action_id,
             action_kind="branch_choice",
             target=fact_id,
             value="asserted",
             turn_no=turn_no,
             source_refs=(f"player-input:turn:{int(turn_no)}",),
         )
-        added = fact_id not in self.branch_progress
-        if added:
-            self.branch_progress.append(fact_id)
+        receipt = action.get("receipt") if isinstance(action.get("receipt"), dict) else {}
+        action_ref = str(receipt.get("receipt_id") or "").strip()
+        committed = self._assert_branch_fact(
+            fact_id,
+            turn_no=turn_no,
+            owner="player",
+            source_kind="player_branch",
+            source_refs=((action_ref,) if action_ref else ()),
+            source_input=_player_public_input_text(player_input),
+        )
         self._record_scene_receipt(
             fact_id,
             owner="player",
             turn_no=turn_no,
             source_input=_player_public_input_text(player_input),
             source_kind="player_branch",
+            source_refs=((action_ref,) if action_ref else ()),
         )
-        return added
+        return committed
 
     def surface(self) -> dict[str, Any]:
         prologue_active = bool(self.card.get("prologue_active"))
@@ -9812,8 +9912,13 @@ class FreeStageSession:
         )
         row["turn"] = turn_no
         for marker in request.get("outcome_effects", {}).get(str(row.get("outcome", "")), []):
-            if marker not in self.branch_progress:
-                self.branch_progress.append(marker)
+            self._assert_branch_fact(
+                marker,
+                turn_no=turn_no,
+                owner=str(row.get("actor_cons") or "actor"),
+                source_kind="actor_autonomous_decision",
+                source_refs=(f"actor-decision:{row['decision_id']}",),
+            )
         scene_effect = request.get("outcome_scene_effects", {}).get(str(row.get("outcome", "")), {})
         # Presence is a consequence of the actor's selected, visible action.
         # The director may expose the situation, but may not remove a role
@@ -10195,24 +10300,44 @@ class FreeStageSession:
                         source_kind="world_transaction",
                         evidence_refs=(str(world_receipt.get("receipt_id") or "world:pendant"),),
                     )
-                    if marker not in self.branch_progress:
-                        self.branch_progress.append(marker)
+                    self._assert_branch_fact(
+                        marker,
+                        turn_no=turn_no,
+                        owner="world",
+                        source_kind="world_transaction",
+                        source_refs=(str(world_receipt.get("receipt_id") or "world:pendant"),),
+                    )
                 else:
                     # Before an explicit pendant offer this is only a response to
                     # the entrust / conversation, never proof of item transfer.
                     early = f"prologue_early_receipt_{receipt}"
-                    if early not in self.branch_progress:
-                        self.branch_progress.append(early)
+                    self._assert_branch_fact(
+                        early,
+                        turn_no=turn_no,
+                        owner="player",
+                        source_kind="pre_offer_player_response",
+                        source_refs=(f"player-input:turn:{int(turn_no)}",),
+                        source_input=_player_public_input_text(player_input),
+                    )
 
         facts_this_turn: set[str] = set()
         scene_id_for_obs = str(self.card.get("scene_id", ""))
         if scene_id_for_obs == "OPENING_TIANANMEN_002":
             for fact in tiananmen_player_facts(player_input, recent_history=self.history):
-                self._record_scene_receipt(
-                    fact, owner="player", turn_no=turn_no, source_input=_player_public_input_text(player_input),
+                scene_receipt = self._record_scene_receipt(
+                    fact,
+                    owner="player",
+                    turn_no=turn_no,
+                    source_input=_player_public_input_text(player_input),
                 )
-                if fact not in self.branch_progress:
-                    self.branch_progress.append(fact)
+                self._assert_branch_fact(
+                    fact,
+                    turn_no=turn_no,
+                    owner="player",
+                    source_kind="scene_observation",
+                    source_refs=(str(scene_receipt.get("receipt_id") or ""),),
+                    source_input=_player_public_input_text(player_input),
+                )
                 facts_this_turn.add(fact)
             _OBS_FACT_MAP = {
                 "tiananmen_video_offered": ("video_lent", "玩家借出升旗视频"),
@@ -10251,25 +10376,20 @@ class FreeStageSession:
                     if is_satisfied:
                         for group in BRANCH_EXCLUSIVE_GROUPS:
                             if bp_id in group:
-                                self.branch_progress = [
-                                    x for x in self.branch_progress if x not in group
-                                ]
+                                self._revoke_branch_facts(
+                                    group,
+                                    turn_no=turn_no,
+                                    owner="world",
+                                    source_kind="branch_exclusive",
+                                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                                )
                                 break
-                        self.branch_progress.append(bp_id)
+                        self._record_player_branch_fact(
+                            str(bp_id),
+                            turn_no=turn_no,
+                            player_input=player_input,
+                        )
                         newly_triggered_bps.append(bp_id)
-
-        # `branch_progress` is still the compatibility projection consumed by
-        # older cards, but a player-triggered branch is also an observable
-        # event.  Keep its scene, source input and ownership for replay and
-        # later memory reduction; do not make it a Tiananmen-only exception.
-        for bp_id in newly_triggered_bps:
-            self._record_scene_receipt(
-                str(bp_id),
-                owner="player",
-                turn_no=turn_no,
-                source_input=_player_public_input_text(player_input),
-                source_kind="player_branch",
-            )
 
         cafe_disposition = "undecided"
         encounter_diversion = "undecided"
@@ -10278,20 +10398,36 @@ class FreeStageSession:
             if encounter_diversion == "undecided":
                 cafe_disposition = c16_milktea_disposition(parsed_input)
             if cafe_disposition == "accepted":
-                self.branch_progress = [
-                    item for item in self.branch_progress
-                    if item != "c16_player_cafe_declined"
-                ]
-                if "c16_player_cafe_accepted" not in self.branch_progress:
-                    self.branch_progress.append("c16_player_cafe_accepted")
+                self._revoke_branch_facts(
+                    ("c16_player_cafe_declined",),
+                    turn_no=turn_no,
+                    owner="world",
+                    source_kind="c16_cafe_disposition",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                )
+                self._assert_branch_fact(
+                    "c16_player_cafe_accepted",
+                    turn_no=turn_no,
+                    owner="player",
+                    source_kind="c16_cafe_disposition",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                    source_input=_player_public_input_text(player_input),
+                )
             elif cafe_disposition in {"player_declined", "girls_declined"}:
                 marker = (
                     "c16_player_cafe_declined"
                     if cafe_disposition == "player_declined"
                     else "c16_girls_cafe_declined"
                 )
-                if marker not in self.branch_progress:
-                    self.branch_progress.append(marker)
+                committed = self._assert_branch_fact(
+                    marker,
+                    turn_no=turn_no,
+                    owner="player",
+                    source_kind="c16_cafe_disposition",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                    source_input=_player_public_input_text(player_input),
+                )
+                if committed:
                     self._record_c16_cafe_refusal(cafe_disposition, turn_no)
 
         canon_state = self._canon_scene_state()
@@ -10305,10 +10441,18 @@ class FreeStageSession:
                 # Its observable consequence (they leave independently for a
                 # drink) remains part of the world state and is met again at
                 # the counter.
-                if "watch" not in self.branch_progress:
-                    self.branch_progress.append("watch")
-                if "c16_p2_follow_zhangchen" not in self.branch_progress:
-                    self.branch_progress.append("c16_p2_follow_zhangchen")
+                self._assert_branch_fact(
+                    "watch",
+                    turn_no=turn_no,
+                    owner="world",
+                    source_kind="canon_route_consequence",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                )
+                self._record_player_branch_fact(
+                    "c16_p2_follow_zhangchen",
+                    turn_no=turn_no,
+                    player_input=player_input,
+                )
                 completed_segments = canon_state.setdefault("completed_segments", [])
                 if "C16_GATE_WATCH_CONTINUATION" not in completed_segments:
                     completed_segments.append("C16_GATE_WATCH_CONTINUATION")
@@ -10333,8 +10477,15 @@ class FreeStageSession:
                         transition=transition,
                     )
             if pending_stop == "P1_GATE_INTERVENE" and encounter_diversion != "undecided":
-                if "c16_counter_encounter_cancelled" not in self.branch_progress:
-                    self.branch_progress.append("c16_counter_encounter_cancelled")
+                committed = self._assert_branch_fact(
+                    "c16_counter_encounter_cancelled",
+                    turn_no=turn_no,
+                    owner="player",
+                    source_kind="c16_encounter_diversion",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                    source_input=_player_public_input_text(player_input),
+                )
+                if committed:
                     self._record_c16_encounter_diversion(encounter_diversion, turn_no, player_input)
                 canon_state["pending_stop"] = "P1_ROUTE_DIVERGED"
                 canon_state["player_position"] = "diverted_from_counter_encounter"
@@ -10416,7 +10567,13 @@ class FreeStageSession:
             if shop_follow == "wait":
                 return self._canon_step_result([], turn_no=turn_no, debug=debug)
             if shop_follow != "undecided":
-                self.branch_progress = [item for item in self.branch_progress if item not in p2_markers]
+                self._revoke_branch_facts(
+                    p2_markers,
+                    turn_no=turn_no,
+                    owner="world",
+                    source_kind="c16_p2_route_replace",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                )
                 self._record_player_branch_fact(
                     f"c16_p2_{shop_follow}", turn_no=turn_no, player_input=player_input,
                 )
@@ -10427,9 +10584,13 @@ class FreeStageSession:
                         else "shop_counter_peripheral"
                     )
                     canon_state["pending_stop"] = ""
-                    self.branch_progress = [
-                        item for item in self.branch_progress if item != "c16_player_cafe_declined"
-                    ]
+                    self._revoke_branch_facts(
+                        ("c16_player_cafe_declined",),
+                        turn_no=turn_no,
+                        owner="world",
+                        source_kind="c16_route_enter_shop",
+                        source_refs=(f"player-input:turn:{int(turn_no)}",),
+                    )
                     transition = self._maybe_transition(player_input, turn_no, [])
                     if transition:
                         return self._canon_step_result(
@@ -10470,9 +10631,13 @@ class FreeStageSession:
             if table_follow == "wait":
                 return self._canon_step_result([], turn_no=turn_no, debug=debug)
             if table_follow != "undecided":
-                self.branch_progress = [
-                    item for item in self.branch_progress if item not in p2_table_markers
-                ]
+                self._revoke_branch_facts(
+                    p2_table_markers,
+                    turn_no=turn_no,
+                    owner="world",
+                    source_kind="c16_table_route_replace",
+                    source_refs=(f"player-input:turn:{int(turn_no)}",),
+                )
                 marker = f"c16_p2_{table_follow}"
                 self._record_player_branch_fact(marker, turn_no=turn_no, player_input=player_input)
                 if table_follow == "table_observer":
@@ -11317,8 +11482,13 @@ class FreeStageSession:
                 and "RP4" not in self.completed
                 and turns_cover_ryuya_pendant_gift(turns)
             ):
-                if "prologue_pendant_offered" not in self.branch_progress:
-                    self.branch_progress.append("prologue_pendant_offered")
+                self._assert_branch_fact(
+                    "prologue_pendant_offered",
+                    turn_no=turn_no,
+                    owner="C.ryuya.W1",
+                    source_kind="actor_visible_offer",
+                    source_refs=(f"actor-visible:turn:{int(turn_no)}",),
+                )
                 if not any(
                     isinstance(row, dict)
                     and str(row.get("kind") or "") == "pendant_offer"
@@ -12095,13 +12265,27 @@ class FreeStageSession:
             has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
             if self._world_transaction("ryuya_pendant_disposition") is not None:
                 if not has_receipt:
-                    outcome = str(
-                        (self._world_transaction("ryuya_pendant_disposition") or {}).get("outcome") or "accepted"
+                    pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                    outcome = str(pendant_tx.get("outcome") or "accepted")
+                    receipt = pendant_tx.get("receipt") if isinstance(pendant_tx.get("receipt"), dict) else {}
+                    self._assert_branch_fact(
+                        f"prologue_receipt_{outcome}",
+                        turn_no=turn_no,
+                        owner="world",
+                        source_kind="world_transaction",
+                        source_refs=(str(receipt.get("receipt_id") or "world:pendant"),),
                     )
-                    self.branch_progress.append(f"prologue_receipt_{outcome}")
             elif not has_receipt:
-                self.branch_progress.append("prologue_receipt_deferred")
                 self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+                pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                receipt = pendant_tx.get("receipt") if isinstance(pendant_tx.get("receipt"), dict) else {}
+                self._assert_branch_fact(
+                    "prologue_receipt_deferred",
+                    turn_no=turn_no,
+                    owner="world",
+                    source_kind="world_transaction",
+                    source_refs=(str(receipt.get("receipt_id") or "world:pendant"),),
+                )
             prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
@@ -12187,14 +12371,20 @@ class FreeStageSession:
         # becomes a world fact only after the single ExitPolicy authorizes it.
         if exit_decision.authorized:
             for receipt in exit_decision.prospective_branch_facts:
-                self._record_scene_receipt(
+                scene_receipt = self._record_scene_receipt(
                     receipt,
                     owner="player",
                     turn_no=turn_no,
                     source_input=_player_public_input_text(player_input),
                 )
-                if receipt not in self.branch_progress:
-                    self.branch_progress.append(receipt)
+                self._assert_branch_fact(
+                    receipt,
+                    turn_no=turn_no,
+                    owner="player",
+                    source_kind="semantic_exit",
+                    source_refs=(str(scene_receipt.get("receipt_id") or ""),),
+                    source_input=_player_public_input_text(player_input),
+                )
 
         if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
@@ -12209,10 +12399,25 @@ class FreeStageSession:
                 pendant_tx = self._world_transaction("ryuya_pendant_disposition")
                 if not has_receipt and pendant_tx is not None:
                     outcome = str(pendant_tx.get("outcome") or "accepted")
-                    self.branch_progress.append(f"prologue_receipt_{outcome}")
+                    receipt = pendant_tx.get("receipt") if isinstance(pendant_tx.get("receipt"), dict) else {}
+                    self._assert_branch_fact(
+                        f"prologue_receipt_{outcome}",
+                        turn_no=turn_no,
+                        owner="world",
+                        source_kind="world_transaction",
+                        source_refs=(str(receipt.get("receipt_id") or "world:pendant"),),
+                    )
                 elif not has_receipt:
-                    self.branch_progress.append("prologue_receipt_deferred")
                     self._finalize_prologue_pendant("deferred", turn_no=turn_no)
+                    pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                    receipt = pendant_tx.get("receipt") if isinstance(pendant_tx.get("receipt"), dict) else {}
+                    self._assert_branch_fact(
+                        "prologue_receipt_deferred",
+                        turn_no=turn_no,
+                        owner="world",
+                        source_kind="world_transaction",
+                        source_refs=(str(receipt.get("receipt_id") or "world:pendant"),),
+                    )
 
                 if exit_decision.mode == "forced":
                     unresolved = [

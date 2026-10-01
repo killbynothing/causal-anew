@@ -337,6 +337,7 @@ def _append_scene_fact_event(
     branch_visible: bool,
     receipt_visible: bool,
     legacy_receipt_id: str = "",
+    scene_id: str = "",
 ) -> SceneFactCommitResult:
     if ledger.get("schema_version") != SCENE_FACT_LEDGER_SCHEMA:
         raise ValueError("scene fact ledger schema mismatch")
@@ -376,6 +377,7 @@ def _append_scene_fact_event(
         "branch_visible": bool(branch_visible),
         "receipt_visible": bool(receipt_visible),
         "legacy_receipt_id": _text(legacy_receipt_id),
+        "scene_id": _text(scene_id),
         "scope": scope.to_dict(),
     }
     receipt = ReceiptEnvelope.for_payload(
@@ -603,11 +605,9 @@ def record_scene_receipt(
         branch_visible=False,
         receipt_visible=True,
         legacy_receipt_id=legacy_receipt_id,
+        scene_id=scene_id,
     )
-    event = dict(result.event)
-    event["scene_id"] = _text(scene_id)
-    ledger["events"][event["event_id"]]["scene_id"] = _text(scene_id)
-    return _compat_scene_receipt(event), result.committed
+    return _compat_scene_receipt(result.event), result.committed
 
 
 def active_scene_fact_ids(ledger: Mapping[str, Any] | None) -> set[str]:

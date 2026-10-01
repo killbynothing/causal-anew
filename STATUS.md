@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-01（P2c-Beat 完成：BeatState × completed只读投影）
+
+- **Beat 权威**：新增 `runtime/beat_state.py`，以 scene-instance scoped `BeatReceipt` 持有完成事实；`FreeStageSession.completed / completed_by_card` 降为只读兼容投影，生产代码已无 `self.completed = / append / extend` 与 `completed_by_card[...]` 直写。
+- **来源**：canon segment、开场默认 beat、普通 observed progress、RP4 已提交 WorldCommit、C16 canon resolution、skip、scene enter、flashback restore 分别带明确 `source_kind/source_ref`；缺来源拒绝，重复完成幂等，不因后续 beat 存在而补造前置玩家行为。
+- **重访/迁移**：同一 scene 重访获得新的 `scene_instance_id` 与 receipt id；旧 completed/completed_by_card 只在 load migration 转成 `legacy_snapshot` receipt，不伪造 PlayerAction。save→load 保持 receipt 不变。
+- **旧闸升级**：P0a 过去“completed 多 writer 可见”的 characterization 已由新 invariant 接棒，要求 `completed / completed_by_card` 生产直写为 0；旧测试夹具不得给只读 property 加 setter，全部改走 Beat reducer。
+- **验**：GitHub Actions [36858218347](https://github.com/killbynothing/causal-anew/actions/runs/36858218347) **success**；quick **50 PASS / 0 FAIL / 163 SKIP（213 validators）**；DB checksum 前后不变。
+- **边界**：本子循环只收 completed/completed_by_card；`completed_beats`、branch/scene receipts、run observation、player_state/body_frames/world_cursor 等 P2c writer 仍未宣称完成。tracked Authority Map 报告将在 P2c 全域收口后统一重生成。
+- **报账**：未改 run=0、场卡、Seed/VOICE、挂坠 A/B ★★★、真人 a14 DB；**正典/人物/剧情新增 = 0**。
+- **下一动**：P2c 下一域只收 `branch_progress + scene_receipts`，先建立单一 reducer/receipt 来源，再缩生产 writer；不提前进入 P3。
+
 ### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
 
 - **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。

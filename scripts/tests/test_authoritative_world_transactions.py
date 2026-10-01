@@ -371,7 +371,24 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
         and int(meta.get("production_writer_count") or 0) > 0
     }
     debt = set(P2A_WORLD_MIGRATION_DEBT)
-    assert current <= debt, f"unlisted P2a world authority debt: {sorted(current - debt)}"
+    unresolved = sorted(current - debt)
+    rows = {
+        fact: [
+            {
+                "path": row.get("path"),
+                "symbol": row.get("symbol"),
+                "line": row.get("line"),
+                "write_kind": row.get("write_kind"),
+                "classification": row.get("classification"),
+            }
+            for row in report["facts"][fact]["writers"]
+            if row.get("classification") in {"production", "production_tooling"}
+        ]
+        for fact in unresolved
+    }
+    assert current <= debt, (
+        f"unlisted P2a world authority debt: {unresolved}; writers={rows}"
+    )
     assert {"branch_progress", "body_frames", "player_state"} <= debt
 
 

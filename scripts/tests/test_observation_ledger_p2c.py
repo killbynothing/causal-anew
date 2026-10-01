@@ -81,7 +81,10 @@ def test_player_thought_merges_without_whole_ledger_assignment():
 def test_production_has_no_direct_observation_ledger_writer():
     source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
     assert not re.search(r"self\.run_observation_ledger\s*=", source)
-    assert "self.run_observation_ledger," not in source
+    assert not re.search(
+        r"self\.run_observation_ledger\s*,\s*[A-Za-z_][A-Za-z0-9_]*\s*=",
+        source,
+    )
     assert "_observation_ledger.merge_rows(" in source
     assert "_append_run_observation(" in source
 

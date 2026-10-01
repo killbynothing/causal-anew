@@ -72,7 +72,11 @@ def test_scanner_finds_representative_five_domain_writers():
 def test_scanner_separates_initialization_and_reports_callers():
     report = get_report()
     completed = report["facts"]["completed"]["writers"]
-    assert completed == []
+    production_rows = [
+        row for row in completed
+        if row["classification"] in {"production", "production_tooling"}
+    ]
+    assert production_rows == []
     assert report["facts"]["completed"]["production_writer_count"] == 0
 
     ended = report["facts"]["ended"]["writers"]

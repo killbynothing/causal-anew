@@ -622,7 +622,7 @@ button:disabled {
 
 <script>
 const state = {
-  engine: "scene",
+  engine: "free_stage",
   freeStageSessionId: null,
   freeStageEnded: false,
   sceneId: "OPENING_TIANANMEN_001",
@@ -1689,15 +1689,23 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const params = new URLSearchParams(window.location.search);
-  if (params.get("free_stage") === "1") {
+  // FreeStage is the current player path. The old scene engine remains
+  // available only as an explicit compatibility surface.
+  if (params.get("legacy_scene") === "1") {
+    state.engine = "scene";
+    if (btnSlots) btnSlots.style.display = "none";
+  } else {
     state.engine = "free_stage";
     if (btnSlots) btnSlots.style.display = "";
-    return;
   }
   if (params.get("skip_prologue") === "1") {
     prologueOverlay.style.display = "none";
     state.playerProfile = readPlayerProfile();
-    startScene();
+    if (state.engine === "free_stage") {
+      startFreeStage();
+    } else {
+      startScene();
+    }
   }
 });
 </script>

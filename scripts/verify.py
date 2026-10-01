@@ -634,6 +634,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_p2b_matrix.py",
     },
     {
+        "id": "player_engine_authority_p2c",
+        "desc": "P2c 主玩法入口：player.html 默认 FreeStage，旧 scene 引擎仅显式 legacy_scene=1",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_player_engine_authority_p2c.py"],
+        "triggers": [
+            "web/player.html",
+            "web/server.py",
+            "design/角色装配备忘_用什么×怎么装×可变层_2026-08-03.md",
+            "scripts/tests/test_player_engine_authority_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_player_engine_authority_p2c.py",
+    },
+    {
         "id": "scene_fact_world_commit_p2c",
         "desc": "P2c-2a WorldCommit SceneFact：append-only assert/revoke、scene receipt 重访隔离与 legacy 单向迁移",
         "tier": "quick",

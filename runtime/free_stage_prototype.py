@@ -11399,7 +11399,7 @@ class FreeStageSession:
                     self.body_frames, resolved_card, auto_canon_turns
                 )
                 ensure_card_body_frames(resolved_card, self.body_frames)
-                    note_item = {
+            note_item = {
                 "role": "director_note",
                 "speaker": "导演暗注",
                 "text": note,

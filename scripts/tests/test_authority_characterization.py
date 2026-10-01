@@ -35,13 +35,15 @@ def production(report, fact):
     ]
 
 
-def test_known_bug_multiple_beat_writers_is_visible_until_p2():
+def test_p2c_completed_compatibility_field_has_no_production_writers():
     report = load_report()
-    rows = production(report, "completed")
-    symbols = {row["symbol"] for row in rows}
-    assert any(symbol.endswith("FreeStageSession.step") for symbol in symbols)
-    assert any(symbol.endswith("FreeStageSession.skip_scene") for symbol in symbols)
-    assert report["facts"]["completed"]["production_writer_count"] > 1
+    assert production(report, "completed") == []
+    assert report["facts"]["completed"]["production_writer_count"] == 0
+    assert report["facts"]["completed"]["target_owner"] == "BeatState"
+    source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert "self.completed.append(" not in source
+    assert "self.completed.extend(" not in source
+    assert "self.completed =" not in source
 
 
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
@@ -81,7 +83,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 
 if __name__ == "__main__":
-    test_known_bug_multiple_beat_writers_is_visible_until_p2()
+    test_p2c_completed_compatibility_field_has_no_production_writers()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

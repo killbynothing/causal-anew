@@ -243,7 +243,9 @@ def test_after_offer_entrust_promise_does_not_accept_pendant():
             load_existing=False,
             caller=_caller,
         )
-        session.completed = ["RP1", "RP2", "RP3"]
+        session._replace_completed(
+            ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
+        )
         session.branch_progress = ["prologue_pendant_offered"]
         session.step({"speech": "我答应，我会照看他们", "action": "", "thought": ""})
         assert "RP4" not in session.completed
@@ -290,7 +292,9 @@ def test_step_does_not_complete_rp4_before_conflicting_world_commit():
             load_existing=False,
             caller=_caller,
         )
-        session.completed = ["RP1", "RP2", "RP3"]
+        session._replace_completed(
+            ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
+        )
         session.branch_progress = ["prologue_pendant_offered"]
         session._finalize_prologue_pendant("accepted", turn_no=1)
         # Existing terminal world fact conflicts with a later decline. The

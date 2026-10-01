@@ -111,7 +111,9 @@ def _offered_session(
         intent_caller=None,
         truth_db=None,
     )
-    session.completed = ["RP1", "RP2", "RP3"]
+    session._replace_completed(
+        ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
+    )
     session.branch_progress = ["prologue_pendant_offered"]
     session.run_observation_ledger = _offer_ledger(session_id)
     session.prior_reflect_by_cons["C.ryuya.W1"] = {
@@ -214,7 +216,7 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        joke.completed = ["RP1"]
+        joke._replace_completed(["RP1"], source_kind="test_fixture", turn_no=0)
         joke.inputs = [{"speech": "闲聊", "action": "", "thought": ""}] * 20
         joke.step({"speech": "想再见见你总要有个借口吧", "action": "", "thought": ""})
         assert "RP2" not in joke.completed
@@ -235,7 +237,7 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        serious.completed = ["RP1"]
+        serious._replace_completed(["RP1"], source_kind="test_fixture", turn_no=0)
         serious.step({"speech": "你今天怎么了，有事就说。", "action": "", "thought": ""})
         assert "RP2" in serious.completed
         assert "RP3" not in serious.completed
@@ -257,7 +259,9 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        stage.completed = ["RP1", "RP2"]
+        stage._replace_completed(
+            ["RP1", "RP2"], source_kind="test_fixture", turn_no=0
+        )
         stage.step({"speech": "你说。", "action": "", "thought": ""})
         assert "RP3" not in stage.completed
 

@@ -118,11 +118,12 @@ def test_no_direct_observation_ledger_mutation_remains_in_free_stage():
 def test_authority_map_reports_zero_observation_production_writers():
     report = _audit_report()
     meta = report["facts"]["run_observation_ledger"]
-    assert meta["production_writer_count"] == 0
-    assert not [
+    rows = [
         row for row in meta["writers"]
         if row["classification"] in {"production", "production_tooling"}
     ]
+    assert meta["production_writer_count"] == 0, rows
+    assert rows == [], rows
 
 
 if __name__ == "__main__":

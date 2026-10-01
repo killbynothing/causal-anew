@@ -219,7 +219,12 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        joke.completed = ["RP1"]
+        joke._complete_beat(
+        "RP1",
+        source_kind="test_fixture",
+        source_ref="test:pre-offer-joke",
+        turn_no=0,
+    )
         joke.inputs = [{"speech": "闲聊", "action": "", "thought": ""}] * 20
         joke.step({"speech": "想再见见你总要有个借口吧", "action": "", "thought": ""})
         assert "RP2" not in joke.completed
@@ -240,7 +245,12 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        serious.completed = ["RP1"]
+        serious._complete_beat(
+        "RP1",
+        source_kind="test_fixture",
+        source_ref="test:pre-offer-serious",
+        turn_no=0,
+    )
         serious.step({"speech": "你今天怎么了，有事就说。", "action": "", "thought": ""})
         assert "RP2" in serious.completed
         assert "RP3" not in serious.completed
@@ -262,7 +272,12 @@ def test_pre_offer_high_beat_joke_and_stage_only_do_not_fake_progress():
             intent_caller=None,
             truth_db=None,
         )
-        stage.completed = ["RP1", "RP2"]
+        stage._complete_beats(
+        ["RP1", "RP2"],
+        source_kind="test_fixture",
+        source_ref="test:stage-only-progress",
+        turn_no=0,
+    )
         stage.step({"speech": "你说。", "action": "", "thought": ""})
         assert "RP3" not in stage.completed
 

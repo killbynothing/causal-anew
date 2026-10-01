@@ -277,7 +277,9 @@ def test_legacy_world_transaction_retry_is_read_only_compatible():
 
 def test_free_stage_world_transaction_delegates_to_world_commit():
     source = inspect.getsource(proto.FreeStageSession._commit_world_transaction)
-    assert "world_commit.commit_world_fact" in source
+    # P2c moves the session facade behind WorldLedgerState. The session may
+    # request a commit, but it no longer owns or mutates the transaction ledger.
+    assert "self.world_ledger.commit_fact" in source
     assert "self.world_transactions[" not in source
 
     with tempfile.TemporaryDirectory() as tmp:

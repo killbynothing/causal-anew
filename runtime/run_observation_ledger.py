@@ -6,8 +6,11 @@ Silent recording — never a "please record this beat" actor prompt.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
-from typing import Any
+from typing import Any, Mapping, Sequence
+
+from runtime.causal_protocol import ReceiptConflict, canonical_payload_hash
 
 IMPORTANCE0: dict[str, int] = {
     "video_lent": 8,
@@ -143,3 +146,77 @@ def append_from_branch_fact(
         scene_id=scene_id,
         session_id=session_id,
     )
+
+
+class ObservationLedger:
+    """Authoritative mutable owner for run-scoped observation rows."""
+
+    def __init__(self, rows: Sequence[Mapping[str, Any]] | None = None) -> None:
+        self._rows = [
+            copy.deepcopy(dict(row))
+            for row in (rows or ())
+            if isinstance(row, Mapping)
+        ]
+
+    @classmethod
+    def from_saved(cls, rows: Sequence[Mapping[str, Any]] | None) -> "ObservationLedger":
+        return cls(rows)
+
+    def rows(self) -> list[dict[str, Any]]:
+        return [copy.deepcopy(row) for row in self._rows]
+
+    def reset(self) -> None:
+        self._rows.clear()
+
+    def append(
+        self,
+        *,
+        kind: str,
+        fact_text: str,
+        turn: int = 0,
+        scene_id: str = "",
+        session_id: str = "",
+        run_id: int | str = 1,
+        extra: dict[str, Any] | None = None,
+    ) -> bool:
+        before = {str(row.get("id") or "") for row in self._rows}
+        next_rows = append_observation(
+            self._rows,
+            kind=kind,
+            fact_text=fact_text,
+            turn=turn,
+            scene_id=scene_id,
+            session_id=session_id,
+            run_id=run_id,
+            extra=extra,
+        )
+        self._rows = [copy.deepcopy(row) for row in next_rows]
+        after = {str(row.get("id") or "") for row in self._rows}
+        return bool(after - before)
+
+    def merge_rows(self, rows: Sequence[Mapping[str, Any]] | None) -> int:
+        """Merge a pure reducer result; same id/different row is a hard conflict."""
+        by_id = {
+            str(row.get("id") or ""): row
+            for row in self._rows
+            if str(row.get("id") or "")
+        }
+        added = 0
+        for raw in rows or ():
+            if not isinstance(raw, Mapping):
+                continue
+            row = copy.deepcopy(dict(raw))
+            oid = str(row.get("id") or "").strip()
+            if not oid:
+                raise ValueError("observation row requires id")
+            existing = by_id.get(oid)
+            if existing is not None:
+                if canonical_payload_hash(existing) != canonical_payload_hash(row):
+                    raise ReceiptConflict(
+                        f"observation id reused with different payload: {oid}"
+                    )
+                continue
+            self._rows.append(row)
+            by_id[oid] = row
+            added += 1
+        return added

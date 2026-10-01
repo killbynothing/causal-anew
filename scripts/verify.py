@@ -663,6 +663,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_fact_ledger_p2c.py",
     },
     {
+        "id": "observation_ledger_p2c",
+        "desc": "P2c ObservationLedger：run observation 单 owner、thought/projection merge、旧列表只读投影",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_observation_ledger_p2c.py"],
+        "triggers": [
+            "runtime/run_observation_ledger.py",
+            "runtime/world_projection.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/world_commit.py",
+            "scripts/tests/test_observation_ledger_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_observation_ledger_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

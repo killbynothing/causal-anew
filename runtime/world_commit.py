@@ -21,11 +21,8 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 # P2a deliberately migrates the mature world_transactions append path first.
 # These authority-map fact families remain compatibility writers until P2c.
 P2A_WORLD_MIGRATION_DEBT = (
-    "branch_progress",
-    "scene_receipts",
     "world_transactions",  # reset/load compatibility writers remain
     "causal_receipts",
-    "run_observation_ledger",
     "player_state",
     "body_frames",
     "world_cursor",

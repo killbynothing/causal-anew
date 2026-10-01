@@ -182,7 +182,12 @@ def test_no_exit_completed_scene_stays_open_without_explicit_auto_end():
             autosave=False,
             caller=_dummy_caller,
         )
-        session.completed = ["M1"]
+        session._complete_beat(
+            "M1",
+            source_kind="test_fixture",
+            source_ref="test:exit-policy-complete",
+            turn_no=0,
+        )
         emitted = []
         assert session._maybe_transition(
             {"speech": "再聊一会儿", "action": "", "thought": ""},

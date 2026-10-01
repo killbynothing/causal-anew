@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import json
 import re
 import sys
@@ -80,11 +81,29 @@ def test_player_thought_merges_without_whole_ledger_assignment():
 
 def test_production_has_no_direct_observation_ledger_writer():
     source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
-    assert not re.search(r"self\.run_observation_ledger\s*=", source)
-    assert not re.search(
-        r"self\.run_observation_ledger\s*,\s*[A-Za-z_][A-Za-z0-9_]*\s*=",
-        source,
-    )
+    tree = ast.parse(source)
+
+    def contains_target(node):
+        if isinstance(node, ast.Attribute):
+            return (
+                isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+                and node.attr == "run_observation_ledger"
+            )
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return any(contains_target(item) for item in node.elts)
+        if isinstance(node, ast.Subscript):
+            return contains_target(node.value)
+        return False
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            assert not any(contains_target(target) for target in node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            assert not contains_target(node.target)
+        elif isinstance(node, ast.AugAssign):
+            assert not contains_target(node.target)
+
     assert "_observation_ledger.merge_rows(" in source
     assert "_append_run_observation(" in source
 

@@ -5,6 +5,7 @@ decide story semantics; callers must submit an already-authorized fact.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Sequence
 
@@ -17,6 +18,8 @@ from runtime.causal_protocol import (
 )
 
 WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
+SCENE_FACT_LEDGER_SCHEMA = "free_stage.scene_fact_ledger.v1"
+SCENE_FACT_EVENT_SCHEMA = "free_stage.scene_fact_event.v1"
 
 # P2a deliberately migrates the mature world_transactions append path first.
 # These authority-map fact families remain compatibility writers until P2c.
@@ -240,3 +243,468 @@ def commit_world_fact(
         record=dict(result.records[0]),
         committed=tx_id in result.committed_ids,
     )
+
+
+
+@dataclass(frozen=True)
+class SceneFactCommitResult:
+    event: dict[str, Any]
+    committed: bool
+
+
+def new_scene_fact_ledger() -> dict[str, Any]:
+    return {
+        "schema_version": SCENE_FACT_LEDGER_SCHEMA,
+        "events": {},
+        "event_order": [],
+    }
+
+
+def normalize_scene_fact_ledger(raw: Mapping[str, Any] | None) -> dict[str, Any]:
+    if raw is None:
+        return new_scene_fact_ledger()
+    if not isinstance(raw, Mapping):
+        raise ValueError("scene fact ledger must be an object")
+    data = copy.deepcopy(dict(raw))
+    if data.get("schema_version") != SCENE_FACT_LEDGER_SCHEMA:
+        raise ValueError(
+            f"unsupported scene fact ledger schema: {data.get('schema_version')!r}"
+        )
+    if not isinstance(data.get("events"), dict):
+        raise ValueError("scene fact ledger events must be an object")
+    if not isinstance(data.get("event_order"), list):
+        raise ValueError("scene fact ledger event_order must be a list")
+    events = data["events"]
+    order = [str(item) for item in data["event_order"] if str(item).strip()]
+    if len(order) != len(set(order)):
+        raise ValueError("scene fact ledger event_order contains duplicates")
+    if set(order) != set(str(key) for key in events):
+        raise ValueError("scene fact ledger event_order/events mismatch")
+    for event_id in order:
+        event = events.get(event_id)
+        if not isinstance(event, Mapping):
+            raise ValueError(f"scene fact event must be an object: {event_id}")
+        if event.get("schema_version") != SCENE_FACT_EVENT_SCHEMA:
+            raise ValueError(f"unsupported scene fact event schema: {event_id}")
+    data["event_order"] = order
+    return data
+
+
+def _scene_fact_event_id(
+    scope: RuntimeScope,
+    *,
+    request_id: str,
+    operation: str,
+    fact_id: str,
+) -> str:
+    return (
+        "scene-fact:"
+        + canonical_payload_hash(
+            {
+                "scope": scope.to_dict(),
+                "request_id": _text(request_id),
+                "operation": _text(operation),
+                "fact_id": _text(fact_id),
+            }
+        )
+    )
+
+
+def _scene_receipt_id(scope: RuntimeScope, fact_id: str) -> str:
+    return (
+        "scene:"
+        + canonical_payload_hash(
+            {
+                "scope": scope.to_dict(),
+                "fact_id": _text(fact_id),
+            }
+        )
+    )
+
+
+def _append_scene_fact_event(
+    ledger: MutableMapping[str, Any],
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    fact_id: str,
+    operation: str,
+    owner: str,
+    turn: int,
+    source_kind: str,
+    source_input: str = "",
+    source_refs: Sequence[str] = (),
+    branch_visible: bool,
+    receipt_visible: bool,
+    legacy_receipt_id: str = "",
+) -> SceneFactCommitResult:
+    if ledger.get("schema_version") != SCENE_FACT_LEDGER_SCHEMA:
+        raise ValueError("scene fact ledger schema mismatch")
+    if not isinstance(ledger.get("events"), dict) or not isinstance(
+        ledger.get("event_order"), list
+    ):
+        raise ValueError("scene fact ledger is malformed")
+    if int(scope.run) < 1:
+        raise ValueError("scene fact commit requires run>=1")
+
+    req_id = _text(request_id)
+    fact = _text(fact_id)
+    op = _text(operation)
+    kind = _text(source_kind)
+    who = _text(owner)
+    refs = tuple(_text(item) for item in source_refs if _text(item))
+    if not req_id or not fact or op not in {"assert", "revoke"} or not kind or not who:
+        raise ValueError("scene fact commit requires request/fact/op/owner/source_kind")
+    if int(turn) < 0:
+        raise ValueError("scene fact turn must be >=0")
+
+    event_id = _scene_fact_event_id(
+        scope,
+        request_id=req_id,
+        operation=op,
+        fact_id=fact,
+    )
+    payload = {
+        "event_id": event_id,
+        "operation": op,
+        "fact_id": fact,
+        "owner": who,
+        "turn": int(turn),
+        "source_kind": kind,
+        "source_input": _text(source_input),
+        "source_refs": list(refs),
+        "branch_visible": bool(branch_visible),
+        "receipt_visible": bool(receipt_visible),
+        "legacy_receipt_id": _text(legacy_receipt_id),
+        "scope": scope.to_dict(),
+    }
+    receipt = ReceiptEnvelope.for_payload(
+        receipt_id=f"world-scene:{canonical_payload_hash({'event_id': event_id})}",
+        request_id=req_id,
+        turn_id=f"turn:{int(turn)}",
+        sequence=0,
+        scope=scope,
+        producer="WorldCommit",
+        source_refs=refs,
+        visibility="public",
+        base_revision=0,
+        payload=payload,
+    )
+    event = {
+        "schema_version": SCENE_FACT_EVENT_SCHEMA,
+        **payload,
+        "commit_receipt": receipt.to_dict(),
+    }
+
+    events = ledger["events"]
+    existing = events.get(event_id)
+    if existing is not None:
+        if canonical_payload_hash(existing) != canonical_payload_hash(event):
+            raise ReceiptConflict(
+                f"scene fact event id reused with different payload: {event_id}"
+            )
+        return SceneFactCommitResult(event=copy.deepcopy(existing), committed=False)
+
+    events[event_id] = event
+    ledger["event_order"].append(event_id)
+    return SceneFactCommitResult(event=copy.deepcopy(event), committed=True)
+
+
+def project_branch_progress(ledger: Mapping[str, Any] | None) -> list[str]:
+    data = normalize_scene_fact_ledger(ledger)
+    active: list[str] = []
+    for event_id in data["event_order"]:
+        event = data["events"][event_id]
+        if not bool(event.get("branch_visible")):
+            continue
+        fact = _text(event.get("fact_id"))
+        if not fact:
+            continue
+        if event.get("operation") == "assert":
+            if fact not in active:
+                active.append(fact)
+        elif event.get("operation") == "revoke":
+            active = [item for item in active if item != fact]
+    return active
+
+
+def _compat_scene_receipt(event: Mapping[str, Any]) -> dict[str, Any]:
+    scope = RuntimeScope.from_dict(dict(event.get("scope") or {}))
+    receipt_id = _text(event.get("legacy_receipt_id")) or _scene_receipt_id(
+        scope, _text(event.get("fact_id"))
+    )
+    commit_receipt = (
+        dict(event.get("commit_receipt"))
+        if isinstance(event.get("commit_receipt"), Mapping)
+        else {}
+    )
+    return {
+        "scene_id": _text(event.get("scene_id"))
+        or scope.scene_instance_id.split(":visit:", 1)[0],
+        "scene_instance_id": scope.scene_instance_id,
+        "fact_id": _text(event.get("fact_id")),
+        "owner": _text(event.get("owner")),
+        "turn": int(event.get("turn", 0) or 0),
+        "source_input": _text(event.get("source_input")),
+        "source_kind": _text(event.get("source_kind")),
+        "receipt_id": receipt_id,
+        "world_receipt_id": _text(commit_receipt.get("receipt_id")),
+    }
+
+
+def project_scene_receipts(ledger: Mapping[str, Any] | None) -> list[dict[str, Any]]:
+    data = normalize_scene_fact_ledger(ledger)
+    out: list[dict[str, Any]] = []
+    for event_id in data["event_order"]:
+        event = data["events"][event_id]
+        if event.get("operation") != "assert" or not bool(event.get("receipt_visible")):
+            continue
+        out.append(_compat_scene_receipt(event))
+    return out
+
+
+def assert_branch_fact(
+    ledger: MutableMapping[str, Any],
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    fact_id: str,
+    owner: str,
+    turn: int,
+    source_kind: str,
+    source_refs: Sequence[str],
+    source_input: str = "",
+) -> SceneFactCommitResult:
+    fact = _text(fact_id)
+    if fact in project_branch_progress(ledger):
+        for event_id in reversed(list(ledger.get("event_order") or [])):
+            event = (ledger.get("events") or {}).get(event_id)
+            if (
+                isinstance(event, Mapping)
+                and event.get("operation") == "assert"
+                and bool(event.get("branch_visible"))
+                and _text(event.get("fact_id")) == fact
+            ):
+                return SceneFactCommitResult(event=copy.deepcopy(dict(event)), committed=False)
+    return _append_scene_fact_event(
+        ledger,
+        scope=scope,
+        request_id=request_id,
+        fact_id=fact,
+        operation="assert",
+        owner=owner,
+        turn=int(turn),
+        source_kind=source_kind,
+        source_input=source_input,
+        source_refs=source_refs,
+        branch_visible=True,
+        receipt_visible=False,
+    )
+
+
+def revoke_branch_facts(
+    ledger: MutableMapping[str, Any],
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    fact_ids: Sequence[str],
+    owner: str,
+    turn: int,
+    source_kind: str,
+    source_refs: Sequence[str],
+) -> tuple[str, ...]:
+    active = set(project_branch_progress(ledger))
+    revoked: list[str] = []
+    for fact_id in fact_ids:
+        fact = _text(fact_id)
+        if not fact or fact not in active:
+            continue
+        result = _append_scene_fact_event(
+            ledger,
+            scope=scope,
+            request_id=f"{_text(request_id)}:{fact}",
+            fact_id=fact,
+            operation="revoke",
+            owner=owner,
+            turn=int(turn),
+            source_kind=source_kind,
+            source_refs=source_refs,
+            branch_visible=True,
+            receipt_visible=False,
+        )
+        if result.committed:
+            revoked.append(fact)
+            active.discard(fact)
+    return tuple(revoked)
+
+
+def record_scene_receipt(
+    ledger: MutableMapping[str, Any],
+    *,
+    scope: RuntimeScope,
+    request_id: str,
+    scene_id: str,
+    fact_id: str,
+    owner: str,
+    turn: int,
+    source_kind: str,
+    source_input: str = "",
+    source_refs: Sequence[str] = (),
+    legacy_receipt_id: str = "",
+) -> tuple[dict[str, Any], bool]:
+    fact = _text(fact_id)
+    for row in project_scene_receipts(ledger):
+        if (
+            row.get("scene_instance_id") == scope.scene_instance_id
+            and row.get("fact_id") == fact
+        ):
+            if _text(row.get("owner")) != _text(owner):
+                raise ReceiptConflict(
+                    f"scene receipt fact owner changed in same scene instance: {fact}"
+                )
+            return dict(row), False
+
+    result = _append_scene_fact_event(
+        ledger,
+        scope=scope,
+        request_id=request_id,
+        fact_id=fact,
+        operation="assert",
+        owner=owner,
+        turn=int(turn),
+        source_kind=source_kind,
+        source_input=source_input,
+        source_refs=source_refs,
+        branch_visible=False,
+        receipt_visible=True,
+        legacy_receipt_id=legacy_receipt_id,
+    )
+    event = dict(result.event)
+    event["scene_id"] = _text(scene_id)
+    ledger["events"][event["event_id"]]["scene_id"] = _text(scene_id)
+    return _compat_scene_receipt(event), result.committed
+
+
+def active_scene_fact_ids(ledger: Mapping[str, Any] | None) -> set[str]:
+    return set(project_branch_progress(ledger)) | {
+        _text(row.get("fact_id"))
+        for row in project_scene_receipts(ledger)
+        if _text(row.get("fact_id"))
+    }
+
+
+def migrate_legacy_scene_facts(
+    ledger: MutableMapping[str, Any],
+    *,
+    scope: RuntimeScope,
+    branch_progress: Sequence[str],
+    scene_receipts: Sequence[Mapping[str, Any]],
+) -> None:
+    """One-way adapter. It never fabricates PlayerAction receipts."""
+    if ledger.get("event_order"):
+        return
+
+    for index, raw in enumerate(scene_receipts):
+        row = dict(raw)
+        fact = _text(row.get("fact_id"))
+        if not fact:
+            continue
+        scene_id = _text(row.get("scene_id")) or scope.scene_instance_id.split(":visit:", 1)[0]
+        instance = _text(row.get("scene_instance_id")) or (
+            f"{scene_id}:legacy:"
+            + canonical_payload_hash(
+                {
+                    "session_id": scope.session_id,
+                    "scene_id": scene_id,
+                    "fact_id": fact,
+                    "index": index,
+                }
+            )[:12]
+        )
+        row_scope = RuntimeScope(
+            worldline=scope.worldline,
+            run=scope.run,
+            ch_anchor=scope.ch_anchor,
+            session_id=scope.session_id,
+            scene_instance_id=instance,
+        )
+        if row_scope.run < 1:
+            event_id = (
+                "scene-fact:legacy:"
+                + canonical_payload_hash(
+                    {"scope": row_scope.to_dict(), "fact_id": fact, "index": index}
+                )
+            )
+            event = {
+                "schema_version": SCENE_FACT_EVENT_SCHEMA,
+                "event_id": event_id,
+                "operation": "assert",
+                "fact_id": fact,
+                "owner": _text(row.get("owner")) or "legacy",
+                "turn": int(row.get("turn", 0) or 0),
+                "source_kind": _text(row.get("source_kind")) or "legacy_scene_receipt",
+                "source_input": _text(row.get("source_input")),
+                "source_refs": ["legacy:scene_receipts"],
+                "branch_visible": False,
+                "receipt_visible": True,
+                "legacy_receipt_id": _text(row.get("receipt_id")),
+                "scope": row_scope.to_dict(),
+                "scene_id": scene_id,
+                "commit_receipt": {},
+            }
+            ledger["events"][event_id] = event
+            ledger["event_order"].append(event_id)
+        else:
+            record_scene_receipt(
+                ledger,
+                scope=row_scope,
+                request_id=f"legacy-scene-receipt:{index}:{fact}",
+                scene_id=scene_id,
+                fact_id=fact,
+                owner=_text(row.get("owner")) or "legacy",
+                turn=int(row.get("turn", 0) or 0),
+                source_kind=_text(row.get("source_kind")) or "legacy_scene_receipt",
+                source_input=_text(row.get("source_input")),
+                source_refs=("legacy:scene_receipts",),
+                legacy_receipt_id=_text(row.get("receipt_id")),
+            )
+
+    for index, fact_id in enumerate(branch_progress):
+        fact = _text(fact_id)
+        if not fact:
+            continue
+        if scope.run < 1:
+            event_id = (
+                "scene-fact:legacy-branch:"
+                + canonical_payload_hash(
+                    {"scope": scope.to_dict(), "fact_id": fact, "index": index}
+                )
+            )
+            ledger["events"][event_id] = {
+                "schema_version": SCENE_FACT_EVENT_SCHEMA,
+                "event_id": event_id,
+                "operation": "assert",
+                "fact_id": fact,
+                "owner": "legacy",
+                "turn": 0,
+                "source_kind": "legacy_branch_progress",
+                "source_input": "",
+                "source_refs": ["legacy:branch_progress"],
+                "branch_visible": True,
+                "receipt_visible": False,
+                "legacy_receipt_id": "",
+                "scope": scope.to_dict(),
+                "commit_receipt": {},
+            }
+            ledger["event_order"].append(event_id)
+        else:
+            assert_branch_fact(
+                ledger,
+                scope=scope,
+                request_id=f"legacy-branch:{index}:{fact}",
+                fact_id=fact,
+                owner="legacy",
+                turn=0,
+                source_kind="legacy_branch_progress",
+                source_refs=("legacy:branch_progress",),
+            )

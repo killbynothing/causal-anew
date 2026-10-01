@@ -634,6 +634,20 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_cafe_p2b_matrix.py",
     },
     {
+        "id": "scene_fact_world_commit_p2c",
+        "desc": "P2c-2a WorldCommit SceneFact：append-only assert/revoke、scene receipt 重访隔离与 legacy 单向迁移",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_scene_fact_world_commit_p2c.py"],
+        "triggers": [
+            "runtime/world_commit.py",
+            "runtime/causal_protocol.py",
+            "scripts/tests/test_scene_fact_world_commit_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_scene_fact_world_commit_p2c.py",
+    },
+    {
         "id": "beat_state_p2c",
         "desc": "P2c-1 BeatState：业务完成只经事件提交，completed 为兼容投影，skip/canon/世界处分/证据均有来源",
         "tier": "quick",

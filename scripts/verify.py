@@ -649,6 +649,20 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_beat_state_p2c.py",
     },
     {
+        "id": "world_fact_ledger_p2c",
+        "desc": "P2c WorldFactLedger：branch current view 与 historical scene receipts 同源、撤销不删证据、跨场事件ID隔离",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_fact_ledger_p2c.py"],
+        "triggers": [
+            "runtime/world_fact_ledger.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_world_fact_ledger_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_fact_ledger_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

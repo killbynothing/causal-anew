@@ -32,8 +32,8 @@ def test_maybe_transition_uses_one_exit_policy_decider():
     assert "choose_exit_spec(" not in source
 
     decision_pos = source.index("exit_policy.decide_exit")
-    receipt_pos = source.index("self._record_scene_receipt")
-    assert receipt_pos > decision_pos
+    fact_pos = source.index("self._assert_branch_fact", decision_pos)
+    assert fact_pos > decision_pos
     assert "if exit_decision.authorized:" in source
 
 

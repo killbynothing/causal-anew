@@ -114,7 +114,12 @@ def _offered_session(
     session._replace_completed(
         ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
     )
-    session.branch_progress = ["prologue_pendant_offered"]
+    session._assert_branch_fact(
+        "prologue_pendant_offered",
+        owner="C.ryuya.W1",
+        turn_no=0,
+        source_kind="test_fixture",
+    )
     session.run_observation_ledger = _offer_ledger(session_id)
     session.prior_reflect_by_cons["C.ryuya.W1"] = {
         "thought": "托付已说清；挂坠停在对方面前，等对方自己回应。",

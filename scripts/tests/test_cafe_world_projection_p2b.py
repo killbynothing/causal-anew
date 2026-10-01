@@ -246,7 +246,12 @@ def test_after_offer_entrust_promise_does_not_accept_pendant():
         session._replace_completed(
             ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
         )
-        session.branch_progress = ["prologue_pendant_offered"]
+        session._assert_branch_fact(
+            "prologue_pendant_offered",
+            owner="C.ryuya.W1",
+            turn_no=0,
+            source_kind="test_fixture",
+        )
         session.step({"speech": "我答应，我会照看他们", "action": "", "thought": ""})
         assert "RP4" not in session.completed
         assert session._world_transaction("ryuya_pendant_disposition") is None
@@ -295,7 +300,12 @@ def test_step_does_not_complete_rp4_before_conflicting_world_commit():
         session._replace_completed(
             ["RP1", "RP2", "RP3"], source_kind="test_fixture", turn_no=0
         )
-        session.branch_progress = ["prologue_pendant_offered"]
+        session._assert_branch_fact(
+            "prologue_pendant_offered",
+            owner="C.ryuya.W1",
+            turn_no=0,
+            source_kind="test_fixture",
+        )
         session._finalize_prologue_pendant("accepted", turn_no=1)
         # Existing terminal world fact conflicts with a later decline. The
         # player's decline remains a valid PlayerAction, but RP4 must not jump

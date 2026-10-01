@@ -220,7 +220,7 @@ def test_prologue_exit_defaults_deferred_without_receipt():
         sess._replace_completed(
             ["RP1", "RP2", "RP3", "RP4"], source_kind="test_fixture", turn_no=0
         )
-        sess.branch_progress = []
+        sess._world_fact_state.reset()
         assert sess._world_transaction("ryuya_pendant_disposition") is None
         # Drive the exit branch via a step that sees MH complete.
         out = sess.step("……", debug=True)

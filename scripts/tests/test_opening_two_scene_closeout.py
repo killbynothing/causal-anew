@@ -174,7 +174,12 @@ def test_standalone_ryuya_prologue_completion_only_unlocks_exit():
         assert captured == []
         assert not any(item.get("role") == "marker" for item in keep_talking)
 
-        sess.branch_progress = ["prologue_receipt_accepted"]
+        sess._assert_branch_fact(
+            "prologue_receipt_accepted",
+            owner="world",
+            turn_no=0,
+            source_kind="test_fixture",
+        )
         leaving = []
         transition = sess._maybe_transition(
             {"speech": "那我先走了，回头见。", "action": "", "thought": ""},

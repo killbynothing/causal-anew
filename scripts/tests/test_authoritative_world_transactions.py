@@ -334,8 +334,12 @@ def test_player_branch_fact_uses_player_action_entry_and_survives_save_load():
         assert session._record_player_branch_fact(
             "route_left", turn_no=1, player_input="走左边"
         ) is True
-        assert "branch:route_left" in session.player_action_receipts
-        action = session.player_action_receipts["branch:route_left"]
+        action_keys = [
+            key for key in session.player_action_receipts
+            if key.endswith(":route_left")
+        ]
+        assert len(action_keys) == 1
+        action = session.player_action_receipts[action_keys[0]]
         assert action["action"]["value"] == "asserted"
         session.save()
 

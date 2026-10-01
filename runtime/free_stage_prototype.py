@@ -7141,9 +7141,8 @@ class FreeStageSession:
         # Cross-scene one-time facts are not dialogue history.  A terminal
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
-        self.world_transactions: dict[str, dict[str, Any]] = {}
+        self.world_ledger = world_commit.WorldLedgerState.empty()
         self.player_action_receipts: dict[str, dict[str, Any]] = {}
-        self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
         self.last_issues: list[str] = []
@@ -7327,19 +7326,15 @@ class FreeStageSession:
             legacy_branches=data.get("branch_progress", []),
             legacy_scene_receipts=data.get("scene_receipts", []),
         )
-        self.world_transactions = {
-            str(transaction_id): dict(record)
-            for transaction_id, record in dict(data.get("world_transactions", {})).items()
-            if str(transaction_id).strip() and isinstance(record, dict)
-        }
+        self.world_ledger = world_commit.WorldLedgerState.from_snapshot(
+            data.get("world_transactions", {}),
+            data.get("causal_receipts", []),
+        )
         self.player_action_receipts = {
             str(action_id): dict(record)
             for action_id, record in dict(data.get("player_action_receipts", {})).items()
             if str(action_id).strip() and isinstance(record, dict)
         }
-        self.causal_receipts = [
-            dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
-        ]
         self.director_port_trace = [
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
@@ -7729,6 +7724,26 @@ class FreeStageSession:
         )
 
     @property
+    def world_transactions(self) -> dict[str, dict[str, Any]]:
+        """Read-only compatibility view owned by WorldLedgerState."""
+        return self.world_ledger.transactions
+
+    @world_transactions.setter
+    def world_transactions(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses WorldLedgerState."""
+        self.world_ledger.replace_transactions(values)
+
+    @property
+    def causal_receipts(self) -> list[dict[str, Any]]:
+        """Read-only compatibility view owned by WorldLedgerState."""
+        return self.world_ledger.causal_receipts
+
+    @causal_receipts.setter
+    def causal_receipts(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses WorldLedgerState."""
+        self.world_ledger.replace_causal_receipts(values)
+
+    @property
     def run_observation_ledger(self) -> list[dict[str, Any]]:
         """Read-only compatibility view owned by ObservationLedgerState."""
         return self.observation_state.rows
@@ -7852,9 +7867,8 @@ class FreeStageSession:
         self.run_receipt = None
         self.fact_projection.reset()
         self._language_discovery_observation = None
-        self.world_transactions = {}
+        self.world_ledger.reset()
         self.player_action_receipts = {}
-        self.causal_receipts = []
         self.director_port_trace = []
         self.last_director_opportunity = None
         self.last_issues = []
@@ -8092,8 +8106,7 @@ class FreeStageSession:
     ) -> bool:
         """Delegate replayable world facts to the single P2a WorldCommit entry."""
         tx_id = str(transaction_id).strip()
-        result = world_commit.commit_world_fact(
-            self.world_transactions,
+        result = self.world_ledger.commit_fact(
             scope=self._current_runtime_scope(),
             request_id=str(request_id or f"world:{tx_id}"),
             turn_id=f"turn:{int(turn_no)}",
@@ -8110,8 +8123,7 @@ class FreeStageSession:
         return result.committed
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
-        record = self.world_transactions.get(str(transaction_id).strip())
-        return dict(record) if isinstance(record, dict) else None
+        return self.world_ledger.get_transaction(transaction_id)
 
     def _finalize_prologue_pendant(
         self,
@@ -9863,8 +9875,7 @@ class FreeStageSession:
                     turn_no=int(resolution.feasibility.intent.turn),
                     scene_effects=effects,
                 )
-                if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-                    self.causal_receipts.append(causal_receipt)
+                self.world_ledger.record_causal_receipt(causal_receipt)
                 self._apply_actor_mind_receipt(card or self.card, decision.actor_cons, causal_receipt)
             self.ambient_actor_registry, ambient_event = establish_after_reciprocity(
                 self.ambient_actor_registry,
@@ -9987,8 +9998,7 @@ class FreeStageSession:
                 str(committed_decision.get("outcome", "")), {}
             ),
         )
-        if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-            self.causal_receipts.append(causal_receipt)
+        self.world_ledger.record_causal_receipt(causal_receipt)
         self._apply_actor_mind_receipt(self.card, cons, causal_receipt)
         turns, _progress, _note = normalize_turns(payload)
         for item in turns:

@@ -57,6 +57,14 @@ def test_p2c_observation_ledger_has_no_direct_production_writer():
     assert report["facts"]["run_observation_ledger"]["production_writer_count"] == 0
 
 
+def test_p2c_world_ledgers_have_no_direct_production_writer():
+    report = load_report()
+    for fact in ("world_transactions", "causal_receipts"):
+        rows = production(report, fact)
+        assert rows == [], rows
+        assert report["facts"][fact]["production_writer_count"] == 0
+
+
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
     report = load_report()
     rows = production(report, "private_inner_states")
@@ -97,6 +105,7 @@ if __name__ == "__main__":
     test_p2c_completed_has_no_direct_production_writer()
     test_p2c_fact_projections_have_no_direct_production_writer()
     test_p2c_observation_ledger_has_no_direct_production_writer()
+    test_p2c_world_ledgers_have_no_direct_production_writer()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

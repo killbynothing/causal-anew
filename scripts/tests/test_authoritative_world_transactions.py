@@ -368,7 +368,9 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
     }
     debt = set(P2A_WORLD_MIGRATION_DEBT)
     assert current <= debt, f"unlisted P2a world authority debt: {sorted(current - debt)}"
-    assert {"branch_progress", "body_frames", "player_state"} <= debt
+    assert {"body_frames", "player_state", "world_cursor"} <= debt
+    assert "world_transactions" not in debt
+    assert "causal_receipts" not in debt
 
 
 if __name__ == "__main__":

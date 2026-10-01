@@ -21,11 +21,9 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 # P2a deliberately migrates the mature world_transactions append path first.
 # These authority-map fact families remain compatibility writers until P2c.
 P2A_WORLD_MIGRATION_DEBT = (
-    "branch_progress",
-    "scene_receipts",
-    "world_transactions",  # reset/load compatibility writers remain
-    "causal_receipts",
-    "run_observation_ledger",
+    # P2c has already migrated BeatState, branch/scene fact projections,
+    # WorldLedger and ObservationLedger. These are the remaining WorldCommit
+    # projection families after that shrink.
     "player_state",
     "body_frames",
     "world_cursor",
@@ -240,3 +238,87 @@ def commit_world_fact(
         record=dict(result.records[0]),
         committed=tx_id in result.committed_ids,
     )
+
+
+
+class WorldLedgerState:
+    """P2c owner for replayable world transactions and resolver receipts."""
+
+    def __init__(
+        self,
+        transactions: Mapping[str, Mapping[str, Any]] | None = None,
+        causal_receipts: Sequence[Mapping[str, Any]] | None = None,
+    ) -> None:
+        self._transactions: dict[str, dict[str, Any]] = {
+            str(key): dict(value)
+            for key, value in dict(transactions or {}).items()
+            if str(key).strip() and isinstance(value, Mapping)
+        }
+        self._causal_receipts: list[dict[str, Any]] = [
+            dict(item) for item in (causal_receipts or ()) if isinstance(item, Mapping)
+        ]
+
+    @classmethod
+    def empty(cls) -> "WorldLedgerState":
+        return cls()
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        transactions: Any,
+        causal_receipts: Any,
+    ) -> "WorldLedgerState":
+        tx = transactions if isinstance(transactions, Mapping) else {}
+        receipts = causal_receipts if isinstance(causal_receipts, (list, tuple)) else ()
+        return cls(tx, receipts)
+
+    @property
+    def transactions(self) -> dict[str, dict[str, Any]]:
+        return {key: dict(value) for key, value in self._transactions.items()}
+
+    @property
+    def causal_receipts(self) -> list[dict[str, Any]]:
+        return [dict(item) for item in self._causal_receipts]
+
+    def replace_transactions(self, values: Any) -> None:
+        if not isinstance(values, Mapping):
+            raise ValueError("world transactions replacement must be a mapping")
+        self._transactions = {
+            str(key): dict(value)
+            for key, value in values.items()
+            if str(key).strip() and isinstance(value, Mapping)
+        }
+
+    def replace_causal_receipts(self, values: Any) -> None:
+        if not isinstance(values, (list, tuple)):
+            raise ValueError("causal receipts replacement must be a list/tuple")
+        self._causal_receipts = [
+            dict(item) for item in values if isinstance(item, Mapping)
+        ]
+
+    def reset(self) -> None:
+        self._transactions = {}
+        self._causal_receipts = []
+
+    def commit_fact(self, **kwargs: Any) -> WorldCommitResult:
+        return commit_world_fact(self._transactions, **kwargs)
+
+    def get_transaction(self, transaction_id: str) -> dict[str, Any] | None:
+        record = self._transactions.get(_text(transaction_id))
+        return dict(record) if isinstance(record, dict) else None
+
+    def record_causal_receipt(self, receipt: Mapping[str, Any]) -> bool:
+        row = dict(receipt)
+        receipt_id = _text(row.get("receipt_id"))
+        if not receipt_id:
+            raise ValueError("causal receipt requires receipt_id")
+        for existing in self._causal_receipts:
+            if _text(existing.get("receipt_id")) != receipt_id:
+                continue
+            if canonical_payload_hash(existing) != canonical_payload_hash(row):
+                raise ReceiptConflict(
+                    f"causal receipt id reused with different payload: {receipt_id}"
+                )
+            return False
+        self._causal_receipts.append(row)
+        return True

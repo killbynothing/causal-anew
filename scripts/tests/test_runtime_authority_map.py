@@ -46,6 +46,15 @@ def test_scanner_finds_representative_five_domain_writers():
     assert "def _complete_beat(" in source
     assert "self.beat_state.complete(" in source
 
+    branch_progress = writers(report, "branch_progress", "production")
+    scene_receipts = writers(report, "scene_receipts", "production")
+    assert branch_progress == []
+    assert scene_receipts == []
+    fact_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert "self.scene_fact_state.assert_fact(" in fact_source
+    assert "self.scene_fact_state.observe_fact(" in fact_source
+    assert "self.scene_fact_state.revoke_fact(" in fact_source
+
     world_tx = writers(report, "world_transactions", "production")
     # P2a moves business append authority out of FreeStageSession. Reset remains
     # an explicit compatibility writer until P2c, but the commit helper itself

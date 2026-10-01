@@ -35,6 +35,7 @@ import test_scene_experience as exp
 from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
 from runtime import beat_state as beat_runtime
+from runtime import scene_fact_state as scene_fact_runtime
 from runtime import heart_gate, world_calendar
 from runtime import offscreen_tick as offscreen_kernel
 from runtime.scene_runtime import bid_turn_taking, build_agent_state
@@ -7135,12 +7136,8 @@ class FreeStageSession:
         self._run_closed = False  # compatibility projection
         self.write_mode = "writable"
         self.source_session_id: str | None = None
-        self.branch_progress: list[str] = []
+        self.scene_fact_state = scene_fact_runtime.SceneFactState()
         self._language_discovery_observation: str | None = None
-        # Structured scene facts are the authoritative receipt ledger for
-        # migrated scenes. `branch_progress` remains a legacy projection while
-        # other cards are being moved, never the only evidence of a player act.
-        self.scene_receipts: list[dict[str, Any]] = []
         # Cross-scene one-time facts are not dialogue history.  A terminal
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
@@ -7213,6 +7210,105 @@ class FreeStageSession:
     def completed_by_card(self) -> dict[str, list[str]]:
         """Read-only latest-visit projection for legacy callers/debug output."""
         return self.beat_state.completed_by_card()
+
+    @property
+    def branch_progress(self) -> list[str]:
+        """Read-only active-fact projection from append-only SceneFactState."""
+        return self.scene_fact_state.active_facts()
+
+    @property
+    def scene_receipts(self) -> list[dict[str, Any]]:
+        """Read-only observable-fact projection from append-only SceneFactState."""
+        return self.scene_fact_state.observations()
+
+    def _fact_scene_scope(self) -> tuple[str, str]:
+        return (
+            str(self.card.get("scene_id", self.card_path)),
+            str(self.beat_state.current_scene_instance_id),
+        )
+
+    def _assert_branch_fact(
+        self,
+        fact_id: str,
+        *,
+        owner: str,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str,
+        source_input: str = "",
+    ) -> bool:
+        scene_id, scene_instance_id = self._fact_scene_scope()
+        return self.scene_fact_state.assert_fact(
+            fact_id,
+            scene_id=scene_id,
+            scene_instance_id=scene_instance_id,
+            owner=owner,
+            turn=turn_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+            source_input=source_input,
+        )
+
+    def _revoke_branch_fact(
+        self,
+        fact_id: str,
+        *,
+        owner: str,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str,
+    ) -> bool:
+        scene_id, scene_instance_id = self._fact_scene_scope()
+        return self.scene_fact_state.revoke_fact(
+            fact_id,
+            scene_id=scene_id,
+            scene_instance_id=scene_instance_id,
+            owner=owner,
+            turn=turn_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
+
+    def _revoke_branch_facts(
+        self,
+        facts: set[str] | list[str] | tuple[str, ...],
+        *,
+        owner: str,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str,
+    ) -> list[str]:
+        wanted = {str(item) for item in facts if str(item).strip()}
+        scene_id, scene_instance_id = self._fact_scene_scope()
+        return self.scene_fact_state.revoke_matching(
+            lambda fact: fact in wanted,
+            scene_id=scene_id,
+            scene_instance_id=scene_instance_id,
+            owner=owner,
+            turn=turn_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
+
+    def _revoke_branch_matching(
+        self,
+        predicate: Callable[[str], bool],
+        *,
+        owner: str,
+        turn_no: int,
+        source_kind: str,
+        source_ref: str,
+    ) -> list[str]:
+        scene_id, scene_instance_id = self._fact_scene_scope()
+        return self.scene_fact_state.revoke_matching(
+            predicate,
+            scene_id=scene_id,
+            scene_instance_id=scene_instance_id,
+            owner=owner,
+            turn=turn_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
 
     def _current_scene_id(self) -> str:
         return str(self.card.get("scene_id", self.card_path))
@@ -7399,8 +7495,11 @@ class FreeStageSession:
                 run_lifecycle.CLOSING,
                 error=self.close_error or "recovered_pending_close",
             )
-        self.branch_progress = [str(x) for x in data.get("branch_progress", [])]
-        self.scene_receipts = [dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)]
+        stored_scene_fact_state = data.get("scene_fact_state")
+        legacy_branch_progress = [str(x) for x in data.get("branch_progress", [])]
+        legacy_scene_receipts = [
+            dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)
+        ]
         self.world_transactions = {
             str(transaction_id): dict(record)
             for transaction_id, record in dict(data.get("world_transactions", {})).items()
@@ -7426,8 +7525,20 @@ class FreeStageSession:
             fields = domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
             self.world_cursor = fields["world_cursor"]
-            self.branch_progress = fields["branch_progress"]
+            if not isinstance(stored_scene_fact_state, dict):
+                legacy_branch_progress = fields["branch_progress"]
             self.entry_context = fields["entry_context"]
+        if isinstance(stored_scene_fact_state, dict):
+            self.scene_fact_state = scene_fact_runtime.SceneFactState.from_dict(
+                stored_scene_fact_state
+            )
+        else:
+            self.scene_fact_state = scene_fact_runtime.SceneFactState.from_legacy(
+                branch_progress=legacy_branch_progress,
+                scene_receipts=legacy_scene_receipts,
+                current_scene_id=str(self.card.get("scene_id", self.card_path)),
+                current_scene_instance_id=str(self.beat_state.current_scene_instance_id),
+            )
         self.last_issues = [str(x) for x in data.get("last_issues", [])]
         self.last_degradations = list(data.get("last_degradations", []))
         self.player_violations = list(data.get("player_violations", []))
@@ -7543,6 +7654,7 @@ class FreeStageSession:
             "run_closed": bool(self._run_closed),
             "write_mode": self.write_mode,
             "source_session_id": self.source_session_id,
+            "scene_fact_state": self.scene_fact_state.to_dict(),
             "branch_progress": self.branch_progress,
             "scene_receipts": self.scene_receipts,
             "world_transactions": self.world_transactions,
@@ -7744,9 +7856,8 @@ class FreeStageSession:
         self.inputs = []
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.run_receipt = None
-        self.branch_progress = []
+        self.scene_fact_state = scene_fact_runtime.SceneFactState()
         self._language_discovery_observation = None
-        self.scene_receipts = []
         self.world_transactions = {}
         self.player_action_receipts = {}
         self.causal_receipts = []
@@ -7815,20 +7926,21 @@ class FreeStageSession:
         turn_no: int,
         source_input: str = "",
         source_kind: str = "player_input",
+        source_ref: str = "",
     ) -> bool:
-        """Append one observable fact once; legacy markers mirror it during migration."""
-        scene_id = str(self.card.get("scene_id", "") or "")
-        if any(item.get("scene_id") == scene_id and item.get("fact_id") == fact_id for item in self.scene_receipts):
-            return False
-        self.scene_receipts.append({
-            "scene_id": scene_id,
-            "fact_id": fact_id,
-            "owner": owner,
-            "turn": int(turn_no),
-            "source_input": str(source_input),
-            "source_kind": str(source_kind),
-        })
-        return True
+        """Record observable evidence without independently asserting world truth."""
+        scene_id, scene_instance_id = self._fact_scene_scope()
+        ref = str(source_ref or f"{source_kind}:turn:{int(turn_no)}:{fact_id}")
+        return self.scene_fact_state.observe_fact(
+            fact_id,
+            scene_id=scene_id,
+            scene_instance_id=scene_instance_id,
+            owner=owner,
+            turn=turn_no,
+            source_kind=source_kind,
+            source_ref=ref,
+            source_input=source_input,
+        )
 
     def _record_director_port(self, payload: Mapping[str, Any] | dict[str, Any], *, turn_no: int) -> dict[str, Any]:
         """Append one N5 port receipt; production turns must leave a non-empty trace."""
@@ -8416,7 +8528,7 @@ class FreeStageSession:
         fact_id = str(fact_id).strip()
         if not fact_id:
             return False
-        self._commit_player_action(
+        action = self._commit_player_action(
             f"branch:{fact_id}",
             action_kind="branch_choice",
             target=fact_id,
@@ -8424,15 +8536,23 @@ class FreeStageSession:
             turn_no=turn_no,
             source_refs=(f"player-input:turn:{int(turn_no)}",),
         )
-        added = fact_id not in self.branch_progress
-        if added:
-            self.branch_progress.append(fact_id)
+        action_receipt = action.get("receipt") if isinstance(action.get("receipt"), dict) else {}
+        source_ref = str(action_receipt.get("receipt_id") or f"player-action:branch:{fact_id}")
+        added = self._assert_branch_fact(
+            fact_id,
+            owner="player",
+            turn_no=turn_no,
+            source_kind="player_action",
+            source_ref=source_ref,
+            source_input=_player_public_input_text(player_input),
+        )
         self._record_scene_receipt(
             fact_id,
             owner="player",
             turn_no=turn_no,
             source_input=_player_public_input_text(player_input),
             source_kind="player_branch",
+            source_ref=source_ref,
         )
         return added
 

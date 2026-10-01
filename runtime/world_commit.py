@@ -476,6 +476,31 @@ def assert_branch_fact(
     source_input: str = "",
 ) -> SceneFactCommitResult:
     fact = _text(fact_id)
+    req_id = _text(request_id)
+    candidate_id = _scene_fact_event_id(
+        scope,
+        request_id=req_id,
+        operation="assert",
+        fact_id=fact,
+    )
+    # Same stable request/fact key must first prove exact idempotency. This
+    # catches a retry whose owner/source/payload changed instead of silently
+    # accepting it merely because the fact is already active.
+    if candidate_id in (ledger.get("events") or {}):
+        return _append_scene_fact_event(
+            ledger,
+            scope=scope,
+            request_id=req_id,
+            fact_id=fact,
+            operation="assert",
+            owner=owner,
+            turn=int(turn),
+            source_kind=source_kind,
+            source_input=source_input,
+            source_refs=source_refs,
+            branch_visible=True,
+            receipt_visible=False,
+        )
     if fact in project_branch_progress(ledger):
         for event_id in reversed(list(ledger.get("event_order") or [])):
             event = (ledger.get("events") or {}).get(event_id)
@@ -489,7 +514,7 @@ def assert_branch_fact(
     return _append_scene_fact_event(
         ledger,
         scope=scope,
-        request_id=request_id,
+        request_id=req_id,
         fact_id=fact,
         operation="assert",
         owner=owner,

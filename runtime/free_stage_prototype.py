@@ -81,6 +81,7 @@ from runtime import beat_reducer
 from runtime import fact_projection
 from runtime import world_commit
 from runtime import world_projection
+from runtime import physical_state
 from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
@@ -7163,14 +7164,7 @@ class FreeStageSession:
         self._triggered_at_clocks: set[str] = set()    # T-03 J3：追踪已触发的 at_clock 时间点（跨场持久）
         self.debug_history: list[dict[str, Any]] = []
         self._fired_director_beats: set[str] = set()
-        self.player_state: dict[str, Any] = {
-            "injury": "正常/良好",
-            "status": "行动中",
-            "convergence_rate": 100,
-            "energy": 0.78,
-            "physical": "good",
-            "elapsed_minutes": 0,
-        }
+        self.physical_state = physical_state.PhysicalState.empty()
         self.observation_state = ObservationLedgerState.empty()
         self.utterance_pending_queue: list[dict[str, Any]] = []
         self.companion_pending_queue: list[dict[str, Any]] = []
@@ -7182,7 +7176,6 @@ class FreeStageSession:
         # 开场梗概已播 / 托付闪回：延后到遇修哉或张尘再演两年前。
         self.ryuya_flashback_return: dict[str, Any] | None = None
         self._flashback_inputs_at_enter: int = 0
-        self.body_frames: dict[str, Any] = {}
         self.prior_reflect_by_cons: dict[str, dict[str, Any]] = {}
         self.private_reflections: list[dict[str, Any]] = []
         if load_existing:
@@ -7197,7 +7190,7 @@ class FreeStageSession:
         )
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
-        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
+        self._body_ensure(self.card, source_kind="session_init")
 
 
     def _merged_opening_memories(self) -> dict[str, Any]:
@@ -7381,16 +7374,7 @@ class FreeStageSession:
         pending_exit_menu = data.get("pending_exit_menu")
         self.pending_exit_menu = dict(pending_exit_menu) if isinstance(pending_exit_menu, dict) else None
         self._triggered_at_clocks = set(data.get("_triggered_at_clocks", []))
-        self.player_state = dict(
-            data.get(
-                "player_state",
-                {"injury": "正常/良好", "status": "行动中", "convergence_rate": 100, "energy": 0.78, "physical": "good", "elapsed_minutes": 0},
-            )
-        )
-        self.player_state.setdefault("convergence_rate", 100)
-        self.player_state.setdefault("energy", 0.78)
-        self.player_state.setdefault("physical", "good")
-        self.player_state.setdefault("elapsed_minutes", 0)
+        stored_player_state = data.get("player_state")
         self.observation_state = ObservationLedgerState.from_snapshot(
             data.get("run_observation_ledger", [])
         )
@@ -7410,10 +7394,12 @@ class FreeStageSession:
         )
         self._flashback_inputs_at_enter = int(data.get("_flashback_inputs_at_enter", 0) or 0)
         stored_frames = data.get("body_frames")
-        self.body_frames = (
-            copy.deepcopy(stored_frames) if isinstance(stored_frames, dict) else {}
+        self.physical_state = physical_state.PhysicalState.from_snapshot(
+            data.get("physical_state"),
+            legacy_player_state=stored_player_state,
+            legacy_body_frames=stored_frames,
         )
-        self.body_frames = ensure_card_body_frames(self.card, self.body_frames)
+        self._body_ensure(self.card, source_kind="session_load")
         raw_prior = data.get("prior_reflect_by_cons")
         self.prior_reflect_by_cons = (
             {
@@ -7502,6 +7488,7 @@ class FreeStageSession:
             "_triggered_at_clocks": list(self._triggered_at_clocks),
             "debug_history": self.debug_history,
             "_fired_director_beats": sorted(self._fired_director_beats),
+            "physical_state": self.physical_state.to_dict(),
             "player_state": self.player_state,
             "run_observation_ledger": [dict(o) for o in self.run_observation_ledger],
             "utterance_pending_queue": [dict(o) for o in self.utterance_pending_queue],
@@ -7512,7 +7499,7 @@ class FreeStageSession:
             "pendant_layer_c_emitted": bool(getattr(self, "_pendant_layer_c_emitted", False)),
             "ryuya_flashback_return": self.ryuya_flashback_return,
             "_flashback_inputs_at_enter": int(getattr(self, "_flashback_inputs_at_enter", 0) or 0),
-            "body_frames": copy.deepcopy(getattr(self, "body_frames", {}) or {}),
+            "body_frames": self.body_frames,
             "prior_reflect_by_cons": copy.deepcopy(getattr(self, "prior_reflect_by_cons", {}) or {}),
             "private_reflections": list(getattr(self, "private_reflections", []) or [])[-20:],
         }
@@ -7744,6 +7731,66 @@ class FreeStageSession:
         self.world_ledger.replace_causal_receipts(values)
 
     @property
+    def player_state(self) -> dict[str, Any]:
+        """Read-only compatibility view owned by PhysicalState."""
+        return self.physical_state.player_state
+
+    @player_state.setter
+    def player_state(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses PhysicalState."""
+        self.physical_state.replace_player(
+            values,
+            source_kind="compat_assignment",
+            source_ref="external_session.player_state",
+        )
+
+    @property
+    def body_frames(self) -> dict[str, Any]:
+        """Read-only compatibility view owned by PhysicalState."""
+        return self.physical_state.body_frames
+
+    @body_frames.setter
+    def body_frames(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses PhysicalState."""
+        self.physical_state.replace_body_frames(
+            values,
+            source_kind="compat_assignment",
+            source_ref="external_session.body_frames",
+        )
+
+    def _body_ensure(
+        self,
+        card: dict[str, Any],
+        *,
+        source_kind: str = "body_frame_ensure",
+        source_ref: str = "",
+    ) -> dict[str, Any]:
+        frames = ensure_card_body_frames(card, self.body_frames)
+        self.physical_state.replace_body_frames(
+            frames,
+            source_kind=source_kind,
+            source_ref=source_ref or str(card.get("scene_id", "")),
+        )
+        return self.body_frames
+
+    def _body_settle(
+        self,
+        card: dict[str, Any],
+        turns: list[dict[str, Any]],
+        *,
+        source_ref: str = "",
+    ) -> list[str]:
+        frames = self.body_frames
+        issues = settle_body_frames_from_npc_turns(frames, card, turns)
+        frames = ensure_card_body_frames(card, frames)
+        self.physical_state.replace_body_frames(
+            frames,
+            source_kind="visible_stage",
+            source_ref=source_ref or str(card.get("scene_id", "")),
+        )
+        return issues
+
+    @property
     def run_observation_ledger(self) -> list[dict[str, Any]]:
         """Read-only compatibility view owned by ObservationLedgerState."""
         return self.observation_state.rows
@@ -7883,14 +7930,10 @@ class FreeStageSession:
         self.public_environment_deltas = []
         self.debug_history = []
         self._fired_director_beats = set()
-        self.player_state = {
-            "injury": "正常/良好",
-            "status": "行动中",
-            "convergence_rate": 100,
-            "energy": 0.78,
-            "physical": "good",
-            "elapsed_minutes": 0,
-        }
+        self.physical_state.reset(
+            source_kind="session_reset",
+            source_ref=self.session_id,
+        )
         self._triggered_at_clocks: set[str] = set()
         self.observation_state.reset()
         self.utterance_pending_queue = []
@@ -7903,7 +7946,7 @@ class FreeStageSession:
         self.ryuya_flashback_return = None
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
-        self.body_frames = ensure_card_body_frames(self.card, {})
+        self._body_ensure(self.card, source_kind="session_reset")
         self.world_cursor = _card_cursor(self.card, self.run_no)
         from runtime.scars_reader import read_run_scars
 
@@ -8160,10 +8203,15 @@ class FreeStageSession:
             observation_ledger=self.run_observation_ledger,
             session_id=self.session_id,
         )
-        self.player_state = projected.player_state
-        self.body_frames = projected.body_frames
+        tx_receipt = transaction.get("receipt") if isinstance(transaction.get("receipt"), dict) else {}
+        self.physical_state.replace_all(
+            player_state=projected.player_state,
+            body_frames=projected.body_frames,
+            source_kind="world_commit",
+            source_ref=str(tx_receipt.get("receipt_id") or "ryuya_pendant_disposition"),
+        )
         self._observation_replace(projected.observation_ledger)
-        ensure_card_body_frames(self.card, self.body_frames)
+        self._body_ensure(self.card, source_kind="world_projection")
         self._record_scene_receipt(
             "ryuya_pendant_disposition",
             owner="player",
@@ -9400,10 +9448,11 @@ class FreeStageSession:
                 prologue_turn = self._llm_ryuya_opening_turn(turn_no=0)
                 if prologue_turn is not None:
                     intro_turns.append(prologue_turn)
-            settle_body_frames_from_npc_turns(
-                self.body_frames, self.card, [*intro_turns, *canon_turns]
+            self._body_settle(
+                self.card,
+                [*intro_turns, *canon_turns],
+                source_ref="turn:0:opening",
             )
-            ensure_card_body_frames(self.card, self.body_frames)
             # 序幕：旁白+龙也搭话一次进史，禁止进流式队列被玩家第一句 barge-in 清掉。
             if self.card.get("prologue_active"):
                 shown: list[dict[str, Any]] = []
@@ -10128,7 +10177,11 @@ class FreeStageSession:
             })
 
         turn_no = len(self.inputs) + 1
-        self.player_state["elapsed_minutes"] = self.player_state.get("elapsed_minutes", 0) + 2
+        self.physical_state.increment_elapsed(
+            2,
+            source_kind="turn_clock",
+            source_ref=f"turn:{turn_no}",
+        )
 
         # ── T-03 J3 at_clock 时钟触发器 ─────────────────────────────────────────
         # 每拍：计算当前时钟，检查是否有 at_clock 到点
@@ -10161,8 +10214,11 @@ class FreeStageSession:
         if violation:
             self._record_player_violation(violation)
         if is_oob and violation and violation.get("handled") == "blocked":
-            current_conv = self.player_state.setdefault("convergence_rate", 100)
-            self.player_state["convergence_rate"] = max(0, current_conv - 10)
+            self.physical_state.decrease_convergence(
+                10,
+                source_kind="oob_violation",
+                source_ref=f"turn:{turn_no}",
+            )
 
         # ── T-05 J2 预言闸：记录玩家触及未来知识的预言 ───────────────────
         prophecy = parsed_input.get("prophecy")
@@ -10827,7 +10883,11 @@ class FreeStageSession:
             + list(speaker_plan.get("stage_actors", []) or [])
             + companion_pool
         )
-        self.body_frames = ensure_card_body_frames(resolved_card, getattr(self, "body_frames", {}) or {})
+        self._body_ensure(
+            resolved_card,
+            source_kind="actor_context_prepare",
+            source_ref=f"turn:{turn_no}",
+        )
         if ott.is_opening_top_tier_scene(resolved_card):
             present_for = [
                 str(item.get("cons", "")).strip()
@@ -11509,10 +11569,11 @@ class FreeStageSession:
                     turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,
                 )
             )
-            body_issues = settle_body_frames_from_npc_turns(
-                self.body_frames, resolved_card, turns
+            body_issues = self._body_settle(
+                resolved_card,
+                turns,
+                source_ref=f"turn:{turn_no}:actor",
             )
-            ensure_card_body_frames(resolved_card, self.body_frames)
             if body_issues:
                 self.last_issues.extend(body_issues)
                 for msg in body_issues:
@@ -11537,10 +11598,11 @@ class FreeStageSession:
                 remaining_canon -= 1
             if auto_canon_turns:
                 self._enqueue_stream_items(auto_canon_turns, turn_no=turn_no)
-                settle_body_frames_from_npc_turns(
-                    self.body_frames, resolved_card, auto_canon_turns
+                self._body_settle(
+                    resolved_card,
+                    auto_canon_turns,
+                    source_ref=f"turn:{turn_no}:canon",
                 )
-                ensure_card_body_frames(resolved_card, self.body_frames)
                 self.completed_by_card[scene_id] = list(self.completed)
             note_item = {
                 "role": "director_note",
@@ -11641,9 +11703,12 @@ class FreeStageSession:
             turn_degradations.extend(transition.get("degradations", []))
             offscreen_player_state = self.card.pop("_offscreen_player_state", None) if isinstance(self.card, dict) else None
             if isinstance(offscreen_player_state, dict):
-                preserved_elapsed = self.player_state.get("elapsed_minutes", 0)
-                self.player_state.update(offscreen_player_state)
-                self.player_state["elapsed_minutes"] = preserved_elapsed
+                self.physical_state.patch_player(
+                    offscreen_player_state,
+                    preserve=("elapsed_minutes",),
+                    source_kind="offscreen_projection",
+                    source_ref=str(self.card.get("scene_id", "")),
+                )
         player_visible_turns = [
             dict(item) for item in self.history
             if item.get("turn") == turn_no
@@ -11679,11 +11744,21 @@ class FreeStageSession:
                 # 优先读取卡里的 boundaries，否则从全局 persona_core 投影
                 boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
 
+        physical_patch: dict[str, Any] = {
+            "status": "行动中" if not self.ended else "已完成",
+        }
+        physical_source = "lifecycle_projection"
         if "choiceA_brace" in self.branch_progress:
-            self.player_state["injury"] = "肋骨骨折 (重伤残血)"
+            physical_patch["injury"] = "肋骨骨折 (重伤残血)"
+            physical_source = "branch:choiceA_brace"
         elif "B1_dog" in self.branch_progress:
-            self.player_state["injury"] = "无明显外伤"
-        self.player_state["status"] = "行动中" if not self.ended else "已完成"
+            physical_patch["injury"] = "无明显外伤"
+            physical_source = "branch:B1_dog"
+        self.physical_state.patch_player(
+            physical_patch,
+            source_kind="world_projection",
+            source_ref=physical_source,
+        )
         self.last_degradations = turn_degradations
 
         intro_done_snapshot = intro_done_for_card(
@@ -12463,7 +12538,11 @@ class FreeStageSession:
         next_entry_context = EntryContext.from_dict(exit_spec.get("entry_context"))
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
-        self.player_state["elapsed_minutes"] = 0
+        self.physical_state.patch_player(
+            {"elapsed_minutes": 0},
+            source_kind="scene_transition",
+            source_ref=str(target_path),
+        )
         target_scene_id = target_card.get("scene_id", str(target_path))
         target_exit_state = str(exit_spec.get("exit_state", "converged")).strip() or "converged"
         self.active_exit_state_by_card[str(target_scene_id)] = target_exit_state

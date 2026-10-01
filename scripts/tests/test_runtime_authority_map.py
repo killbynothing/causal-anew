@@ -58,6 +58,10 @@ def test_scanner_finds_representative_five_domain_writers():
     assert "self.world_transactions[" not in helper_source
     assert "self.causal_receipts.append(" not in commit_source
 
+    for fact in ("player_state", "body_frames"):
+        assert writers(report, fact, "production", "production_tooling") == []
+        assert report["facts"][fact]["unknown_alias_count"] == 0
+
     mind = writers(report, "private_inner_states", "production")
     assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)
 

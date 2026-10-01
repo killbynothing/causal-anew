@@ -21,11 +21,8 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 # P2a deliberately migrates the mature world_transactions append path first.
 # These authority-map fact families remain compatibility writers until P2c.
 P2A_WORLD_MIGRATION_DEBT = (
-    # P2c has already migrated BeatState, branch/scene fact projections,
-    # WorldLedger and ObservationLedger. These are the remaining WorldCommit
-    # projection families after that shrink.
-    "player_state",
-    "body_frames",
+    # P2c has migrated Beat/fact/world/observation/physical projections.
+    # World cursor remains the final WorldCommit migration family.
     "world_cursor",
 )
 

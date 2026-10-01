@@ -694,6 +694,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_ledger_p2c.py",
     },
     {
+        "id": "physical_state_p2c",
+        "desc": "P2c PhysicalState：player/body 单一 owner、来源投影、copy-safe、save/load、writer/alias归零",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_physical_state_p2c.py"],
+        "triggers": [
+            "runtime/physical_state.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/world_projection.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_physical_state_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_physical_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

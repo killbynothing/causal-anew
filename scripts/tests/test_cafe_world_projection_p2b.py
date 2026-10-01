@@ -291,7 +291,13 @@ def test_step_does_not_complete_rp4_before_conflicting_world_commit():
             caller=_caller,
         )
         session.completed = ["RP1", "RP2", "RP3"]
-        session.branch_progress = ["prologue_pendant_offered"]
+        session._assert_branch_fact(
+            "prologue_pendant_offered",
+            turn_no=0,
+            owner="C.ryuya.W1",
+            source_kind="test_fixture",
+            source_refs=("test:pendant-offer",),
+        )
         session._finalize_prologue_pendant("accepted", turn_no=1)
         # Existing terminal world fact conflicts with a later decline. The
         # player's decline remains a valid PlayerAction, but RP4 must not jump

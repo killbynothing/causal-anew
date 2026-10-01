@@ -334,8 +334,12 @@ def test_player_branch_fact_uses_player_action_entry_and_survives_save_load():
         assert session._record_player_branch_fact(
             "route_left", turn_no=1, player_input="走左边"
         ) is True
-        assert "branch:route_left" in session.player_action_receipts
-        action = session.player_action_receipts["branch:route_left"]
+        assert len(session.player_action_receipts) == 1
+        action_id = next(iter(session.player_action_receipts))
+        assert action_id.startswith("branch:")
+        assert ":route_left:turn:1" in action_id
+        assert session._current_runtime_scope().scene_instance_id in action_id
+        action = session.player_action_receipts[action_id]
         assert action["action"]["value"] == "asserted"
         session.save()
 

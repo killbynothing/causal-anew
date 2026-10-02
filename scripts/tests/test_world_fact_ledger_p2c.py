@@ -99,7 +99,13 @@ def test_player_branch_event_ids_do_not_reuse_across_visits():
         assert len(actions) == 2
 
 
-def test_authority_map_has_zero_branch_and_scene_receipt_production_writers():
+def test_free_stage_branch_projection_is_closed_but_external_debt_remains_visible():
+    source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert not re.search(r"self\.branch_progress\s*=", source)
+    assert not re.search(r"self\.branch_progress\.append\(", source)
+    assert not re.search(r"self\.scene_receipts\s*=", source)
+    assert not re.search(r"self\.scene_receipts\.append\(", source)
+
     audit_path = ROOT / "scripts" / "audit_runtime_authority.py"
     spec = importlib.util.spec_from_file_location("world_fact_authority_audit", audit_path)
     assert spec is not None and spec.loader is not None
@@ -107,7 +113,14 @@ def test_authority_map_has_zero_branch_and_scene_receipt_production_writers():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     report = module.build_report(False)
-    assert report["facts"]["branch_progress"]["production_writer_count"] == 0
+    branch_rows = [
+        row for row in report["facts"]["branch_progress"]["writers"]
+        if row["classification"] in {"production", "production_tooling"}
+    ]
+    symbols = {row["symbol"] for row in branch_rows}
+    assert "FreeStageSession.reset" not in symbols
+    assert any(symbol.endswith("register_branch_progress") for symbol in symbols)
+    assert any(symbol.endswith("SceneState.load") for symbol in symbols)
     assert report["facts"]["scene_receipts"]["production_writer_count"] == 0
 
 

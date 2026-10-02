@@ -33,6 +33,10 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},
     "canon_performance_state": {"domain": "beat", "target_owner": "BeatReducer"},
     "branch_progress": {"domain": "world", "target_owner": "WorldCommit"},
+    "contract_branch_progress": {
+        "domain": "legacy_scene_contract",
+        "target_owner": "SceneContractBranchReducer",
+    },
     "scene_receipts": {"domain": "world", "target_owner": "WorldCommit"},
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},
     "causal_receipts": {"domain": "world", "target_owner": "WorldCommit"},
@@ -66,6 +70,7 @@ REMOVAL_PHASE_BY_DOMAIN = {
     "beat": "P2c",
     "world": "P2c",
     "player_world": "P2",
+    "legacy_scene_contract": "P2c",
     "mind_legacy": "P3",
     "mind": "P3",
     "mind_projection": "P3",

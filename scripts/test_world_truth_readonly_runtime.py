@@ -34,7 +34,11 @@ def test_real_save_keeps_truth_db_readonly() -> None:
             load_existing=False,
             caller=lambda **_: json.dumps({"turns": [], "mh_progress": [], "director_note": "test"}),
         )
-        session.branch_progress.append("choiceA_brace")
+        session._record_player_branch_fact(
+            "choiceA_brace",
+            turn_no=1,
+            player_input="测试世界真值只读",
+        )
         session.save()
         assert digest(truth_db) == before
         assert runtime_db.exists()

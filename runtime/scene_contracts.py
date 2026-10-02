@@ -93,20 +93,20 @@ def register_branch_progress(state: Any, binding: dict[str, Any], path_ids: list
     }
     if not node_id or not valid_paths:
         return []
-    ledger = getattr(state, "branch_progress", None)
+    register = getattr(state, "register_contract_branch_paths", None)
+    if callable(register):
+        return register(node_id, path_ids, valid_paths=valid_paths)
+
+    # Read-only compatibility for state-like fixtures that have not migrated.
+    ledger = getattr(state, "contract_branch_progress", None)
     if not isinstance(ledger, dict):
-        ledger = {}
-        state.branch_progress = ledger
+        legacy = getattr(state, "branch_progress", None)
+        ledger = dict(legacy) if isinstance(legacy, dict) else {}
     current = set(ledger.get(node_id, []) or [])
-    added = []
-    for path_id in path_ids:
-        if path_id in valid_paths and path_id not in current:
-            current.add(path_id)
-            added.append(path_id)
-    if added:
-        ledger[node_id] = sorted(current)
-        state.save()
-    return added
+    return [
+        path_id for path_id in path_ids
+        if path_id in valid_paths and path_id not in current
+    ]
 
 
 def resolve_active_exit_state(state: Any, binding: dict[str, Any]) -> dict[str, Any] | None:
@@ -117,7 +117,10 @@ def resolve_active_exit_state(state: Any, binding: dict[str, Any]) -> dict[str, 
     threshold = int(contract.get("combine_threshold", 0) or 0)
     if not node_id or threshold <= 0:
         return None
-    ledger = getattr(state, "branch_progress", {}) or {}
+    ledger = getattr(state, "contract_branch_progress", None)
+    if not isinstance(ledger, dict):
+        legacy = getattr(state, "branch_progress", {})
+        ledger = legacy if isinstance(legacy, dict) else {}
     activated = sorted(set(ledger.get(node_id, []) or []))
     if len(activated) < threshold:
         return None

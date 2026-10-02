@@ -42,18 +42,19 @@ def test_p2c_completed_has_one_beat_reducer_writer():
     assert report["facts"]["completed"]["production_writer_count"] == 1
 
 
-def test_p2c_session_branch_writers_migrated_legacy_scene_paths_remain():
+def test_p2c_branch_semantics_are_split_and_each_has_one_writer():
     report = load_report()
     branch_rows = production(report, "branch_progress")
-    symbols = {row["symbol"] for row in branch_rows}
-    assert "WorldFactReducer._write_branch_progress" in symbols
-    assert not any(symbol.startswith("FreeStageSession.") for symbol in symbols)
-    # Old scene-contract / scene-state / web APIs are explicit P2c debt for
-    # the next migration slice; do not hide them by weakening the scanner.
-    assert any(
-        symbol in symbols
-        for symbol in {"register_branch_progress", "SceneState.load", "handle"}
-    )
+    assert {row["symbol"] for row in branch_rows} == {
+        "WorldFactReducer._write_branch_progress"
+    }
+    assert report["facts"]["branch_progress"]["production_writer_count"] == 1
+
+    contract_rows = production(report, "contract_branch_progress")
+    assert {row["symbol"] for row in contract_rows} == {
+        "SceneContractBranchReducer._write_contract_branch_progress"
+    }
+    assert report["facts"]["contract_branch_progress"]["production_writer_count"] == 1
 
     receipt_rows = production(report, "scene_receipts")
     assert {row["symbol"] for row in receipt_rows} == {

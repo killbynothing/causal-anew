@@ -11,8 +11,10 @@ from typing import Any
 
 try:
     from runtime.file_locks import STATE_LOCK
+    from runtime.scene_contract_branch_reducer import SceneContractBranchReducer
 except ImportError:
     from file_locks import STATE_LOCK
+    from scene_contract_branch_reducer import SceneContractBranchReducer
 
 class SceneState:
     def __init__(self, run_no: int, scene_id: str):
@@ -38,12 +40,45 @@ class SceneState:
         self.last_player_input = ""
         self.repeat_count = 0
         self.react_rotation = {}   # {cons: int} 兜底反应变体轮转，跨拍不重复
-        self.branch_progress = {}  # {node_id: [path_id, ...]}
+        self._contract_branch_reducer = SceneContractBranchReducer()
         self.seen_npc_lines = {}   # {location: [compact_dialogue, ...]} 防同场景 NPC 同句复读
         # 灵魂层·动态记忆（干预达成时写入，跨场景持久；按 run 隔离，不混周目）
         self.dynamic_memory = []  # [{cons, anchor, text, ch_anchor, run_no, tag}, ...]
         # 灵魂层·信任特批记录（来源=intervention，即"干预尝试"而非"友善应答"）
         self.trust_override = {}  # {cons: {override_from: "intervention", amount: int, reason: str}}
+
+    @property
+    def contract_branch_progress(self) -> dict[str, list[str]]:
+        return self._contract_branch_reducer.snapshot()
+
+    @contract_branch_progress.setter
+    def contract_branch_progress(self, value: dict[str, list[str]]) -> None:
+        self._contract_branch_reducer.replace(value)
+
+    @property
+    def branch_progress(self) -> dict[str, list[str]]:
+        """Deprecated read/write adapter for pre-P2c callers."""
+        return self.contract_branch_progress
+
+    @branch_progress.setter
+    def branch_progress(self, value: dict[str, list[str]]) -> None:
+        self.contract_branch_progress = value
+
+    def register_contract_branch_paths(
+        self,
+        node_id: str,
+        path_ids: list[str],
+        *,
+        valid_paths: set[str],
+    ) -> list[str]:
+        added = self._contract_branch_reducer.add_paths(
+            node_id,
+            path_ids,
+            valid_paths=valid_paths,
+        )
+        if added:
+            self.save()
+        return added
 
     @classmethod
     def get_path(cls, run_no: int, scene_id: str) -> Path:
@@ -108,7 +143,12 @@ class SceneState:
                 state.last_player_input = data.get("last_player_input", "")
                 state.repeat_count = data.get("repeat_count", 0)
                 state.react_rotation = data.get("react_rotation", {})
-                state.branch_progress = data.get("branch_progress", {})
+                # P2c migration: old saves used the overloaded branch_progress
+                # key. New saves use contract_branch_progress only.
+                state.contract_branch_progress = data.get(
+                    "contract_branch_progress",
+                    data.get("branch_progress", {}),
+                )
                 state.seen_npc_lines = data.get("seen_npc_lines", {})
                 state.dynamic_memory = data.get("dynamic_memory", [])
                 state.trust_override = data.get("trust_override", {})
@@ -224,7 +264,7 @@ class SceneState:
             "last_player_input": self.last_player_input,
             "repeat_count": self.repeat_count,
             "react_rotation": self.react_rotation,
-            "branch_progress": self.branch_progress,
+            "contract_branch_progress": self.contract_branch_progress,
             "seen_npc_lines": self.seen_npc_lines,
             "dynamic_memory": self.dynamic_memory,
             "trust_override": self.trust_override,

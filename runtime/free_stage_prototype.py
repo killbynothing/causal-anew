@@ -82,6 +82,7 @@ from runtime import fact_projection
 from runtime import world_commit
 from runtime import world_projection
 from runtime import physical_state
+from runtime import world_cursor_state
 from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
@@ -7112,7 +7113,12 @@ class FreeStageSession:
         self.completed_by_card: dict[str, list[str]] = {}
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
-        self.world_cursor: dict[str, Any] = _card_cursor(self.card, self.run_no)
+        self.world_cursor_state = world_cursor_state.WorldCursorState.empty(
+            _card_cursor(self.card, self.run_no),
+            run_no=self.run_no,
+            source_kind="session_init",
+            source_ref=str(self.card.get("scene_id", self.card_path)),
+        )
         self.offscreen_ledger: dict[str, Any] = {}
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
@@ -7241,8 +7247,10 @@ class FreeStageSession:
             for scene_id, state in dict(data.get("canon_performance_state", {})).items()
             if isinstance(state, dict)
         }
-        self.world_cursor = dict(data.get("world_cursor") or _card_cursor(self.card, self.run_no))
-        stored_run = data.get("run_no", self.world_cursor.get("run", self.run_no))
+        legacy_world_cursor = dict(
+            data.get("world_cursor") or _card_cursor(self.card, self.run_no)
+        )
+        stored_run = data.get("run_no", legacy_world_cursor.get("run", self.run_no))
         try:
             stored_run = int(stored_run)
         except (TypeError, ValueError):
@@ -7250,8 +7258,11 @@ class FreeStageSession:
         if stored_run < 1:
             stored_run = 1
         self.run_no = stored_run
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", "WMAIN")
+        self.world_cursor_state = world_cursor_state.WorldCursorState.from_snapshot(
+            data.get("world_cursor_state"),
+            legacy_cursor=legacy_world_cursor,
+            run_no=self.run_no,
+        )
         self.offscreen_ledger = dict(data.get("offscreen_ledger") or {})
         self.heart_stages = {
             str(k): int(v)
@@ -7339,7 +7350,13 @@ class FreeStageSession:
         if domain_state is not None:
             fields = domain_state.legacy_fields()
             self.player_profile = fields["player_profile"]
-            self.world_cursor = fields["world_cursor"]
+            if not isinstance(data.get("world_cursor_state"), dict):
+                self.world_cursor_state.replace(
+                    fields["world_cursor"],
+                    run_no=self.run_no,
+                    source_kind="domain_state_load",
+                    source_ref="domain_state",
+                )
             # P2c: domain_state.branch_progress is a legacy duplicate. It may
             # seed old snapshots, but must never overwrite a persisted
             # fact_projection and destroy its provenance.
@@ -7440,6 +7457,7 @@ class FreeStageSession:
             "completed_beats": self.completed_beats,
             "canon_performance_state": self.canon_performance_state,
             "world_cursor": self.world_cursor,
+            "world_cursor_state": self.world_cursor_state.to_dict(),
             "offscreen_ledger": self.offscreen_ledger,
             "heart_stages": self.heart_stages,
             "consolidated_memory_by_card": self.consolidated_memory_by_card,
@@ -7711,6 +7729,52 @@ class FreeStageSession:
         )
 
     @property
+    def world_cursor(self) -> dict[str, Any]:
+        """Read-only compatibility view owned by WorldCursorState."""
+        return self.world_cursor_state.cursor
+
+    @world_cursor.setter
+    def world_cursor(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses cursor helpers."""
+        raw = values if isinstance(values, Mapping) else {}
+        self.world_cursor_state.replace(
+            raw,
+            run_no=self.run_no,
+            source_kind="compat_assignment",
+            source_ref="external_session.world_cursor",
+        )
+
+    def _cursor_replace(
+        self,
+        cursor: Mapping[str, Any],
+        *,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> bool:
+        return self.world_cursor_state.replace(
+            cursor,
+            run_no=self.run_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
+
+    def _cursor_advance(
+        self,
+        *,
+        ch_anchor: int | None,
+        world_clock: str | None,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> bool:
+        return self.world_cursor_state.advance(
+            ch_anchor=ch_anchor,
+            world_clock=world_clock,
+            run_no=self.run_no,
+            source_kind=source_kind,
+            source_ref=source_ref,
+        )
+
+    @property
     def world_transactions(self) -> dict[str, dict[str, Any]]:
         """Read-only compatibility view owned by WorldLedgerState."""
         return self.world_ledger.transactions
@@ -7899,7 +7963,11 @@ class FreeStageSession:
         self.completed_by_card = {}
         self.completed_beats = {}
         self.canon_performance_state = {}
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._cursor_replace(
+            _card_cursor(self.card, self.run_no),
+            source_kind="session_reset",
+            source_ref=str(self.card.get("scene_id", self.card_path)),
+        )
         self.offscreen_ledger = {}
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
@@ -7947,7 +8015,11 @@ class FreeStageSession:
         self.card_path = resolve_card_path(self.initial_card_path)
         self.card = load_card(self.card_path)
         self._body_ensure(self.card, source_kind="session_reset")
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._cursor_replace(
+            _card_cursor(self.card, self.run_no),
+            source_kind="session_reset",
+            source_ref=str(self.card.get("scene_id", self.card_path)),
+        )
         from runtime.scars_reader import read_run_scars
 
         node_id = str(self.card.get("node_id") or self.opening_id or "").strip()
@@ -8420,7 +8492,11 @@ class FreeStageSession:
         )
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
-        self.world_cursor = _card_cursor(self.card, self.run_no)
+        self._cursor_replace(
+            _card_cursor(self.card, self.run_no),
+            source_kind="flashback_scene_enter",
+            source_ref=str(self.card.get("scene_id", self.card_path)),
+        )
         self._refresh_inner_states_on_scene_enter(self.card)
 
         entry = str(self.card.get("entry_hook") or "").strip()
@@ -9641,21 +9717,23 @@ class FreeStageSession:
 
     def _advance_world_cursor_for_card(self, target_card: dict[str, Any]) -> list[dict[str, str]]:
         degradations: list[dict[str, str]] = []
-        old_cursor = dict(self.world_cursor or _card_cursor(self.card, self.run_no))
+        old_cursor = self.world_cursor
         target_clock = _card_clock(target_card, str(old_cursor.get("world_clock", "00:00")))
         try:
             target_ch = int(target_card.get("ch_anchor", old_cursor.get("ch_anchor", 0)) or 0)
-            self.world_cursor = world_calendar.advance(old_cursor, ch_anchor=target_ch, world_clock=target_clock)
+            self._cursor_advance(
+                ch_anchor=target_ch,
+                world_clock=target_clock,
+                source_kind="scene_transition",
+                source_ref=str(target_card.get("scene_id", "")),
+            )
         except (TypeError, ValueError) as exc:
-            self.world_cursor = old_cursor
             degradations.append(make_degradation(
                 "world_calendar",
                 "cursor_not_advanced",
                 "target card cursor rejected",
                 detail=str(exc),
             ))
-        self.world_cursor["run"] = self.run_no
-        self.world_cursor.setdefault("worldline", old_cursor.get("worldline", "WMAIN"))
         return degradations
 
     def _tick_offscreen_lines(self, from_cursor: dict[str, Any], to_cursor: dict[str, Any]) -> list[dict[str, str]]:

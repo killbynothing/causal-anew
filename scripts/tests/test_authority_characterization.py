@@ -42,6 +42,26 @@ def test_p2c_completed_has_one_beat_reducer_writer():
     assert report["facts"]["completed"]["production_writer_count"] == 1
 
 
+def test_p2c_session_branch_writers_migrated_legacy_scene_paths_remain():
+    report = load_report()
+    branch_rows = production(report, "branch_progress")
+    symbols = {row["symbol"] for row in branch_rows}
+    assert "WorldFactReducer._write_branch_progress" in symbols
+    assert not any(symbol.startswith("FreeStageSession.") for symbol in symbols)
+    # Old scene-contract / scene-state / web APIs are explicit P2c debt for
+    # the next migration slice; do not hide them by weakening the scanner.
+    assert any(
+        symbol in symbols
+        for symbol in {"register_branch_progress", "SceneState.load", "handle"}
+    )
+
+    receipt_rows = production(report, "scene_receipts")
+    assert {row["symbol"] for row in receipt_rows} == {
+        "WorldFactReducer._write_scene_receipts"
+    }
+    assert report["facts"]["scene_receipts"]["production_writer_count"] == 1
+
+
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
     report = load_report()
     rows = production(report, "private_inner_states")
@@ -80,6 +100,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 if __name__ == "__main__":
     test_p2c_completed_has_one_beat_reducer_writer()
+    test_p2c_session_branch_writers_migrated_legacy_scene_paths_remain()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

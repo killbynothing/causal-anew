@@ -651,6 +651,22 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_beat_reducer_p2c.py",
     },
     {
+        "id": "world_fact_reducer_p2c",
+        "desc": "P2c-2 Session branch/scene receipts 单一 reducer：copy-safe、save/load、主runtime旁路清零",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_fact_reducer_p2c.py"],
+        "triggers": [
+            "runtime/world_fact_reducer.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_fact_reducer_p2c.py",
+            "scripts/tests/test_authority_characterization.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_fact_reducer_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

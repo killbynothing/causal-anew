@@ -23,7 +23,6 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 # These authority-map fact families remain compatibility writers until P2c.
 P2A_WORLD_MIGRATION_DEBT = (
     "branch_progress",  # audit still sees one compatibility production writer; P2c will remove it
-    "causal_receipts",
     "player_state",
     "body_frames",
     "world_cursor",

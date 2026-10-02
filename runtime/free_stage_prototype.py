@@ -101,6 +101,7 @@ from runtime.autonomous_decision import (
     available_autonomous_decisions, next_autonomous_decision, validate_autonomous_decision,
 )
 from runtime.causal_protocol import (
+    CausalReceiptLedger,
     PendingCommit,
     RuntimeScope,
     acknowledge_commit,
@@ -7140,7 +7141,7 @@ class FreeStageSession:
         # the authority for props, departures and completed handoffs.
         self._world_transaction_state = world_commit.WorldCommitLedger()
         self.player_action_receipts: dict[str, dict[str, Any]] = {}
-        self.causal_receipts: list[dict[str, Any]] = []
+        self._causal_receipt_state = CausalReceiptLedger()
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
         self.last_issues: list[str] = []
@@ -7326,6 +7327,11 @@ class FreeStageSession:
         return self._world_transaction_state.records()
 
     @property
+    def causal_receipts(self) -> list[dict[str, Any]]:
+        """Read-only resolver receipt projection from CausalReceiptLedger."""
+        return self._causal_receipt_state.rows()
+
+    @property
     def canon_performance_state(self) -> dict[str, dict[str, Any]]:
         """Read-only deterministic performance projection from BeatState."""
         return self._beat_state.canon_performance_state()
@@ -7502,9 +7508,9 @@ class FreeStageSession:
             for action_id, record in dict(data.get("player_action_receipts", {})).items()
             if str(action_id).strip() and isinstance(record, dict)
         }
-        self.causal_receipts = [
-            dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
-        ]
+        self._causal_receipt_state = CausalReceiptLedger.from_saved(
+            data.get("causal_receipts") if isinstance(data.get("causal_receipts"), list) else None
+        )
         self.director_port_trace = [
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
@@ -7854,7 +7860,7 @@ class FreeStageSession:
         self._language_discovery_observation = None
         self._world_transaction_state.reset()
         self.player_action_receipts = {}
-        self.causal_receipts = []
+        self._causal_receipt_state.reset()
         self.director_port_trace = []
         self.last_director_opportunity = None
         self.last_issues = []
@@ -9861,8 +9867,7 @@ class FreeStageSession:
                     turn_no=int(resolution.feasibility.intent.turn),
                     scene_effects=effects,
                 )
-                if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-                    self.causal_receipts.append(causal_receipt)
+                self._causal_receipt_state.append(causal_receipt)
                 self._apply_actor_mind_receipt(card or self.card, decision.actor_cons, causal_receipt)
             self.ambient_actor_registry, ambient_event = establish_after_reciprocity(
                 self.ambient_actor_registry,
@@ -9986,8 +9991,7 @@ class FreeStageSession:
                 str(committed_decision.get("outcome", "")), {}
             ),
         )
-        if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-            self.causal_receipts.append(causal_receipt)
+        self._causal_receipt_state.append(causal_receipt)
         self._apply_actor_mind_receipt(self.card, cons, causal_receipt)
         turns, _progress, _note = normalize_turns(payload)
         for item in turns:

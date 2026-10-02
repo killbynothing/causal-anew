@@ -6,7 +6,8 @@ output may create an event receipt.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+import copy
+from dataclasses import asdict, dataclass, field
 import hashlib
 import json
 from typing import Any, Mapping
@@ -74,6 +75,47 @@ class EventReceipt:
             "proposal": self.proposal.to_dict(),
             "event": self.event.to_dict(),
         }
+
+
+@dataclass
+class CausalReceiptLedger:
+    """Single mutable owner for resolver-owned causal receipts."""
+
+    _rows: list[dict[str, Any]] = field(default_factory=list)
+    _hash_by_id: dict[str, str] = field(default_factory=dict)
+
+    @classmethod
+    def from_saved(cls, raw: list[Any] | tuple[Any, ...] | None) -> "CausalReceiptLedger":
+        ledger = cls()
+        for item in raw or ():
+            if not isinstance(item, Mapping):
+                continue
+            ledger.append(dict(item))
+        return ledger
+
+    def rows(self) -> list[dict[str, Any]]:
+        return [copy.deepcopy(item) for item in self._rows]
+
+    def reset(self) -> None:
+        self._rows.clear()
+        self._hash_by_id.clear()
+
+    def append(self, receipt: Mapping[str, Any]) -> bool:
+        row = copy.deepcopy(dict(receipt))
+        receipt_id = str(row.get("receipt_id") or "").strip()
+        if not receipt_id:
+            raise ValueError("causal receipt requires receipt_id")
+        digest = canonical_payload_hash(row)
+        prior = self._hash_by_id.get(receipt_id)
+        if prior is not None:
+            if prior != digest:
+                raise ReceiptConflict(
+                    f"causal receipt id reused with different payload: {receipt_id}"
+                )
+            return False
+        self._rows.append(row)
+        self._hash_by_id[receipt_id] = digest
+        return True
 
 
 def observation_from_packet(packet: Mapping[str, Any], *, turn: int) -> ObservationFrame:

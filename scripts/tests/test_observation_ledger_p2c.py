@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import ast
 import importlib.util
 import json
 import re
@@ -46,7 +47,9 @@ def test_state_append_is_idempotent_and_copy_safe():
     )
     view = state.rows
     view[0]["fact_text"] = "MUTATED"
+    view[0]["caused_by"].append("FAKE_EVENT")
     assert state.rows[0]["fact_text"] == "托付已说出"
+    assert state.rows[0]["caused_by"] == []
 
 
 def test_state_replace_and_boost_are_owned_mutations():
@@ -108,11 +111,34 @@ def test_session_observation_view_save_load_and_reset():
 
 def test_no_direct_observation_ledger_mutation_remains_in_free_stage():
     source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
-    direct = re.findall(
-        r"self\.run_observation_ledger(?:\s*=|\.append\(|\.extend\(|\.remove\(|\.clear\()",
+    tree = ast.parse(source)
+
+    def contains_target(node):
+        if isinstance(node, ast.Attribute):
+            return (
+                isinstance(node.value, ast.Name)
+                and node.value.id == "self"
+                and node.attr == "run_observation_ledger"
+            )
+        if isinstance(node, (ast.Tuple, ast.List)):
+            return any(contains_target(item) for item in node.elts)
+        if isinstance(node, ast.Subscript):
+            return contains_target(node.value)
+        return False
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            assert not any(contains_target(target) for target in node.targets)
+        elif isinstance(node, ast.AnnAssign):
+            assert not contains_target(node.target)
+        elif isinstance(node, ast.AugAssign):
+            assert not contains_target(node.target)
+
+    direct_mutators = re.findall(
+        r"self\.run_observation_ledger(?:\.append\(|\.extend\(|\.remove\(|\.clear\()",
         source,
     )
-    assert direct == []
+    assert direct_mutators == []
 
 
 def test_authority_map_reports_zero_observation_production_writers():

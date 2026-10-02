@@ -18,13 +18,9 @@ from runtime.causal_protocol import (
 
 WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 
-# P2a deliberately migrates the mature world_transactions append path first.
-# These authority-map fact families remain compatibility writers until P2c.
-P2A_WORLD_MIGRATION_DEBT = (
-    # P2c has migrated Beat/fact/world/observation/physical projections.
-    # World cursor remains the final WorldCommit migration family.
-    "world_cursor",
-)
+# Historical P2a migration debt. P2c's dynamic authority closeout gate now
+# proves every listed World/Beat family has zero production/unknown writers.
+P2A_WORLD_MIGRATION_DEBT: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

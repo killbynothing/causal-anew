@@ -213,7 +213,7 @@ def test_production_has_no_direct_completed_mutators():
         r"frame_beat_ledger\.mark_done\(self\.completed_beats",
         r"self\.canon_performance_state\s*=",
         r"self\.canon_performance_state\.setdefault",
-        r"canon_state\[\s*["'](?:pending_stop|player_position)["']\s*\]\s*=",
+        r'canon_state\[\s*"(?:pending_stop|player_position)"\s*\]\s*=',
     ]
     for pattern in forbidden:
         assert not re.search(pattern, source), pattern

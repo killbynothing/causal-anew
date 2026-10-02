@@ -12845,7 +12845,13 @@ class FreeStageSession:
                 ],
             )
 
-        target_card = apply_offscreen_lives(self.card, target_card, self.branch_progress, self.config)
+        branch_snapshot = list(self.branch_progress)
+        target_card = apply_offscreen_lives(
+            self.card,
+            target_card,
+            branch_snapshot,
+            self.config,
+        )
         cursor_before = dict(self.world_cursor)
         cursor_degradations = self._advance_world_cursor_for_card(target_card)
         cursor_after = dict(self.world_cursor)

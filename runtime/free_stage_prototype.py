@@ -7110,7 +7110,7 @@ class FreeStageSession:
         self.beat_state = beat_reducer.BeatState.empty(
             str(self.card.get("scene_id", self.card_path))
         )
-        self.completed_by_card: dict[str, list[str]] = {}
+        self.scene_beat_archive = beat_reducer.SceneBeatArchive.empty()
         self.completed_beats: dict[str, list[str]] = {}
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
         self.world_cursor_state = world_cursor_state.WorldCursorState.empty(
@@ -7232,11 +7232,10 @@ class FreeStageSession:
             scene_id=str(self.card.get("scene_id", self.card_path)),
             legacy_completed=data.get("completed", []),
         )
-        self.completed_by_card = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_by_card", {})).items()
-            if isinstance(v, list)
-        }
+        self.scene_beat_archive = beat_reducer.SceneBeatArchive.from_snapshot(
+            data.get("scene_beat_archive"),
+            legacy_completed_by_card=data.get("completed_by_card", {}),
+        )
         self.completed_beats = {
             str(k): [str(x) for x in v]
             for k, v in dict(data.get("completed_beats", {})).items()
@@ -7454,6 +7453,7 @@ class FreeStageSession:
             "completed": self.completed,
             "beat_state": self.beat_state.to_dict(),
             "completed_by_card": self.completed_by_card,
+            "scene_beat_archive": self.scene_beat_archive.to_dict(),
             "completed_beats": self.completed_beats,
             "canon_performance_state": self.canon_performance_state,
             "world_cursor": self.world_cursor,
@@ -7729,6 +7729,40 @@ class FreeStageSession:
         )
 
     @property
+    def completed_by_card(self) -> dict[str, list[str]]:
+        """Legacy read view owned by SceneBeatArchive."""
+        return self.scene_beat_archive.completed_by_card
+
+    @completed_by_card.setter
+    def completed_by_card(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses archive helper."""
+        raw = values if isinstance(values, Mapping) else {}
+        self.scene_beat_archive.replace_all(
+            raw,
+            source_kind="compat_assignment",
+            source_ref="external_session.completed_by_card",
+            turn=0,
+        )
+
+    def _archive_scene_beats(
+        self,
+        scene_id: str,
+        *,
+        source_kind: str,
+        source_ref: str = "",
+        turn_no: int | None = None,
+        completed: Any = None,
+    ) -> bool:
+        beats = self.completed if completed is None else list(completed or [])
+        return self.scene_beat_archive.record(
+            str(scene_id),
+            beats,
+            source_kind=source_kind,
+            source_ref=source_ref or str(scene_id),
+            turn=int(len(self.inputs) if turn_no is None else turn_no),
+        )
+
+    @property
     def world_cursor(self) -> dict[str, Any]:
         """Read-only compatibility view owned by WorldCursorState."""
         return self.world_cursor_state.cursor
@@ -7960,7 +7994,7 @@ class FreeStageSession:
             source_ref=self.session_id,
             turn_no=0,
         )
-        self.completed_by_card = {}
+        self.scene_beat_archive.reset()
         self.completed_beats = {}
         self.canon_performance_state = {}
         self._cursor_replace(
@@ -8424,7 +8458,7 @@ class FreeStageSession:
             return []
 
         source_scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._archive_scene_beats(source_scene_id, source_kind="scene_completion_snapshot")
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         self.ryuya_flashback_return = {
             "card_path": str(self.card_path),
@@ -9298,7 +9332,7 @@ class FreeStageSession:
         transition: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         scene_id = str(self.card.get("scene_id", self.card_path))
-        self.completed_by_card[scene_id] = list(self.completed)
+        self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
         self.stall = 0
         self.last_degradations = []
         self.last_issues = hard_check(self.history, self.completed, self.card)
@@ -11624,7 +11658,7 @@ class FreeStageSession:
                 emitted,
             )
             scene_id = str(resolved_card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
             self.stall = 0 if new_progress else self.stall + 1
             if stall_escalation:
                 self._stall_escalation_fired_scenes.add(current_scene_id)
@@ -11681,7 +11715,7 @@ class FreeStageSession:
                     auto_canon_turns,
                     source_ref=f"turn:{turn_no}:canon",
                 )
-                self.completed_by_card[scene_id] = list(self.completed)
+                self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
             note_item = {
                 "role": "director_note",
                 "speaker": "导演暗注",
@@ -12150,7 +12184,7 @@ class FreeStageSession:
                 raise ValueError("Brief scene has no authorized exit; skip cannot invent EndRun.")
             closed = self._mark_ended()
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
+            self._archive_scene_beats(source_scene_id, source_kind="scene_completion_snapshot")
             if closed:
                 self.history.append({"role": "marker", "speaker": "系统记录", "text": END_MARKER, "turn": len(self.history) + 1})
             self.save()
@@ -12185,7 +12219,7 @@ class FreeStageSession:
         source_scene_id = str(self.card.get("scene_id", self.card_path))
         
         # Save completed by card
-        self.completed_by_card[source_scene_id] = list(self.completed)
+        self._archive_scene_beats(source_scene_id, source_kind="scene_completion_snapshot")
         self.active_exit_state_by_card[source_scene_id] = self.get_active_exit_state()
         
         # Consolidation
@@ -12368,7 +12402,7 @@ class FreeStageSession:
             burst = self._emit_canon_burst(ready_canon, turn_no=turn_no)
             emitted.extend(burst)
             scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[scene_id] = list(self.completed)
+            self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
             return None
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
@@ -12499,7 +12533,7 @@ class FreeStageSession:
 
         if exit_decision.action == "end_run":
             source_scene_id = str(self.card.get("scene_id", self.card_path))
-            self.completed_by_card[source_scene_id] = list(self.completed)
+            self._archive_scene_beats(source_scene_id, source_kind="scene_completion_snapshot")
 
             # Legacy café accounting remains an execution concern for now; the
             # authority to end came only from ExitPolicy.

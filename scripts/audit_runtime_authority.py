@@ -30,8 +30,8 @@ DEFAULT_MD = ROOT / "docs" / "analysis" / "runtime_authority_map_2026-09-29.md"
 FIELD_SPECS: dict[str, dict[str, str]] = {
     "completed": {"domain": "beat", "target_owner": "BeatState"},
     "completed_by_card": {"domain": "beat", "target_owner": "BeatState"},
-    "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},
-    "canon_performance_state": {"domain": "beat", "target_owner": "BeatReducer"},
+    "completed_beats": {"domain": "beat", "target_owner": "BeatState"},
+    "canon_performance_state": {"domain": "beat", "target_owner": "BeatState"},
     "branch_progress": {"domain": "world", "target_owner": "WorldCommit"},
     "scene_receipts": {"domain": "world", "target_owner": "WorldCommit"},
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import sys
@@ -49,6 +50,58 @@ def test_legacy_load_marks_unresolved_without_fabricating_events():
     assert raw["completed_by_card"] == {"S0": ["A1"]}
     assert raw["events"] == []
     assert raw["legacy_unresolved"] == ["B1", "B2"]
+
+
+def test_beat_state_owns_frame_beats_and_canon_performance():
+    state = BeatState()
+    assert state.mark_frame_beats(1, "FRAME", ["BE1", "BE1", "BE2"]) == ["BE1", "BE2"]
+    assert state.mark_frame_beats(1, "FRAME", ["BE2"]) == []
+    assert state.completed_frame_beats(1, "FRAME") == {"BE1", "BE2"}
+    assert state.completed_frame_beats(2, "FRAME") == set()
+
+    visible = state.frame_beats()
+    visible["1"].append("FRAME::FAKE")
+    assert state.completed_frame_beats(1, "FRAME") == {"BE1", "BE2"}
+
+    assert state.record_canon_segment(
+        "S1", "SEG1", pending_stop="STOP1", player_position="gate"
+    ) is True
+    assert state.record_canon_segment(
+        "S1", "SEG1", hidden=True, pending_stop="", player_position="counter"
+    ) is False
+    canon = state.canon_scene_state("S1")
+    assert canon["completed_segments"] == ["SEG1"]
+    assert canon["not_visible_segments"] == ["SEG1"]
+    assert canon["pending_stop"] == ""
+    assert canon["player_position"] == "counter"
+    canon["completed_segments"].append("FAKE")
+    assert state.canon_scene_state("S1")["completed_segments"] == ["SEG1"]
+
+
+def test_tail_legacy_fields_migrate_into_existing_beat_state_v1():
+    state = BeatState.from_saved(
+        {
+            "schema_version": BEAT_STATE_SCHEMA,
+            "completed": ["B1"],
+            "completed_by_card": {},
+            "events": [],
+            "legacy_unresolved": [],
+        },
+        legacy_completed_beats={"1": ["FRAME::BE1"]},
+        legacy_canon_performance_state={
+            "S1": {
+                "completed_segments": ["SEG1"],
+                "not_visible_segments": [],
+                "pending_stop": "STOP",
+                "player_position": "gate",
+            }
+        },
+    )
+    assert state.completed_frame_beats(1, "FRAME") == {"BE1"}
+    assert state.canon_scene_state("S1")["completed_segments"] == ["SEG1"]
+    raw = state.to_dict()
+    assert raw["frame_beats"]["1"] == ["FRAME::BE1"]
+    assert raw["canon_performance_state"]["S1"]["pending_stop"] == "STOP"
 
 
 def test_session_completed_properties_are_copy_only():
@@ -105,6 +158,15 @@ def test_session_save_load_prefers_beat_state_and_keeps_legacy_projection():
         assert resumed.completed_by_card["S1"] == ["B1", "B2"]
         assert len(resumed._beat_state.events()) == 2
 
+        resumed._beat_state.mark_frame_beats(1, "FRAME", ["BE1"])
+        resumed._beat_state.record_canon_segment(
+            "S1", "SEG1", pending_stop="STOP", player_position="gate"
+        )
+        resumed.save()
+        disk2 = json.loads((state_dir / "beat-save.json").read_text(encoding="utf-8"))
+        assert disk2["completed_beats"]["1"] == ["FRAME::BE1"]
+        assert disk2["canon_performance_state"]["S1"]["completed_segments"] == ["SEG1"]
+
 
 def test_old_session_snapshot_migrates_without_player_receipts():
     with tempfile.TemporaryDirectory() as tmp:
@@ -147,12 +209,32 @@ def test_production_has_no_direct_completed_mutators():
         r"self\.completed\.remove\(",
         r"self\.completed_by_card\s*=",
         r"self\.completed_by_card\[",
+        r"self\.completed_beats\s*=",
+        r"frame_beat_ledger\.mark_done\(self\.completed_beats",
+        r"self\.canon_performance_state\s*=",
+        r"self\.canon_performance_state\.setdefault",
+        r"canon_state\[\s*["'](?:pending_stop|player_position)["']\s*\]\s*=",
     ]
     for pattern in forbidden:
         assert not re.search(pattern, source), pattern
     assert "self._beat_state.complete(" in source
     assert "self._beat_state.complete_many(" in source
     assert "self._beat_state.snapshot_card(" in source
+    assert "self._beat_state.mark_frame_beats(" in source
+    assert "self._beat_state.record_canon_segment(" in source
+    assert "self._beat_state.update_canon_scene(" in source
+
+
+def test_authority_map_has_zero_tail_beat_writers():
+    audit_path = ROOT / "scripts" / "audit_runtime_authority.py"
+    spec = importlib.util.spec_from_file_location("beat_tail_authority_audit", audit_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    report = module.build_report(False)
+    assert report["facts"]["completed_beats"]["production_writer_count"] == 0
+    assert report["facts"]["canon_performance_state"]["production_writer_count"] == 0
 
 
 if __name__ == "__main__":

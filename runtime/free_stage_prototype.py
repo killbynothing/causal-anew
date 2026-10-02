@@ -81,6 +81,7 @@ from runtime import run_lifecycle
 from runtime import world_commit
 from runtime import world_projection
 from runtime import world_fact_reducer
+from runtime import world_ledger_reducer
 from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
@@ -131,11 +132,6 @@ from runtime.intent_runtime import (
 )
 from runtime.ambient_actor import establish_after_reciprocity, hydrate_resolution as hydrate_ambient_resolution
 from runtime.world_coordinates import project_world_coordinates
-from runtime.run_observation_ledger import (
-    append_observation as _ledger_append,
-    boost_importance as _ledger_boost,
-    high_importance_facts as _ledger_high,
-)
 from runtime import opening_top_tier as ott
 from runtime import actor_cog_loop as cogloop
 from runtime import director_harness
@@ -7060,6 +7056,32 @@ class FreeStageSession:
     def scene_receipts(self, values: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> None:
         self._world_fact_reducer.replace_receipts(values)
 
+    @property
+    def world_transactions(self) -> dict[str, dict[str, Any]]:
+        return self._world_ledger.transaction_snapshot()
+
+    @world_transactions.setter
+    def world_transactions(self, values: dict[str, dict[str, Any]]) -> None:
+        self._world_ledger.replace_transactions(values)
+
+    @property
+    def causal_receipts(self) -> list[dict[str, Any]]:
+        return self._world_ledger.causal_snapshot()
+
+    @causal_receipts.setter
+    def causal_receipts(self, values: list[dict[str, Any]] | tuple[dict[str, Any], ...]) -> None:
+        self._world_ledger.replace_causal(values)
+
+    @property
+    def run_observation_ledger(self) -> list[dict[str, Any]]:
+        return self._world_ledger.observation_snapshot()
+
+    @run_observation_ledger.setter
+    def run_observation_ledger(
+        self, values: list[dict[str, Any]] | tuple[dict[str, Any], ...]
+    ) -> None:
+        self._world_ledger.replace_observations(values)
+
     def __init__(
         self,
         session_id: str | None = None,
@@ -7163,16 +7185,14 @@ class FreeStageSession:
         self.write_mode = "writable"
         self.source_session_id: str | None = None
         self._world_fact_reducer = world_fact_reducer.WorldFactReducer()
+        self._world_ledger = world_ledger_reducer.WorldLedgerReducer()
         self._language_discovery_observation: str | None = None
         # Structured scene facts are the authoritative receipt ledger for
         # migrated scenes. branch_progress remains a legacy projection while
         # other cards are being moved, never the only evidence of a player act.
-        # Cross-scene one-time facts are not dialogue history.  A terminal
-        # transaction has one immutable outcome for this run/worldline and is
-        # the authority for props, departures and completed handoffs.
-        self.world_transactions: dict[str, dict[str, Any]] = {}
+        # Cross-scene one-time facts are not dialogue history.  WorldLedgerReducer
+        # owns storage; WorldCommit still owns whether a transaction is valid.
         self.player_action_receipts: dict[str, dict[str, Any]] = {}
-        self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
         self.director_port_trace: list[dict[str, Any]] = []
         self.last_issues: list[str] = []
@@ -7201,7 +7221,6 @@ class FreeStageSession:
             "physical": "good",
             "elapsed_minutes": 0,
         }
-        self.run_observation_ledger: list[dict[str, Any]] = []
         self.utterance_pending_queue: list[dict[str, Any]] = []
         self.companion_pending_queue: list[dict[str, Any]] = []
         self.stream_hold: bool = False
@@ -7350,19 +7369,19 @@ class FreeStageSession:
         self._world_fact_reducer.replace_receipts(
             dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)
         )
-        self.world_transactions = {
+        self._world_ledger.replace_transactions({
             str(transaction_id): dict(record)
             for transaction_id, record in dict(data.get("world_transactions", {})).items()
             if str(transaction_id).strip() and isinstance(record, dict)
-        }
+        })
         self.player_action_receipts = {
             str(action_id): dict(record)
             for action_id, record in dict(data.get("player_action_receipts", {})).items()
             if str(action_id).strip() and isinstance(record, dict)
         }
-        self.causal_receipts = [
+        self._world_ledger.replace_causal(
             dict(item) for item in data.get("causal_receipts", []) if isinstance(item, dict)
-        ]
+        )
         self.director_port_trace = [
             dict(item) for item in data.get("director_port_trace", []) if isinstance(item, dict)
         ]
@@ -7409,9 +7428,9 @@ class FreeStageSession:
         self.player_state.setdefault("energy", 0.78)
         self.player_state.setdefault("physical", "good")
         self.player_state.setdefault("elapsed_minutes", 0)
-        self.run_observation_ledger = [
+        self._world_ledger.replace_observations(
             dict(item) for item in data.get("run_observation_ledger", []) if isinstance(item, dict)
-        ]
+        )
         self.utterance_pending_queue = [
             dict(item) for item in data.get("utterance_pending_queue", []) if isinstance(item, dict)
         ]
@@ -7695,10 +7714,9 @@ class FreeStageSession:
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.run_receipt = None
         self._world_fact_reducer.clear()
+        self._world_ledger.clear()
         self._language_discovery_observation = None
-        self.world_transactions = {}
         self.player_action_receipts = {}
-        self.causal_receipts = []
         self.director_port_trace = []
         self.last_director_opportunity = None
         self.last_issues = []
@@ -7722,7 +7740,6 @@ class FreeStageSession:
             "elapsed_minutes": 0,
         }
         self._triggered_at_clocks: set[str] = set()
-        self.run_observation_ledger = []
         self.utterance_pending_queue = []
         self.companion_pending_queue = []
         self.stream_hold = False
@@ -7936,8 +7953,7 @@ class FreeStageSession:
     ) -> bool:
         """Delegate replayable world facts to the single P2a WorldCommit entry."""
         tx_id = str(transaction_id).strip()
-        result = world_commit.commit_world_fact(
-            self.world_transactions,
+        result = self._world_ledger.commit_world_fact(
             scope=self._current_runtime_scope(),
             request_id=str(request_id or f"world:{tx_id}"),
             turn_id=f"turn:{int(turn_no)}",
@@ -7954,8 +7970,7 @@ class FreeStageSession:
         return result.committed
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
-        record = self.world_transactions.get(str(transaction_id).strip())
-        return dict(record) if isinstance(record, dict) else None
+        return self._world_ledger.get_transaction(transaction_id)
 
     def _finalize_prologue_pendant(
         self,
@@ -7994,7 +8009,7 @@ class FreeStageSession:
         )
         self.player_state = projected.player_state
         self.body_frames = projected.body_frames
-        self.run_observation_ledger = projected.observation_ledger
+        self._world_ledger.replace_observations(projected.observation_ledger)
         ensure_card_body_frames(self.card, self.body_frames)
         self._record_scene_receipt(
             "ryuya_pendant_disposition",
@@ -8056,8 +8071,7 @@ class FreeStageSession:
         if not turns:
             return []
         self._pendant_layer_c_emitted = True
-        self.run_observation_ledger = _ledger_append(
-            self.run_observation_ledger,
+        self._world_ledger.append_observation(
             turn=turn_no,
             scene_id=str(self.card.get("scene_id", "")),
             fact_text="挂坠层C短闪回：雨声/旧桌/递坠",
@@ -9685,8 +9699,7 @@ class FreeStageSession:
                     turn_no=int(resolution.feasibility.intent.turn),
                     scene_effects=effects,
                 )
-                if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-                    self.causal_receipts.append(causal_receipt)
+                self._world_ledger.append_causal_receipt(causal_receipt)
                 self._apply_actor_mind_receipt(card or self.card, decision.actor_cons, causal_receipt)
             self.ambient_actor_registry, ambient_event = establish_after_reciprocity(
                 self.ambient_actor_registry,
@@ -9805,8 +9818,7 @@ class FreeStageSession:
                 str(committed_decision.get("outcome", "")), {}
             ),
         )
-        if not any(item.get("receipt_id") == causal_receipt["receipt_id"] for item in self.causal_receipts):
-            self.causal_receipts.append(causal_receipt)
+        self._world_ledger.append_causal_receipt(causal_receipt)
         self._apply_actor_mind_receipt(self.card, cons, causal_receipt)
         turns, _progress, _note = normalize_turns(payload)
         for item in turns:
@@ -10129,8 +10141,7 @@ class FreeStageSession:
             }
             for fact_key, (kind, text) in _OBS_FACT_MAP.items():
                 if fact_key in facts_this_turn:
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
+                    self._world_ledger.append_observation(
                         turn=turn_no, scene_id=scene_id_for_obs,
                         fact_text=text, kind=kind,
                     )
@@ -11184,15 +11195,13 @@ class FreeStageSession:
             # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
             # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
             if "RP3" in newly_completed:
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._world_ledger.append_observation(
                     turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
                     kind="entrust",
                 )
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._world_ledger.append_observation(
                     turn=turn_no,
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="禁名警告已说出：说了会有危险，会死人",
@@ -11213,8 +11222,7 @@ class FreeStageSession:
                     and str(row.get("kind") or "") == "pendant_offer"
                     for row in self.run_observation_ledger
                 ):
-                    self.run_observation_ledger = _ledger_append(
-                        self.run_observation_ledger,
+                    self._world_ledger.append_observation(
                         turn=turn_no,
                         scene_id=str(self.card.get("scene_id", "")),
                         fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
@@ -12390,8 +12398,7 @@ class FreeStageSession:
                 self.history.append(look)
                 emitted.append(look)
                 self._pendant_look_emitted = True
-                self.run_observation_ledger = _ledger_append(
-                    self.run_observation_ledger,
+                self._world_ledger.append_observation(
                     turn=turn_no,
                     scene_id=str(target_scene_id),
                     fact_text="回场时玩家看向随身吊坠",

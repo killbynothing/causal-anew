@@ -277,8 +277,10 @@ def test_legacy_world_transaction_retry_is_read_only_compatible():
 
 def test_free_stage_world_transaction_delegates_to_world_commit():
     source = inspect.getsource(proto.FreeStageSession._commit_world_transaction)
-    assert "world_commit.commit_world_fact" in source
+    assert "self._world_ledger.commit_world_fact" in source
     assert "self.world_transactions[" not in source
+    reducer_source = (ROOT / "runtime" / "world_ledger_reducer.py").read_text(encoding="utf-8")
+    assert "world_commit.commit_world_fact" in reducer_source
 
     with tempfile.TemporaryDirectory() as tmp:
         session = proto.FreeStageSession(

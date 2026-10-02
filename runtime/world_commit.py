@@ -5,6 +5,7 @@ decide story semantics; callers must submit an already-authorized fact.
 """
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass
 from typing import Any, Mapping, MutableMapping, Sequence
 
@@ -243,12 +244,12 @@ class WorldLedgerState:
         causal_receipts: Sequence[Mapping[str, Any]] | None = None,
     ) -> None:
         self._transactions: dict[str, dict[str, Any]] = {
-            str(key): dict(value)
+            str(key): copy.deepcopy(dict(value))
             for key, value in dict(transactions or {}).items()
             if str(key).strip() and isinstance(value, Mapping)
         }
         self._causal_receipts: list[dict[str, Any]] = [
-            dict(item) for item in (causal_receipts or ()) if isinstance(item, Mapping)
+            copy.deepcopy(dict(item)) for item in (causal_receipts or ()) if isinstance(item, Mapping)
         ]
 
     @classmethod
@@ -267,17 +268,17 @@ class WorldLedgerState:
 
     @property
     def transactions(self) -> dict[str, dict[str, Any]]:
-        return {key: dict(value) for key, value in self._transactions.items()}
+        return copy.deepcopy(self._transactions)
 
     @property
     def causal_receipts(self) -> list[dict[str, Any]]:
-        return [dict(item) for item in self._causal_receipts]
+        return copy.deepcopy(self._causal_receipts)
 
     def replace_transactions(self, values: Any) -> None:
         if not isinstance(values, Mapping):
             raise ValueError("world transactions replacement must be a mapping")
         self._transactions = {
-            str(key): dict(value)
+            str(key): copy.deepcopy(dict(value))
             for key, value in values.items()
             if str(key).strip() and isinstance(value, Mapping)
         }
@@ -286,7 +287,7 @@ class WorldLedgerState:
         if not isinstance(values, (list, tuple)):
             raise ValueError("causal receipts replacement must be a list/tuple")
         self._causal_receipts = [
-            dict(item) for item in values if isinstance(item, Mapping)
+            copy.deepcopy(dict(item)) for item in values if isinstance(item, Mapping)
         ]
 
     def reset(self) -> None:
@@ -298,10 +299,10 @@ class WorldLedgerState:
 
     def get_transaction(self, transaction_id: str) -> dict[str, Any] | None:
         record = self._transactions.get(_text(transaction_id))
-        return dict(record) if isinstance(record, dict) else None
+        return copy.deepcopy(record) if isinstance(record, dict) else None
 
     def record_causal_receipt(self, receipt: Mapping[str, Any]) -> bool:
-        row = dict(receipt)
+        row = copy.deepcopy(dict(receipt))
         receipt_id = _text(row.get("receipt_id"))
         if not receipt_id:
             raise ValueError("causal receipt requires receipt_id")

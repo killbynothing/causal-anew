@@ -326,3 +326,184 @@ class SceneBeatArchive:
             "completed_by_card": self.completed_by_card,
             "sources": {key: dict(value) for key, value in self.sources.items()},
         }
+
+
+CANON_PERFORMANCE_STATE_SCHEMA = "free_stage.canon_performance_state.v1"
+_CANON_UNSET = object()
+
+
+def _canon_scene_defaults(raw: Mapping[str, Any] | None = None) -> dict[str, Any]:
+    data = dict(raw or {})
+    return {
+        "completed_segments": list(dict.fromkeys(
+            _text(item) for item in (data.get("completed_segments") or []) if _text(item)
+        )),
+        "not_visible_segments": list(dict.fromkeys(
+            _text(item) for item in (data.get("not_visible_segments") or []) if _text(item)
+        )),
+        "pending_stop": _text(data.get("pending_stop")),
+        "player_position": _text(data.get("player_position")),
+    }
+
+
+@dataclass
+class CanonPerformanceState:
+    """Single mutable owner for canonical performance progress."""
+
+    _scenes: dict[str, dict[str, Any]] = field(default_factory=dict)
+    sources: dict[str, dict[str, Any]] = field(default_factory=dict)
+    revision: int = 0
+    schema_version: str = CANON_PERFORMANCE_STATE_SCHEMA
+
+    @classmethod
+    def empty(cls) -> "CanonPerformanceState":
+        return cls()
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        raw: Mapping[str, Any] | None,
+        *,
+        legacy_state: Mapping[str, Any] | None = None,
+    ) -> "CanonPerformanceState":
+        if raw is None:
+            state = cls.empty()
+            state.replace_all(
+                legacy_state or {},
+                source_kind="legacy_snapshot",
+                source_ref="canon_performance_state",
+                turn=0,
+            )
+            return state
+        if not isinstance(raw, Mapping):
+            raise ValueError("canon_performance must be an object")
+        if raw.get("schema_version") != CANON_PERFORMANCE_STATE_SCHEMA:
+            raise ValueError(
+                f"unsupported canon_performance schema: {raw.get('schema_version')}"
+            )
+        scenes_raw = raw.get("scenes") or {}
+        sources_raw = raw.get("sources") or {}
+        if not isinstance(scenes_raw, Mapping) or not isinstance(sources_raw, Mapping):
+            raise ValueError("canon_performance scenes/sources must be objects")
+        return cls(
+            _scenes={
+                _text(scene_id): _canon_scene_defaults(scene)
+                for scene_id, scene in scenes_raw.items()
+                if _text(scene_id) and isinstance(scene, Mapping)
+            },
+            sources={
+                _text(scene_id): dict(source)
+                for scene_id, source in sources_raw.items()
+                if _text(scene_id) and isinstance(source, Mapping)
+            },
+            revision=max(0, int(raw.get("revision", 0) or 0)),
+        )
+
+    @property
+    def scenes(self) -> dict[str, dict[str, Any]]:
+        return {
+            scene_id: {
+                "completed_segments": list(state["completed_segments"]),
+                "not_visible_segments": list(state["not_visible_segments"]),
+                "pending_stop": state["pending_stop"],
+                "player_position": state["player_position"],
+            }
+            for scene_id, state in self._scenes.items()
+        }
+
+    def scene(self, scene_id: str) -> dict[str, Any]:
+        scene = _text(scene_id)
+        state = _canon_scene_defaults(self._scenes.get(scene))
+        return {
+            "completed_segments": list(state["completed_segments"]),
+            "not_visible_segments": list(state["not_visible_segments"]),
+            "pending_stop": state["pending_stop"],
+            "player_position": state["player_position"],
+        }
+
+    def update_scene(
+        self,
+        scene_id: str,
+        *,
+        add_completed: Sequence[Any] = (),
+        add_hidden: Sequence[Any] = (),
+        pending_stop: Any = _CANON_UNSET,
+        player_position: Any = _CANON_UNSET,
+        source_kind: str,
+        source_ref: str = "",
+        turn: int = 0,
+    ) -> bool:
+        scene = _text(scene_id)
+        if not scene:
+            raise ValueError("canon performance update requires scene_id")
+        before = _canon_scene_defaults(self._scenes.get(scene))
+        after = _canon_scene_defaults(before)
+        for raw in add_completed:
+            value = _text(raw)
+            if value and value not in after["completed_segments"]:
+                after["completed_segments"].append(value)
+        for raw in add_hidden:
+            value = _text(raw)
+            if value and value not in after["not_visible_segments"]:
+                after["not_visible_segments"].append(value)
+        if pending_stop is not _CANON_UNSET:
+            after["pending_stop"] = _text(pending_stop)
+        if player_position is not _CANON_UNSET:
+            after["player_position"] = _text(player_position)
+        if after == before and scene in self._scenes:
+            return False
+        self._scenes[scene] = after
+        self.revision += 1
+        payload = {
+            "scene_id": scene,
+            "state": after,
+            "source_kind": _text(source_kind) or "unspecified",
+            "source_ref": _text(source_ref),
+            "turn": int(turn),
+        }
+        self.sources[scene] = {
+            "receipt_id": f"canon-performance:{canonical_payload_hash(payload)}",
+            **payload,
+        }
+        return True
+
+    def replace_all(
+        self,
+        values: Mapping[str, Any] | None,
+        *,
+        source_kind: str,
+        source_ref: str = "",
+        turn: int = 0,
+    ) -> None:
+        self._scenes = {}
+        self.sources = {}
+        for scene_id, scene in dict(values or {}).items():
+            if not isinstance(scene, Mapping):
+                continue
+            normalized = _canon_scene_defaults(scene)
+            self._scenes[_text(scene_id)] = normalized
+            payload = {
+                "scene_id": _text(scene_id),
+                "state": normalized,
+                "source_kind": _text(source_kind) or "unspecified",
+                "source_ref": _text(source_ref),
+                "turn": int(turn),
+            }
+            self.sources[_text(scene_id)] = {
+                "receipt_id": f"canon-performance:{canonical_payload_hash(payload)}",
+                **payload,
+            }
+
+    def reset(self) -> None:
+        if self._scenes or self.sources:
+            self._scenes = {}
+            self.sources = {}
+            self.revision += 1
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "revision": self.revision,
+            "scenes": self.scenes,
+            "sources": {key: dict(value) for key, value in self.sources.items()},
+        }

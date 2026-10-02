@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import sys
@@ -96,6 +97,18 @@ def test_player_branch_event_ids_do_not_reuse_across_visits():
         assert len(ids) == len(set(ids))
         actions = [key for key in session.player_action_receipts if key.endswith(":route")]
         assert len(actions) == 2
+
+
+def test_authority_map_has_zero_branch_and_scene_receipt_production_writers():
+    audit_path = ROOT / "scripts" / "audit_runtime_authority.py"
+    spec = importlib.util.spec_from_file_location("world_fact_authority_audit", audit_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    report = module.build_report(False)
+    assert report["facts"]["branch_progress"]["production_writer_count"] == 0
+    assert report["facts"]["scene_receipts"]["production_writer_count"] == 0
 
 
 def test_production_has_no_direct_branch_or_scene_receipt_mutators():

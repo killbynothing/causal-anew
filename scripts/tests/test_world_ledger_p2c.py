@@ -39,8 +39,10 @@ def test_world_ledger_views_are_copy_safe_and_reset_owned():
     tx["tx"]["kind"] = "MUTATED"
     receipts = state.causal_receipts
     receipts[0]["receipt_id"] = "MUTATED"
+    receipts[0]["event"]["x"] = 999
     assert state.transactions["tx"]["kind"] == "x"
     assert state.causal_receipts[0]["receipt_id"] == "r1"
+    assert state.causal_receipts[0]["event"]["x"] == 1
     state.reset()
     assert state.transactions == {}
     assert state.causal_receipts == []
@@ -50,7 +52,11 @@ def test_causal_receipt_retry_is_idempotent_and_conflict_hard():
     state = WorldLedgerState.empty()
     receipt = {"receipt_id": "r1", "event": {"kind": "wait"}}
     assert state.record_causal_receipt(receipt) is True
-    assert state.record_causal_receipt(receipt) is False
+    receipt["event"]["kind"] = "MUTATED_AFTER_COMMIT"
+    assert state.causal_receipts[0]["event"]["kind"] == "wait"
+    assert state.record_causal_receipt(
+        {"receipt_id": "r1", "event": {"kind": "wait"}}
+    ) is False
     try:
         state.record_causal_receipt({"receipt_id": "r1", "event": {"kind": "leave"}})
     except ReceiptConflict:

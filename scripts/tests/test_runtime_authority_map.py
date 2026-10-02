@@ -43,18 +43,21 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["facts"]["completed"]["production_writer_count"] == 1
 
     world_tx = writers(report, "world_transactions", "production")
-    assert {row["symbol"] for row in world_tx} == {
+    world_tx_symbols = {row["symbol"] for row in world_tx}
+    assert world_tx_symbols == {
         "WorldLedgerReducer._write_world_transactions"
-    }
+    }, ("world_transactions", sorted(world_tx_symbols), world_tx)
     assert report["facts"]["world_transactions"]["production_writer_count"] == 1
     causal = writers(report, "causal_receipts", "production")
-    assert {row["symbol"] for row in causal} == {
+    causal_symbols = {row["symbol"] for row in causal}
+    assert causal_symbols == {
         "WorldLedgerReducer._write_causal_receipts"
-    }
+    }, ("causal_receipts", sorted(causal_symbols), causal)
     observations = writers(report, "run_observation_ledger", "production")
-    assert {row["symbol"] for row in observations} == {
+    observation_symbols = {row["symbol"] for row in observations}
+    assert observation_symbols == {
         "WorldLedgerReducer._write_run_observation_ledger"
-    }
+    }, ("run_observation_ledger", sorted(observation_symbols), observations)
     commit_source = (ROOT / "runtime" / "world_ledger_reducer.py").read_text(encoding="utf-8")
     assert "world_commit.commit_world_fact" in commit_source
 

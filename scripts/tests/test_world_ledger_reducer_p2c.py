@@ -161,8 +161,11 @@ def test_authority_map_three_ledgers_have_one_writer_each():
             row for row in report["facts"][fact]["writers"]
             if row["classification"] in {"production", "production_tooling"}
         ]
-        assert {row["symbol"] for row in rows} == {symbol}
-        assert report["facts"][fact]["production_writer_count"] == 1
+        actual = {row["symbol"] for row in rows}
+        assert actual == {symbol}, (fact, sorted(actual), rows)
+        assert report["facts"][fact]["production_writer_count"] == 1, (
+            fact, report["facts"][fact]["production_writer_count"], rows
+        )
 
 
 def test_free_stage_has_no_direct_three_ledger_writers():

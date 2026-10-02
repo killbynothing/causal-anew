@@ -32,15 +32,23 @@ def _audit_report():
 
 def test_world_ledger_views_are_copy_safe_and_reset_owned():
     state = WorldLedgerState.from_snapshot(
-        {"tx": {"transaction_id": "tx", "kind": "x"}},
+        {
+            "tx": {
+                "transaction_id": "tx",
+                "kind": "x",
+                "receipt": {"producer": "WorldCommit"},
+            }
+        },
         [{"receipt_id": "r1", "event": {"x": 1}}],
     )
     tx = state.transactions
     tx["tx"]["kind"] = "MUTATED"
+    tx["tx"]["receipt"]["producer"] = "MUTATED"
     receipts = state.causal_receipts
     receipts[0]["receipt_id"] = "MUTATED"
     receipts[0]["event"]["x"] = 999
     assert state.transactions["tx"]["kind"] == "x"
+    assert state.transactions["tx"]["receipt"]["producer"] == "WorldCommit"
     assert state.causal_receipts[0]["receipt_id"] == "r1"
     assert state.causal_receipts[0]["event"]["x"] == 1
     state.reset()

@@ -63,7 +63,9 @@ def test_causal_receipt_retry_is_idempotent_and_conflict_hard():
         pass
     else:
         raise AssertionError("same causal receipt id with different payload must conflict")
-    assert state.causal_receipts == [receipt]
+    assert state.causal_receipts == [
+        {"receipt_id": "r1", "event": {"kind": "wait"}}
+    ]
 
 
 def test_session_world_ledger_save_load_and_reset():

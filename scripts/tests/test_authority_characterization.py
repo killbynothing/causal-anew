@@ -101,7 +101,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 
 if __name__ == "__main__":
     test_p2c_completed_has_one_beat_reducer_writer()
-    test_p2c_session_branch_writers_migrated_legacy_scene_paths_remain()
+    test_p2c_branch_semantics_are_split_and_each_has_one_writer()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

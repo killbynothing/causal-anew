@@ -3072,8 +3072,8 @@ def handle(req_data: dict[str, Any], db_path: str, config: dict[str, Any] | None
             new_state.location = new_place
             new_state.time_of_day = new_scene_def.get("time_of_day", "")
             new_state.committed = list(state.committed)
-            new_state.contract_branch_progress = dict(
-                getattr(state, "contract_branch_progress", {}) or {}
+            new_state.replace_contract_branch_progress(
+                dict(getattr(state, "contract_branch_progress", {}) or {})
             )
             new_state.present = list(state.present)
             new_state.ch_anchor = target_ch_anchor

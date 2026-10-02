@@ -53,7 +53,12 @@ class SceneState:
 
     @contract_branch_progress.setter
     def contract_branch_progress(self, value: dict[str, list[str]]) -> None:
-        self._contract_branch_reducer.replace(value)
+        self.replace_contract_branch_progress(value)
+
+    def replace_contract_branch_progress(
+        self, value: dict[str, list[str]] | None
+    ) -> dict[str, list[str]]:
+        return self._contract_branch_reducer.replace(value or {})
 
     @property
     def branch_progress(self) -> dict[str, list[str]]:
@@ -62,7 +67,7 @@ class SceneState:
 
     @branch_progress.setter
     def branch_progress(self, value: dict[str, list[str]]) -> None:
-        self.contract_branch_progress = value
+        self.replace_contract_branch_progress(value)
 
     def register_contract_branch_paths(
         self,
@@ -145,9 +150,11 @@ class SceneState:
                 state.react_rotation = data.get("react_rotation", {})
                 # P2c migration: old saves used the overloaded branch_progress
                 # key. New saves use contract_branch_progress only.
-                state.contract_branch_progress = data.get(
-                    "contract_branch_progress",
-                    data.get("branch_progress", {}),
+                state.replace_contract_branch_progress(
+                    data.get(
+                        "contract_branch_progress",
+                        data.get("branch_progress", {}),
+                    )
                 )
                 state.seen_npc_lines = data.get("seen_npc_lines", {})
                 state.dynamic_memory = data.get("dynamic_memory", [])

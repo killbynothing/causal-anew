@@ -10012,7 +10012,7 @@ class FreeStageSession:
         scene_id_for_obs_early = str(self.card.get("scene_id", ""))
         thought_deltas: list[dict[str, Any]] = []
         if thought:
-            self.run_observation_ledger, thought_deltas = ingest_player_thought(
+            thought_ledger, thought_deltas = ingest_player_thought(
                 thought,
                 ledger=self.run_observation_ledger,
                 turn=len(self.inputs) + 1,
@@ -10020,6 +10020,7 @@ class FreeStageSession:
                 session_id=self.session_id,
                 run_id=self.run_no,
             )
+            self._world_ledger.replace_observations(thought_ledger)
 
         if (action or speech) and not suppress_visible_input:
             self._barge_in_stream()

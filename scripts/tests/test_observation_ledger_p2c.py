@@ -53,7 +53,7 @@ def test_state_append_is_idempotent_and_copy_safe():
 
 
 def test_state_replace_and_boost_are_owned_mutations():
-    state = ObservationLedgerState.from_snapshot([
+    snapshot = [
         {
             "id": "obs_x",
             "turn": 1,
@@ -66,7 +66,10 @@ def test_state_replace_and_boost_are_owned_mutations():
             "session_id": "",
             "run_id": 1,
         }
-    ])
+    ]
+    state = ObservationLedgerState.from_snapshot(snapshot)
+    snapshot[0]["caused_by"].append("MUTATED_INPUT")
+    assert state.rows[0]["caused_by"] == []
     assert state.boost("obs_x", 3, caused_by_event="E1")
     assert state.rows[0]["importance"] == 5
     assert state.rows[0]["caused_by"] == ["E1"]

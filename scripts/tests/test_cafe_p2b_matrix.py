@@ -113,7 +113,7 @@ def _offered_session(
     )
     session.completed = ["RP1", "RP2", "RP3"]
     session.branch_progress = ["prologue_pendant_offered"]
-    session.run_observation_ledger = _offer_ledger(session_id)
+    session.observation_state.replace(_offer_ledger(session_id))
     session.prior_reflect_by_cons["C.ryuya.W1"] = {
         "thought": "托付已说清；挂坠停在对方面前，等对方自己回应。",
         "band": "pendant",

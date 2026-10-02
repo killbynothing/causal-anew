@@ -32,11 +32,18 @@ FIELD_SPECS: dict[str, dict[str, str]] = {
     "completed_by_card": {"domain": "beat", "target_owner": "BeatReducer"},
     "completed_beats": {"domain": "beat", "target_owner": "BeatReducer"},
     "canon_performance_state": {"domain": "beat", "target_owner": "BeatReducer"},
-    "branch_progress": {"domain": "world", "target_owner": "WorldCommit"},
-    "scene_receipts": {"domain": "world", "target_owner": "WorldCommit"},
+    "branch_progress": {"domain": "world_projection", "target_owner": "FactProjection"},
+    "scene_receipts": {"domain": "world_projection", "target_owner": "FactProjection"},
+    "scene_runtime_branch_progress": {
+        "domain": "legacy_scene_runtime",
+        "target_owner": "SceneState",
+    },
     "world_transactions": {"domain": "world", "target_owner": "WorldCommit"},
     "causal_receipts": {"domain": "world", "target_owner": "WorldCommit"},
-    "run_observation_ledger": {"domain": "world", "target_owner": "WorldCommit"},
+    "run_observation_ledger": {
+        "domain": "world_projection",
+        "target_owner": "ObservationLedger",
+    },
     "player_state": {"domain": "player_world", "target_owner": "WorldCommit"},
     "body_frames": {"domain": "world", "target_owner": "WorldCommit"},
     "world_cursor": {"domain": "world", "target_owner": "WorldCommit"},
@@ -65,6 +72,8 @@ SQL_TABLE_SPECS: dict[str, dict[str, str]] = {
 REMOVAL_PHASE_BY_DOMAIN = {
     "beat": "P2c",
     "world": "P2c",
+    "world_projection": "P2c",
+    "legacy_scene_runtime": "legacy_scene_runtime",
     "player_world": "P2",
     "mind_legacy": "P3",
     "mind": "P3",
@@ -122,7 +131,11 @@ def classify(path: Path, symbol: str, *, uncertain: bool = False) -> str:
     rp = rel(path)
     low = symbol.lower()
     leaf = low.rsplit(".", 1)[-1]
-    if "/tests/" in f"/{rp}" or rp.startswith("scripts/tests/"):
+    if (
+        "/tests/" in f"/{rp}"
+        or rp.startswith("scripts/tests/")
+        or rp.startswith("scripts/test_")
+    ):
         return "test"
     if rp == "scripts/audit_runtime_authority.py":
         return "audit"
@@ -153,6 +166,20 @@ def self_field(node: ast.AST) -> str | None:
     return None
 
 
+SCENE_RUNTIME_BRANCH_PATHS = {
+    "runtime/scene_state.py",
+    "runtime/scene_contracts.py",
+    "web/scene_api.py",
+}
+
+
+def semantic_field_for_path(path: Path, field: str) -> str:
+    """Disambiguate homonymous fields instead of hiding legacy writers."""
+    if field == "branch_progress" and rel(path) in SCENE_RUNTIME_BRANCH_PATHS:
+        return "scene_runtime_branch_progress"
+    return field
+
+
 class AuthorityVisitor(ast.NodeVisitor):
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -177,6 +204,7 @@ class AuthorityVisitor(ast.NodeVisitor):
         uncertain: bool = False,
         detail: str = "",
     ) -> None:
+        field = semantic_field_for_path(self.path, field)
         spec = FIELD_SPECS[field]
         self.writers.append(
             Writer(

@@ -39,21 +39,28 @@ def test_scanner_finds_representative_five_domain_writers():
     assert report["parse_errors"] == []
 
     completed = writers(report, "completed", "production")
-    assert any(row["symbol"].endswith("FreeStageSession.step") for row in completed)
-    assert any(row["symbol"].endswith("FreeStageSession.skip_scene") for row in completed)
+    assert completed == []
+    beat_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert "self.beat_state = beat_reducer.BeatState.empty" in beat_source
+    assert "self._beat_complete(" in beat_source
+    assert "self._beat_complete_many(" in beat_source
+    assert "self._beat_replace(" in beat_source
 
     world_tx = writers(report, "world_transactions", "production")
-    # P2a moves business append authority out of FreeStageSession. Reset remains
-    # an explicit compatibility writer until P2c, but the commit helper itself
-    # must no longer assign into the ledger.
-    assert any(row["symbol"].endswith("FreeStageSession.reset") for row in world_tx)
-    assert not any(row["symbol"].endswith("_commit_world_transaction") for row in world_tx)
+    causal = writers(report, "causal_receipts", "production")
+    assert world_tx == []
+    assert causal == []
     commit_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
     helper_start = commit_source.index("    def _commit_world_transaction(")
     helper_end = commit_source.index("\n    def _world_transaction(", helper_start)
     helper_source = commit_source[helper_start:helper_end]
-    assert "world_commit.commit_world_fact" in helper_source
+    assert "self.world_ledger.commit_fact" in helper_source
     assert "self.world_transactions[" not in helper_source
+    assert "self.causal_receipts.append(" not in commit_source
+
+    for fact in ("player_state", "body_frames"):
+        assert writers(report, fact, "production", "production_tooling") == []
+        assert report["facts"][fact]["unknown_alias_count"] == 0
 
     mind = writers(report, "private_inner_states", "production")
     assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)
@@ -66,15 +73,34 @@ def test_scanner_finds_representative_five_domain_writers():
     assert not any(row["symbol"].endswith("run_session") for row in ended)
 
 
+def test_scanner_keeps_legacy_scene_branch_writers_visible_separately():
+    report = get_report()
+    free_stage_branch = writers(report, "branch_progress", "production", "production_tooling")
+    assert free_stage_branch == []
+
+    legacy = writers(
+        report,
+        "scene_runtime_branch_progress",
+        "production",
+        "production_tooling",
+    )
+    paths = {row["path"] for row in legacy}
+    assert "runtime/scene_contracts.py" in paths
+    assert "web/scene_api.py" in paths
+
+
 def test_scanner_separates_initialization_and_reports_callers():
     report = get_report()
     completed = report["facts"]["completed"]["writers"]
-
-    init_rows = [row for row in completed if row["symbol"].endswith("FreeStageSession.__init__")]
-    assert init_rows
-    assert all(row["classification"] == "initialization" for row in init_rows)
+    assert not [
+        row for row in completed
+        if row["classification"] in {"production", "production_tooling", "initialization"}
+    ]
 
     ended = report["facts"]["ended"]["writers"]
+    init_rows = [row for row in ended if row["symbol"].endswith("FreeStageSession.__init__")]
+    assert init_rows
+    assert all(row["classification"] == "initialization" for row in init_rows)
     lifecycle_writer = next(
         row for row in ended
         if row["symbol"].endswith("_set_lifecycle_state")
@@ -103,6 +129,7 @@ def test_verify_inventory_is_complete_and_new_p0_gates_are_registered():
 
 if __name__ == "__main__":
     test_scanner_finds_representative_five_domain_writers()
+    test_scanner_keeps_legacy_scene_branch_writers_visible_separately()
     test_scanner_separates_initialization_and_reports_callers()
     test_verify_inventory_is_complete_and_new_p0_gates_are_registered()
     print("PASS test_runtime_authority_map")

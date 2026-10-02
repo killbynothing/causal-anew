@@ -277,7 +277,9 @@ def test_legacy_world_transaction_retry_is_read_only_compatible():
 
 def test_free_stage_world_transaction_delegates_to_world_commit():
     source = inspect.getsource(proto.FreeStageSession._commit_world_transaction)
-    assert "world_commit.commit_world_fact" in source
+    # P2c moves the session facade behind WorldLedgerState. The session may
+    # request a commit, but it no longer owns or mutates the transaction ledger.
+    assert "self.world_ledger.commit_fact" in source
     assert "self.world_transactions[" not in source
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -352,9 +354,9 @@ def test_player_branch_fact_uses_player_action_entry_and_survives_save_load():
         ) is False
 
 
-def test_p2a_debt_list_covers_current_worldcommit_authority_families():
+def test_p2c_has_repaid_p2a_worldcommit_migration_debt():
     audit_path = ROOT / "scripts" / "audit_runtime_authority.py"
-    spec = importlib.util.spec_from_file_location("p2a_authority_audit", audit_path)
+    spec = importlib.util.spec_from_file_location("p2c_worldcommit_audit", audit_path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     sys.modules[spec.name] = module
@@ -364,11 +366,13 @@ def test_p2a_debt_list_covers_current_worldcommit_authority_families():
         fact
         for fact, meta in report["facts"].items()
         if meta.get("target_owner") == "WorldCommit"
-        and int(meta.get("production_writer_count") or 0) > 0
+        and (
+            int(meta.get("production_writer_count") or 0) > 0
+            or int(meta.get("unknown_alias_count") or 0) > 0
+        )
     }
-    debt = set(P2A_WORLD_MIGRATION_DEBT)
-    assert current <= debt, f"unlisted P2a world authority debt: {sorted(current - debt)}"
-    assert {"branch_progress", "body_frames", "player_state"} <= debt
+    assert P2A_WORLD_MIGRATION_DEBT == ()
+    assert current == set(), f"unrepaid P2c world authority debt: {sorted(current)}"
 
 
 if __name__ == "__main__":

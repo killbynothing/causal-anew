@@ -110,3 +110,127 @@ def is_append_only(before: dict, after: dict) -> bool:
         if not set(keys) <= set(after.get(run_key, [])):
             return False
     return True
+
+
+FRAME_BEAT_STATE_SCHEMA = "free_stage.frame_beat_state.v1"
+
+
+class FrameBeatState:
+    """Single mutable owner for the cross-view physical-beat ledger."""
+
+    def __init__(
+        self,
+        ledger: dict | None = None,
+        *,
+        revision: int = 0,
+        last_source: dict | None = None,
+    ) -> None:
+        self._ledger = {
+            str(run): list(dict.fromkeys(
+                str(item) for item in keys if str(item).strip()
+            ))
+            for run, keys in dict(ledger or {}).items()
+            if isinstance(keys, list)
+        }
+        self._revision = max(0, int(revision or 0))
+        self._last_source = dict(last_source or {})
+
+    @classmethod
+    def empty(cls) -> "FrameBeatState":
+        return cls({})
+
+    @classmethod
+    def from_snapshot(
+        cls,
+        raw: Any,
+        *,
+        legacy_completed_beats: Any = None,
+    ) -> "FrameBeatState":
+        if raw is None:
+            return cls(
+                legacy_completed_beats if isinstance(legacy_completed_beats, dict) else {},
+                last_source={"kind": "legacy_snapshot", "ref": "completed_beats"},
+            )
+        if not isinstance(raw, dict):
+            raise ValueError("frame_beat_state must be an object")
+        if raw.get("schema_version") != FRAME_BEAT_STATE_SCHEMA:
+            raise ValueError(f"unsupported frame_beat_state schema: {raw.get('schema_version')}")
+        ledger = raw.get("ledger")
+        if not isinstance(ledger, dict):
+            raise ValueError("frame_beat_state.ledger must be an object")
+        source = raw.get("last_source")
+        return cls(
+            ledger,
+            revision=int(raw.get("revision", 0) or 0),
+            last_source=source if isinstance(source, dict) else None,
+        )
+
+    @property
+    def ledger(self) -> dict[str, list[str]]:
+        return {run: list(keys) for run, keys in self._ledger.items()}
+
+    @property
+    def revision(self) -> int:
+        return self._revision
+
+    @property
+    def last_source(self) -> dict:
+        return dict(self._last_source)
+
+    def replace(
+        self,
+        ledger: Any,
+        *,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> bool:
+        candidate = FrameBeatState(
+            ledger if isinstance(ledger, dict) else {}
+        ).ledger
+        if candidate == self._ledger:
+            return False
+        self._ledger = candidate
+        self._revision += 1
+        self._last_source = {
+            "kind": str(source_kind or "unknown"),
+            "ref": str(source_ref or ""),
+        }
+        return True
+
+    def mark_done(
+        self,
+        run: int,
+        frame_id: str,
+        beat_ids: list[str],
+        *,
+        source_kind: str,
+        source_ref: str = "",
+    ) -> bool:
+        candidate = self.ledger
+        mark_done(candidate, int(run), str(frame_id), list(beat_ids or []))
+        if candidate == self._ledger:
+            return False
+        self._ledger = candidate
+        self._revision += 1
+        self._last_source = {
+            "kind": str(source_kind or "unknown"),
+            "ref": str(source_ref or ""),
+        }
+        return True
+
+    def completed_beats(self, run: int, frame_id: str) -> set[str]:
+        return completed_beats(self._ledger, int(run), str(frame_id))
+
+    def reset(self) -> None:
+        if self._ledger:
+            self._ledger = {}
+            self._revision += 1
+            self._last_source = {"kind": "session_reset", "ref": ""}
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": FRAME_BEAT_STATE_SCHEMA,
+            "revision": self._revision,
+            "last_source": self.last_source,
+            "ledger": self.ledger,
+        }

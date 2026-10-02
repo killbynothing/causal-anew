@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-02（P2c 完成：World/Beat 12事实族写权归零）
+
+- **总结果**：新增 required quick `p2c_authority_closeout`，每次从当前源码动态生成 Authority Map，要求 12 个 P2c 事实族的 `production_writer_count=0`、`unknown_alias_count=0`：`completed / completed_by_card / completed_beats / canon_performance_state / branch_progress / scene_receipts / world_transactions / causal_receipts / run_observation_ledger / player_state / body_frames / world_cursor`。最终总闸已绿。
+- **Beat**：`completed` 已由 `BeatState` 独占；`completed_by_card` 收为 `SceneBeatArchive`，保留“每场最新完成快照”的旧覆盖语义；`completed_beats` 收为 `FrameBeatState`，复用原 `beat_ledger` 的 append-only、run 隔离与 frame+beat 幂等；`canon_performance_state` 收为 copy-safe `CanonPerformanceState.update_scene()`，不再向调用者暴露可写内部 dict。
+- **世界投影**：`branch_progress/scene_receipts` 已由 `RuntimeFactProjection`；`world_transactions/causal_receipts` 由 `WorldLedgerState`；`run_observation_ledger` 由 `ObservationLedgerState`；`player_state/body_frames` 由 `PhysicalState`；这些 legacy 字段只保留只读兼容投影。
+- **世界游标**：新增 `WorldCursorState`，公开 `world_cursor` 为防御性副本。正常转场继续调用既有 `world_calendar.advance()` 保持单调规则；load/reset/flashback 仍保留显式 replace 兼容行为并记录来源。本轮**没有**顺手裁“闪回是否应改全局时间轴”这一设计问题。
+- **别名收尾**：总闸首次只抓到 `branch_progress → apply_offscreen_lives` 一条 uncertain alias；改为局部 `branch_snapshot` 后归零。此前 `world_cursor → offscreen tick` 也用前后局部快照消掉，未放宽扫描器。
+- **旧债清账**：`P2A_WORLD_MIGRATION_DEBT` 已从最后的 `world_cursor` 清为空元组；P2a 旧测试同步升级为“P2c 后 WorldCommit migration debt 必须为空”，不保留过期已知债。
+- **验**：最终代码态 Actions [36962725118](https://github.com/killbynothing/causal-anew/actions/runs/36962725118) **success**；quick **59 PASS / 0 FAIL / 163 SKIP（222 validators）**；`data/world_truth.db: OK`。静态 `docs/analysis/runtime_authority_map_2026-09-29.*` 继续作为 P0a 历史快照，不冒充当前计数；当前 12 域真相由动态总闸保证。
+- **报账**：未改 run=0、场卡、Seed/VOICE、挂坠 A/B 正典粒度或真人 a14 DB；**正典/人物/剧情新增 = 0**。本轮新增的是工程 reducer/envelope/source 记录。
+- **下一动**：进入 **P3a ActorMind 权威收口**。先测绘 `private_inner_states / fsm_by_cons / rel_state_by_cons / actor_minds` 的真实生产写路和 prompt 读取面，再迁最小持续心理 facet；不提前做 P4 发言权或 P5 ContextAssembler。
+
 ### 2026-09-30（P2b 完成：咖啡馆联合矩阵 × caller/World/Beat/Exit/save-load）
 
 - **联合矩阵**：新增 quick `cafe_p2b_matrix`，从真实 `FreeStageSession.step()` 出发，用 recording caller 捕获最终 `actor_context_packet`，不靠 helper 单测冒充整链。

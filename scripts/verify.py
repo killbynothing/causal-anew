@@ -703,6 +703,23 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_world_ledger_reducer_p2c.py",
     },
     {
+        "id": "world_cursor_reducer_p2c",
+        "desc": "P2c-5 world_cursor 单一坐标writer：copy-safe、calendar候选、save/load、alias清零",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_world_cursor_reducer_p2c.py"],
+        "triggers": [
+            "runtime/world_cursor_reducer.py",
+            "runtime/world_calendar.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_world_cursor_reducer_p2c.py",
+            "scripts/tests/test_runtime_authority_map.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_world_cursor_reducer_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

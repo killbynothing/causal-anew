@@ -58,6 +58,15 @@ def test_scanner_finds_representative_five_domain_writers():
     assert observation_symbols == {
         "WorldLedgerReducer._write_run_observation_ledger"
     }, ("run_observation_ledger", sorted(observation_symbols), observations)
+
+    cursor = writers(report, "world_cursor", "production")
+    cursor_symbols = {row["symbol"] for row in cursor}
+    assert cursor_symbols == {
+        "WorldCursorReducer._write_world_cursor"
+    }, ("world_cursor", sorted(cursor_symbols), cursor)
+    assert report["facts"]["world_cursor"]["production_writer_count"] == 1
+    assert report["facts"]["world_cursor"]["unknown_alias_count"] == 0
+
     commit_source = (ROOT / "runtime" / "world_ledger_reducer.py").read_text(encoding="utf-8")
     assert "world_commit.commit_world_fact" in commit_source
 

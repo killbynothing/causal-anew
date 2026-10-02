@@ -63,6 +63,16 @@ def test_p2c_branch_semantics_are_split_and_each_has_one_writer():
     assert report["facts"]["scene_receipts"]["production_writer_count"] == 1
 
 
+def test_p2c_world_cursor_has_one_writer_and_no_alias_debt():
+    report = load_report()
+    rows = production(report, "world_cursor")
+    assert {row["symbol"] for row in rows} == {
+        "WorldCursorReducer._write_world_cursor"
+    }
+    assert report["facts"]["world_cursor"]["production_writer_count"] == 1
+    assert report["facts"]["world_cursor"]["unknown_alias_count"] == 0
+
+
 def test_known_bug_legacy_mind_writer_is_visible_until_p3():
     report = load_report()
     rows = production(report, "private_inner_states")
@@ -102,6 +112,7 @@ def test_unknown_aliases_are_reported_not_hidden():
 if __name__ == "__main__":
     test_p2c_completed_has_one_beat_reducer_writer()
     test_p2c_branch_semantics_are_split_and_each_has_one_writer()
+    test_p2c_world_cursor_has_one_writer_and_no_alias_debt()
     test_known_bug_legacy_mind_writer_is_visible_until_p3()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()

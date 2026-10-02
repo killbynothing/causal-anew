@@ -7138,7 +7138,7 @@ class FreeStageSession:
         # Cross-scene one-time facts are not dialogue history.  A terminal
         # transaction has one immutable outcome for this run/worldline and is
         # the authority for props, departures and completed handoffs.
-        self.world_transactions: dict[str, dict[str, Any]] = {}
+        self._world_transaction_state = world_commit.WorldCommitLedger()
         self.player_action_receipts: dict[str, dict[str, Any]] = {}
         self.causal_receipts: list[dict[str, Any]] = []
         # N5: production turns must leave a port trace (Stage/Voice/Dramaturgy/Resolver).
@@ -7321,6 +7321,11 @@ class FreeStageSession:
         return self._world_cursor_state.cursor()
 
     @property
+    def world_transactions(self) -> dict[str, dict[str, Any]]:
+        """Read-only committed world-fact projection from WorldCommitLedger."""
+        return self._world_transaction_state.records()
+
+    @property
     def canon_performance_state(self) -> dict[str, dict[str, Any]]:
         """Read-only deterministic performance projection from BeatState."""
         return self._beat_state.canon_performance_state()
@@ -7489,11 +7494,9 @@ class FreeStageSession:
         legacy_scene_receipts = [
             dict(item) for item in data.get("scene_receipts", []) if isinstance(item, dict)
         ]
-        self.world_transactions = {
-            str(transaction_id): dict(record)
-            for transaction_id, record in dict(data.get("world_transactions", {})).items()
-            if str(transaction_id).strip() and isinstance(record, dict)
-        }
+        self._world_transaction_state = world_commit.WorldCommitLedger.from_saved(
+            data.get("world_transactions") if isinstance(data.get("world_transactions"), dict) else None
+        )
         self.player_action_receipts = {
             str(action_id): dict(record)
             for action_id, record in dict(data.get("player_action_receipts", {})).items()
@@ -7849,7 +7852,7 @@ class FreeStageSession:
         self.run_receipt = None
         self._world_fact_state.reset()
         self._language_discovery_observation = None
-        self.world_transactions = {}
+        self._world_transaction_state.reset()
         self.player_action_receipts = {}
         self.causal_receipts = []
         self.director_port_trace = []
@@ -8105,8 +8108,7 @@ class FreeStageSession:
     ) -> bool:
         """Delegate replayable world facts to the single P2a WorldCommit entry."""
         tx_id = str(transaction_id).strip()
-        result = world_commit.commit_world_fact(
-            self.world_transactions,
+        result = self._world_transaction_state.commit_fact(
             scope=self._current_runtime_scope(),
             request_id=str(request_id or f"world:{tx_id}"),
             turn_id=f"turn:{int(turn_no)}",
@@ -8123,8 +8125,7 @@ class FreeStageSession:
         return result.committed
 
     def _world_transaction(self, transaction_id: str) -> dict[str, Any] | None:
-        record = self.world_transactions.get(str(transaction_id).strip())
-        return dict(record) if isinstance(record, dict) else None
+        return self._world_transaction_state.get(transaction_id)
 
     def _finalize_prologue_pendant(
         self,

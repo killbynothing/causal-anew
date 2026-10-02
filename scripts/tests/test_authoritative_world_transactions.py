@@ -16,6 +16,7 @@ from runtime.causal_protocol import ReceiptConflict, RuntimeScope
 from runtime.player_action import build_player_action, commit_player_action
 from runtime.world_commit import (
     P2A_WORLD_MIGRATION_DEBT,
+    WorldCommitLedger,
     commit_world_batch,
     commit_world_fact,
 )
@@ -275,9 +276,45 @@ def test_legacy_world_transaction_retry_is_read_only_compatible():
     assert "receipt" not in ledger["legacy"]
 
 
+def test_world_commit_ledger_is_copy_safe_and_owns_load_reset_commit():
+    ledger = WorldCommitLedger.from_saved({
+        "legacy": {
+            "transaction_id": "legacy",
+            "kind": "public_event",
+            "outcome": "seen",
+            "owner": "world",
+            "scene_id": "S1",
+            "turn": 0,
+            "worldline": "WMAIN",
+            "run": 1,
+            "public_effect": "seen",
+        }
+    })
+    visible = ledger.records()
+    visible["legacy"]["outcome"] = "FAKE"
+    assert ledger.get("legacy")["outcome"] == "seen"
+
+    result = ledger.commit_fact(
+        scope=_scope(),
+        request_id="req:ledger",
+        turn_id="turn:2",
+        transaction_id="ledger-new",
+        kind="public_event",
+        outcome="happened",
+        owner="world",
+        scene_id="S1",
+        turn=2,
+    )
+    assert result.committed is True
+    assert ledger.get("ledger-new")["receipt"]["producer"] == "WorldCommit"
+    ledger.reset()
+    assert ledger.records() == {}
+
+
 def test_free_stage_world_transaction_delegates_to_world_commit():
     source = inspect.getsource(proto.FreeStageSession._commit_world_transaction)
-    assert "world_commit.commit_world_fact" in source
+    assert "self._world_transaction_state.commit_fact" in source
+    assert "world_commit.commit_world_fact" not in source
     assert "self.world_transactions[" not in source
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -354,6 +391,21 @@ def test_player_branch_fact_uses_player_action_entry_and_survives_save_load():
         assert resumed._record_player_branch_fact(
             "route_left", turn_no=1, player_input="走左边"
         ) is False
+
+
+def test_world_transactions_session_projection_has_zero_production_writers():
+    source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
+    assert "self.world_transactions =" not in source
+    assert "self.world_transactions[" not in source
+    audit_path = ROOT / "scripts" / "audit_runtime_authority.py"
+    spec = importlib.util.spec_from_file_location("world_tx_authority_audit", audit_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    report = module.build_report(False)
+    assert report["facts"]["world_transactions"]["production_writer_count"] == 0
+    assert "world_transactions" not in P2A_WORLD_MIGRATION_DEBT
 
 
 def test_p2a_debt_list_covers_current_worldcommit_authority_families():

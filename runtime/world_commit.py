@@ -5,7 +5,8 @@ decide story semantics; callers must submit an already-authorized fact.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+import copy
+from dataclasses import dataclass, field
 from typing import Any, Mapping, MutableMapping, Sequence
 
 from runtime.causal_protocol import (
@@ -22,7 +23,6 @@ WORLD_COMMIT_SCHEMA = "free_stage.world_commit.v1"
 # These authority-map fact families remain compatibility writers until P2c.
 P2A_WORLD_MIGRATION_DEBT = (
     "branch_progress",  # audit still sees one compatibility production writer; P2c will remove it
-    "world_transactions",  # reset/load compatibility writers remain
     "causal_receipts",
     "player_state",
     "body_frames",
@@ -42,6 +42,37 @@ class WorldBatchResult:
     records: tuple[dict[str, Any], ...]
     committed_ids: tuple[str, ...]
     existing_ids: tuple[str, ...]
+
+
+@dataclass
+class WorldCommitLedger:
+    """Single mutable owner for committed world transaction records."""
+
+    _records: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+    @classmethod
+    def from_saved(cls, raw: Mapping[str, Any] | None) -> "WorldCommitLedger":
+        return cls({
+            str(transaction_id): copy.deepcopy(dict(record))
+            for transaction_id, record in dict(raw or {}).items()
+            if str(transaction_id).strip() and isinstance(record, Mapping)
+        })
+
+    def records(self) -> dict[str, dict[str, Any]]:
+        return copy.deepcopy(self._records)
+
+    def get(self, transaction_id: str) -> dict[str, Any] | None:
+        record = self._records.get(str(transaction_id or "").strip())
+        return copy.deepcopy(record) if isinstance(record, dict) else None
+
+    def reset(self) -> None:
+        self._records.clear()
+
+    def commit_fact(self, **kwargs: Any) -> WorldCommitResult:
+        return commit_world_fact(self._records, **kwargs)
+
+    def commit_batch(self, **kwargs: Any) -> WorldBatchResult:
+        return commit_world_batch(self._records, **kwargs)
 
 
 def _text(value: Any) -> str:

@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-02（P2c final reconcile：正式完成线 × 后续 writer-fix 对账）
+
+- **分支/基线**：从正式完整线 `loop/world-beat-p2c-2026-09-30@c7f91d08` 创建 `loop/p2c-final-reconcile-2026-10-02`；逐条审 `87f473fb..loop/world-beat-writers-p2c-2026-09-30` 的 16 个后续提交，没有 merge，也没有机械 cherry-pick。
+- **正式架构保留**：Beat 尾状态继续拆分为 `SceneBeatArchive / FrameBeatState / CanonPerformanceState`；`world_transactions + causal_receipts` 继续由 `WorldLedgerState` 统一；观察账继续由 `ObservationLedgerState`；未退回后续线的平行 owner。
+- **实际吸收的有效修复**：移植后续线 `62fb843e` 发现的 tuple-assignment 漏检，用 AST 固化 `run_observation_ledger` 无直接赋值旁路；同时吸收后续 Ledger 实现暴露出的真实 copy-safe 缺口，把 `ObservationLedgerState` 与 `WorldLedgerState` 的 snapshot/view/commit 边界改为嵌套防御性深拷贝，并补 observation `caused_by`、world transaction receipt、causal receipt event 及“提交后修改原输入”回归。
+- **external branch debt 裁定**：`runtime/scene_state.py` 的 `branch_progress` 是 `{node_id: [path_id, ...]}` 的 scene-contract 路由状态；`runtime/scene_contracts.py::register_branch_progress()` 只按 contract `path_set` 登记路径，`web/scene_api.py` 在 canon beat / 场景切换维护它。审计继续把这组三处同名字段显式映射为 `scene_runtime_branch_progress → SceneState`，不是 `RuntimeFactProjection.branch_progress` 世界事实。动态 map 仍公开显示该不同语义有 **3 个 production writer**；没有用白名单遮掉。故 `77d4a6be` 恢复的 “external branch fact migration debt” 不成立。
+- **Authority Map**：final reconcile required gate 从当前源码动态重建；12 个 P2c 目标事实族均为 `production_writer_count=0 / unknown_alias_count=0`。旧 `docs/analysis/runtime_authority_map_2026-09-29.*` 仍只作历史快照，不参与最终判断。
+- **验证**：代码态 Actions `36987131924` success；quick **59 PASS / 0 FAIL / 163 SKIP**。P2/P2c required gates（含 `authoritative_world_transactions`、Beat/Fact/Observation/WorldLedger/Physical/WorldCursor、SceneBeatArchive、FrameBeat、CanonPerformance、`p2c_authority_closeout`）全部实际 PASS；workflow 的最终 DB 校验通过。
+- **边界**：`P2A_WORLD_MIGRATION_DEBT=()`；P2c 目标域无剩余 migration debt。保留的 `scene_runtime_branch_progress` 是不同语义的 SceneState 合同状态，不列为 World migration debt。未改 run=0、正典/场卡、Seed/VOICE、★★★ 挂坠裁决或 `data/world_truth.db`；正典/人物/剧情新增 = 0。
+- **本轮停点**：P2c 可以重新正式关闭；**本分支不启动 P3**。P3a 只允许在后续独立 loop 另起。
+
 ### 2026-10-02（P2c 完成：World/Beat 12事实族写权归零）
 
 - **总结果**：新增 required quick `p2c_authority_closeout`，每次从当前源码动态生成 Authority Map，要求 12 个 P2c 事实族的 `production_writer_count=0`、`unknown_alias_count=0`：`completed / completed_by_card / completed_beats / canon_performance_state / branch_progress / scene_receipts / world_transactions / causal_receipts / run_observation_ledger / player_state / body_frames / world_cursor`。最终总闸已绿。

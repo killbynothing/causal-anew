@@ -741,6 +741,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_scene_beat_archive_p2c.py",
     },
     {
+        "id": "frame_beat_state_p2c",
+        "desc": "P2c completed_beats 单一 FrameBeatState：append-only/run隔离/copy-safe/生产旁路归零",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_frame_beat_state_p2c.py"],
+        "triggers": [
+            "runtime/beat_ledger.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/audit_runtime_authority.py",
+            "scripts/tests/test_frame_beat_state_p2c.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_frame_beat_state_p2c.py",
+    },
+    {
         "id": "actor_mind_v2",
         "desc": "N3 ActorMind v2: sourced persona seed, receipt-only appraisal/relationship updates and non-scored appeal assessment (zero LLM)",
         "tier": "quick",

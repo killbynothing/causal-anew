@@ -7111,7 +7111,7 @@ class FreeStageSession:
             str(self.card.get("scene_id", self.card_path))
         )
         self.scene_beat_archive = beat_reducer.SceneBeatArchive.empty()
-        self.completed_beats: dict[str, list[str]] = {}
+        self.frame_beat_state = frame_beat_ledger.FrameBeatState.empty()
         self.canon_performance_state: dict[str, dict[str, Any]] = {}
         self.world_cursor_state = world_cursor_state.WorldCursorState.empty(
             _card_cursor(self.card, self.run_no),
@@ -7236,11 +7236,10 @@ class FreeStageSession:
             data.get("scene_beat_archive"),
             legacy_completed_by_card=data.get("completed_by_card", {}),
         )
-        self.completed_beats = {
-            str(k): [str(x) for x in v]
-            for k, v in dict(data.get("completed_beats", {})).items()
-            if isinstance(v, list)
-        }
+        self.frame_beat_state = frame_beat_ledger.FrameBeatState.from_snapshot(
+            data.get("frame_beat_state"),
+            legacy_completed_beats=data.get("completed_beats", {}),
+        )
         self.canon_performance_state = {
             str(scene_id): dict(state)
             for scene_id, state in dict(data.get("canon_performance_state", {})).items()
@@ -7455,6 +7454,7 @@ class FreeStageSession:
             "completed_by_card": self.completed_by_card,
             "scene_beat_archive": self.scene_beat_archive.to_dict(),
             "completed_beats": self.completed_beats,
+            "frame_beat_state": self.frame_beat_state.to_dict(),
             "canon_performance_state": self.canon_performance_state,
             "world_cursor": self.world_cursor,
             "world_cursor_state": self.world_cursor_state.to_dict(),
@@ -7729,6 +7729,20 @@ class FreeStageSession:
         )
 
     @property
+    def completed_beats(self) -> dict[str, list[str]]:
+        """Legacy read view owned by FrameBeatState."""
+        return self.frame_beat_state.ledger
+
+    @completed_beats.setter
+    def completed_beats(self, values: Any) -> None:
+        """Compatibility setter for tests/tools; production uses FrameBeatState."""
+        self.frame_beat_state.replace(
+            values if isinstance(values, dict) else {},
+            source_kind="compat_assignment",
+            source_ref="external_session.completed_beats",
+        )
+
+    @property
     def completed_by_card(self) -> dict[str, list[str]]:
         """Legacy read view owned by SceneBeatArchive."""
         return self.scene_beat_archive.completed_by_card
@@ -7995,7 +8009,7 @@ class FreeStageSession:
             turn_no=0,
         )
         self.scene_beat_archive.reset()
-        self.completed_beats = {}
+        self.frame_beat_state.reset()
         self.canon_performance_state = {}
         self._cursor_replace(
             _card_cursor(self.card, self.run_no),
@@ -9719,13 +9733,19 @@ class FreeStageSession:
         for item_id in progress:
             beats = list(items.get(item_id, {}).get("frame_beat") or [])
             if beats:
-                frame_beat_ledger.mark_done(self.completed_beats, self.run_no, frame_id, beats)
+                self.frame_beat_state.mark_done(
+                    self.run_no,
+                    frame_id,
+                    beats,
+                    source_kind="must_happen_progress",
+                    source_ref=f"{self.card.get('scene_id', '')}:{item_id}",
+                )
 
     def _resolve_frame_beat_view(self, card: dict[str, Any]) -> dict[str, Any]:
         frame_id = _card_frame_id(card)
         if not frame_id:
             return card
-        done = frame_beat_ledger.completed_beats(self.completed_beats, self.run_no, frame_id)
+        done = self.frame_beat_state.completed_beats(self.run_no, frame_id)
         if not done:
             return card
         live: list[dict[str, Any]] = []

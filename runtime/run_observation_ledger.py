@@ -6,6 +6,7 @@ Silent recording — never a "please record this beat" actor prompt.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 from typing import Any
 
@@ -148,7 +149,7 @@ class ObservationLedgerState:
     """Single append/replace authority for the run-scoped observation view."""
 
     def __init__(self, rows: list[dict[str, Any]] | None = None) -> None:
-        self._rows = [dict(row) for row in (rows or []) if isinstance(row, dict)]
+        self._rows = [copy.deepcopy(row) for row in (rows or []) if isinstance(row, dict)]
 
     @classmethod
     def empty(cls) -> "ObservationLedgerState":
@@ -160,11 +161,11 @@ class ObservationLedgerState:
             return cls.empty()
         if not isinstance(rows, list):
             raise ValueError("run_observation_ledger must be a list")
-        return cls([dict(row) for row in rows if isinstance(row, dict)])
+        return cls([copy.deepcopy(row) for row in rows if isinstance(row, dict)])
 
     @property
     def rows(self) -> list[dict[str, Any]]:
-        return [dict(row) for row in self._rows]
+        return copy.deepcopy(self._rows)
 
     def append(
         self,
@@ -209,7 +210,7 @@ class ObservationLedgerState:
     def replace(self, rows: Any) -> None:
         if not isinstance(rows, list):
             raise ValueError("observation ledger replacement must be a list")
-        self._rows = [dict(row) for row in rows if isinstance(row, dict)]
+        self._rows = [copy.deepcopy(row) for row in rows if isinstance(row, dict)]
 
     def reset(self) -> None:
         self._rows = []

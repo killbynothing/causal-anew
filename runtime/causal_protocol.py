@@ -120,6 +120,70 @@ def resolve_actor_decision(
     )
 
 
+def resolve_observed_event(
+    *,
+    recipient_cons: str,
+    scene_id: str,
+    turn: int,
+    source_actor: str,
+    source_ref: str,
+    event_kind: str,
+    outcome: str,
+    scene_effects: tuple[str, ...] | list[str] = (),
+    public_dialogue_count: int = 1,
+    private_perception_count: int = 0,
+    source_trace_count: int = 1,
+) -> EventReceipt:
+    """Create one recipient-scoped causal receipt for an already observable event.
+
+    This extends the existing causal receipt protocol for passive Mind updates.
+    It carries identifiers/counts and compact event codes, never raw hidden
+    prompt text or chain-of-thought.
+    """
+    recipient = str(recipient_cons or "").strip()
+    scene = str(scene_id or "").strip()
+    source = str(source_actor or "").strip()
+    source_id = str(source_ref or "").strip()
+    kind = str(event_kind or "").strip()
+    result = str(outcome or "").strip()
+    if not recipient or not scene or not source or not source_id or not kind or not result:
+        raise ValueError("observed event receipt requires recipient/scene/source/ref/kind/outcome")
+    stable = hashlib.sha256(
+        f"{recipient}|{scene}|{int(turn)}|{source}|{source_id}|{kind}|{result}".encode("utf-8")
+    ).hexdigest()[:24]
+    observation = ObservationFrame(
+        observation_id=f"obs:mind:{stable}",
+        actor_cons=recipient,
+        scene_id=scene,
+        turn=max(0, int(turn)),
+        public_dialogue_count=max(0, int(public_dialogue_count)),
+        private_perception_count=max(0, int(private_perception_count)),
+        source_trace_count=max(0, int(source_trace_count)),
+    )
+    proposal = ActionProposal(
+        proposal_id=f"proposal:mind:{stable}",
+        observation_id=observation.observation_id,
+        actor_cons=source,
+        action_kind=kind,
+        requested_outcome=result,
+        turn=observation.turn,
+    )
+    event = WorldEvent(
+        event_id=f"event:mind:{stable}",
+        proposal_id=proposal.proposal_id,
+        event_kind=kind,
+        outcome=result,
+        scene_effects=tuple(sorted(str(item) for item in scene_effects if str(item).strip())),
+        turn=observation.turn,
+    )
+    return EventReceipt(
+        receipt_id=f"receipt:mind:{stable}",
+        observation=observation,
+        proposal=proposal,
+        event=event,
+    )
+
+
 # ---------------------------------------------------------------------------
 # P0b protocol contracts. These are pure data/validation helpers only.
 # Production FreeStageSession wiring remains on the legacy v1 path until P1/P2.

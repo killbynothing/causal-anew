@@ -180,13 +180,13 @@ def test_private_player_thought_never_creates_actor_mind_receipt():
 
 def test_production_wires_player_actor_and_scene_receipts():
     step_source = inspect.getsource(proto.FreeStageSession.step)
-    transition_source = inspect.getsource(proto.FreeStageSession._maybe_transition)
+    session_source = (ROOT / "runtime" / "free_stage_prototype.py").read_text(encoding="utf-8")
     assert "_record_player_visible_mind_receipts(" in step_source
     assert "_rebuild_turn_working_contexts(" in step_source
     assert "_record_public_actor_mind_receipts(" in step_source
-    assert "_record_scene_lifecycle_mind_receipts(" in transition_source
-    assert 'event_kind="scene_leave"' in transition_source
-    assert 'event_kind="scene_enter"' in transition_source
+    assert session_source.count("_record_scene_lifecycle_mind_receipts(") >= 5
+    assert 'event_kind="scene_leave"' in session_source
+    assert 'event_kind="scene_enter"' in session_source
 
 
 def test_public_actor_enactment_updates_self_and_visible_observers():

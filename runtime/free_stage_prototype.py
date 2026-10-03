@@ -8526,6 +8526,14 @@ class FreeStageSession:
         self.history.append(bridge)
         emitted: list[dict[str, Any]] = [dict(bridge)]
 
+        source_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=str(load_card(RYUYA_PROLOGUE_CARD_PATH).get("scene_id", RYUYA_PROLOGUE_CARD_PATH)),
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:ryuya_flashback",
+        )
         self.card_path = RYUYA_PROLOGUE_CARD_PATH
         self.card = load_card(self.card_path)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
@@ -8573,6 +8581,14 @@ class FreeStageSession:
         )
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
+        flash_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_enter",
+            outcome=str(self.card.get("scene_id", self.card_path)),
+            turn_no=turn_no,
+            source_ref=f"{flash_scope.scene_instance_id}:enter",
+        )
         self._cursor_replace(
             _card_cursor(self.card, self.run_no),
             source_kind="flashback_scene_enter",
@@ -12575,6 +12591,14 @@ class FreeStageSession:
             "degradations": degradations,
         }
 
+        source_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
+        )
         self.card_path = target_path
         self.card = target_card
         self._beat_replace(
@@ -13188,6 +13212,14 @@ class FreeStageSession:
         self.pending_exit_menu = None
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
+        target_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            target_card,
+            event_kind="scene_enter",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{target_scope.scene_instance_id}:enter",
+        )
         self._refresh_inner_states_on_scene_enter(target_card)
 
         # 每张目标卡都欠玩家一次可见的入场介绍。闪回返回原场时不再重播入场。

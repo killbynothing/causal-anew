@@ -107,9 +107,18 @@ def test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains():
     assert any(row["write_kind"] == "update" for row in run_meta)
 
 
-def test_unknown_aliases_are_reported_not_hidden():
+def test_unknown_alias_inventory_is_explicit_even_when_zero():
     report = load_report()
-    assert report["summary"]["unknown_alias_count"] > 0
+    total = sum(
+        int(meta.get("unknown_alias_count") or 0)
+        for meta in report["facts"].values()
+    )
+    assert report["summary"]["unknown_alias_count"] == total
+    assert sorted(report["summary"]["facts_with_unknown_aliases"]) == sorted(
+        fact
+        for fact, meta in report["facts"].items()
+        if int(meta.get("unknown_alias_count") or 0) > 0
+    )
     assert "body_frames" not in report["summary"]["facts_with_unknown_aliases"]
 
 
@@ -122,5 +131,5 @@ if __name__ == "__main__":
     test_p3_working_context_is_not_a_persistent_mind_writer()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()
-    test_unknown_aliases_are_reported_not_hidden()
+    test_unknown_alias_inventory_is_explicit_even_when_zero()
     print("PASS test_authority_characterization")

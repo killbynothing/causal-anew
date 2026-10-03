@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-03（P3a 完成：ActorMind 持久写权 × legacy 心智投影收口）
+
+- **分支/基线**：独立分支 `loop/actor-mind-p3a-2026-10-03`，从 P2c final reconcile `0f11c8b0` 起步；旧 `loop/actor-mind-p3a-2026-10-02` 经 compare 证实与 `c7f91d08` 完全 identical、0 commits，没有第二套 P3 实现需要合并。
+- **测绘基线**：新增并启用原已登记但缺失的 required quick `actor_mind_v2`。初始动态 Authority Map 为 `actor_minds 5 production + 2 unknown alias / private_inner_states 6 / fsm_by_cons 3+1 / rel_state_by_cons 3+1 / prior_reflect_by_cons 2`；因此没有沿用“ActorMind 已经唯一”的注释当完成证据。
+- **持久 owner**：新增 `ActorMindState`，FreeStage 与 ActorTheater 的持久心理 seed / receipt apply / reset / load 全部通过该 owner；公开 `actor_minds` 降为防御性只读投影。相同 receipt 幂等，调用者篡改返回副本不能反写 owner。
+- **working / Reflect 分语义**：`private_inner_states` 明确降为 `TurnWorkingContextState`，`prior_reflect_by_cons` 明确为 `ReflectProposalState`；二者保留兼容 snapshot/read view，但不再是持久 ActorMind writer。审计 target 分别改为 `TurnWorkingContext` / `ReflectProposalCache`，不是为了 writer=0 把不同寿命状态硬塞进一个 reducer。
+- **FSM / RelState**：开场旧 `fsm_by_cons / rel_state_by_cons` 不再每拍直接写。既有数值/词表启发式原样迁入 ActorMind 的显式 `legacy_opening_compat` facet，标工程兼容而非人物正典；旧 snapshot 可迁入，兼容字段只读从 Mind 投影。没有改 Seed REL baseline，也没有发明新的心理评分规则。
+- **P3a Authority Map**：当前 `actor_minds / private_inner_states / fsm_by_cons / rel_state_by_cons / prior_reflect_by_cons` 五组事实均为 **production=0 / unknown_alias=0**；全仓 unknown-alias characterization 也升级为精确逐域汇总，合法 0 不再被旧测试误判。
+- **回归**：`actor_mind_v2` 覆盖 seed 隐私、receipt 幂等/actor scope、owner copy-safe、旧 FSM/Rel snapshot 迁移、旧 friendly 数值结果等价、working/Reflect 防御性副本与动态 writer=0。代码态 Actions `37091734122` success，quick **60 PASS / 0 FAIL / 162 SKIP**，`data/world_truth.db: OK`。
+- **未完成边界**：**P3 尚未整体完成**。普通聊天/观察他人/scene enter-leave 的完整 MindReceipt 覆盖、每拍从 Mind+当前可见场景重建 TurnWorkingContext（并证明篡改 cache 不影响下一拍）、跨场持续 commitment/关系 facet 的完整 replay/隔离仍属下一段 P3b。现有 Reflect 仍只是 proposal cache，没有被偷偷升格为持久事实。
+- **报账/停点**：未改 run=0、场卡、Seed/VOICE、★★★ 挂坠裁决或 `data/world_truth.db`；正典/人物/剧情新增 = 0。**P3a 在此关闭，不启动 P4/P5。下一 loop 只做 P3b event coverage × working-context 重建。**
+
 ### 2026-10-02（P2c final reconcile：正式完成线 × 后续 writer-fix 对账）
 
 - **分支/基线**：从正式完整线 `loop/world-beat-p2c-2026-09-30@c7f91d08` 创建 `loop/p2c-final-reconcile-2026-10-02`；逐条审 `87f473fb..loop/world-beat-writers-p2c-2026-09-30` 的 16 个后续提交，没有 merge，也没有机械 cherry-pick。

@@ -12,7 +12,7 @@ import copy
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping, Sequence
 
-from runtime.actor_mind import apply_event_receipt, build_actor_mind, observer_safe_summary
+from runtime.actor_mind import ActorMindState, observer_safe_summary
 from runtime.causal_protocol import observation_from_packet, resolve_actor_decision
 
 
@@ -57,14 +57,13 @@ class ActorTheater:
             raise ValueError("actor theater requires at least two actors")
         if not _text(spec.scene_id):
             raise ValueError("actor theater requires a scene_id")
-        self.actor_minds = {
-            actor_cons: build_actor_mind(
+        self.actor_mind_state = ActorMindState.empty()
+        for actor_cons in self.actor_order:
+            self.actor_mind_state.ensure(
                 actor_cons,
                 spec.actors.get(actor_cons),
                 persona_core_hash=f"theater-fixture:{actor_cons}",
             )
-            for actor_cons in self.actor_order
-        }
         self._pending_events: dict[str, list[dict[str, Any]]] = {actor: [] for actor in self.actor_order}
         self._last_actor = ""
         self._beats: list[dict[str, Any]] = []
@@ -89,7 +88,7 @@ class ActorTheater:
             "scene": self.spec.scene_id,
             "environment": copy.deepcopy(dict(self.spec.environment)),
             "unresolved_question": _text(self.spec.unresolved_question),
-            "self_state": {"actor_mind": copy.deepcopy(self.actor_minds[actor_cons])},
+            "self_state": {"actor_mind": self.actor_mind_state.get(actor_cons) or {}},
             "observed_events": observed,
             "other_actors": [
                 {"cons": other, "present": True}
@@ -104,7 +103,7 @@ class ActorTheater:
         visible_action = _text(raw.get("visible_action")) or action_kind
         recipients = [
             recipient for recipient in _unique(raw.get("recipients", ()) if isinstance(raw.get("recipients"), Sequence) and not isinstance(raw.get("recipients"), str) else ())
-            if recipient in self.actor_minds and recipient != actor_cons
+            if self.actor_mind_state.get(recipient) is not None and recipient != actor_cons
         ]
         effects = [
             dict(effect) for effect in (raw.get("relationship_effects", ()) or ())
@@ -139,12 +138,9 @@ class ActorTheater:
         receipt_ids: list[str] = []
         for recipient in decision["recipients"]:
             observed_receipt = self._observer_receipt(receipt, recipient, beat_no)
-            updated, applied = apply_event_receipt(
-                self.actor_minds[recipient], observed_receipt, actor_cons=recipient,
-            )
+            applied = self.actor_mind_state.apply_receipt(recipient, observed_receipt)
             if not applied:
                 continue
-            self.actor_minds[recipient] = updated
             receipt_ids.append(_text(observed_receipt["receipt_id"]))
             self._pending_events[recipient].append({
                 "event_id": _text(receipt["event"]["event_id"]),
@@ -176,12 +172,11 @@ class ActorTheater:
                 turn=beat_no,
             )
             receipt = resolve_actor_decision(observation, decision).to_dict()
-            updated, applied = apply_event_receipt(
-                self.actor_minds[actor_cons], receipt, actor_cons=actor_cons,
+            applied = self.actor_mind_state.apply_receipt(
+                actor_cons,
+                receipt,
                 relationship_effects=decision["relationship_effects"],
             )
-            if applied:
-                self.actor_minds[actor_cons] = updated
             recipient_receipt_ids = self._queue_public_event(decision, receipt, beat_no)
             if decision["action_kind"] == "silent_observe":
                 self._silence_beats += 1
@@ -210,6 +205,9 @@ class ActorTheater:
             "observer_summary": {
                 "scene_id": self.spec.scene_id,
                 "beat_count": len(self._beats),
-                "actors": {actor: observer_safe_summary(mind) for actor, mind in self.actor_minds.items()},
+                "actors": {
+                    actor: observer_safe_summary(mind)
+                    for actor, mind in self.actor_mind_state.minds.items()
+                },
             },
         }

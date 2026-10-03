@@ -8,6 +8,7 @@ overlap is explicitly desired; actors never chorus in parallel.
 from __future__ import annotations
 
 import copy
+import time
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Callable
 
@@ -73,12 +74,13 @@ def _run_actors_sequential(
     actor_call: ActorCall,
     degradation: Degradation,
     caller: Callable[..., str] | None,
-) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[str]]:
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[dict[str, Any]], list[str], list[dict[str, Any]]]:
     turns: list[dict[str, Any]] = []
     actor_decisions: list[dict[str, Any]] = []
     context_receipts: list[dict[str, Any]] = []
     degradations: list[dict[str, Any]] = []
     errors: list[str] = []
+    call_metrics: list[dict[str, Any]] = []
     prior_turns: list[dict[str, Any]] = []
 
     for cons, packet in packets_in_order:
@@ -92,7 +94,19 @@ def _run_actors_sequential(
                     packet["conversation_contract"] = copy.deepcopy(enriched["conversation_contract"])
                 if enriched.get("observable_dialogue") is not None:
                     packet["observable_dialogue"] = copy.deepcopy(enriched["observable_dialogue"])
+            started = time.perf_counter()
             actor_payload = actor_call(enriched, config, caller)
+            elapsed_ms = max(0.0, (time.perf_counter() - started) * 1000.0)
+            call_metrics.append({
+                "actor_cons": str(cons),
+                "latency_ms": round(elapsed_ms, 3),
+                "response_slot": str(
+                    (enriched.get("conversation_contract") or {}).get("response_slot") or ""
+                ) or None,
+                "participation_mode": str(
+                    (enriched.get("conversation_contract") or {}).get("participation_mode") or ""
+                ) or None,
+            })
             actor_turns = [dict(item) for item in (actor_payload.get("turns") or []) if isinstance(item, dict)]
             turns.extend(actor_turns)
             prior_turns.extend(actor_turns)
@@ -118,7 +132,7 @@ def _run_actors_sequential(
                 "串行演员路失败，该路本拍静默；后续演员仍按已听见内容继续。",
                 detail=str(exc)[:180],
             ))
-    return turns, actor_decisions, context_receipts, degradations, errors
+    return turns, actor_decisions, context_receipts, degradations, errors, call_metrics
 
 
 def dispatch_turn(
@@ -143,7 +157,7 @@ def dispatch_turn(
 
     if not overlap_director:
         director_payload = director_call(prompt, config, caller)
-        turns, actor_decisions, context_receipts, actor_degs, errors = _run_actors_sequential(
+        turns, actor_decisions, context_receipts, actor_degs, errors, actor_metrics = _run_actors_sequential(
             packets_in_order, config, actor_call=actor_call, degradation=degradation, caller=caller,
         )
         degradations.extend(actor_degs)
@@ -168,6 +182,8 @@ def dispatch_turn(
             "opportunity": director_payload.get("opportunity", ""),
             "actor_decisions": actor_decisions,
             "context_receipts": receipts,
+            "actor_call_count": len(actor_metrics),
+            "actor_call_metrics": actor_metrics,
             "degradations": list(director_payload.get("degradations", []) or []) + degradations,
         }, degradations
 
@@ -184,7 +200,7 @@ def dispatch_turn(
             caller=None,
         )
         director_payload = director_future.result()
-        turns, actor_decisions, context_receipts, actor_degs, errors = actor_future.result()
+        turns, actor_decisions, context_receipts, actor_degs, errors, actor_metrics = actor_future.result()
 
     degradations.extend(actor_degs)
     director_receipt = director_payload.get("context_receipt")

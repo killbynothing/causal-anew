@@ -5015,31 +5015,12 @@ def build_stall_escalation(card: dict[str, Any], stall: int, already_fired: bool
 
 
 def apply_stall_escalation_to_speaker_plan(plan: dict[str, Any], escalation: dict[str, Any] | None) -> dict[str, Any]:
-    """Make the chosen actor visible to the runner without breaking a direct reply."""
+    """P4: keep stall escalation observable, never allocate Floor on its behalf."""
     if not escalation:
         return plan
     out = copy.deepcopy(plan)
-    cons = str(escalation.get("actor_cons", ""))
-    if not cons:
-        return out
-    speakers = out.setdefault("speakers", [])
-    if not any(item.get("cons") == cons for item in speakers):
-        bid = next((item for item in out.get("bids", []) if item.get("cons") == cons), {})
-        # Retain the primary response when the player explicitly addressed it;
-        # the escalation gets the otherwise optional secondary slot.
-        if len(speakers) >= int(out.get("max_speakers", MAX_BID_SPEAKERS)):
-            speakers.pop()
-        speakers.append({
-            "cons": cons,
-            "name": bid.get("name", cons),
-            "bid": float(bid.get("score", 0.0) or 0.0),
-            "reason": "director_stall_escalation",
-            "bid_reasons": list(bid.get("reasons", [])) + ["director_stall_escalation"],
-            "relation_stage": bid.get("relation_stage", "S1"),
-            "response_slot": "primary" if not speakers else "secondary",
-            "social_instruction": "advance_own_scene_working_goal",
-        })
     out["director_stall_escalation"] = copy.deepcopy(escalation)
+    out["stall_escalation_floor_effect"] = "none"
     return out
 
 
@@ -11287,6 +11268,7 @@ class FreeStageSession:
             player_input,
             completed=self.completed,
             branch_progress=self.branch_progress,
+            actor_minds=self.actor_minds,
         )
         current_scene_id = str(resolved_card.get("scene_id", self.card_path))
         stall_escalation = build_stall_escalation(
@@ -11405,6 +11387,10 @@ class FreeStageSession:
                     "direct_addressee": speaker_plan.get("direct_addressee"),
                     "obligation_kind": (speaker_plan.get("conversation_contract") or {}).get("kind", "unowned"),
                     "obligation_evidence": (speaker_plan.get("conversation_contract") or {}).get("evidence", ""),
+                    "actor_may_pass": bool(
+                        plan_item.get("actor_may_pass")
+                        or (speaker_plan.get("conversation_contract") or {}).get("actor_may_pass", False)
+                    ),
                     "social_instruction": plan_item.get("social_instruction", ""),
                     "max_new_questions": (
                         0

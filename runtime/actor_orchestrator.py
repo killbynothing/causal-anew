@@ -95,17 +95,32 @@ def _run_actors_sequential(
                 if enriched.get("observable_dialogue") is not None:
                     packet["observable_dialogue"] = copy.deepcopy(enriched["observable_dialogue"])
             started = time.perf_counter()
-            actor_payload = actor_call(enriched, config, caller)
-            elapsed_ms = max(0.0, (time.perf_counter() - started) * 1000.0)
-            call_metrics.append({
+            metric_base = {
                 "actor_cons": str(cons),
-                "latency_ms": round(elapsed_ms, 3),
                 "response_slot": str(
                     (enriched.get("conversation_contract") or {}).get("response_slot") or ""
                 ) or None,
                 "participation_mode": str(
                     (enriched.get("conversation_contract") or {}).get("participation_mode") or ""
                 ) or None,
+            }
+            try:
+                actor_payload = actor_call(enriched, config, caller)
+            except Exception as call_exc:
+                elapsed_ms = max(0.0, (time.perf_counter() - started) * 1000.0)
+                call_metrics.append({
+                    **metric_base,
+                    "latency_ms": round(elapsed_ms, 3),
+                    "success": False,
+                    "error": str(call_exc)[:180],
+                })
+                raise
+            elapsed_ms = max(0.0, (time.perf_counter() - started) * 1000.0)
+            call_metrics.append({
+                **metric_base,
+                "latency_ms": round(elapsed_ms, 3),
+                "success": True,
+                "error": "",
             })
             actor_turns = [dict(item) for item in (actor_payload.get("turns") or []) if isinstance(item, dict)]
             turns.extend(actor_turns)

@@ -528,29 +528,87 @@ class ActorMindState:
     validated receipt reducer.
     """
 
-    def __init__(self, minds: Mapping[str, Mapping[str, Any]] | None = None) -> None:
-        self._minds: dict[str, dict[str, Any]] = {
-            _text(cons): copy.deepcopy(dict(mind))
-            for cons, mind in dict(minds or {}).items()
-            if _text(cons) and isinstance(mind, Mapping)
+    def __init__(
+        self,
+        minds: Mapping[str, Any] | None = None,
+        *,
+        legacy_audit: Mapping[str, Any] | None = None,
+    ) -> None:
+        self._minds: dict[str, dict[str, Any]] = {}
+        self._legacy_audit: dict[str, dict[str, Any]] = {
+            _text(cons): copy.deepcopy(dict(item))
+            for cons, item in dict(legacy_audit or {}).items()
+            if _text(cons) and isinstance(item, Mapping)
         }
         self._legacy_opening_pending: dict[str, dict[str, Any]] = {}
+        for raw_cons, raw_mind in dict(minds or {}).items():
+            cons = _text(raw_cons)
+            if not cons:
+                continue
+            reason_codes: list[str] = []
+            if not isinstance(raw_mind, Mapping):
+                reason_codes.append("mind_not_mapping")
+                mind: dict[str, Any] = {}
+            else:
+                mind = copy.deepcopy(dict(raw_mind))
+                if _text(mind.get("schema_version")) != SCHEMA_VERSION:
+                    reason_codes.append("unsupported_schema")
+                if _text(mind.get("actor_cons")) != cons:
+                    reason_codes.append("actor_cons_mismatch")
+                profile = (
+                    mind.get("stable_profile")
+                    if isinstance(mind.get("stable_profile"), Mapping)
+                    else {}
+                )
+                source_refs = _unique_text(profile.get("source_refs", ()) or ())
+                if not source_refs:
+                    reason_codes.append("missing_source_refs")
+            if reason_codes:
+                self._legacy_audit[cons] = {
+                    "raw": copy.deepcopy(raw_mind),
+                    "reason_codes": reason_codes,
+                    "recovery": "reseed_from_current_persona_projection",
+                }
+                continue
+            self._minds[cons] = mind
 
     @classmethod
     def empty(cls) -> "ActorMindState":
         return cls()
 
     @classmethod
-    def from_snapshot(cls, raw: Any) -> "ActorMindState":
+    def from_snapshot(
+        cls,
+        raw: Any,
+        *,
+        legacy_audit: Mapping[str, Any] | None = None,
+    ) -> "ActorMindState":
         if raw is None:
-            return cls.empty()
+            return cls({}, legacy_audit=legacy_audit)
         if not isinstance(raw, Mapping):
             raise ValueError("actor_minds snapshot must be a mapping")
-        return cls(raw)
+        return cls(raw, legacy_audit=legacy_audit)
 
     @property
     def minds(self) -> dict[str, dict[str, Any]]:
         return copy.deepcopy(self._minds)
+
+    @property
+    def legacy_audit(self) -> dict[str, dict[str, Any]]:
+        return copy.deepcopy(self._legacy_audit)
+
+    @property
+    def migration_report(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "actor_cons": cons,
+                "status": "legacy_unresolved",
+                "reason_codes": list(item.get("reason_codes") or []),
+                "recovery": _text(item.get("recovery"))
+                or "reseed_from_current_persona_projection",
+            }
+            for cons, item in sorted(self._legacy_audit.items())
+        ]
 
     def get(self, actor_cons: str) -> dict[str, Any] | None:
         mind = self._minds.get(_text(actor_cons))

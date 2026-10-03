@@ -117,6 +117,7 @@ from runtime.director_ports import (
 )
 from runtime.actor_mind import (
     ActorMindState,
+    build_actor_mind,
     observer_safe_summary,
     observer_state_projection,
 )

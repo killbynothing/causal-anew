@@ -7200,6 +7200,15 @@ class FreeStageSession:
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
         self._body_ensure(self.card, source_kind="session_init")
+        if not load_existing:
+            scope = self._current_runtime_scope()
+            self._record_scene_lifecycle_mind_receipts(
+                self.card,
+                event_kind="scene_enter",
+                outcome=str(self.card.get("scene_id", self.card_path)),
+                turn_no=0,
+                source_ref=f"{scope.scene_instance_id}:enter",
+            )
 
 
     def _merged_opening_memories(self) -> dict[str, Any]:
@@ -12068,6 +12077,7 @@ class FreeStageSession:
 
         self._maybe_emit_violation_warning(turn_no, emitted)
         turn_degradations.extend(self._evaluate_heart_stages())
+        self._record_public_actor_mind_receipts(resolved_card, emitted, turn_no)
         self._tick_private_inner_states(
             resolved_card,
             {"speech": speech, "action": action, "thought": thought},

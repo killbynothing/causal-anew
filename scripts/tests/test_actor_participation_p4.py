@@ -411,6 +411,48 @@ def test_production_floor_builder_no_longer_calls_legacy_content_bidding():
     assert "participation_runtime.deliberate_participation(" in source
     assert "participation_runtime.arbitrate_floor(" in source
 
+    request_source = inspect.getsource(ensure_decision_target_in_speaker_plan)
+    assert "participation_runtime.arbitrate_floor(" in request_source
+    assert "free_stage.floor_grant.v1" not in request_source
+
+
+def test_failed_actor_call_attempt_is_still_measured():
+    def failing_actor(packet, config, caller):
+        raise RuntimeError("fixture actor failure")
+
+    def degradation(*args, **kwargs):
+        return {"kind": "fixture"}
+
+    result = actor_orchestrator._run_actors_sequential(
+        [
+            (
+                "C.fail.W1",
+                {
+                    "actor_cons": "C.fail.W1",
+                    "observable_dialogue": [],
+                    "conversation_contract": {
+                        "response_slot": "primary",
+                        "participation_mode": "speak",
+                    },
+                },
+            )
+        ],
+        {},
+        actor_call=failing_actor,
+        degradation=degradation,
+        caller=lambda **_: "{}",
+    )
+    turns, decisions, receipts, degradations, errors, metrics = result
+    assert turns == []
+    assert decisions == []
+    assert receipts == []
+    assert errors and "fixture actor failure" in errors[0]
+    assert len(metrics) == 1
+    assert metrics[0]["actor_cons"] == "C.fail.W1"
+    assert metrics[0]["success"] is False
+    assert float(metrics[0]["latency_ms"]) >= 0.0
+    assert "fixture actor failure" in metrics[0]["error"]
+
 
 def test_plan_adds_zero_llm_participation_and_floor_has_no_private_fields():
     card = _card()

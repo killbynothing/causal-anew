@@ -119,6 +119,34 @@ def test_mind_difference_changes_actor_owned_intent_without_floor_reading_conten
     assert "观察" not in floor_blob
 
 
+def test_side_and_action_modes_are_actor_owned_legal_results():
+    mind = build_actor_mind(
+        "C.fixture.W1",
+        {"inner_state": {"want_now": "观察"}, "scene_working_memory": {"commitments": []}},
+    )
+    side = p4.deliberate_participation(
+        "C.fixture.W1",
+        mind,
+        {"speech": "", "action": "", "thought": "private"},
+        participation_style="mixed",
+        recent_public_actor="C.other.W1",
+    )
+    assert (side.mode, side.lane) == ("side", "companion")
+
+    action = p4.deliberate_participation(
+        "C.fixture.W1",
+        mind,
+        {"speech": "", "action": "向旁边让开一步", "thought": "private"},
+        participation_style="backchannel_preferred",
+    )
+    assert (action.mode, action.lane) == ("action", "stage")
+
+    grants = p4.arbitrate_floor([side, action], max_floor=1, max_companion=2, max_stage=1)
+    modes = {(item.mode, item.lane) for item in grants}
+    assert ("side", "companion") in modes
+    assert ("action", "stage") in modes
+
+
 def test_floor_uses_obligation_urgency_and_fairness_only():
     a = p4.ParticipationIntent(
         actor_cons="C.a.W1", mode="speak", urgency=0.7, lane="floor",

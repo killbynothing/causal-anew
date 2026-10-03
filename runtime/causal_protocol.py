@@ -65,15 +65,19 @@ class EventReceipt:
     observation: ObservationFrame
     proposal: ActionProposal
     event: WorldEvent
+    scope: Mapping[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        out = {
             "schema_version": "free_stage.causal_receipt.v1",
             "receipt_id": self.receipt_id,
             "observation": self.observation.to_dict(),
             "proposal": self.proposal.to_dict(),
             "event": self.event.to_dict(),
         }
+        if isinstance(self.scope, Mapping):
+            out["scope"] = dict(self.scope)
+        return out
 
 
 def observation_from_packet(packet: Mapping[str, Any], *, turn: int) -> ObservationFrame:
@@ -133,6 +137,7 @@ def resolve_observed_event(
     public_dialogue_count: int = 1,
     private_perception_count: int = 0,
     source_trace_count: int = 1,
+    scope: RuntimeScope | Mapping[str, Any] | None = None,
 ) -> EventReceipt:
     """Create one recipient-scoped causal receipt for an already observable event.
 
@@ -148,8 +153,22 @@ def resolve_observed_event(
     result = str(outcome or "").strip()
     if not recipient or not scene or not source or not source_id or not kind or not result:
         raise ValueError("observed event receipt requires recipient/scene/source/ref/kind/outcome")
+    scope_dict: dict[str, Any] = {}
+    if scope is not None:
+        if hasattr(scope, "to_dict"):
+            scope_dict = dict(scope.to_dict())
+        elif isinstance(scope, Mapping):
+            scope_dict = dict(scope)
+        else:
+            raise ValueError("observed event scope must be RuntimeScope or mapping")
+    scope_key = json.dumps(
+        scope_dict,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
     stable = hashlib.sha256(
-        f"{recipient}|{scene}|{int(turn)}|{source}|{source_id}|{kind}|{result}".encode("utf-8")
+        f"{recipient}|{scene}|{int(turn)}|{source}|{source_id}|{kind}|{result}|{scope_key}".encode("utf-8")
     ).hexdigest()[:24]
     observation = ObservationFrame(
         observation_id=f"obs:mind:{stable}",
@@ -181,6 +200,7 @@ def resolve_observed_event(
         observation=observation,
         proposal=proposal,
         event=event,
+        scope=scope_dict or None,
     )
 
 

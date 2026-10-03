@@ -116,8 +116,7 @@ from runtime.director_ports import (
     resolve_public_action,
 )
 from runtime.actor_mind import (
-    apply_event_receipt,
-    build_actor_mind,
+    ActorMindState,
     observer_safe_summary,
     observer_state_projection,
 )
@@ -7130,7 +7129,7 @@ class FreeStageSession:
         # The latter may refresh a per-turn display context; this structure is
         # the only persistent psychological/relationship state and is updated
         # exclusively by resolver receipts.
-        self.actor_minds: dict[str, dict[str, Any]] = {}
+        self.actor_mind_state = ActorMindState.empty()
         self.active_exit_state_by_card: dict[str, str] = {}
         self.stall = 0
         self.inputs: list[str] = []
@@ -7286,11 +7285,7 @@ class FreeStageSession:
             for cons, state in dict(data.get("rel_state_by_cons", {})).items()
             if isinstance(state, dict)
         }
-        self.actor_minds = {
-            str(cons): dict(state)
-            for cons, state in dict(data.get("actor_minds", {})).items()
-            if isinstance(state, dict)
-        }
+        self.actor_mind_state = ActorMindState.from_snapshot(data.get("actor_minds", {}))
         self.active_exit_state_by_card = {
             str(k): str(v)
             for k, v in dict(data.get("active_exit_state_by_card", {})).items()
@@ -8063,7 +8058,7 @@ class FreeStageSession:
         self.private_inner_states = {}
         self.fsm_by_cons = {}
         self.rel_state_by_cons = {}
-        self.actor_minds = {}
+        self.actor_mind_state.reset()
         self.active_exit_state_by_card = {}
         self.stall = 0
         self.inputs = []
@@ -9876,9 +9871,14 @@ class FreeStageSession:
             self.heart_stages[str(cons)] = heart_gate.evaluate(table, current, evidence)
         return degradations
 
+    @property
+    def actor_minds(self) -> dict[str, dict[str, Any]]:
+        """Read-only compatibility view owned by ActorMindState."""
+        return self.actor_mind_state.minds
+
     def _ensure_actor_mind(self, card: dict[str, Any], cons: str) -> dict[str, Any]:
         """Return the persisted N3 mind, seeding only from canon projections."""
-        existing = self.actor_minds.get(str(cons))
+        existing = self.actor_mind_state.get(str(cons))
         if isinstance(existing, dict) and existing.get("schema_version") == "free_stage.actor_mind.v2":
             return existing
         persona = (card.get("persona_cards") or {}).get(str(cons))
@@ -9888,19 +9888,16 @@ class FreeStageSession:
         core = acv2.resolve_persona_core(
             str(cons), int(card.get("ch_anchor", 0) or 0), relation_stage,
         )
-        seeded = build_actor_mind(str(cons), persona, persona_core_hash=core["persona_core_hash"])
-        self.actor_minds[str(cons)] = seeded
-        return seeded
+        return self.actor_mind_state.ensure(
+            str(cons), persona, persona_core_hash=core["persona_core_hash"],
+        )
 
     def _apply_actor_mind_receipt(self, card: dict[str, Any], cons: str, receipt: dict[str, Any]) -> bool:
         """Commit one resolver-owned receipt to the owning consciousness only."""
         mind = self._ensure_actor_mind(card, str(cons))
         if not mind:
             return False
-        updated, changed = apply_event_receipt(mind, receipt, actor_cons=str(cons))
-        if changed:
-            self.actor_minds[str(cons)] = updated
-        return changed
+        return self.actor_mind_state.apply_receipt(str(cons), receipt)
 
     def _tick_private_inner_states(
         self,

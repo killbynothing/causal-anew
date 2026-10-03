@@ -5073,6 +5073,10 @@ def build_speaker_plan(
                 "evidence": "adjacent_addressee_fallback",
             }
 
+    if direct_addressee:
+        conversation_contract = dict(conversation_contract)
+        conversation_contract["actor_may_pass"] = True
+
     intro_wave_pending = _opening_intro_wave_pending(card, history)
     if intro_wave_pending and not direct_addressee and not has_public_speech:
         direct_addressee = intro_wave_pending[0]
@@ -5080,6 +5084,7 @@ def build_speaker_plan(
             "kind": "intro_reciprocity",
             "target_cons": direct_addressee,
             "evidence": "recent_self_introduction_requires_next_social_response",
+            "actor_may_pass": True,
         }
 
     recent_npc = [
@@ -5163,6 +5168,7 @@ def build_speaker_plan(
             "participation_mode": grant.mode,
             "stream_lane": grant.lane,
             "floor_order": int(grant.order),
+            "actor_may_pass": bool(grant.public_obligation),
         }
         if cons in intro_wave_pending and grant.lane == "floor":
             row["social_instruction"] = "natural_self_or_friend_introduction"
@@ -5192,6 +5198,7 @@ def build_speaker_plan(
         "floor_inputs": [participation_runtime.floor_view(intent) for intent in intents],
         "floor_grants": grant_rows,
         "participation_llm_calls": sum(int(intent.llm_calls) for intent in intents),
+        "floor_recent_occupancy": dict(occupancy),
         "backchannel_actors": backchannel_actors,
         "side_actors": side_actors,
     }

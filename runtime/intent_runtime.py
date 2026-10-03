@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Iterable, Mapping
 
+from runtime import participation as participation_runtime
 from runtime.director_intent import (
     Affordance,
     EphemeralStorylet,
@@ -334,11 +335,11 @@ def decision_request_for_actor(
 def ensure_decision_target_in_speaker_plan(
     speaker_plan: Mapping[str, Any], resolution: IntentResolution
 ) -> dict[str, Any]:
-    """Give an observable request target a response opportunity, never an answer.
+    """Layer an observable request onto actor intent, then re-run the sole Floor.
 
-    P4 keeps this as a public conversational obligation layered onto actor-owned
-    participation. The target receives Floor eligibility and an actor call, but
-    the enactment contract explicitly permits pass/silence.
+    The request target gets a public conversational obligation and therefore a
+    response opportunity. It never receives a preselected answer; actor_may_pass
+    remains explicit on the projected contract.
     """
     result = {key: value for key, value in speaker_plan.items()}
     for key in (
@@ -350,8 +351,12 @@ def ensure_decision_target_in_speaker_plan(
         "participation_intents",
         "floor_inputs",
         "floor_grants",
+        "bids",
     ):
-        result[key] = [dict(item) for item in speaker_plan.get(key, ()) if isinstance(item, Mapping)]
+        result[key] = [
+            dict(item) for item in speaker_plan.get(key, ())
+            if isinstance(item, Mapping)
+        ]
 
     target = resolution.feasibility.intent.target
     if not target or resolution.feasibility.status != "negotiate_now":
@@ -368,12 +373,15 @@ def ensure_decision_target_in_speaker_plan(
     }
 
     intent_row = next(
-        (item for item in result["participation_intents"] if item.get("actor_cons") == target),
+        (
+            item for item in result["participation_intents"]
+            if item.get("actor_cons") == target
+        ),
         None,
     )
     if intent_row is None:
         intent_row = {
-            "schema_version": "free_stage.participation_intent.v1",
+            "schema_version": participation_runtime.INTENT_SCHEMA,
             "actor_cons": target,
             "mode": "speak",
             "urgency": 1.0,
@@ -396,86 +404,114 @@ def ensure_decision_target_in_speaker_plan(
             "obligation_kind": "observable_intent_request",
             "obligation_evidence": intent_id,
         })
-        reasons = [str(item) for item in intent_row.get("reason_codes", ()) if str(item)]
+        reasons = [
+            str(item) for item in intent_row.get("reason_codes", ())
+            if str(item)
+        ]
         if "observable_intent_request" not in reasons:
             reasons.append("observable_intent_request")
         intent_row["reason_codes"] = reasons
 
     result["floor_inputs"] = [
-        item for item in result["floor_inputs"] if item.get("actor_cons") != target
+        participation_runtime.floor_view(item)
+        for item in result["participation_intents"]
     ]
-    result["floor_inputs"].append({
-        "actor_cons": target,
-        "mode": "speak",
-        "urgency": 1.0,
-        "lane": "floor",
-        "addressee": "player",
-        "public_obligation": True,
-        "obligation_kind": "observable_intent_request",
-    })
+    grants = participation_runtime.arbitrate_floor(
+        result["participation_intents"],
+        recent_occupancy=(
+            result.get("floor_recent_occupancy")
+            if isinstance(result.get("floor_recent_occupancy"), Mapping)
+            else {}
+        ),
+        max_floor=max_floor,
+        max_companion=2,
+        max_stage=1,
+    )
+    result["floor_grants"] = [item.to_dict() for item in grants]
 
-    result["floor_grants"] = [
-        item for item in result["floor_grants"]
-        if not (item.get("lane") == "floor" and item.get("actor_cons") == target)
-    ]
-    existing_floor = [
-        item for item in result["floor_grants"] if item.get("lane") == "floor"
-    ]
-    non_floor = [
-        item for item in result["floor_grants"] if item.get("lane") != "floor"
-    ]
-    existing_floor = [
-        item for item in existing_floor if item.get("actor_cons") != target
-    ][: max(0, max_floor - 1)]
-    target_grant = {
-        "schema_version": "free_stage.floor_grant.v1",
-        "actor_cons": target,
-        "mode": "speak",
-        "lane": "floor",
-        "order": 0,
-        "response_slot": "primary",
-        "urgency": 1.0,
-        "public_obligation": True,
-        "obligation_kind": "observable_intent_request",
-        "addressee": "player",
+    previous_rows: dict[str, dict[str, Any]] = {}
+    for key in (
+        "speakers",
+        "stage_actors",
+        "backchannel_actors",
+        "side_actors",
+        "companion_actors",
+    ):
+        for row in result.get(key, ()):
+            cons = str(row.get("cons") or "").strip()
+            if cons and cons not in previous_rows:
+                previous_rows[cons] = dict(row)
+    bids = {
+        str(item.get("cons") or ""): dict(item)
+        for item in result.get("bids", ())
+        if str(item.get("cons") or "").strip()
     }
-    floor_grants = [target_grant]
-    for index, item in enumerate(existing_floor, start=1):
-        item = dict(item)
-        item["order"] = index
-        item["response_slot"] = "secondary"
-        floor_grants.append(item)
-    result["floor_grants"] = floor_grants + non_floor
 
-    result["stage_actors"] = [
-        item for item in result["stage_actors"] if item.get("cons") != target
-    ]
-    for key in ("backchannel_actors", "side_actors", "companion_actors"):
-        result[key] = [item for item in result[key] if item.get("cons") != target]
+    speakers: list[dict[str, Any]] = []
+    stage_actors: list[dict[str, Any]] = []
+    backchannel_actors: list[dict[str, Any]] = []
+    side_actors: list[dict[str, Any]] = []
+    for grant in grants:
+        cons = grant.actor_cons
+        prior = previous_rows.get(cons, {})
+        bid = bids.get(cons, {})
+        row = {
+            "cons": cons,
+            "name": prior.get("name") or bid.get("name") or cons,
+            "bid": float(grant.urgency),
+            "reason": (
+                "public_obligation"
+                if grant.public_obligation
+                else "participation_intent"
+            ),
+            "bid_reasons": list(
+                bid.get("reasons")
+                or prior.get("bid_reasons")
+                or []
+            ),
+            "relation_stage": (
+                prior.get("relation_stage")
+                or bid.get("relation_stage")
+                or "S1"
+            ),
+            "response_slot": grant.response_slot,
+            "participation_mode": grant.mode,
+            "stream_lane": grant.lane,
+            "floor_order": int(grant.order),
+            "actor_may_pass": bool(grant.public_obligation),
+        }
+        if prior.get("social_instruction"):
+            row["social_instruction"] = prior["social_instruction"]
+        if cons == target:
+            row["actor_may_pass"] = True
+            row["social_instruction"] = (
+                "respond_to_observable_request_from_own_position"
+            )
 
-    speakers = [
-        dict(item) for item in result["speakers"] if item.get("cons") != target
-    ]
-    speakers = speakers[: max(0, max_floor - 1)]
-    for index, item in enumerate(speakers, start=1):
-        item["response_slot"] = "secondary"
-        item["floor_order"] = index
-    target_row = {
-        "cons": target,
-        "name": target,
-        "bid": 1.0,
-        "reason": "public_obligation",
-        "bid_reasons": ["observable_intent_request"],
-        "relation_stage": "actor_owned",
-        "response_slot": "primary",
-        "participation_mode": "speak",
-        "stream_lane": "floor",
-        "floor_order": 0,
-        "social_instruction": "respond_to_observable_request_from_own_position",
-        "actor_may_pass": True,
-    }
-    result["speakers"] = [target_row] + speakers
-    result["allow_silence"] = False
+        if grant.lane == "floor":
+            speakers.append(row)
+        elif grant.lane == "stage":
+            stage_actors.append(row)
+        elif grant.mode == "backchannel":
+            backchannel_actors.append(row)
+        elif grant.mode == "side":
+            side_actors.append(row)
+
+    companion_actors: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for row in [*side_actors, *backchannel_actors]:
+        cons = str(row.get("cons") or "")
+        if cons and cons not in seen:
+            seen.add(cons)
+            companion_actors.append(dict(row))
+
+    result["speakers"] = speakers
+    result["stage_actors"] = stage_actors
+    result["backchannel_actors"] = backchannel_actors
+    result["side_actors"] = side_actors
+    result["companion_actors"] = companion_actors[:2]
+    # Opportunity may be granted while the actor still chooses silence.
+    result["allow_silence"] = True
     return result
 
 def retarget_resolution(resolution: IntentResolution, target_cons: str) -> IntentResolution:

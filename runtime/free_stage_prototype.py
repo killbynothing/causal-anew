@@ -108,6 +108,7 @@ from runtime.causal_protocol import (
     commit_batch_id,
     observation_from_packet,
     prepare_commit,
+    resolve_observed_event,
 )
 from runtime.director_ports import (
     build_dramaturgy_opportunity,
@@ -120,6 +121,7 @@ from runtime.actor_mind import (
     ReflectProposalState,
     TurnWorkingContextState,
     build_actor_mind,
+    build_turn_working_context,
     observer_safe_summary,
     observer_state_projection,
 )
@@ -7198,6 +7200,15 @@ class FreeStageSession:
         self.sediment_S = float(self.scar_info.get("S") or 0.0)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
         self._body_ensure(self.card, source_kind="session_init")
+        if not load_existing:
+            scope = self._current_runtime_scope()
+            self._record_scene_lifecycle_mind_receipts(
+                self.card,
+                event_kind="scene_enter",
+                outcome=str(self.card.get("scene_id", self.card_path)),
+                turn_no=0,
+                source_ref=f"{scope.scene_instance_id}:enter",
+            )
 
 
     def _merged_opening_memories(self) -> dict[str, Any]:
@@ -8515,6 +8526,14 @@ class FreeStageSession:
         self.history.append(bridge)
         emitted: list[dict[str, Any]] = [dict(bridge)]
 
+        source_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=str(load_card(RYUYA_PROLOGUE_CARD_PATH).get("scene_id", RYUYA_PROLOGUE_CARD_PATH)),
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:ryuya_flashback",
+        )
         self.card_path = RYUYA_PROLOGUE_CARD_PATH
         self.card = load_card(self.card_path)
         self.card = apply_consolidated_memory(self.card, self._merged_opening_memories())
@@ -8562,12 +8581,20 @@ class FreeStageSession:
         )
         self.stall = 0
         self.card_history.append(str(self.card.get("scene_id", self.card_path)))
+        flash_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_enter",
+            outcome=str(self.card.get("scene_id", self.card_path)),
+            turn_no=turn_no,
+            source_ref=f"{flash_scope.scene_instance_id}:enter",
+        )
         self._cursor_replace(
             _card_cursor(self.card, self.run_no),
             source_kind="flashback_scene_enter",
             source_ref=str(self.card.get("scene_id", self.card_path)),
         )
-        self._refresh_inner_states_on_scene_enter(self.card)
+        self._refresh_inner_states_on_scene_enter(self.card, turn_no=turn_no)
 
         entry = str(self.card.get("entry_hook") or "").strip()
         if entry:
@@ -9916,6 +9943,216 @@ class FreeStageSession:
                 rel_seed=rel_seed,
             )
 
+    def _mind_recipients(self, card: dict[str, Any]) -> list[str]:
+        personas = {
+            str(cons)
+            for cons, persona in (card.get("persona_cards") or {}).items()
+            if str(cons).strip() and isinstance(persona, dict)
+        }
+        present = {
+            str(cons)
+            for cons in (card.get("present") or [])
+            if str(cons).strip()
+        }
+        selected = personas & present if present else personas
+        return sorted(selected or personas)
+
+    def _commit_mind_observation(
+        self,
+        card: dict[str, Any],
+        *,
+        recipient_cons: str,
+        turn_no: int,
+        source_actor: str,
+        source_ref: str,
+        event_kind: str,
+        outcome: str,
+        public_dialogue_count: int = 0,
+        private_perception_count: int = 0,
+        scene_effects: tuple[str, ...] | list[str] = (),
+        apply_scene_seed: bool = False,
+    ) -> str:
+        cons = str(recipient_cons or "").strip()
+        persona = (card.get("persona_cards") or {}).get(cons)
+        if not cons or not isinstance(persona, dict):
+            return ""
+        if not self._ensure_actor_mind(card, cons):
+            return ""
+        receipt = resolve_observed_event(
+            recipient_cons=cons,
+            scene_id=str(card.get("scene_id", self.card_path) or ""),
+            turn=turn_no,
+            source_actor=source_actor,
+            source_ref=source_ref,
+            event_kind=event_kind,
+            outcome=outcome,
+            scene_effects=scene_effects,
+            public_dialogue_count=public_dialogue_count,
+            private_perception_count=private_perception_count,
+            source_trace_count=1,
+        ).to_dict()
+        self.world_ledger.record_causal_receipt(receipt)
+        if apply_scene_seed:
+            self.actor_mind_state.apply_scene_receipt(cons, receipt, persona)
+        else:
+            self.actor_mind_state.apply_receipt(cons, receipt)
+        return str(receipt.get("receipt_id") or "")
+
+    def _record_scene_lifecycle_mind_receipts(
+        self,
+        card: dict[str, Any],
+        *,
+        event_kind: str,
+        outcome: str,
+        turn_no: int,
+        source_ref: str,
+    ) -> list[str]:
+        ids: list[str] = []
+        for cons in self._mind_recipients(card):
+            receipt_id = self._commit_mind_observation(
+                card,
+                recipient_cons=cons,
+                turn_no=turn_no,
+                source_actor="world",
+                source_ref=f"{source_ref}:{cons}",
+                event_kind=event_kind,
+                outcome=outcome,
+                scene_effects=(event_kind,),
+                apply_scene_seed=(event_kind == "scene_enter"),
+            )
+            if receipt_id:
+                ids.append(receipt_id)
+        return ids
+
+    def _record_public_actor_mind_receipts(
+        self,
+        card: dict[str, Any],
+        turns: list[dict[str, Any]] | None,
+        turn_no: int,
+    ) -> list[str]:
+        """Project actual public actor enactments only to actors who could hear them."""
+        ids: list[str] = []
+        rows = [dict(item) for item in (turns or []) if isinstance(item, dict)]
+        if not rows:
+            return ids
+        for recipient in self._mind_recipients(card):
+            audible = acv2.turns_audible_to_actor(rows, recipient)
+            for index, item in enumerate(audible):
+                if str(item.get("channel") or "") != "public":
+                    continue
+                source_cons = _cons_from_speaker(card, str(item.get("speaker") or ""))
+                if not source_cons:
+                    continue
+                digest = hashlib.sha256(
+                    json.dumps(
+                        {
+                            "speaker": item.get("speaker"),
+                            "text": item.get("text"),
+                            "stage": item.get("stage"),
+                            "turn": item.get("turn"),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest()[:16]
+                receipt_id = self._commit_mind_observation(
+                    card,
+                    recipient_cons=recipient,
+                    turn_no=turn_no,
+                    source_actor=source_cons,
+                    source_ref=(
+                        f"actor-public:{self.session_id}:{turn_no}:"
+                        f"{source_cons}:{index}:{digest}"
+                    ),
+                    event_kind="actor_public_enactment",
+                    outcome="spoke",
+                    public_dialogue_count=1,
+                )
+                if receipt_id:
+                    ids.append(receipt_id)
+        return ids
+
+    def _record_player_visible_mind_receipts(
+        self,
+        card: dict[str, Any],
+        raw_input: dict[str, Any],
+        turn_no: int,
+    ) -> list[str]:
+        """Commit recipient-scoped receipts for public player signal only."""
+        receipt_ids: list[str] = []
+        scene_id = str(card.get("scene_id", self.card_path) or "")
+        for cons in self._mind_recipients(card):
+            observed = _observable_player_for_actor(card, cons, raw_input)
+            if not observed:
+                continue
+            if not self._ensure_actor_mind(card, cons):
+                continue
+            digest = hashlib.sha256(
+                json.dumps(
+                    observed,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()[:16]
+            modalities = "+".join(sorted(observed))
+            receipt = resolve_observed_event(
+                recipient_cons=cons,
+                scene_id=scene_id,
+                turn=turn_no,
+                source_actor="player",
+                source_ref=f"player:{self.session_id}:{turn_no}:{digest}",
+                event_kind="player_public_signal",
+                outcome=modalities,
+                public_dialogue_count=1,
+                source_trace_count=1,
+            ).to_dict()
+            self.world_ledger.record_causal_receipt(receipt)
+            self.actor_mind_state.apply_receipt(cons, receipt)
+            receipt_ids.append(str(receipt["receipt_id"]))
+        return receipt_ids
+
+    def _rebuild_turn_working_contexts(
+        self,
+        card: dict[str, Any],
+        raw_input: dict[str, Any],
+        turn_no: int,
+        speaker_plan: dict[str, Any] | None,
+    ) -> None:
+        """Replace disposable working context from Mind + this turn's visible scene."""
+        plan_rows = []
+        for key in ("speakers", "stage_actors", "companion_actors", "backchannel_actors", "side_actors"):
+            plan_rows.extend(
+                item for item in (speaker_plan or {}).get(key, []) if isinstance(item, dict)
+            )
+        for cons, persona in (card.get("persona_cards") or {}).items():
+            if not isinstance(persona, dict):
+                continue
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
+                continue
+            plan_item = next(
+                (item for item in plan_rows if str(item.get("cons") or "") == cons),
+                {},
+            )
+            current = self.working_context_state.get(cons) or {}
+            current_ephemeral = (
+                current
+                if int(current.get("updated_at_turn", -1) or -1) == int(turn_no)
+                else {}
+            )
+            rebuilt = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player=_observable_player_for_actor(card, cons, raw_input),
+                turn=turn_no,
+                response_slot=str(plan_item.get("response_slot") or ""),
+                current_ephemeral=current_ephemeral,
+            )
+            self.working_context_state.set_context(cons, rebuilt)
+
     def _apply_actor_mind_receipt(self, card: dict[str, Any], cons: str, receipt: dict[str, Any]) -> bool:
         """Commit one resolver-owned receipt to the owning consciousness only."""
         mind = self._ensure_actor_mind(card, str(cons))
@@ -9931,74 +10168,52 @@ class FreeStageSession:
         emitted: list[dict[str, Any]] | None = None,
         speaker_plan: dict[str, Any] | None = None,
     ) -> None:
-        """每拍结算角色工作心智；未受刺激也记录本拍保持，绝不伪称开场常量。"""
+        """Post-turn observatory projection rebuilt from Mind, never prior free-form cache."""
+        plan_rows = []
+        for key in ("speakers", "stage_actors", "companion_actors", "backchannel_actors", "side_actors"):
+            plan_rows.extend(
+                item for item in (speaker_plan or {}).get(key, []) if isinstance(item, dict)
+            )
         for cons, persona in (card.get("persona_cards") or {}).items():
             if not isinstance(persona, dict):
                 continue
-            # This remains a compatibility/display projection for existing
-            # cards and observatory panels.  It must not be mistaken for the
-            # persistent ActorMind reducer state above.
-            mind = self._ensure_actor_mind(card, str(cons))
-            previous = self.working_context_state.get(str(cons)) or {}
-            if not previous:
-                previous = copy.deepcopy(persona.get("inner_state", {}))
-            observed = _observable_player_for_actor(card, str(cons), raw_input)
-            slot = next(
-                (
-                    str(item.get("response_slot", ""))
-                    for item in (speaker_plan or {}).get("speakers", [])
-                    if str(item.get("cons", "")) == str(cons)
-                ),
-                "",
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
+                continue
+            observed = _observable_player_for_actor(card, cons, raw_input)
+            plan_item = next(
+                (item for item in plan_rows if str(item.get("cons") or "") == cons),
+                {},
             )
             visible_rows = [
                 item for item in (emitted or [])
-                if _cons_from_speaker(card, str(item.get("speaker", ""))) == str(cons)
+                if _cons_from_speaker(card, str(item.get("speaker", ""))) == cons
             ]
-            next_state = dict(previous)
-            next_state["version"] = int(previous.get("version", 0) or 0) + 1
-            next_state["updated_at_turn"] = int(turn_no)
-            next_state["status"] = "fresh"
-            if observed:
-                next_state["attention_target"] = "player"
-                next_state["observation_status"] = "player_signal_received"
-                next_state["basis"] = [f"player:{field}" for field in observed]
-                next_state["observation"] = [f"{field}:{str(value)[:80]}" for field, value in observed.items()]
-            else:
-                next_state.setdefault("attention_target", "scene")
-                next_state["observation_status"] = "no_new_player_signal"
-                next_state["basis"] = ["scene_tick:no_player_signal"]
-                next_state["observation"] = ["scene:no_new_player_signal"]
-            base_goal = str(previous.get("want_now", "") or persona.get("inner_state", {}).get("want_now", "")).strip()
-            next_state["active_goals"] = [base_goal] if base_goal else ["维持当前现场目标"]
-            if str(cons) == "C.zhangchen.WMAIN" and observed:
-                next_state["appraisal"] = "已注意到玩家；暂未发现敌意，先判断是否需要回应。"
-            elif observed:
-                next_state["appraisal"] = "玩家已进入自己的可感知范围，需要按当前关系作出反应。"
-            else:
-                next_state["appraisal"] = "没有新的玩家信号，继续处理眼前人物与既定目标。"
-            if slot == "primary":
-                next_state["response_intent"] = "直接承接玩家；可以回答、拒答或明确延后。"
-                next_state["inhibition"] = "不替其他角色作答，不另起第二个问题。"
-            elif slot == "secondary":
-                next_state["response_intent"] = "只做短促附和、保护、纠正或打圆场。"
-                next_state["inhibition"] = "不抢主回应，不另起话题。"
-            else:
-                next_state["response_intent"] = "保持沉默并继续观察。"
-                next_state["inhibition"] = "没有响应槽，不为争取戏份开口。"
-            next_state["visible_decision"] = (
-                " ".join(str(item.get("text", "")).strip() for item in visible_rows if str(item.get("text", "")).strip())
-                or "本拍没有公开发言"
+            visible_decision = " ".join(
+                str(item.get("text", "")).strip()
+                for item in visible_rows
+                if str(item.get("text", "")).strip()
             )
-            next_state["decision_trace"] = [
-                {"step": "observation", "value": list(next_state["observation"])},
-                {"step": "appraisal", "value": next_state["appraisal"]},
-                {"step": "goal", "value": list(next_state["active_goals"])},
-                {"step": "intent", "value": next_state["response_intent"]},
-                {"step": "decision", "value": next_state["visible_decision"]},
+            current = self.working_context_state.get(cons) or {}
+            rebuilt = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player=observed,
+                turn=turn_no,
+                response_slot=str(plan_item.get("response_slot") or ""),
+                visible_decision=visible_decision,
+                current_ephemeral=current,
+            )
+            rebuilt["decision_trace"] = [
+                {"step": "observation", "value": list(rebuilt.get("observation") or [])},
+                {"step": "appraisal", "value": rebuilt.get("appraisal", "")},
+                {"step": "goal", "value": list(rebuilt.get("active_goals") or [])},
+                {"step": "intent", "value": rebuilt.get("response_intent", "")},
+                {"step": "decision", "value": rebuilt.get("visible_decision", "")},
             ]
-            next_state["actor_mind"] = observer_safe_summary(mind)
-            self.working_context_state.set_context(str(cons), next_state)
+            rebuilt["actor_mind"] = observer_safe_summary(mind)
+            self.working_context_state.set_context(cons, rebuilt)
 
     def _interpret_current_intent(
         self, card: dict[str, Any], player_modalities: dict[str, Any], turn_no: int,
@@ -11097,6 +11312,21 @@ class FreeStageSession:
             source_kind="actor_context_prepare",
             source_ref=f"turn:{turn_no}",
         )
+        visible_mind_input = {
+            "speech": "" if suppress_visible_input else speech,
+            "action": "" if suppress_visible_input else action,
+        }
+        mind_receipt_ids_this_turn = self._record_player_visible_mind_receipts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+        )
+        self._rebuild_turn_working_contexts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+            speaker_plan,
+        )
         if ott.is_opening_top_tier_scene(resolved_card):
             present_for = [
                 str(item.get("cons", "")).strip()
@@ -11863,6 +12093,7 @@ class FreeStageSession:
 
         self._maybe_emit_violation_warning(turn_no, emitted)
         turn_degradations.extend(self._evaluate_heart_stages())
+        self._record_public_actor_mind_receipts(resolved_card, emitted, turn_no)
         self._tick_private_inner_states(
             resolved_card,
             {"speech": speech, "action": action, "thought": thought},
@@ -12360,6 +12591,14 @@ class FreeStageSession:
             "degradations": degradations,
         }
 
+        source_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
+        )
         self.card_path = target_path
         self.card = target_card
         self._beat_replace(
@@ -12399,45 +12638,31 @@ class FreeStageSession:
         res["transition"] = transition_marker
         return res
 
-    def _refresh_inner_states_on_scene_enter(self, card: dict[str, Any]) -> None:
-        """换场用目标场 persona 重建内心目标，清空上一场身体物件与开场残留。"""
-        previous_all = {
-            str(cons): dict(state)
-            for cons, state in self.private_inner_states.items()
-            if isinstance(state, dict)
-        }
+    def _refresh_inner_states_on_scene_enter(
+        self,
+        card: dict[str, Any],
+        *,
+        turn_no: int = 0,
+    ) -> None:
+        """Rebuild target-scene working contexts from ActorMind + target persona only."""
         refreshed: dict[str, dict[str, Any]] = {}
         for cons, persona in (card.get("persona_cards") or {}).items():
             if not isinstance(persona, dict):
                 continue
-            previous = previous_all.get(str(cons), {})
-            seed = copy.deepcopy(persona.get("inner_state") or {})
-            if not isinstance(seed, dict):
-                seed = {}
-            seed["version"] = int(previous.get("version", 0) or 0) + 1
-            seed["status"] = "scene_enter_refreshed"
-            seed["_from_opening"] = False
-            seed["body_props"] = []
-            seed.setdefault(
-                "want_now",
-                str(seed.get("want_now", "") or "").strip() or "观察并推进当下对话",
-            )
-            refreshed[str(cons)] = seed
-        # 未进入目标场的意识也清掉上一场物件，避免奶茶杯等残留被带到医院旁注
-        for cons, previous in previous_all.items():
-            if cons in refreshed:
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
                 continue
-            exited = {
-                "want_now": "处理离场后的下一步",
-                "knot": str(previous.get("knot", "") or "").strip(),
-                "unsaid": str(previous.get("unsaid", "") or "").strip(),
-                "stance_to_player": str(previous.get("stance_to_player", "") or "").strip() or "中性",
-                "version": int(previous.get("version", 0) or 0) + 1,
-                "status": "scene_exit_cleared",
-                "_from_opening": False,
-                "body_props": [],
-            }
-            refreshed[cons] = exited
+            state = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player={},
+                turn=turn_no,
+            )
+            state["status"] = "scene_enter_refreshed"
+            state["_from_opening"] = False
+            state["body_props"] = []
+            refreshed[cons] = state
         self.working_context_state.replace(refreshed)
 
     def _maybe_transition(
@@ -12973,7 +13198,15 @@ class FreeStageSession:
         self.pending_exit_menu = None
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
-        self._refresh_inner_states_on_scene_enter(target_card)
+        target_scope = self._current_runtime_scope()
+        self._record_scene_lifecycle_mind_receipts(
+            target_card,
+            event_kind="scene_enter",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{target_scope.scene_instance_id}:enter",
+        )
+        self._refresh_inner_states_on_scene_enter(target_card, turn_no=turn_no)
 
         # 每张目标卡都欠玩家一次可见的入场介绍。闪回返回原场时不再重播入场。
         target_intro_turns: list[dict[str, Any]] = []

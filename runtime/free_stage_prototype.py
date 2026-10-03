@@ -8251,15 +8251,28 @@ class FreeStageSession:
         )
         return receipt
 
-    def _current_runtime_scope(self) -> RuntimeScope:
-        scene_id = str(self.card.get("scene_id") or self.card_path)
+    def _runtime_scope_for_card(
+        self,
+        card: Mapping[str, Any],
+        *,
+        cursor: Mapping[str, Any] | None = None,
+        visit_index: int | None = None,
+    ) -> RuntimeScope:
+        scene_id = str(card.get("scene_id") or self.card_path)
+        cursor_view = dict(cursor or self.world_cursor)
         return RuntimeScope(
-            worldline=str(self.world_cursor.get("worldline") or "WMAIN"),
-            run=int(self.world_cursor.get("run", self.run_no) or self.run_no),
-            ch_anchor=int(self.world_cursor.get("ch_anchor") or self.card.get("ch_anchor") or 0),
+            worldline=str(cursor_view.get("worldline") or card.get("worldline") or "WMAIN"),
+            run=int(cursor_view.get("run", self.run_no) or self.run_no),
+            ch_anchor=int(card.get("ch_anchor") or cursor_view.get("ch_anchor") or 0),
             session_id=self.session_id,
-            scene_instance_id=f"{scene_id}:visit:{max(1, len(self.card_history))}",
+            scene_instance_id=(
+                f"{scene_id}:visit:"
+                f"{int(visit_index or max(1, len(self.card_history)))}"
+            ),
         )
+
+    def _current_runtime_scope(self) -> RuntimeScope:
+        return self._runtime_scope_for_card(self.card)
 
     def _commit_player_action(
         self,
@@ -9971,6 +9984,8 @@ class FreeStageSession:
         private_perception_count: int = 0,
         scene_effects: tuple[str, ...] | list[str] = (),
         apply_scene_seed: bool = False,
+        scope: RuntimeScope | None = None,
+        opening_player_signal: Mapping[str, Any] | None = None,
     ) -> str:
         cons = str(recipient_cons or "").strip()
         persona = (card.get("persona_cards") or {}).get(cons)
@@ -9978,6 +9993,7 @@ class FreeStageSession:
             return ""
         if not self._ensure_actor_mind(card, cons):
             return ""
+        receipt_scope = scope or self._runtime_scope_for_card(card)
         receipt = resolve_observed_event(
             recipient_cons=cons,
             scene_id=str(card.get("scene_id", self.card_path) or ""),
@@ -9990,12 +10006,32 @@ class FreeStageSession:
             public_dialogue_count=public_dialogue_count,
             private_perception_count=private_perception_count,
             source_trace_count=1,
+            scope=receipt_scope,
         ).to_dict()
         self.world_ledger.record_causal_receipt(receipt)
         if apply_scene_seed:
-            self.actor_mind_state.apply_scene_receipt(cons, receipt, persona)
+            applied = self.actor_mind_state.apply_scene_receipt(
+                cons,
+                receipt,
+                persona,
+                expected_scope=receipt_scope,
+            )
         else:
-            self.actor_mind_state.apply_receipt(cons, receipt)
+            applied = self.actor_mind_state.apply_receipt(
+                cons,
+                receipt,
+                expected_scope=receipt_scope,
+            )
+        if (
+            applied
+            and opening_player_signal is not None
+            and ott.is_opening_top_tier_scene(card)
+        ):
+            self.actor_mind_state.apply_opening_player_signal(
+                cons,
+                player_speech=str(opening_player_signal.get("speech") or ""),
+                player_action=str(opening_player_signal.get("action") or ""),
+            )
         return str(receipt.get("receipt_id") or "")
 
     def _record_scene_lifecycle_mind_receipts(
@@ -10006,6 +10042,7 @@ class FreeStageSession:
         outcome: str,
         turn_no: int,
         source_ref: str,
+        scope: RuntimeScope | None = None,
     ) -> list[str]:
         ids: list[str] = []
         for cons in self._mind_recipients(card):
@@ -10019,6 +10056,7 @@ class FreeStageSession:
                 outcome=outcome,
                 scene_effects=(event_kind,),
                 apply_scene_seed=(event_kind == "scene_enter"),
+                scope=scope,
             )
             if receipt_id:
                 ids.append(receipt_id)
@@ -10097,20 +10135,19 @@ class FreeStageSession:
                 ).encode("utf-8")
             ).hexdigest()[:16]
             modalities = "+".join(sorted(observed))
-            receipt = resolve_observed_event(
+            receipt_id = self._commit_mind_observation(
+                card,
                 recipient_cons=cons,
-                scene_id=scene_id,
-                turn=turn_no,
+                turn_no=turn_no,
                 source_actor="player",
                 source_ref=f"player:{self.session_id}:{turn_no}:{digest}",
                 event_kind="player_public_signal",
                 outcome=modalities,
                 public_dialogue_count=1,
-                source_trace_count=1,
-            ).to_dict()
-            self.world_ledger.record_causal_receipt(receipt)
-            self.actor_mind_state.apply_receipt(cons, receipt)
-            receipt_ids.append(str(receipt["receipt_id"]))
+                opening_player_signal=observed,
+            )
+            if receipt_id:
+                receipt_ids.append(receipt_id)
         return receipt_ids
 
     def _rebuild_turn_working_contexts(
@@ -11814,14 +11851,8 @@ class FreeStageSession:
                             )
                         else:
                             turn_degradations.append(issue)
-                # Preserve the existing opening compatibility heuristics, but
-                # ActorMind owns their dynamic facet; legacy FSM/Rel are projections.
-                for cons in list(self.fsm_by_cons):
-                    self.actor_mind_state.apply_opening_player_signal(
-                        cons,
-                        player_speech=speech,
-                        player_action=action,
-                    )
+                # Opening numeric compatibility now updates only downstream of
+                # each actor's visibility-correct player MindReceipt.
             if leak_issues:
                 raise ValueError(f"Inner state leak detected: {'; '.join(leak_issues)}")
             # 证据先行：注册节拍只从证据完成；hint 只补未注册节拍；after 顺序闸拦跳拍。
@@ -12591,13 +12622,26 @@ class FreeStageSession:
             "degradations": degradations,
         }
 
-        source_scope = self._current_runtime_scope()
+        source_scope = self._runtime_scope_for_card(
+            self.card,
+            cursor=cursor_before,
+            visit_index=max(1, len(self.card_history)),
+        )
         self._record_scene_lifecycle_mind_receipts(
             self.card,
             event_kind="scene_leave",
             outcome=target_scene_id,
             turn_no=turn_no,
             source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
+            scope=source_scope,
+        )
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
+            scope=source_scope,
         )
         self.card_path = target_path
         self.card = target_card
@@ -12611,6 +12655,20 @@ class FreeStageSession:
         self.stall = 0
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
+        target_scope = self._runtime_scope_for_card(
+            target_card,
+            cursor=cursor_after,
+            visit_index=max(1, len(self.card_history)),
+        )
+        self._record_scene_lifecycle_mind_receipts(
+            target_card,
+            event_kind="scene_enter",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{target_scope.scene_instance_id}:enter",
+            scope=target_scope,
+        )
+        self._refresh_inner_states_on_scene_enter(target_card, turn_no=turn_no)
 
         target_auto_end = bool(target_card.get("auto_end_on_complete", False)) or (
             target_card.get("scene_id") == "OPENING_HOSPITAL_PLACEHOLDER"
@@ -13085,6 +13143,11 @@ class FreeStageSession:
             self.config,
         )
         cursor_before = dict(self.world_cursor)
+        source_scope = self._runtime_scope_for_card(
+            self.card,
+            cursor=cursor_before,
+            visit_index=max(1, len(self.card_history)),
+        )
         cursor_degradations = self._advance_world_cursor_for_card(target_card)
         cursor_after = dict(self.world_cursor)
         offscreen_degradations = self._tick_offscreen_lines(cursor_before, cursor_after)
@@ -13198,13 +13261,18 @@ class FreeStageSession:
         self.pending_exit_menu = None
         self._set_lifecycle_state(run_lifecycle.OPEN)
         self.card_history.append(target_scene_id)
-        target_scope = self._current_runtime_scope()
+        target_scope = self._runtime_scope_for_card(
+            target_card,
+            cursor=cursor_after,
+            visit_index=max(1, len(self.card_history)),
+        )
         self._record_scene_lifecycle_mind_receipts(
             target_card,
             event_kind="scene_enter",
             outcome=target_scene_id,
             turn_no=turn_no,
             source_ref=f"{target_scope.scene_instance_id}:enter",
+            scope=target_scope,
         )
         self._refresh_inner_states_on_scene_enter(target_card, turn_no=turn_no)
 

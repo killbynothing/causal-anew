@@ -10027,74 +10027,52 @@ class FreeStageSession:
         emitted: list[dict[str, Any]] | None = None,
         speaker_plan: dict[str, Any] | None = None,
     ) -> None:
-        """每拍结算角色工作心智；未受刺激也记录本拍保持，绝不伪称开场常量。"""
+        """Post-turn observatory projection rebuilt from Mind, never prior free-form cache."""
+        plan_rows = []
+        for key in ("speakers", "stage_actors", "companion_actors", "backchannel_actors", "side_actors"):
+            plan_rows.extend(
+                item for item in (speaker_plan or {}).get(key, []) if isinstance(item, dict)
+            )
         for cons, persona in (card.get("persona_cards") or {}).items():
             if not isinstance(persona, dict):
                 continue
-            # This remains a compatibility/display projection for existing
-            # cards and observatory panels.  It must not be mistaken for the
-            # persistent ActorMind reducer state above.
-            mind = self._ensure_actor_mind(card, str(cons))
-            previous = self.working_context_state.get(str(cons)) or {}
-            if not previous:
-                previous = copy.deepcopy(persona.get("inner_state", {}))
-            observed = _observable_player_for_actor(card, str(cons), raw_input)
-            slot = next(
-                (
-                    str(item.get("response_slot", ""))
-                    for item in (speaker_plan or {}).get("speakers", [])
-                    if str(item.get("cons", "")) == str(cons)
-                ),
-                "",
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
+                continue
+            observed = _observable_player_for_actor(card, cons, raw_input)
+            plan_item = next(
+                (item for item in plan_rows if str(item.get("cons") or "") == cons),
+                {},
             )
             visible_rows = [
                 item for item in (emitted or [])
-                if _cons_from_speaker(card, str(item.get("speaker", ""))) == str(cons)
+                if _cons_from_speaker(card, str(item.get("speaker", ""))) == cons
             ]
-            next_state = dict(previous)
-            next_state["version"] = int(previous.get("version", 0) or 0) + 1
-            next_state["updated_at_turn"] = int(turn_no)
-            next_state["status"] = "fresh"
-            if observed:
-                next_state["attention_target"] = "player"
-                next_state["observation_status"] = "player_signal_received"
-                next_state["basis"] = [f"player:{field}" for field in observed]
-                next_state["observation"] = [f"{field}:{str(value)[:80]}" for field, value in observed.items()]
-            else:
-                next_state.setdefault("attention_target", "scene")
-                next_state["observation_status"] = "no_new_player_signal"
-                next_state["basis"] = ["scene_tick:no_player_signal"]
-                next_state["observation"] = ["scene:no_new_player_signal"]
-            base_goal = str(previous.get("want_now", "") or persona.get("inner_state", {}).get("want_now", "")).strip()
-            next_state["active_goals"] = [base_goal] if base_goal else ["维持当前现场目标"]
-            if str(cons) == "C.zhangchen.WMAIN" and observed:
-                next_state["appraisal"] = "已注意到玩家；暂未发现敌意，先判断是否需要回应。"
-            elif observed:
-                next_state["appraisal"] = "玩家已进入自己的可感知范围，需要按当前关系作出反应。"
-            else:
-                next_state["appraisal"] = "没有新的玩家信号，继续处理眼前人物与既定目标。"
-            if slot == "primary":
-                next_state["response_intent"] = "直接承接玩家；可以回答、拒答或明确延后。"
-                next_state["inhibition"] = "不替其他角色作答，不另起第二个问题。"
-            elif slot == "secondary":
-                next_state["response_intent"] = "只做短促附和、保护、纠正或打圆场。"
-                next_state["inhibition"] = "不抢主回应，不另起话题。"
-            else:
-                next_state["response_intent"] = "保持沉默并继续观察。"
-                next_state["inhibition"] = "没有响应槽，不为争取戏份开口。"
-            next_state["visible_decision"] = (
-                " ".join(str(item.get("text", "")).strip() for item in visible_rows if str(item.get("text", "")).strip())
-                or "本拍没有公开发言"
+            visible_decision = " ".join(
+                str(item.get("text", "")).strip()
+                for item in visible_rows
+                if str(item.get("text", "")).strip()
             )
-            next_state["decision_trace"] = [
-                {"step": "observation", "value": list(next_state["observation"])},
-                {"step": "appraisal", "value": next_state["appraisal"]},
-                {"step": "goal", "value": list(next_state["active_goals"])},
-                {"step": "intent", "value": next_state["response_intent"]},
-                {"step": "decision", "value": next_state["visible_decision"]},
+            current = self.working_context_state.get(cons) or {}
+            rebuilt = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player=observed,
+                turn=turn_no,
+                response_slot=str(plan_item.get("response_slot") or ""),
+                visible_decision=visible_decision,
+                current_ephemeral=current,
+            )
+            rebuilt["decision_trace"] = [
+                {"step": "observation", "value": list(rebuilt.get("observation") or [])},
+                {"step": "appraisal", "value": rebuilt.get("appraisal", "")},
+                {"step": "goal", "value": list(rebuilt.get("active_goals") or [])},
+                {"step": "intent", "value": rebuilt.get("response_intent", "")},
+                {"step": "decision", "value": rebuilt.get("visible_decision", "")},
             ]
-            next_state["actor_mind"] = observer_safe_summary(mind)
-            self.working_context_state.set_context(str(cons), next_state)
+            rebuilt["actor_mind"] = observer_safe_summary(mind)
+            self.working_context_state.set_context(cons, rebuilt)
 
     def _interpret_current_intent(
         self, card: dict[str, Any], player_modalities: dict[str, Any], turn_no: int,
@@ -11192,6 +11170,21 @@ class FreeStageSession:
             resolved_card,
             source_kind="actor_context_prepare",
             source_ref=f"turn:{turn_no}",
+        )
+        visible_mind_input = {
+            "speech": "" if suppress_visible_input else speech,
+            "action": "" if suppress_visible_input else action,
+        }
+        mind_receipt_ids_this_turn = self._record_player_visible_mind_receipts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+        )
+        self._rebuild_turn_working_contexts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+            speaker_plan,
         )
         if ott.is_opening_top_tier_scene(resolved_card):
             present_for = [

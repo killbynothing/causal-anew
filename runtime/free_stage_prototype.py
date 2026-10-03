@@ -12283,6 +12283,31 @@ class FreeStageSession:
             "private_reflections": list(getattr(self, "private_reflections", []) or [])[-8:],
             "context_receipts": context_receipts,
             "context_budget_audit": audit_context_receipts(context_receipts),
+            "participation_performance": {
+                "deliberation_llm_calls": int(speaker_plan.get("participation_llm_calls", 0) or 0),
+                "planned_actor_calls": len(actor_context_packets),
+                "actual_actor_calls": int(
+                    (payload.get("actor_call_count", 0) if isinstance(payload, dict) else 0) or 0
+                ),
+                "actor_latency_ms": [
+                    float(item.get("latency_ms", 0.0) or 0.0)
+                    for item in (
+                        payload.get("actor_call_metrics", [])
+                        if isinstance(payload, dict)
+                        else []
+                    )
+                    if isinstance(item, dict)
+                ],
+                "actor_call_metrics": [
+                    dict(item)
+                    for item in (
+                        payload.get("actor_call_metrics", [])
+                        if isinstance(payload, dict)
+                        else []
+                    )
+                    if isinstance(item, dict)
+                ],
+            },
             "intent_runtime": {
                 "current": intent_resolution.debug_payload() if intent_resolution is not None else None,
                 "committed_actor_decisions": committed_actor_decisions,

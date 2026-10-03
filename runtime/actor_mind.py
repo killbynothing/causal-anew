@@ -183,6 +183,27 @@ def _valid_receipt(
     return receipt_id, dict(observation), dict(proposal), dict(event)
 
 
+def _scope_matches(
+    receipt: Mapping[str, Any] | None,
+    expected_scope: Mapping[str, Any] | Any | None,
+) -> bool:
+    if expected_scope is None:
+        return True
+    if not isinstance(receipt, Mapping):
+        return False
+    raw_scope = receipt.get("scope")
+    if not isinstance(raw_scope, Mapping):
+        return False
+    if hasattr(expected_scope, "to_dict"):
+        expected = dict(expected_scope.to_dict())
+    elif isinstance(expected_scope, Mapping):
+        expected = dict(expected_scope)
+    else:
+        return False
+    keys = ("worldline", "run", "ch_anchor", "session_id", "scene_instance_id")
+    return all(raw_scope.get(key) == expected.get(key) for key in keys)
+
+
 def _goal_impact(event: Mapping[str, Any], actor_cons: str, receipt_actor: str) -> str:
     outcome = _text(event.get("outcome"))
     effects = {_text(item) for item in event.get("scene_effects", ()) or ()}
@@ -237,9 +258,12 @@ def apply_event_receipt(
     *,
     actor_cons: str | None = None,
     relationship_effects: Sequence[Mapping[str, Any]] | None = None,
+    expected_scope: Mapping[str, Any] | Any | None = None,
 ) -> tuple[dict[str, Any], bool]:
     """Apply one resolver receipt once. Invalid/missing receipts are no-ops."""
     current = copy.deepcopy(dict(mind or {}))
+    if not _scope_matches(receipt, expected_scope):
+        return current, False
     valid = _valid_receipt(receipt)
     if valid is None:
         return current, False
@@ -719,6 +743,8 @@ class ActorMindState:
         actor_cons: str,
         receipt: Mapping[str, Any] | None,
         persona: Mapping[str, Any] | None,
+        *,
+        expected_scope: Mapping[str, Any] | Any | None = None,
     ) -> bool:
         """Apply scene lifecycle receipt and source-bound scene goal projection.
 
@@ -726,7 +752,7 @@ class ActorMindState:
         come from the target persona's already-authored scene working memory.
         """
         cons = _text(actor_cons)
-        if not self.apply_receipt(cons, receipt):
+        if not self.apply_receipt(cons, receipt, expected_scope=expected_scope):
             return False
         current = self._minds.get(cons)
         if not isinstance(current, dict):
@@ -768,6 +794,7 @@ class ActorMindState:
         receipt: Mapping[str, Any] | None,
         *,
         relationship_effects: Sequence[Mapping[str, Any]] | None = None,
+        expected_scope: Mapping[str, Any] | Any | None = None,
     ) -> bool:
         cons = _text(actor_cons)
         current = self._minds.get(cons)
@@ -778,6 +805,7 @@ class ActorMindState:
             receipt,
             actor_cons=cons,
             relationship_effects=relationship_effects,
+            expected_scope=expected_scope,
         )
         if changed:
             self._minds[cons] = copy.deepcopy(updated)

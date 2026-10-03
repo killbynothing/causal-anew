@@ -11,6 +11,9 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from runtime.actor_mind import (
+    ActorMindState,
+    ReflectProposalState,
+    TurnWorkingContextState,
     apply_event_receipt,
     build_actor_mind,
     observer_safe_summary,
@@ -98,6 +101,105 @@ def test_observer_shape_marks_working_context_as_projection():
     assert "secret_internal_field" not in projected["working_context"]
 
 
+def test_actor_mind_state_is_copy_safe_and_receipt_owned():
+    state = ActorMindState.empty()
+    state.ensure(
+        "C.test.W1",
+        {"inner_state": {"want_now": "观察", "stance_to_player": "克制"}},
+        persona_core_hash="fixture-hash",
+    )
+    visible = state.minds
+    visible["C.test.W1"]["motivational_state"]["active_goals"].append("FAKE")
+    assert state.get("C.test.W1")["motivational_state"]["active_goals"] == ["观察"]
+
+    receipt = _receipt()
+    assert state.apply_receipt("C.test.W1", receipt) is True
+    assert state.apply_receipt("C.test.W1", receipt) is False
+    assert state.get("C.test.W1")["public_state"]["last_receipt_id"] == receipt["receipt_id"]
+
+
+def test_legacy_opening_projection_migrates_into_actor_mind_compat():
+    state = ActorMindState.empty()
+    state.absorb_legacy_opening_projection(
+        {
+            "C.test.W1": {
+                "trust": 44,
+                "intimacy": 21,
+                "alert": 33,
+                "state": "probing",
+                "violations": 1,
+            }
+        },
+        {
+            "C.test.W1": {
+                "to_player": {
+                    "closeness": 0.4,
+                    "wariness": 0.5,
+                    "label": "legacy",
+                    "stage": "S1",
+                }
+            }
+        },
+    )
+    state.ensure("C.test.W1", {"inner_state": {"want_now": "观察"}})
+    assert state.opening_fsm_map()["C.test.W1"]["trust"] == 44
+    assert state.opening_rel_map()["C.test.W1"]["to_player"]["closeness"] == 0.4
+
+    view = state.opening_rel_map()
+    view["C.test.W1"]["to_player"]["closeness"] = 999
+    assert state.opening_rel_map()["C.test.W1"]["to_player"]["closeness"] == 0.4
+
+
+def test_opening_legacy_heuristics_preserve_existing_numbers_inside_mind():
+    state = ActorMindState.empty()
+    state.ensure("C.test.W1", {"inner_state": {"want_now": "观察"}})
+    state.ensure_opening_compat(
+        "C.test.W1",
+        fsm_seed={
+            "trust": 50,
+            "intimacy": 25,
+            "alert": 25,
+            "state": "open",
+            "violations": 0,
+        },
+        rel_seed={
+            "to_player": {
+                "closeness": 0.2,
+                "wariness": 0.3,
+                "label": "fixture",
+                "stage": "S0",
+            }
+        },
+    )
+    assert state.apply_opening_player_signal(
+        "C.test.W1",
+        player_speech="谢谢，一起走吧",
+        player_action="",
+    )
+    fsm = state.opening_fsm_map()["C.test.W1"]
+    rel = state.opening_rel_map()["C.test.W1"]["to_player"]
+    assert (fsm["trust"], fsm["intimacy"], fsm["alert"], fsm["state"]) == (53, 27, 23, "open")
+    assert rel["closeness"] == 0.23
+    assert rel["wariness"] == 0.28
+
+
+def test_working_context_and_reflect_cache_are_defensive_projections():
+    working = TurnWorkingContextState.empty()
+    working.set_context(
+        "C.test.W1",
+        {"pending_concerns": ["a"], "attention_target": "player"},
+    )
+    view = working.contexts
+    view["C.test.W1"]["pending_concerns"].append("FAKE")
+    assert working.get("C.test.W1")["pending_concerns"] == ["a"]
+
+    reflect = ReflectProposalState.empty()
+    reflect.set("C.test.W1", {"thought": "proposal", "evidence": ["r1"]})
+    proposal = reflect.proposals
+    proposal["C.test.W1"]["evidence"].append("FAKE")
+    assert reflect.get("C.test.W1")["evidence"] == ["r1"]
+
+
 def test_current_p3a_authority_map_is_machine_visible():
     report = _audit_report()
     names = (
@@ -132,6 +234,13 @@ def test_current_p3a_authority_map_is_machine_visible():
     }
     print("P3A_WRITERS=" + json.dumps(details, ensure_ascii=False, sort_keys=True))
     assert all(name in report["facts"] for name in names)
+    for name in names:
+        assert snapshot[name]["production_writer_count"] == 0, (name, details[name])
+        assert snapshot[name]["unknown_alias_count"] == 0, (name, details[name])
+        assert details[name] == [], (name, details[name])
+    assert snapshot["actor_minds"]["target_owner"] == "ActorMindReducer"
+    assert snapshot["private_inner_states"]["target_owner"] == "TurnWorkingContext"
+    assert snapshot["prior_reflect_by_cons"]["target_owner"] == "ReflectProposalCache"
 
 
 if __name__ == "__main__":

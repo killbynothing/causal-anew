@@ -275,6 +275,83 @@ def apply_event_receipt(
     return current, True
 
 
+class ActorMindState:
+    """Single mutable owner for persisted ActorMind snapshots.
+
+    Callers receive defensive copies.  Seeding is allowed only from the existing
+    persona projection; subsequent persistent updates must enter through a
+    validated receipt reducer.
+    """
+
+    def __init__(self, minds: Mapping[str, Mapping[str, Any]] | None = None) -> None:
+        self._minds: dict[str, dict[str, Any]] = {
+            _text(cons): copy.deepcopy(dict(mind))
+            for cons, mind in dict(minds or {}).items()
+            if _text(cons) and isinstance(mind, Mapping)
+        }
+
+    @classmethod
+    def empty(cls) -> "ActorMindState":
+        return cls()
+
+    @classmethod
+    def from_snapshot(cls, raw: Any) -> "ActorMindState":
+        if raw is None:
+            return cls.empty()
+        if not isinstance(raw, Mapping):
+            raise ValueError("actor_minds snapshot must be a mapping")
+        return cls(raw)
+
+    @property
+    def minds(self) -> dict[str, dict[str, Any]]:
+        return copy.deepcopy(self._minds)
+
+    def get(self, actor_cons: str) -> dict[str, Any] | None:
+        mind = self._minds.get(_text(actor_cons))
+        return copy.deepcopy(mind) if isinstance(mind, dict) else None
+
+    def ensure(
+        self,
+        actor_cons: str,
+        persona: Mapping[str, Any] | None,
+        *,
+        persona_core_hash: str = "",
+    ) -> dict[str, Any]:
+        cons = _text(actor_cons)
+        if not cons:
+            raise ValueError("ActorMindState.ensure requires actor_cons")
+        existing = self._minds.get(cons)
+        if isinstance(existing, dict) and existing.get("schema_version") == SCHEMA_VERSION:
+            return copy.deepcopy(existing)
+        seeded = build_actor_mind(cons, persona, persona_core_hash=persona_core_hash)
+        self._minds[cons] = copy.deepcopy(seeded)
+        return copy.deepcopy(seeded)
+
+    def apply_receipt(
+        self,
+        actor_cons: str,
+        receipt: Mapping[str, Any] | None,
+        *,
+        relationship_effects: Sequence[Mapping[str, Any]] | None = None,
+    ) -> bool:
+        cons = _text(actor_cons)
+        current = self._minds.get(cons)
+        if not isinstance(current, dict):
+            return False
+        updated, changed = apply_event_receipt(
+            current,
+            receipt,
+            actor_cons=cons,
+            relationship_effects=relationship_effects,
+        )
+        if changed:
+            self._minds[cons] = copy.deepcopy(updated)
+        return changed
+
+    def reset(self) -> None:
+        self._minds = {}
+
+
 def assess_appeal(mind: Mapping[str, Any] | None, appeal: Mapping[str, Any] | None) -> dict[str, Any]:
     """Describe actor-specific considerations without inventing a persuasion score.
 

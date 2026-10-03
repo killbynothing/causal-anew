@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import json
+import sys
+import tempfile
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from runtime.actor_mind import ActorMindState, build_turn_working_context
+from runtime.causal_protocol import resolve_observed_event
+from runtime import free_stage_prototype as proto
+
+C16_CARD = ROOT / "runtime" / "free_stage_card_16zhong_gate.json"
+
+
+def _caller(**kwargs):
+    return json.dumps({"turns": [], "mh_progress": [], "director_note": ""}, ensure_ascii=False)
+
+
+def _session(tmp: str) -> proto.FreeStageSession:
+    return proto.FreeStageSession(
+        session_id="p3b-mind",
+        card_path=C16_CARD,
+        state_dir=Path(tmp) / "states",
+        runtime_state_path=Path(tmp) / "runtime.db",
+        autosave=False,
+        load_existing=False,
+        caller=_caller,
+    )
+
+
+def test_receipt_is_bound_to_one_receiving_consciousness():
+    state = ActorMindState.empty()
+    state.ensure("C.a.W1", {"inner_state": {"want_now": "观察"}})
+    state.ensure("C.b.W1", {"inner_state": {"want_now": "观察"}})
+    receipt = resolve_observed_event(
+        recipient_cons="C.a.W1",
+        scene_id="S1",
+        turn=1,
+        source_actor="C.b.W1",
+        source_ref="fixture:b:1",
+        event_kind="actor_public_enactment",
+        outcome="spoke",
+    ).to_dict()
+
+    assert state.apply_receipt("C.a.W1", receipt) is True
+    assert state.get("C.a.W1")["appraisal_state"]["last_goal_impact"] == "observed_other"
+    before_b = state.get("C.b.W1")
+    assert state.apply_receipt("C.b.W1", receipt) is False
+    assert state.get("C.b.W1") == before_b
+
+
+def test_working_context_rebuild_ignores_freeform_cache_as_authority():
+    state = ActorMindState.empty()
+    mind = state.ensure(
+        "C.a.W1",
+        {
+            "inner_state": {"want_now": "看清现场", "stance_to_player": "谨慎"},
+            "scene_working_memory": {"goals": ["先看清现场"]},
+        },
+    )
+    rebuilt = build_turn_working_context(
+        mind,
+        {"want_now": "看清现场", "stance_to_player": "谨慎"},
+        observed_player={"speech": "你好"},
+        turn=3,
+        current_ephemeral={
+            "want_now": "FAKE CACHE GOAL",
+            "active_goals": ["FAKE"],
+            "pending_concerns": ["current-turn-only"],
+        },
+    )
+    assert rebuilt["want_now"] == "先看清现场"
+    assert rebuilt["active_goals"] == ["先看清现场"]
+    assert rebuilt["pending_concerns"] == ["current-turn-only"]
+    assert "FAKE" not in json.dumps(rebuilt, ensure_ascii=False)
+
+
+def test_scene_receipt_updates_scene_goal_but_preserves_commitments():
+    state = ActorMindState.empty()
+    state.ensure(
+        "C.a.W1",
+        {
+            "inner_state": {"want_now": "旧目标"},
+            "scene_working_memory": {
+                "goals": ["旧场目标"],
+                "commitments": ["已经答应的事"],
+            },
+        },
+    )
+    receipt = resolve_observed_event(
+        recipient_cons="C.a.W1",
+        scene_id="S2",
+        turn=5,
+        source_actor="world",
+        source_ref="scene:S2:visit:1:enter",
+        event_kind="scene_enter",
+        outcome="S2",
+        scene_effects=("scene_enter",),
+        public_dialogue_count=0,
+    ).to_dict()
+    assert state.apply_scene_receipt(
+        "C.a.W1",
+        receipt,
+        {
+            "inner_state": {"want_now": "新目标"},
+            "scene_working_memory": {
+                "goals": ["新场目标"],
+                "commitments": ["新场已有承诺"],
+            },
+        },
+    )
+    motivation = state.get("C.a.W1")["motivational_state"]
+    assert motivation["active_goals"] == ["新场目标"]
+    assert motivation["commitments"] == ["已经答应的事", "新场已有承诺"]
+
+
+def test_silent_working_rebuild_does_not_mutate_persistent_mind():
+    state = ActorMindState.empty()
+    state.ensure(
+        "C.a.W1",
+        {
+            "inner_state": {"want_now": "继续观察"},
+            "scene_working_memory": {"commitments": ["记住承诺"]},
+        },
+    )
+    before = state.get("C.a.W1")
+    for turn in (2, 3):
+        build_turn_working_context(
+            state.get("C.a.W1"),
+            {"want_now": "继续观察"},
+            observed_player={},
+            turn=turn,
+        )
+    assert state.get("C.a.W1") == before
+
+
+def test_c16_subtle_watch_only_updates_actor_who_can_observe_it():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = _session(tmp)
+        assert all(
+            session.actor_minds[cons]["appraisal_state"]["last_event_kind"] == "scene_enter"
+            for cons in ("C.zhangchen.WMAIN", "C.banbo.WMAIN", "C.yuxuan.WMAIN")
+        )
+        ids = session._record_player_visible_mind_receipts(
+            session.card,
+            {"speech": "", "action": "我站在旁边观察，不动"},
+            1,
+        )
+        assert len(ids) == 1
+        assert session.actor_minds["C.zhangchen.WMAIN"]["appraisal_state"]["last_event_kind"] == "player_public_signal"
+        assert session.actor_minds["C.banbo.WMAIN"]["appraisal_state"]["last_event_kind"] == "scene_enter"
+        assert session.actor_minds["C.yuxuan.WMAIN"]["appraisal_state"]["last_event_kind"] == "scene_enter"
+
+
+def test_public_actor_enactment_updates_self_and_visible_observers():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = _session(tmp)
+        ids = session._record_public_actor_mind_receipts(
+            session.card,
+            [{"role": "npc", "speaker": "张尘", "text": "我先等等。", "turn": 1}],
+            1,
+        )
+        assert ids
+        own = session.actor_minds["C.zhangchen.WMAIN"]["appraisal_state"]
+        observer = session.actor_minds["C.banbo.WMAIN"]["appraisal_state"]
+        assert own["last_event_kind"] == "actor_public_enactment"
+        assert own["last_goal_impact"] == "choice_committed"
+        assert observer["last_event_kind"] == "actor_public_enactment"
+        assert observer["last_goal_impact"] == "observed_other"
+
+
+def test_session_rebuild_overwrites_tampered_working_cache():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = _session(tmp)
+        session.working_context_state.set_context(
+            "C.zhangchen.WMAIN",
+            {
+                "want_now": "FAKE CACHE GOAL",
+                "active_goals": ["FAKE"],
+                "updated_at_turn": 0,
+            },
+        )
+        session._rebuild_turn_working_contexts(
+            session.card,
+            {"speech": "", "action": "我站在旁边观察，不动"},
+            1,
+            {"speakers": []},
+        )
+        rebuilt = session.private_inner_states["C.zhangchen.WMAIN"]
+        assert rebuilt["want_now"] != "FAKE CACHE GOAL"
+        assert "FAKE" not in rebuilt["active_goals"]
+        assert rebuilt["authority_source"] == "actor_mind+visible_scene"
+
+
+if __name__ == "__main__":
+    for name in sorted(n for n in globals() if n.startswith("test_")):
+        globals()[name]()
+        print("PASS", name)

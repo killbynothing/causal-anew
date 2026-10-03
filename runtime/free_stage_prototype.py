@@ -7125,9 +7125,8 @@ class FreeStageSession:
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
         self.working_context_state = TurnWorkingContextState.empty()
-        # Opening top-tier: session-scoped FSM + RelState (not Seed).
-        self.fsm_by_cons: dict[str, dict[str, Any]] = {}
-        self.rel_state_by_cons: dict[str, dict[str, Any]] = {}
+        # Opening top-tier FSM/RelState are now read-only compatibility projections
+        # from ActorMind's explicitly legacy compatibility facet.
         # N3 ActorMind is separate from legacy/private scene projection.
         # The latter may refresh a per-turn display context; this structure is
         # the only persistent psychological/relationship state and is updated
@@ -7276,17 +7275,11 @@ class FreeStageSession:
         self.working_context_state = TurnWorkingContextState.from_snapshot(
             data.get("private_inner_states", {})
         )
-        self.fsm_by_cons = {
-            str(cons): dict(state)
-            for cons, state in dict(data.get("fsm_by_cons", {})).items()
-            if isinstance(state, dict)
-        }
-        self.rel_state_by_cons = {
-            str(cons): dict(state)
-            for cons, state in dict(data.get("rel_state_by_cons", {})).items()
-            if isinstance(state, dict)
-        }
         self.actor_mind_state = ActorMindState.from_snapshot(data.get("actor_minds", {}))
+        self.actor_mind_state.absorb_legacy_opening_projection(
+            data.get("fsm_by_cons", {}) if isinstance(data.get("fsm_by_cons"), dict) else {},
+            data.get("rel_state_by_cons", {}) if isinstance(data.get("rel_state_by_cons"), dict) else {},
+        )
         self.active_exit_state_by_card = {
             str(k): str(v)
             for k, v in dict(data.get("active_exit_state_by_card", {})).items()
@@ -8050,8 +8043,6 @@ class FreeStageSession:
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
         self.working_context_state.reset()
-        self.fsm_by_cons = {}
-        self.rel_state_by_cons = {}
         self.actor_mind_state.reset()
         self.reflect_proposal_state.reset()
         self.active_exit_state_by_card = {}
@@ -8814,10 +8805,7 @@ class FreeStageSession:
             present_for = present or [
                 str(c) for c in (card.get("persona_cards") or {}) if str(c).strip()
             ]
-            self.fsm_by_cons = ott.ensure_fsm_map(getattr(self, "fsm_by_cons", {}), present_for)
-            self.rel_state_by_cons = ott.ensure_rel_map(
-                getattr(self, "rel_state_by_cons", {}), present_for
-            )
+            self._ensure_opening_mind_projections(card, present_for)
             return ott.assembly_top_tier_status(
                 present=present,
                 body_frame_bodies=sorted(str(k) for k in (self.body_frames or {})),
@@ -9881,6 +9869,16 @@ class FreeStageSession:
         """Read-only Reflect proposal cache for the next turn."""
         return self.reflect_proposal_state.proposals
 
+    @property
+    def fsm_by_cons(self) -> dict[str, dict[str, Any]]:
+        """Read-only opening FSM compatibility projection from ActorMind."""
+        return self.actor_mind_state.opening_fsm_map()
+
+    @property
+    def rel_state_by_cons(self) -> dict[str, dict[str, Any]]:
+        """Read-only opening relationship compatibility projection from ActorMind."""
+        return self.actor_mind_state.opening_rel_map()
+
     def _ensure_actor_mind(self, card: dict[str, Any], cons: str) -> dict[str, Any]:
         """Return the persisted N3 mind, seeding only from canon projections."""
         existing = self.actor_mind_state.get(str(cons))
@@ -9896,6 +9894,27 @@ class FreeStageSession:
         return self.actor_mind_state.ensure(
             str(cons), persona, persona_core_hash=core["persona_core_hash"],
         )
+
+    def _ensure_opening_mind_projections(
+        self,
+        card: dict[str, Any],
+        present: list[str],
+    ) -> None:
+        """Seed legacy opening compatibility facets inside ActorMind, never beside it."""
+        for raw_cons in present:
+            cons = str(raw_cons or "").strip()
+            if not cons:
+                continue
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
+                continue
+            fsm_seed = ott.ensure_fsm_map({}, [cons]).get(cons, {})
+            rel_seed = ott.ensure_rel_map({}, [cons]).get(cons, {})
+            self.actor_mind_state.ensure_opening_compat(
+                cons,
+                fsm_seed=fsm_seed,
+                rel_seed=rel_seed,
+            )
 
     def _apply_actor_mind_receipt(self, card: dict[str, Any], cons: str, receipt: dict[str, Any]) -> bool:
         """Commit one resolver-owned receipt to the owning consciousness only."""
@@ -11084,10 +11103,7 @@ class FreeStageSession:
                 for item in performance_plan
                 if str(item.get("cons", "")).strip()
             ]
-            self.fsm_by_cons = ott.ensure_fsm_map(getattr(self, "fsm_by_cons", {}), present_for)
-            self.rel_state_by_cons = ott.ensure_rel_map(
-                getattr(self, "rel_state_by_cons", {}), present_for
-            )
+            self._ensure_opening_mind_projections(card, present_for)
             resolved_card["_session_fsm"] = copy.deepcopy(self.fsm_by_cons)
             resolved_card["_session_rel_state"] = copy.deepcopy(self.rel_state_by_cons)
         actor_context_packets = {
@@ -11568,16 +11584,11 @@ class FreeStageSession:
                             )
                         else:
                             turn_degradations.append(issue)
-                # Tick session FSM / RelState from this player beat.
-                for cons in list(getattr(self, "fsm_by_cons", {}) or {}):
-                    self.fsm_by_cons[cons] = ott.tick_fsm(
-                        self.fsm_by_cons[cons],
-                        player_speech=speech,
-                        player_action=action,
-                    )
-                for cons in list(getattr(self, "rel_state_by_cons", {}) or {}):
-                    self.rel_state_by_cons[cons] = ott.tick_rel(
-                        self.rel_state_by_cons[cons],
+                # Preserve the existing opening compatibility heuristics, but
+                # ActorMind owns their dynamic facet; legacy FSM/Rel are projections.
+                for cons in list(self.fsm_by_cons):
+                    self.actor_mind_state.apply_opening_player_signal(
+                        cons,
                         player_speech=speech,
                         player_action=action,
                     )

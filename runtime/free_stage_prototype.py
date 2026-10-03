@@ -108,6 +108,7 @@ from runtime.causal_protocol import (
     commit_batch_id,
     observation_from_packet,
     prepare_commit,
+    resolve_observed_event,
 )
 from runtime.director_ports import (
     build_dramaturgy_opportunity,
@@ -120,6 +121,7 @@ from runtime.actor_mind import (
     ReflectProposalState,
     TurnWorkingContextState,
     build_actor_mind,
+    build_turn_working_context,
     observer_safe_summary,
     observer_state_projection,
 )
@@ -9915,6 +9917,100 @@ class FreeStageSession:
                 fsm_seed=fsm_seed,
                 rel_seed=rel_seed,
             )
+
+    def _mind_recipients(self, card: dict[str, Any]) -> list[str]:
+        personas = {
+            str(cons)
+            for cons, persona in (card.get("persona_cards") or {}).items()
+            if str(cons).strip() and isinstance(persona, dict)
+        }
+        present = {
+            str(cons)
+            for cons in (card.get("present") or [])
+            if str(cons).strip()
+        }
+        selected = personas & present if present else personas
+        return sorted(selected or personas)
+
+    def _record_player_visible_mind_receipts(
+        self,
+        card: dict[str, Any],
+        raw_input: dict[str, Any],
+        turn_no: int,
+    ) -> list[str]:
+        """Commit recipient-scoped receipts for public player signal only."""
+        receipt_ids: list[str] = []
+        scene_id = str(card.get("scene_id", self.card_path) or "")
+        for cons in self._mind_recipients(card):
+            observed = _observable_player_for_actor(card, cons, raw_input)
+            if not observed:
+                continue
+            if not self._ensure_actor_mind(card, cons):
+                continue
+            digest = hashlib.sha256(
+                json.dumps(
+                    observed,
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                ).encode("utf-8")
+            ).hexdigest()[:16]
+            modalities = "+".join(sorted(observed))
+            receipt = resolve_observed_event(
+                recipient_cons=cons,
+                scene_id=scene_id,
+                turn=turn_no,
+                source_actor="player",
+                source_ref=f"player:{self.session_id}:{turn_no}:{digest}",
+                event_kind="player_public_signal",
+                outcome=modalities,
+                public_dialogue_count=1,
+                source_trace_count=1,
+            ).to_dict()
+            self.world_ledger.record_causal_receipt(receipt)
+            self.actor_mind_state.apply_receipt(cons, receipt)
+            receipt_ids.append(str(receipt["receipt_id"]))
+        return receipt_ids
+
+    def _rebuild_turn_working_contexts(
+        self,
+        card: dict[str, Any],
+        raw_input: dict[str, Any],
+        turn_no: int,
+        speaker_plan: dict[str, Any] | None,
+    ) -> None:
+        """Replace disposable working context from Mind + this turn's visible scene."""
+        plan_rows = []
+        for key in ("speakers", "stage_actors", "companion_actors", "backchannel_actors", "side_actors"):
+            plan_rows.extend(
+                item for item in (speaker_plan or {}).get(key, []) if isinstance(item, dict)
+            )
+        for cons, persona in (card.get("persona_cards") or {}).items():
+            if not isinstance(persona, dict):
+                continue
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
+                continue
+            plan_item = next(
+                (item for item in plan_rows if str(item.get("cons") or "") == cons),
+                {},
+            )
+            current = self.working_context_state.get(cons) or {}
+            current_ephemeral = (
+                current
+                if int(current.get("updated_at_turn", -1) or -1) == int(turn_no)
+                else {}
+            )
+            rebuilt = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player=_observable_player_for_actor(card, cons, raw_input),
+                turn=turn_no,
+                response_slot=str(plan_item.get("response_slot") or ""),
+                current_ephemeral=current_ephemeral,
+            )
+            self.working_context_state.set_context(cons, rebuilt)
 
     def _apply_actor_mind_receipt(self, card: dict[str, Any], cons: str, receipt: dict[str, Any]) -> bool:
         """Commit one resolver-owned receipt to the owning consciousness only."""

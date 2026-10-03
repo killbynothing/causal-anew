@@ -113,6 +113,54 @@ def test_mind_receipt_scope_separates_run_worldline_and_replay():
     assert mismatched.get("C.a.W1") == before
 
 
+def test_untrusted_legacy_mind_is_quarantined_and_reseeded_without_data_loss():
+    raw = {
+        "C.a.W1": {
+            "schema_version": "free_stage.actor_mind.v2",
+            "actor_cons": "C.other.W1",
+            "stable_profile": {"source_refs": []},
+            "motivational_state": {
+                "active_goals": ["FAKE LEGACY GOAL"],
+                "commitments": ["FAKE LEGACY COMMITMENT"],
+            },
+        }
+    }
+    state = ActorMindState.from_snapshot(raw)
+    assert state.get("C.a.W1") is None
+    report = state.migration_report
+    assert report == [
+        {
+            "actor_cons": "C.a.W1",
+            "status": "legacy_unresolved",
+            "reason_codes": ["actor_cons_mismatch", "missing_source_refs"],
+            "recovery": "reseed_from_current_persona_projection",
+        }
+    ]
+    audit = state.legacy_audit
+    assert audit["C.a.W1"]["raw"]["motivational_state"]["commitments"] == [
+        "FAKE LEGACY COMMITMENT"
+    ]
+
+    seeded = state.ensure(
+        "C.a.W1",
+        {
+            "inner_state": {"want_now": "当前有来源目标"},
+            "scene_working_memory": {"commitments": ["当前有来源承诺"]},
+        },
+        persona_core_hash="current-persona",
+    )
+    assert seeded["motivational_state"]["active_goals"] == ["当前有来源目标"]
+    assert seeded["motivational_state"]["commitments"] == ["当前有来源承诺"]
+    assert "FAKE" not in json.dumps(seeded, ensure_ascii=False)
+
+    resumed = ActorMindState.from_snapshot(
+        state.minds,
+        legacy_audit=state.legacy_audit,
+    )
+    assert resumed.legacy_audit == state.legacy_audit
+    assert resumed.migration_report == state.migration_report
+
+
 def test_working_context_rebuild_ignores_freeform_cache_as_authority():
     state = ActorMindState.empty()
     mind = state.ensure(

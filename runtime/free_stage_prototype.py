@@ -12635,14 +12635,6 @@ class FreeStageSession:
             source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
             scope=source_scope,
         )
-        self._record_scene_lifecycle_mind_receipts(
-            self.card,
-            event_kind="scene_leave",
-            outcome=target_scene_id,
-            turn_no=turn_no,
-            source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
-            scope=source_scope,
-        )
         self.card_path = target_path
         self.card = target_card
         self._beat_replace(
@@ -13203,6 +13195,14 @@ class FreeStageSession:
             },
         }
 
+        self._record_scene_lifecycle_mind_receipts(
+            self.card,
+            event_kind="scene_leave",
+            outcome=target_scene_id,
+            turn_no=turn_no,
+            source_ref=f"{source_scope.scene_instance_id}:leave:{target_scene_id}",
+            scope=source_scope,
+        )
         self.card_path = target_path
         self.card = target_card
         if exit_decision.target_kind == "pending_entry" and not returning_flashback:

@@ -36,7 +36,6 @@ from web.scene_api import evaluate_condition
 from runtime import beat_ledger as frame_beat_ledger
 from runtime import heart_gate, world_calendar
 from runtime import offscreen_tick as offscreen_kernel
-from runtime.scene_runtime import bid_turn_taking, build_agent_state
 from runtime.offscreen_tick import render_offscreen_narrative, run_offscreen_ticks
 from runtime.memory_consolidation import (
     build_consolidator_system_prompt,

@@ -11591,6 +11591,7 @@ class FreeStageSession:
         turn_degradations: list[dict[str, Any]] = []
         committed_actor_decisions: list[dict[str, Any]] = []
         context_receipts: list[dict[str, Any]] = []
+        payload: dict[str, Any] = {}
         turns: list[dict[str, Any]] = []
         progress: list[str] = []
         new_progress: list[str] = []

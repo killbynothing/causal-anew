@@ -550,7 +550,7 @@ def test_opening_without_llm_skips_fixed_line():
         assert not npc, "without LLM, do not invent a fixed first line"
 
 
-def test_solo_prologue_forces_speaker_when_bids_empty():
+def test_solo_prologue_actor_intent_can_speak_but_helper_never_forces_floor():
     from runtime.free_stage_prototype import build_speaker_plan, ensure_solo_or_prologue_speakers
 
     card = json.loads(
@@ -563,10 +563,13 @@ def test_solo_prologue_forces_speaker_when_bids_empty():
         completed=["RP1"],
     )
     speakers = plan.get("speakers") or []
-    assert speakers, "prologue must not drop Ryuya from speakers"
+    assert speakers, "Ryuya may request floor from his own visible-signal intent"
     assert speakers[0]["cons"] == "C.ryuya.W1"
-    empty = ensure_solo_or_prologue_speakers({"speakers": []}, card)
-    assert empty["speakers"][0]["cons"] == "C.ryuya.W1"
+    assert (plan.get("participation_intents") or [])[0]["actor_cons"] == "C.ryuya.W1"
+
+    empty = ensure_solo_or_prologue_speakers({"speakers": [], "allow_silence": True}, card)
+    assert empty["speakers"] == []
+    assert empty["allow_silence"] is True
 
 
 def test_entrust_cover_accumulates_across_beats():
@@ -637,7 +640,7 @@ if __name__ == "__main__":
     test_want_ladder_zhang_first()
     test_llm_opening_not_authored_rain()
     test_opening_without_llm_skips_fixed_line()
-    test_solo_prologue_forces_speaker_when_bids_empty()
+    test_solo_prologue_actor_intent_can_speak_but_helper_never_forces_floor()
     test_entrust_cover_accumulates_across_beats()
     test_reannounce_entrust_repaired()
     print("PASS")

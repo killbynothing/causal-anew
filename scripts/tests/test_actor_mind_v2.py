@@ -116,6 +116,21 @@ def test_current_p3a_authority_map_is_machine_visible():
         for name in names
     }
     print("P3A_AUTHORITY_MAP=" + json.dumps(snapshot, ensure_ascii=False, sort_keys=True))
+    details = {
+        name: [
+            {
+                "path": row["path"],
+                "symbol": row["symbol"],
+                "line": row["line"],
+                "write_kind": row["write_kind"],
+                "classification": row["classification"],
+            }
+            for row in report["facts"][name]["writers"]
+            if row["classification"] in {"production", "production_tooling", "unknown_alias"}
+        ]
+        for name in names
+    }
+    print("P3A_WRITERS=" + json.dumps(details, ensure_ascii=False, sort_keys=True))
     assert all(name in report["facts"] for name in names)
 
 

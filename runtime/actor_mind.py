@@ -457,14 +457,33 @@ class TurnWorkingContextState:
 
 
 class ReflectProposalState:
-    """One-step Reflect proposal cache; never a persistent psychological owner."""
+    """Validated one-step Reflect proposal cache, never persistent psychology."""
+
+    _ALLOWED_KEYS = (
+        "cons_id",
+        "thought",
+        "band",
+        "top_concern_id",
+        "turn_no",
+        "evidence",
+        "source_kind",
+    )
 
     def __init__(self, proposals: Mapping[str, Mapping[str, Any]] | None = None) -> None:
-        self._proposals: dict[str, dict[str, Any]] = {
-            _text(cons): copy.deepcopy(dict(row))
-            for cons, row in dict(proposals or {}).items()
-            if _text(cons) and isinstance(row, Mapping)
-        }
+        self._proposals: dict[str, dict[str, Any]] = {}
+        for raw_cons, raw_row in dict(proposals or {}).items():
+            cons = _text(raw_cons)
+            if not cons or not isinstance(raw_row, Mapping):
+                continue
+            try:
+                row = self._normalize(
+                    cons,
+                    raw_row,
+                    default_source_kind="legacy_reflect_proposal",
+                )
+            except (TypeError, ValueError):
+                continue
+            self._proposals[cons] = row
 
     @classmethod
     def empty(cls) -> "ReflectProposalState":
@@ -478,6 +497,46 @@ class ReflectProposalState:
             raise ValueError("prior_reflect_by_cons snapshot must be a mapping")
         return cls(raw)
 
+    @classmethod
+    def _normalize(
+        cls,
+        actor_cons: str,
+        proposal: Mapping[str, Any],
+        *,
+        default_source_kind: str,
+    ) -> dict[str, Any]:
+        cons = _text(actor_cons)
+        if not cons:
+            raise ValueError("reflect proposal requires actor_cons")
+        raw = dict(proposal)
+        provided_cons = _text(raw.get("cons_id"))
+        if provided_cons and provided_cons != cons:
+            raise ValueError("reflect proposal actor mismatch")
+        thought = _text(raw.get("thought"))
+        if not thought or len(thought) > 320:
+            raise ValueError("reflect proposal thought must be 1..320 chars")
+        try:
+            turn_no = int(raw.get("turn_no", 0) or 0)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("reflect proposal turn_no must be an integer") from exc
+        if turn_no < 0:
+            raise ValueError("reflect proposal turn_no must be nonnegative")
+        evidence = _text(raw.get("evidence"))[:160]
+        row = {
+            "cons_id": cons,
+            "thought": thought,
+            "band": _text(raw.get("band"))[:80],
+            "top_concern_id": _text(raw.get("top_concern_id"))[:120],
+            "turn_no": turn_no,
+            "evidence": evidence,
+            "source_kind": _text(raw.get("source_kind")) or default_source_kind,
+        }
+        return {
+            key: copy.deepcopy(row[key])
+            for key in cls._ALLOWED_KEYS
+            if key in row
+        }
+
     @property
     def proposals(self) -> dict[str, dict[str, Any]]:
         return copy.deepcopy(self._proposals)
@@ -488,9 +547,11 @@ class ReflectProposalState:
 
     def set(self, actor_cons: str, proposal: Mapping[str, Any]) -> None:
         cons = _text(actor_cons)
-        if not cons:
-            raise ValueError("reflect proposal requires actor_cons")
-        self._proposals[cons] = copy.deepcopy(dict(proposal))
+        self._proposals[cons] = self._normalize(
+            cons,
+            proposal,
+            default_source_kind="reflect_proposal",
+        )
 
     def reset(self) -> None:
         self._proposals = {}

@@ -117,6 +117,8 @@ from runtime.director_ports import (
 )
 from runtime.actor_mind import (
     ActorMindState,
+    ReflectProposalState,
+    TurnWorkingContextState,
     build_actor_mind,
     observer_safe_summary,
     observer_state_projection,
@@ -7122,7 +7124,7 @@ class FreeStageSession:
         self.offscreen_ledger: dict[str, Any] = {}
         self.heart_stages: dict[str, int] = {}
         self.consolidated_memory_by_card: dict[str, dict[str, Any]] = {}
-        self.private_inner_states: dict[str, dict[str, Any]] = {}
+        self.working_context_state = TurnWorkingContextState.empty()
         # Opening top-tier: session-scoped FSM + RelState (not Seed).
         self.fsm_by_cons: dict[str, dict[str, Any]] = {}
         self.rel_state_by_cons: dict[str, dict[str, Any]] = {}
@@ -7182,7 +7184,7 @@ class FreeStageSession:
         # 开场梗概已播 / 托付闪回：延后到遇修哉或张尘再演两年前。
         self.ryuya_flashback_return: dict[str, Any] | None = None
         self._flashback_inputs_at_enter: int = 0
-        self.prior_reflect_by_cons: dict[str, dict[str, Any]] = {}
+        self.reflect_proposal_state = ReflectProposalState.empty()
         self.private_reflections: list[dict[str, Any]] = []
         if load_existing:
             self._load()
@@ -7271,11 +7273,9 @@ class FreeStageSession:
             for k, v in dict(data.get("consolidated_memory_by_card", {})).items()
             if isinstance(v, dict)
         }
-        self.private_inner_states = {
-            str(cons): dict(state)
-            for cons, state in dict(data.get("private_inner_states", {})).items()
-            if isinstance(state, dict)
-        }
+        self.working_context_state = TurnWorkingContextState.from_snapshot(
+            data.get("private_inner_states", {})
+        )
         self.fsm_by_cons = {
             str(cons): dict(state)
             for cons, state in dict(data.get("fsm_by_cons", {})).items()
@@ -7410,15 +7410,8 @@ class FreeStageSession:
             legacy_body_frames=stored_frames,
         )
         self._body_ensure(self.card, source_kind="session_load")
-        raw_prior = data.get("prior_reflect_by_cons")
-        self.prior_reflect_by_cons = (
-            {
-                str(k): dict(v)
-                for k, v in dict(raw_prior or {}).items()
-                if isinstance(v, dict)
-            }
-            if isinstance(raw_prior, dict)
-            else {}
+        self.reflect_proposal_state = ReflectProposalState.from_snapshot(
+            data.get("prior_reflect_by_cons", {})
         )
         self.private_reflections = [
             dict(item) for item in data.get("private_reflections", []) if isinstance(item, dict)
@@ -8056,10 +8049,11 @@ class FreeStageSession:
         self.offscreen_ledger = {}
         self.heart_stages = {}
         self.consolidated_memory_by_card = {}
-        self.private_inner_states = {}
+        self.working_context_state.reset()
         self.fsm_by_cons = {}
         self.rel_state_by_cons = {}
         self.actor_mind_state.reset()
+        self.reflect_proposal_state.reset()
         self.active_exit_state_by_card = {}
         self.stall = 0
         self.inputs = []
@@ -9876,6 +9870,16 @@ class FreeStageSession:
     def actor_minds(self) -> dict[str, dict[str, Any]]:
         """Read-only compatibility view owned by ActorMindState."""
         return self.actor_mind_state.minds
+
+    @property
+    def private_inner_states(self) -> dict[str, dict[str, Any]]:
+        """Compatibility view of per-turn working context, not persistent mind authority."""
+        return self.working_context_state.contexts
+
+    @property
+    def prior_reflect_by_cons(self) -> dict[str, dict[str, Any]]:
+        """Read-only Reflect proposal cache for the next turn."""
+        return self.reflect_proposal_state.proposals
 
     def _ensure_actor_mind(self, card: dict[str, Any], cons: str) -> dict[str, Any]:
         """Return the persisted N3 mind, seeding only from canon projections."""

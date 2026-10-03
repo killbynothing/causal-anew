@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import inspect
 import json
 import sys
 import tempfile
@@ -155,6 +156,37 @@ def test_c16_subtle_watch_only_updates_actor_who_can_observe_it():
         assert session.actor_minds["C.zhangchen.WMAIN"]["appraisal_state"]["last_event_kind"] == "player_public_signal"
         assert session.actor_minds["C.banbo.WMAIN"]["appraisal_state"]["last_event_kind"] == "scene_enter"
         assert session.actor_minds["C.yuxuan.WMAIN"]["appraisal_state"]["last_event_kind"] == "scene_enter"
+
+
+def test_private_player_thought_never_creates_actor_mind_receipt():
+    with tempfile.TemporaryDirectory() as tmp:
+        session = _session(tmp)
+        before = {
+            cons: len(mind["appraisal_state"]["receipt_ids"])
+            for cons, mind in session.actor_minds.items()
+        }
+        ids = session._record_player_visible_mind_receipts(
+            session.card,
+            {"speech": "", "action": "", "thought": "这句只在我心里"},
+            1,
+        )
+        after = {
+            cons: len(mind["appraisal_state"]["receipt_ids"])
+            for cons, mind in session.actor_minds.items()
+        }
+        assert ids == []
+        assert after == before
+
+
+def test_production_wires_player_actor_and_scene_receipts():
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    transition_source = inspect.getsource(proto.FreeStageSession._maybe_transition)
+    assert "_record_player_visible_mind_receipts(" in step_source
+    assert "_rebuild_turn_working_contexts(" in step_source
+    assert "_record_public_actor_mind_receipts(" in step_source
+    assert "_record_scene_lifecycle_mind_receipts(" in transition_source
+    assert 'event_kind="scene_leave"' in transition_source
+    assert 'event_kind="scene_enter"' in transition_source
 
 
 def test_public_actor_enactment_updates_self_and_visible_observers():

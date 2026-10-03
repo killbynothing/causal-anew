@@ -62,8 +62,9 @@ def test_scanner_finds_representative_five_domain_writers():
         assert writers(report, fact, "production", "production_tooling") == []
         assert report["facts"][fact]["unknown_alias_count"] == 0
 
-    mind = writers(report, "private_inner_states", "production")
-    assert any(row["symbol"].endswith("_tick_private_inner_states") for row in mind)
+    mind = writers(report, "private_inner_states", "production", "production_tooling")
+    assert mind == []
+    assert report["facts"]["private_inner_states"]["target_owner"] == "TurnWorkingContext"
 
     ended = writers(report, "ended", "production")
     assert {row["symbol"] for row in ended} == {"FreeStageSession._set_lifecycle_state"}

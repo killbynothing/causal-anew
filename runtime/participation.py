@@ -165,7 +165,12 @@ def deliberate_participation(
         lane = "floor"
         reasons.append("public_obligation")
     elif has_public:
-        if style == "backchannel_preferred":
+        if style == "backchannel_preferred" and "action" in public and "speech" not in public:
+            mode = "action"
+            urgency = 0.46
+            lane = "stage"
+            reasons.append("visible_action_reaction")
+        elif style == "backchannel_preferred":
             mode = "backchannel"
             urgency = 0.38
             lane = "companion"

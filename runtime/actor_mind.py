@@ -291,6 +291,108 @@ def apply_event_receipt(
     return current, True
 
 
+def build_turn_working_context(
+    mind: Mapping[str, Any] | None,
+    persona_inner: Mapping[str, Any] | None,
+    *,
+    observed_player: Mapping[str, Any] | None = None,
+    turn: int = 0,
+    response_slot: str = "",
+    visible_decision: str = "",
+    current_ephemeral: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Rebuild disposable turn context from authoritative Mind + current visible input.
+
+    No prior free-form working state is treated as psychological authority.  The
+    only values carried from an existing turn context are whitelisted ephemeral
+    fields produced during the same turn (currently concern routing).
+    """
+    seed = copy.deepcopy(dict(persona_inner or {}))
+    mental = dict(mind or {})
+    motivation = (
+        mental.get("motivational_state")
+        if isinstance(mental.get("motivational_state"), Mapping)
+        else {}
+    )
+    expression = (
+        mental.get("expression_policy")
+        if isinstance(mental.get("expression_policy"), Mapping)
+        else {}
+    )
+    appraisal = (
+        mental.get("appraisal_state")
+        if isinstance(mental.get("appraisal_state"), Mapping)
+        else {}
+    )
+    observed = {
+        str(key): str(value)
+        for key, value in dict(observed_player or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
+    active_goals = _unique_text(motivation.get("active_goals", ()) or ())
+    base_goal = active_goals[0] if active_goals else _text(seed.get("want_now"))
+    if not base_goal:
+        base_goal = "维持当前现场目标"
+
+    out = seed
+    out["version"] = max(0, int(turn))
+    out["updated_at_turn"] = max(0, int(turn))
+    out["status"] = "fresh"
+    out["want_now"] = base_goal
+    out["active_goals"] = active_goals or [base_goal]
+    out["authority_source"] = "actor_mind+visible_scene"
+    out["last_mind_receipt_id"] = _text(
+        (mental.get("public_state") or {}).get("last_receipt_id")
+        if isinstance(mental.get("public_state"), Mapping)
+        else ""
+    )
+    if observed:
+        out["attention_target"] = "player"
+        out["observation_status"] = "player_signal_received"
+        out["basis"] = [f"player:{field}" for field in observed]
+        out["observation"] = [
+            f"{field}:{value[:80]}" for field, value in observed.items()
+        ]
+    else:
+        out["attention_target"] = "scene"
+        out["observation_status"] = "no_new_player_signal"
+        out["basis"] = ["scene_tick:no_player_signal"]
+        out["observation"] = ["scene:no_new_player_signal"]
+
+    receipt_impact = _text(appraisal.get("last_goal_impact"))
+    if observed:
+        out["appraisal"] = (
+            "玩家已进入自己的可感知范围，需要按当前关系与目标作出反应。"
+        )
+    elif receipt_impact == "observed_other":
+        out["appraisal"] = "已登记可见事件，继续按当前目标处理现场。"
+    else:
+        out["appraisal"] = "没有新的玩家信号，继续处理眼前人物与既定目标。"
+
+    slot = _text(response_slot)
+    if slot == "primary":
+        out["response_intent"] = "直接承接玩家；可以回答、拒答或明确延后。"
+        out["inhibition"] = "不替其他角色作答，不另起第二个问题。"
+    elif slot == "secondary":
+        out["response_intent"] = "只做短促附和、保护、纠正或打圆场。"
+        out["inhibition"] = "不抢主回应，不另起话题。"
+    else:
+        out["response_intent"] = "保持沉默并继续观察。"
+        out["inhibition"] = "没有响应槽，不为争取戏份开口。"
+    out["visible_decision"] = _text(visible_decision) or "本拍没有公开发言"
+
+    current = dict(current_ephemeral or {})
+    for key in ("pending_concerns", "top_concern", "top_concern_id"):
+        if key in current:
+            out[key] = copy.deepcopy(current[key])
+    stance = _text(expression.get("current_public_stance")) or _text(
+        expression.get("default_public_stance")
+    )
+    if stance:
+        out["stance_to_player"] = stance
+    return out
+
+
 class TurnWorkingContextState:
     """Mutable owner for per-turn/per-scene working context, not persistent psychology."""
 

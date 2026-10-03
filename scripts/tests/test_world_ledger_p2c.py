@@ -102,7 +102,17 @@ def test_session_world_ledger_save_load_and_reset():
         world_view.clear()
         causal_view.clear()
         assert "tx1" in session.world_transactions
-        assert len(session.causal_receipts) == 1
+        receipt_ids = {
+            str(item.get("receipt_id") or "")
+            for item in session.causal_receipts
+            if isinstance(item, dict)
+        }
+        assert "resolver:r1" in receipt_ids
+        assert any(
+            isinstance(item, dict)
+            and str((item.get("event") or {}).get("event_kind") or "") == "scene_enter"
+            for item in session.causal_receipts
+        )
         session.save()
 
         resumed = proto.FreeStageSession(

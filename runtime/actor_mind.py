@@ -54,6 +54,13 @@ def build_actor_mind(
     boundaries = source.get("boundaries") if isinstance(source.get("boundaries"), Mapping) else {}
     stance = _text(inner.get("stance_to_player"))
     goal = _text(inner.get("want_now"))
+    working = (
+        source.get("scene_working_memory")
+        if isinstance(source.get("scene_working_memory"), Mapping)
+        else {}
+    )
+    authored_goals = _unique_text(working.get("goals", ()) or ())
+    authored_commitments = _unique_text(working.get("commitments", ()) or ())
     hard_boundaries = _unique_text(boundaries.get("hard", ()) if isinstance(boundaries, Mapping) else ())
     return {
         "schema_version": SCHEMA_VERSION,
@@ -71,9 +78,9 @@ def build_actor_mind(
             "uncertainty_codes": [],
         },
         "motivational_state": {
-            "active_goals": [goal] if goal else [],
+            "active_goals": authored_goals or ([goal] if goal else []),
             "conflicting_motives": [],
-            "commitments": [],
+            "commitments": authored_commitments,
             "last_choice": "",
         },
         "expression_policy": {
@@ -705,6 +712,54 @@ class ActorMindState:
         compat["source_kind"] = "legacy_opening_compat"
         mind[LEGACY_OPENING_COMPAT_KEY] = compat
         self._minds[cons] = mind
+        return True
+
+    def apply_scene_receipt(
+        self,
+        actor_cons: str,
+        receipt: Mapping[str, Any] | None,
+        persona: Mapping[str, Any] | None,
+    ) -> bool:
+        """Apply scene lifecycle receipt and source-bound scene goal projection.
+
+        Existing commitments survive scene changes.  New commitments may only
+        come from the target persona's already-authored scene working memory.
+        """
+        cons = _text(actor_cons)
+        if not self.apply_receipt(cons, receipt):
+            return False
+        current = self._minds.get(cons)
+        if not isinstance(current, dict):
+            return False
+        source = dict(persona or {})
+        inner = source.get("inner_state") if isinstance(source.get("inner_state"), Mapping) else {}
+        working = (
+            source.get("scene_working_memory")
+            if isinstance(source.get("scene_working_memory"), Mapping)
+            else {}
+        )
+        goals = _unique_text(working.get("goals", ()) or ())
+        fallback_goal = _text(inner.get("want_now"))
+        authored_commitments = _unique_text(working.get("commitments", ()) or ())
+        motivation = (
+            current.get("motivational_state")
+            if isinstance(current.get("motivational_state"), Mapping)
+            else {}
+        )
+        current["motivational_state"] = {
+            "active_goals": goals or ([fallback_goal] if fallback_goal else []),
+            "conflicting_motives": _unique_text(
+                motivation.get("conflicting_motives", ()) or ()
+            ),
+            "commitments": _unique_text(
+                [
+                    *(motivation.get("commitments", ()) or ()),
+                    *authored_commitments,
+                ]
+            ),
+            "last_choice": _text(motivation.get("last_choice")),
+        }
+        self._minds[cons] = copy.deepcopy(current)
         return True
 
     def apply_receipt(

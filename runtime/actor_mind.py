@@ -54,6 +54,13 @@ def build_actor_mind(
     boundaries = source.get("boundaries") if isinstance(source.get("boundaries"), Mapping) else {}
     stance = _text(inner.get("stance_to_player"))
     goal = _text(inner.get("want_now"))
+    working = (
+        source.get("scene_working_memory")
+        if isinstance(source.get("scene_working_memory"), Mapping)
+        else {}
+    )
+    authored_goals = _unique_text(working.get("goals", ()) or ())
+    authored_commitments = _unique_text(working.get("commitments", ()) or ())
     hard_boundaries = _unique_text(boundaries.get("hard", ()) if isinstance(boundaries, Mapping) else ())
     return {
         "schema_version": SCHEMA_VERSION,
@@ -71,9 +78,9 @@ def build_actor_mind(
             "uncertainty_codes": [],
         },
         "motivational_state": {
-            "active_goals": [goal] if goal else [],
+            "active_goals": authored_goals or ([goal] if goal else []),
             "conflicting_motives": [],
-            "commitments": [],
+            "commitments": authored_commitments,
             "last_choice": "",
         },
         "expression_policy": {
@@ -150,19 +157,30 @@ def observer_state_projection(
     }
 
 
-def _valid_receipt(receipt: Mapping[str, Any] | None) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+def _valid_receipt(
+    receipt: Mapping[str, Any] | None,
+) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]] | None:
     if not isinstance(receipt, Mapping):
         return None
     if _text(receipt.get("schema_version")) != "free_stage.causal_receipt.v1":
         return None
     receipt_id = _text(receipt.get("receipt_id"))
+    observation = receipt.get("observation") if isinstance(receipt.get("observation"), Mapping) else {}
     proposal = receipt.get("proposal") if isinstance(receipt.get("proposal"), Mapping) else {}
     event = receipt.get("event") if isinstance(receipt.get("event"), Mapping) else {}
-    if not receipt_id or not _text(proposal.get("proposal_id")) or not _text(event.get("event_id")):
+    if (
+        not receipt_id
+        or not _text(observation.get("observation_id"))
+        or not _text(observation.get("actor_cons"))
+        or not _text(proposal.get("proposal_id"))
+        or not _text(event.get("event_id"))
+    ):
         return None
     if _text(event.get("proposal_id")) != _text(proposal.get("proposal_id")):
         return None
-    return receipt_id, dict(proposal), dict(event)
+    if _text(proposal.get("observation_id")) != _text(observation.get("observation_id")):
+        return None
+    return receipt_id, dict(observation), dict(proposal), dict(event)
 
 
 def _goal_impact(event: Mapping[str, Any], actor_cons: str, receipt_actor: str) -> str:
@@ -225,15 +243,17 @@ def apply_event_receipt(
     valid = _valid_receipt(receipt)
     if valid is None:
         return current, False
-    receipt_id, proposal, event = valid
+    receipt_id, observation, proposal, event = valid
+    own_cons = _text(actor_cons or current.get("actor_cons"))
+    if not own_cons or _text(observation.get("actor_cons")) != own_cons:
+        return current, False
     appraisal = current.get("appraisal_state") if isinstance(current.get("appraisal_state"), Mapping) else {}
     seen = {_text(item) for item in appraisal.get("receipt_ids", ()) or ()}
     if receipt_id in seen:
         return current, False
 
-    own_cons = _text(actor_cons or current.get("actor_cons"))
     receipt_actor = _text(proposal.get("actor_cons"))
-    if not own_cons or not receipt_actor:
+    if not receipt_actor:
         return current, False
     current.setdefault("schema_version", SCHEMA_VERSION)
     current.setdefault("actor_cons", own_cons)
@@ -276,6 +296,108 @@ def apply_event_receipt(
         relations[effect["target_cons"]] = edge
     current["relationships"] = relations
     return current, True
+
+
+def build_turn_working_context(
+    mind: Mapping[str, Any] | None,
+    persona_inner: Mapping[str, Any] | None,
+    *,
+    observed_player: Mapping[str, Any] | None = None,
+    turn: int = 0,
+    response_slot: str = "",
+    visible_decision: str = "",
+    current_ephemeral: Mapping[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Rebuild disposable turn context from authoritative Mind + current visible input.
+
+    No prior free-form working state is treated as psychological authority.  The
+    only values carried from an existing turn context are whitelisted ephemeral
+    fields produced during the same turn (currently concern routing).
+    """
+    seed = copy.deepcopy(dict(persona_inner or {}))
+    mental = dict(mind or {})
+    motivation = (
+        mental.get("motivational_state")
+        if isinstance(mental.get("motivational_state"), Mapping)
+        else {}
+    )
+    expression = (
+        mental.get("expression_policy")
+        if isinstance(mental.get("expression_policy"), Mapping)
+        else {}
+    )
+    appraisal = (
+        mental.get("appraisal_state")
+        if isinstance(mental.get("appraisal_state"), Mapping)
+        else {}
+    )
+    observed = {
+        str(key): str(value)
+        for key, value in dict(observed_player or {}).items()
+        if str(key).strip() and str(value).strip()
+    }
+    active_goals = _unique_text(motivation.get("active_goals", ()) or ())
+    base_goal = active_goals[0] if active_goals else _text(seed.get("want_now"))
+    if not base_goal:
+        base_goal = "维持当前现场目标"
+
+    out = seed
+    out["version"] = max(0, int(turn))
+    out["updated_at_turn"] = max(0, int(turn))
+    out["status"] = "fresh"
+    out["want_now"] = base_goal
+    out["active_goals"] = active_goals or [base_goal]
+    out["authority_source"] = "actor_mind+visible_scene"
+    out["last_mind_receipt_id"] = _text(
+        (mental.get("public_state") or {}).get("last_receipt_id")
+        if isinstance(mental.get("public_state"), Mapping)
+        else ""
+    )
+    if observed:
+        out["attention_target"] = "player"
+        out["observation_status"] = "player_signal_received"
+        out["basis"] = [f"player:{field}" for field in observed]
+        out["observation"] = [
+            f"{field}:{value[:80]}" for field, value in observed.items()
+        ]
+    else:
+        out["attention_target"] = "scene"
+        out["observation_status"] = "no_new_player_signal"
+        out["basis"] = ["scene_tick:no_player_signal"]
+        out["observation"] = ["scene:no_new_player_signal"]
+
+    receipt_impact = _text(appraisal.get("last_goal_impact"))
+    if observed:
+        out["appraisal"] = (
+            "玩家已进入自己的可感知范围，需要按当前关系与目标作出反应。"
+        )
+    elif receipt_impact == "observed_other":
+        out["appraisal"] = "已登记可见事件，继续按当前目标处理现场。"
+    else:
+        out["appraisal"] = "没有新的玩家信号，继续处理眼前人物与既定目标。"
+
+    slot = _text(response_slot)
+    if slot == "primary":
+        out["response_intent"] = "直接承接玩家；可以回答、拒答或明确延后。"
+        out["inhibition"] = "不替其他角色作答，不另起第二个问题。"
+    elif slot == "secondary":
+        out["response_intent"] = "只做短促附和、保护、纠正或打圆场。"
+        out["inhibition"] = "不抢主回应，不另起话题。"
+    else:
+        out["response_intent"] = "保持沉默并继续观察。"
+        out["inhibition"] = "没有响应槽，不为争取戏份开口。"
+    out["visible_decision"] = _text(visible_decision) or "本拍没有公开发言"
+
+    current = dict(current_ephemeral or {})
+    for key in ("pending_concerns", "top_concern", "top_concern_id"):
+        if key in current:
+            out[key] = copy.deepcopy(current[key])
+    stance = _text(expression.get("current_public_stance")) or _text(
+        expression.get("default_public_stance")
+    )
+    if stance:
+        out["stance_to_player"] = stance
+    return out
 
 
 class TurnWorkingContextState:
@@ -590,6 +712,54 @@ class ActorMindState:
         compat["source_kind"] = "legacy_opening_compat"
         mind[LEGACY_OPENING_COMPAT_KEY] = compat
         self._minds[cons] = mind
+        return True
+
+    def apply_scene_receipt(
+        self,
+        actor_cons: str,
+        receipt: Mapping[str, Any] | None,
+        persona: Mapping[str, Any] | None,
+    ) -> bool:
+        """Apply scene lifecycle receipt and source-bound scene goal projection.
+
+        Existing commitments survive scene changes.  New commitments may only
+        come from the target persona's already-authored scene working memory.
+        """
+        cons = _text(actor_cons)
+        if not self.apply_receipt(cons, receipt):
+            return False
+        current = self._minds.get(cons)
+        if not isinstance(current, dict):
+            return False
+        source = dict(persona or {})
+        inner = source.get("inner_state") if isinstance(source.get("inner_state"), Mapping) else {}
+        working = (
+            source.get("scene_working_memory")
+            if isinstance(source.get("scene_working_memory"), Mapping)
+            else {}
+        )
+        goals = _unique_text(working.get("goals", ()) or ())
+        fallback_goal = _text(inner.get("want_now"))
+        authored_commitments = _unique_text(working.get("commitments", ()) or ())
+        motivation = (
+            current.get("motivational_state")
+            if isinstance(current.get("motivational_state"), Mapping)
+            else {}
+        )
+        current["motivational_state"] = {
+            "active_goals": goals or ([fallback_goal] if fallback_goal else []),
+            "conflicting_motives": _unique_text(
+                motivation.get("conflicting_motives", ()) or ()
+            ),
+            "commitments": _unique_text(
+                [
+                    *(motivation.get("commitments", ()) or ()),
+                    *authored_commitments,
+                ]
+            ),
+            "last_choice": _text(motivation.get("last_choice")),
+        }
+        self._minds[cons] = copy.deepcopy(current)
         return True
 
     def apply_receipt(

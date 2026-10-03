@@ -334,40 +334,149 @@ def decision_request_for_actor(
 def ensure_decision_target_in_speaker_plan(
     speaker_plan: Mapping[str, Any], resolution: IntentResolution
 ) -> dict[str, Any]:
-    """Give the addressed actor a response slot without altering its choice."""
+    """Give an observable request target a response opportunity, never an answer.
+
+    P4 keeps this as a public conversational obligation layered onto actor-owned
+    participation. The target receives Floor eligibility and an actor call, but
+    the enactment contract explicitly permits pass/silence.
+    """
     result = {key: value for key, value in speaker_plan.items()}
-    result["speakers"] = [dict(item) for item in speaker_plan.get("speakers", ())]
-    result["stage_actors"] = [dict(item) for item in speaker_plan.get("stage_actors", ())]
+    for key in (
+        "speakers",
+        "stage_actors",
+        "backchannel_actors",
+        "side_actors",
+        "companion_actors",
+        "participation_intents",
+        "floor_inputs",
+        "floor_grants",
+    ):
+        result[key] = [dict(item) for item in speaker_plan.get(key, ()) if isinstance(item, Mapping)]
+
     target = resolution.feasibility.intent.target
     if not target or resolution.feasibility.status != "negotiate_now":
         return result
-    existing = next((item for item in result["speakers"] if item.get("cons") == target), None)
-    if existing is None:
-        result["stage_actors"] = [item for item in result["stage_actors"] if item.get("cons") != target]
-        result["speakers"].insert(0, {
-            "cons": target,
-            "name": target,
-            "bid": 0.0,
-            "reason": "observable_intent_target",
-            "bid_reasons": ["observable_intent_target"],
-            "relation_stage": "actor_owned",
-            "response_slot": "primary",
-            "social_instruction": "respond_to_observable_request_from_own_position",
-        })
-    else:
-        existing["response_slot"] = "primary"
-        existing["social_instruction"] = "respond_to_observable_request_from_own_position"
-    for index, item in enumerate(result["speakers"]):
-        if item.get("cons") != target and index > 0 and item.get("response_slot") == "primary":
-            item["response_slot"] = "secondary"
+
+    intent_id = resolution.feasibility.intent.intent_id
+    max_floor = max(1, int(result.get("max_speakers", 1) or 1))
     result["direct_addressee"] = target
     result["conversation_contract"] = {
         "kind": "observable_intent_request",
         "target_cons": target,
-        "evidence": resolution.feasibility.intent.intent_id,
+        "evidence": intent_id,
+        "actor_may_pass": True,
     }
-    return result
 
+    intent_row = next(
+        (item for item in result["participation_intents"] if item.get("actor_cons") == target),
+        None,
+    )
+    if intent_row is None:
+        intent_row = {
+            "schema_version": "free_stage.participation_intent.v1",
+            "actor_cons": target,
+            "mode": "speak",
+            "urgency": 1.0,
+            "lane": "floor",
+            "addressee": "player",
+            "public_obligation": True,
+            "obligation_kind": "observable_intent_request",
+            "obligation_evidence": intent_id,
+            "reason_codes": ["observable_intent_request"],
+            "llm_calls": 0,
+        }
+        result["participation_intents"].append(intent_row)
+    else:
+        intent_row.update({
+            "mode": "speak",
+            "urgency": 1.0,
+            "lane": "floor",
+            "addressee": "player",
+            "public_obligation": True,
+            "obligation_kind": "observable_intent_request",
+            "obligation_evidence": intent_id,
+        })
+        reasons = [str(item) for item in intent_row.get("reason_codes", ()) if str(item)]
+        if "observable_intent_request" not in reasons:
+            reasons.append("observable_intent_request")
+        intent_row["reason_codes"] = reasons
+
+    result["floor_inputs"] = [
+        item for item in result["floor_inputs"] if item.get("actor_cons") != target
+    ]
+    result["floor_inputs"].append({
+        "actor_cons": target,
+        "mode": "speak",
+        "urgency": 1.0,
+        "lane": "floor",
+        "addressee": "player",
+        "public_obligation": True,
+        "obligation_kind": "observable_intent_request",
+    })
+
+    result["floor_grants"] = [
+        item for item in result["floor_grants"]
+        if not (item.get("lane") == "floor" and item.get("actor_cons") == target)
+    ]
+    existing_floor = [
+        item for item in result["floor_grants"] if item.get("lane") == "floor"
+    ]
+    non_floor = [
+        item for item in result["floor_grants"] if item.get("lane") != "floor"
+    ]
+    existing_floor = [
+        item for item in existing_floor if item.get("actor_cons") != target
+    ][: max(0, max_floor - 1)]
+    target_grant = {
+        "schema_version": "free_stage.floor_grant.v1",
+        "actor_cons": target,
+        "mode": "speak",
+        "lane": "floor",
+        "order": 0,
+        "response_slot": "primary",
+        "urgency": 1.0,
+        "public_obligation": True,
+        "obligation_kind": "observable_intent_request",
+        "addressee": "player",
+    }
+    floor_grants = [target_grant]
+    for index, item in enumerate(existing_floor, start=1):
+        item = dict(item)
+        item["order"] = index
+        item["response_slot"] = "secondary"
+        floor_grants.append(item)
+    result["floor_grants"] = floor_grants + non_floor
+
+    result["stage_actors"] = [
+        item for item in result["stage_actors"] if item.get("cons") != target
+    ]
+    for key in ("backchannel_actors", "side_actors", "companion_actors"):
+        result[key] = [item for item in result[key] if item.get("cons") != target]
+
+    speakers = [
+        dict(item) for item in result["speakers"] if item.get("cons") != target
+    ]
+    speakers = speakers[: max(0, max_floor - 1)]
+    for index, item in enumerate(speakers, start=1):
+        item["response_slot"] = "secondary"
+        item["floor_order"] = index
+    target_row = {
+        "cons": target,
+        "name": target,
+        "bid": 1.0,
+        "reason": "public_obligation",
+        "bid_reasons": ["observable_intent_request"],
+        "relation_stage": "actor_owned",
+        "response_slot": "primary",
+        "participation_mode": "speak",
+        "stream_lane": "floor",
+        "floor_order": 0,
+        "social_instruction": "respond_to_observable_request_from_own_position",
+        "actor_may_pass": True,
+    }
+    result["speakers"] = [target_row] + speakers
+    result["allow_silence"] = False
+    return result
 
 def retarget_resolution(resolution: IntentResolution, target_cons: str) -> IntentResolution:
     """Bind a run-local body after a card selected an ambient role.

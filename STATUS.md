@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-03（P3 完成：P3b event coverage × working-context 重建 × migration audit）
+
+- **分支/对账**：以最新 P3a final `95477f90` 新开 `loop/actor-mind-p3b-reconcile-2026-10-03`。既有 `loop/actor-mind-p3b-2026-10-03` 相对该基线已 ahead 14 / behind 3，因此没有粗暴 merge；逐项吸收其已绿的可见事件 receipt、working-context 重建、scene goal/commitment 与 required gate，再在 reconcile 线上修掉后续测试暴露的真实缺口。
+- **MindReceipt 事件覆盖**：新增 recipient-scoped observed-event receipt。玩家公开 speech/action 只提交给实际可见角色；thought-only 不提交；实际公开 Actor enactment 只传播给可听角色；角色自主决定继续沿既有 resolver receipt；新 session、普通 transition、brief skip、闪回均提交成对 `scene_leave / scene_enter`。
+- **scope / 幂等 / 隔离**：Mind receipt 稳定 ID 纳入 `worldline/run/ch_anchor/session_id/scene_instance_id`；ActorMind apply 可要求 expected scope，跨 run/worldline receipt 拒绝。相同公开输入同一 scope 重放幂等，不重复推进 opening 兼容关系 facet。
+- **working context**：`TurnWorkingContext` 每拍从 ActorMind + 当前可见输入 + 当前场 persona 重建；旧 free-form cache 只能携带白名单内当拍 concern routing。篡改 `want_now/active_goals` cache 后下一拍会被权威态覆盖；两拍沉默不会改持久 Mind。
+- **跨场心理**：scene-enter receipt 只更新目标场 authored goal，并保留既有 commitments；scene-leave 不清空持久心理。opening `fsm/rel_state` 的旧数值规则仍原样留在 ActorMind 的 `legacy_opening_compat`，但现在只在该角色实际收到首次成功的 player-visible MindReceipt 后推进，不再给所有角色按同一原始文本统一加分。
+- **旧快照恢复**：`ActorMindState.from_snapshot` 对 schema 不明、actor_cons 冲突或缺 `stable_profile.source_refs` 的旧 mind 做 quarantine，不让其 goal/commitment 继续驱动行为；原 raw 字段保存在 `actor_mind_legacy_audit`，机器 `migration_report` 给 reason codes 与 `reseed_from_current_persona_projection` 恢复策略，save/load 不丢审计附件。
+- **P3 Authority**：P3a 五组动态 Authority Map 继续全部 **production=0 / unknown_alias=0**：`actor_minds / private_inner_states / fsm_by_cons / rel_state_by_cons / prior_reflect_by_cons`。P3b 没有重新开放任何 direct writer。
+- **验证**：代码态 `3ccbfe21`，Actions `37093379899` success；quick **61 PASS / 0 FAIL / 162 SKIP**；`actor_mind_v2`、`actor_mind_p3b` 均 `[OK]`，P2c required gates 继续通过，`data/world_truth.db: OK`。
+- **完成结论/报账**：主计划 P3 的事件覆盖、持久 owner、working-context 无权、跨场/沉默持续、意识/run/worldline 隔离、旧快照差异与恢复均已有机器证据，**P3 可以正式关闭**。未改 run=0、场卡、Seed/VOICE、★★★ 挂坠裁决或 `data/world_truth.db`；正典/人物/剧情新增 = 0。下一 loop 才进入 P4，P3 分支不夹带 participation/floor 改造。
+
 ### 2026-10-03（P3a 完成：ActorMind 持久写权 × legacy 心智投影收口）
 
 - **分支/基线**：独立分支 `loop/actor-mind-p3a-2026-10-03`，从 P2c final reconcile `0f11c8b0` 起步；旧 `loop/actor-mind-p3a-2026-10-02` 经 compare 证实与 `c7f91d08` 完全 identical、0 commits，没有第二套 P3 实现需要合并。

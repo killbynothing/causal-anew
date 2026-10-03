@@ -806,6 +806,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_actor_mind_v2.py",
     },
     {
+        "id": "actor_mind_p3b",
+        "desc": "P3b ActorMind事件覆盖：可见receipt、working重建、沉默持续、跨场commitment（零LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_actor_mind_p3b.py"],
+        "triggers": [
+            "runtime/actor_mind.py",
+            "runtime/causal_protocol.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_actor_mind_p3b.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_actor_mind_p3b.py",
+    },
+    {
         "id": "actor_theater",
         "desc": "N4 无玩家角色小剧场：逐拍唤醒、公开事件传播、receipt 驱动心智与反 Goodhart 观测（零 LLM）",
         "tier": "quick",

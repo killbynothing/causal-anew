@@ -2,14 +2,18 @@
 from __future__ import annotations
 
 import copy
+import inspect
 import json
 import sys
+import tempfile
 from pathlib import Path
+from types import SimpleNamespace
 
 ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from runtime import actor_orchestrator
 from runtime import participation as p4
 from runtime.actor_mind import build_actor_mind
 from runtime.free_stage_prototype import (
@@ -17,7 +21,9 @@ from runtime.free_stage_prototype import (
     apply_visible_group_output_budget,
     build_speaker_plan,
     ensure_solo_or_prologue_speakers,
+    FreeStageSession,
 )
+from runtime.intent_runtime import ensure_decision_target_in_speaker_plan
 
 
 def _card() -> dict:
@@ -215,6 +221,167 @@ def test_ungranted_actor_enactment_is_filtered():
     blob = json.dumps(bounded, ensure_ascii=False)
     assert "我来回应" in blob
     assert "UNGRANTED" not in blob
+
+
+def test_observable_request_grants_response_opportunity_but_actor_may_pass():
+    base = {
+        "max_speakers": 1,
+        "speakers": [],
+        "stage_actors": [],
+        "backchannel_actors": [],
+        "side_actors": [],
+        "companion_actors": [],
+        "participation_intents": [],
+        "floor_inputs": [],
+        "floor_grants": [],
+        "allow_silence": True,
+    }
+    resolution = SimpleNamespace(
+        feasibility=SimpleNamespace(
+            status="negotiate_now",
+            intent=SimpleNamespace(
+                target="C.akito.WMAIN",
+                intent_id="intent:p4:fixture",
+            ),
+        )
+    )
+    out = ensure_decision_target_in_speaker_plan(base, resolution)
+    contract = out["conversation_contract"]
+    assert contract["kind"] == "observable_intent_request"
+    assert contract["actor_may_pass"] is True
+    speaker = out["speakers"][0]
+    assert speaker["cons"] == "C.akito.WMAIN"
+    assert speaker["actor_may_pass"] is True
+    grant = next(
+        item for item in out["floor_grants"]
+        if item["actor_cons"] == "C.akito.WMAIN"
+    )
+    assert grant["public_obligation"] is True
+    blob = json.dumps(out, ensure_ascii=False)
+    assert '"outcome"' not in blob
+    assert '"answer"' not in blob
+
+
+def test_barge_in_discards_unplayed_queue_without_recording_line_fact():
+    card = ROOT / "runtime" / "free_stage_card_16zhong_gate.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        session = FreeStageSession(
+            session_id="p4-queue-cancel",
+            card_path=card,
+            state_dir=Path(tmp) / "states",
+            runtime_state_path=Path(tmp) / "runtime.db",
+            autosave=False,
+            load_existing=False,
+            caller=lambda **_: json.dumps(
+                {"turns": [], "mh_progress": [], "director_note": ""},
+                ensure_ascii=False,
+            ),
+        )
+        before = json.dumps(session.history, ensure_ascii=False)
+        session.utterance_pending_queue = [
+            {
+                "role": "npc",
+                "speaker": "川口秋人",
+                "cons": "C.akito.WMAIN",
+                "text": "QUEUED_NOT_SPOKEN",
+                "turn": 1,
+                "provenance": {},
+            }
+        ]
+        session._barge_in_stream()
+        after = json.dumps(session.history, ensure_ascii=False)
+        assert session.utterance_pending_queue == []
+        assert "QUEUED_NOT_SPOKEN" not in after
+        assert before == after
+
+
+def test_actor_runner_metrics_count_only_actual_actor_calls():
+    calls: list[str] = []
+
+    def director_call(prompt, config, caller):
+        return {
+            "turns": [],
+            "mh_progress": [],
+            "director_note": "",
+            "context_receipt": {"kind": "director"},
+        }
+
+    def actor_call(packet, config, caller):
+        cons = str(packet.get("actor_cons") or "")
+        calls.append(cons)
+        return {
+            "turns": [],
+            "actor_decisions": [],
+            "context_receipt": {"kind": "actor", "actor_cons": cons},
+        }
+
+    def degradation(*args, **kwargs):
+        return {"kind": str(args[1] if len(args) > 1 else "degradation")}
+
+    packets = [
+        (
+            "C.a.W1",
+            {
+                "actor_cons": "C.a.W1",
+                "observable_dialogue": [],
+                "conversation_contract": {
+                    "response_slot": "primary",
+                    "participation_mode": "speak",
+                },
+            },
+        ),
+        (
+            "C.b.W1",
+            {
+                "actor_cons": "C.b.W1",
+                "observable_dialogue": [],
+                "conversation_contract": {
+                    "response_slot": "backchannel",
+                    "participation_mode": "backchannel",
+                },
+            },
+        ),
+    ]
+    payload, _ = actor_orchestrator.dispatch_turn(
+        "{}",
+        packets,
+        {},
+        director_call=director_call,
+        actor_call=actor_call,
+        degradation=degradation,
+        caller=lambda **_: "{}",
+    )
+    assert calls == ["C.a.W1", "C.b.W1"]
+    assert payload["actor_call_count"] == 2
+    metrics = payload["actor_call_metrics"]
+    assert len(metrics) == 2
+    assert all(float(item["latency_ms"]) >= 0.0 for item in metrics)
+    assert [item["actor_cons"] for item in metrics] == calls
+
+    empty_payload, _ = actor_orchestrator.dispatch_turn(
+        "{}",
+        [],
+        {},
+        director_call=director_call,
+        actor_call=actor_call,
+        degradation=degradation,
+        caller=lambda **_: "{}",
+    )
+    assert empty_payload["actor_call_count"] == 0
+    assert empty_payload["actor_call_metrics"] == []
+
+
+def test_production_floor_builder_no_longer_calls_legacy_content_bidding():
+    source = inspect.getsource(build_speaker_plan)
+    for forbidden in (
+        "bid_turn_taking(",
+        "_speaker_bid_modifiers(",
+        "short_term_agenda",
+        "scene_working_memory",
+    ):
+        assert forbidden not in source, forbidden
+    assert "participation_runtime.deliberate_participation(" in source
+    assert "participation_runtime.arbitrate_floor(" in source
 
 
 def test_plan_adds_zero_llm_participation_and_floor_has_no_private_fields():

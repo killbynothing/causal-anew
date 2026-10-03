@@ -86,6 +86,7 @@ from runtime import world_cursor_state
 from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
+from runtime import participation as participation_runtime
 from runtime import utterance_stream as ustream
 from runtime.thought_delta import ingest_player_thought
 from runtime import view_projection
@@ -3943,39 +3944,14 @@ def ensure_solo_or_prologue_speakers(
     plan: dict[str, Any],
     card: dict[str, Any],
 ) -> dict[str, Any]:
-    """单人咖啡馆/序幕：竞价不得把唯一主卡踢出 speakers（否则掉进无 Agent 的 call_actor）。"""
-    if not isinstance(plan, dict):
-        return plan
-    speakers = list(plan.get("speakers") or [])
-    if speakers:
-        return plan
-    present = card.get("present") if isinstance(card.get("present"), list) else []
-    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
-    force_cons = ""
-    if card.get("prologue_active") and "C.ryuya.W1" in personas:
-        force_cons = "C.ryuya.W1"
-    elif len(present) == 1:
-        force_cons = str(present[0] or "").strip()
-    elif len(personas) == 1:
-        force_cons = next(iter(personas.keys()))
-    if not force_cons or force_cons not in personas:
-        return plan
-    name = str((personas.get(force_cons) or {}).get("name") or force_cons)
-    plan = dict(plan)
-    plan["speakers"] = [
-        {
-            "cons": force_cons,
-            "name": name,
-            "bid": 1.0,
-            "reason": "solo_or_prologue_force",
-            "bid_reasons": ["solo_or_prologue_force"],
-            "relation_stage": "S1",
-            "response_slot": "primary",
-        }
-    ]
-    plan["allow_silence"] = False
-    return plan
+    """Deprecated P3 compatibility shim.
 
+    P4 forbids forcing a speaker merely because the cast has one member. The
+    actor-owned ParticipationIntent may legally be pass/silence, so this helper
+    now preserves the plan unchanged.
+    """
+    del card
+    return dict(plan) if isinstance(plan, dict) else plan
 
 def normalize_card_identity_relations(
     raw: Any,
@@ -5070,34 +5046,40 @@ def apply_stall_escalation_to_speaker_plan(plan: dict[str, Any], escalation: dic
 def build_speaker_plan(
     card: dict[str, Any],
     history: list[dict[str, Any]],
-    player_input: str,
+    player_input: str | dict[str, Any],
     max_speakers: int = MAX_BID_SPEAKERS,
     completed: list[str] | None = None,
     branch_progress: list[str] | None = None,
+    actor_minds: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """P4: actor-owned participation intent, then content-blind FloorGrant.
+
+    Legacy fields such as speakers/bids/backchannel_actors remain projections so
+    downstream callers do not need a flag day. Floor itself receives only
+    intent metadata, never actor goal text, MH ids, director instructions or
+    player thought.
+    """
+    del completed, branch_progress
     is_c16_gate = str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
-    subtle_c16_watch = False
     if is_c16_gate:
-        # 十六中：整拍最多主+次两槽，禁止三人合唱撞词。
         max_speakers = min(int(max_speakers), 2)
-        subtle_c16_watch = _c16_subtle_peripheral_watch(
-            player_input if isinstance(player_input, dict) else {"action": player_input}
-        )
-    # 天安门：不卡死两人；默认上限 MAX_BID_SPEAKERS，可说可不说由竞价与串行决定。
+
     scene_state = build_bidding_scene_state(card, history)
-    present = scene_state.get("present_characters", [])
-    agent_states = {
-        item["cons"]: build_agent_state(item["cons"], scene_state)
+    present = [
+        item for item in scene_state.get("present_characters", [])
+        if isinstance(item, dict) and str(item.get("cons") or "").strip()
+    ]
+    name_by_cons = {
+        str(item.get("cons")): str(item.get("name") or item.get("cons"))
         for item in present
-        if item.get("cons")
     }
-    bid_text = player_input
-    if isinstance(player_input, dict):
-        bid_text = player_input.get("speech", "") or player_input.get("action", "") or ""
+    personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
+    mind_map = dict(actor_minds or {})
+
     has_public_speech = bool(
         str(player_input.get("speech", "")).strip()
         if isinstance(player_input, dict)
-        else str(player_input).strip()
+        else str(player_input or "").strip()
     )
     conversation_contract = resolve_conversation_obligation(card, history, player_input)
     direct_addressee = conversation_contract.get("target_cons")
@@ -5109,38 +5091,7 @@ def build_speaker_plan(
                 "target_cons": direct_addressee,
                 "evidence": "adjacent_addressee_fallback",
             }
-    bidding = bid_turn_taking(
-        scene_state,
-        bid_text,
-        agent_states,
-        max_speakers=max_speakers,
-    )
-    name_by_cons = {item["cons"]: item["name"] for item in present if item.get("cons")}
-    
-    persona_cards = card.get("persona_cards", {})
-    bids = list(bidding.get("bids", []))
-    # “未说出口”是私有状态，不是所有角色每拍都抢话的统一加分。
-    # 重新进行高到低打分排序。
-    bid_modifiers = _speaker_bid_modifiers(card, history, player_input)
-    for bid_item in bids:
-        extra = bid_modifiers.get(bid_item.get("cons"), {})
-        delta = float(extra.get("delta", 0.0) or 0.0)
-        if delta:
-            bid_item["score"] = float(bid_item.get("score", 0.0)) + delta
-            bid_item.setdefault("reasons", []).extend(extra.get("reasons", []))
-        if extra.get("relation_stage"):
-            bid_item["relation_stage"] = extra["relation_stage"]
-        if (
-            str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
-            and _c16_subtle_peripheral_watch(player_input if isinstance(player_input, dict) else {"action": player_input})
-        ):
-            if bid_item.get("cons") == "C.zhangchen.WMAIN":
-                bid_item["score"] = float(bid_item.get("score", 0.0)) + 0.60
-                bid_item.setdefault("reasons", []).append("c16_high_vigilance_notice")
-            else:
-                bid_item["score"] = float(bid_item.get("score", 0.0)) - 1.00
-                bid_item.setdefault("reasons", []).append("c16_attention_occupied")
-    bids.sort(key=lambda x: x.get("score", 0.0), reverse=True)
+
     intro_wave_pending = _opening_intro_wave_pending(card, history)
     if intro_wave_pending and not direct_addressee and not has_public_speech:
         direct_addressee = intro_wave_pending[0]
@@ -5149,109 +5100,127 @@ def build_speaker_plan(
             "target_cons": direct_addressee,
             "evidence": "recent_self_introduction_requires_next_social_response",
         }
-    if intro_wave_pending and not direct_addressee:
-        preferred = intro_wave_pending[0]
-        bids.sort(key=lambda x: (x.get("cons") != preferred, -float(x.get("score", 0.0) or 0.0)))
-    beat_speaker_hints: list[str] = []
-    # must_happen is a director receipt, never a speaker-assignment script.
-    # Late MH becomes environment residue via must_happen_director_env_hint in step().
-    speakers = []
-    if direct_addressee:
-        direct_bid = next((item for item in bids if item.get("cons") == direct_addressee), None)
-        direct_speaker = {
-                "cons": direct_addressee,
-                "name": name_by_cons.get(direct_addressee, direct_addressee),
-                "bid": float((direct_bid or {}).get("score", 0.0) or 0.0),
-                "reason": "direct_addressee",
-                "bid_reasons": list((direct_bid or {}).get("reasons", [])) + ["direct_addressee"],
-                "relation_stage": (direct_bid or {}).get("relation_stage", "S1"),
-                "response_slot": "primary",
-            }
-        if direct_addressee in intro_wave_pending:
-            direct_speaker["social_instruction"] = "natural_self_or_friend_introduction"
-        elif conversation_contract.get("social_instruction"):
-            direct_speaker["social_instruction"] = conversation_contract["social_instruction"]
-        speakers.append(direct_speaker)
-    for item in bids:
-        if item.get("cons") == direct_addressee:
-            continue
-        if conversation_contract.get("kind") == "intro_reciprocity" and speakers:
-            # Reciprocity is a next-turn social obligation, not permission for
-            # every remaining person to introduce themselves in one bundle.
-            break
-        if len(speakers) < max_speakers:
-            score = item.get("score", 0.0)
-            # 玩家怠速（空输入或短输入）时 NPC 互聊：如果 player_input 为空，即便 score 小于等于 0 也允许发言推动
-            if (
-                not bid_text.strip()
-                or score > 0.0
-            ):
-                speaker_item = {
-                        "cons": item["cons"],
-                        "name": name_by_cons.get(item["cons"], item["cons"]),
-                        "bid": score,
-                        "reason": item.get("reasons", ["bid"])[-1],
-                        "bid_reasons": list(item.get("reasons", ["bid"])),
-                        "relation_stage": item.get("relation_stage", "S1"),
-                        "response_slot": "primary" if not speakers else "secondary",
-                    }
-                if item.get("cons") in intro_wave_pending:
-                    speaker_item["social_instruction"] = "natural_self_or_friend_introduction"
-                speakers.append(speaker_item)
 
-    # C16 keeps the dialogue beat deliberately narrow, but the remaining person
-    # must not vanish from the scene. Reserve at most one non-speaking slot so
-    # an observable reaction can survive without diluting the reply obligation.
-    stage_actors: list[dict[str, Any]] = []
-    if is_c16_gate:
-        selected_cons = {str(item.get("cons", "")) for item in speakers}
-        for item in bids:
-            cons = str(item.get("cons", ""))
-            if not cons or cons in selected_cons:
-                continue
-            stage_actors.append(
-                {
-                    "cons": cons,
-                    "name": name_by_cons.get(cons, cons),
-                    "bid": float(item.get("score", 0.0) or 0.0),
-                    "reason": item.get("reasons", ["bid"])[-1],
-                    "bid_reasons": list(item.get("reasons", ["bid"])),
-                    "relation_stage": item.get("relation_stage", "S1"),
-                    "response_slot": "stage_only",
-                }
+    recent_npc = [
+        str(item.get("cons") or "")
+        for item in scene_state.get("recent_log", [])[-8:]
+        if isinstance(item, dict) and item.get("role") == "npc" and str(item.get("cons") or "")
+    ]
+    recent_public_actor = recent_npc[-1] if recent_npc else ""
+    occupancy: dict[str, int] = {}
+    for cons in recent_npc:
+        occupancy[cons] = occupancy.get(cons, 0) + 1
+
+    intents: list[participation_runtime.ParticipationIntent] = []
+    for item in present:
+        cons = str(item.get("cons") or "").strip()
+        persona = personas.get(cons) if isinstance(personas.get(cons), dict) else {}
+        mind = mind_map.get(cons)
+        if not isinstance(mind, Mapping):
+            mind = build_actor_mind(cons, persona)
+        visible_input = _observable_player_for_actor(
+            card,
+            cons,
+            player_input if isinstance(player_input, dict)
+            else {"speech": str(player_input or ""), "action": ""},
+        )
+        intents.append(
+            participation_runtime.deliberate_participation(
+                cons,
+                mind,
+                visible_input,
+                participation_style=soc.participation_style(cons),
+                conversation_obligation=conversation_contract,
+                recent_public_actor=recent_public_actor,
             )
-            break
+        )
+
+    grants = participation_runtime.arbitrate_floor(
+        intents,
+        recent_occupancy=occupancy,
+        max_floor=max_speakers,
+        max_companion=2,
+        max_stage=1,
+    )
+    grant_rows = [grant.to_dict() for grant in grants]
+    grant_by_cons = participation_runtime.grant_map(grants)
+
+    bids: list[dict[str, Any]] = []
+    for intent in intents:
+        persona = personas.get(intent.actor_cons) if isinstance(personas.get(intent.actor_cons), dict) else {}
+        relation = str((persona.get("structured_memory") or {}).get("relation", "")).strip()
+        bids.append(
+            {
+                "cons": intent.actor_cons,
+                "name": name_by_cons.get(intent.actor_cons, intent.actor_cons),
+                "score": float(intent.urgency),
+                "reasons": list(intent.reason_codes),
+                "relation_stage": map_relation_to_stage(relation),
+                "participation_mode": intent.mode,
+                "lane": intent.lane,
+            }
+        )
+    bids.sort(key=lambda row: (-float(row.get("score", 0.0)), str(row.get("cons", ""))))
+
+    speakers: list[dict[str, Any]] = []
+    stage_actors: list[dict[str, Any]] = []
+    backchannel_actors: list[dict[str, Any]] = []
+    side_actors: list[dict[str, Any]] = []
+    bid_by_cons = {str(row.get("cons")): row for row in bids}
+
+    for grant in grants:
+        cons = grant.actor_cons
+        bid = bid_by_cons.get(cons) or {}
+        row = {
+            "cons": cons,
+            "name": name_by_cons.get(cons, cons),
+            "bid": float(grant.urgency),
+            "reason": "public_obligation" if grant.public_obligation else "participation_intent",
+            "bid_reasons": list(bid.get("reasons") or []),
+            "relation_stage": bid.get("relation_stage", "S1"),
+            "response_slot": grant.response_slot,
+            "participation_mode": grant.mode,
+            "stream_lane": grant.lane,
+            "floor_order": int(grant.order),
+        }
+        if cons in intro_wave_pending and grant.lane == "floor":
+            row["social_instruction"] = "natural_self_or_friend_introduction"
+        elif cons == direct_addressee and conversation_contract.get("social_instruction"):
+            row["social_instruction"] = conversation_contract["social_instruction"]
+
+        if grant.lane == "floor":
+            speakers.append(row)
+        elif grant.lane == "stage":
+            stage_actors.append(row)
+        elif grant.mode == "backchannel":
+            backchannel_actors.append(row)
+        elif grant.mode == "side":
+            side_actors.append(row)
 
     plan = {
-        "max_speakers": max_speakers,
+        "max_speakers": int(max_speakers),
         "speakers": speakers,
         "stage_actors": stage_actors,
         "bids": bids,
-        "allow_silence": not bool(bid_text.strip()),
+        "allow_silence": not bool(grants),
         "direct_addressee": direct_addressee,
         "conversation_contract": conversation_contract,
         "intro_wave_pending": intro_wave_pending,
-        "beat_speaker_hints": beat_speaker_hints,
+        "beat_speaker_hints": [],
+        "participation_intents": [intent.to_dict() for intent in intents],
+        "floor_inputs": [participation_runtime.floor_view(intent) for intent in intents],
+        "floor_grants": grant_rows,
+        "participation_llm_calls": sum(int(intent.llm_calls) for intent in intents),
+        "backchannel_actors": backchannel_actors,
+        "side_actors": side_actors,
     }
-    plan["backchannel_actors"] = soc.pick_backchannel_actors(
-        plan,
-        card,
-        history=history,
-        player_input=player_input,
-    )
-    plan["side_actors"] = soc.pick_side_actors(
-        plan,
-        card,
-        history=history,
-        player_input=player_input,
-        max_n=1,
-    )
     plan["companion_actors"] = soc.merge_companion_actors(plan, max_n=2)
-    if subtle_c16_watch:
+    if is_c16_gate and _c16_subtle_peripheral_watch(
+        player_input if isinstance(player_input, dict) else {"action": player_input}
+    ):
         plan["silent_observer_cons"] = "C.zhangchen.WMAIN"
         plan["player_signal_mode"] = "peripheral_watch_isolated"
-    return ensure_solo_or_prologue_speakers(plan, card)
-
+    return plan
 
 def _cap_question_marks(text: str, remaining: int) -> tuple[str, int]:
     chars = []

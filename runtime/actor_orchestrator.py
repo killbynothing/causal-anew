@@ -224,5 +224,7 @@ def dispatch_turn(
         "opportunity": director_payload.get("opportunity", ""),
         "actor_decisions": actor_decisions,
         "context_receipts": receipts,
+        "actor_call_count": len(actor_metrics),
+        "actor_call_metrics": actor_metrics,
         "degradations": list(director_payload.get("degradations", []) or []) + degradations,
     }, degradations

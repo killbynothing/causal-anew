@@ -1,5 +1,18 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-03（P4 完成：Actor ParticipationIntent × content-blind Floor × enactment gate）
+
+- **分支/基线**：独立分支 `loop/actor-participation-p4-2026-10-03` 从 P3 final `a4d1ea7f` 起步；本轮只改参与协议、Floor 接线、actor 调用观测与验收，没有夹带 P5 ContextAssembler。
+- **三段式权责**：新增 `runtime/participation.py`，正式区分 `ParticipationIntent → FloorGrant → ActorEnactment`。所有在场角色先用自己的 ActorMind、实际可见 speech/action、公开会话义务与既有 participation style 做零 LLM deliberation；thought 不进入。
+- **Floor 降权**：唯一 `arbitrate_floor()` 只消费 actor_cons、mode、urgency、lane、addressee、公开 obligation 与最近占用公平性。FreeStage 已断开旧 `scene_runtime.bid_turn_taking/build_agent_state` import；生产 `build_speaker_plan` 不再按 short-term agenda/topic/MH/scene goal 文案竞价。observable intent request 也只先改 actor intent obligation，再回到同一 Floor 仲裁，不再手工造 grant。
+- **合法结果**：`speak / pass / backchannel / side / action` 都是一等 intent；单角色场不再由 `ensure_solo_or_prologue_speakers` 强塞 speaker。公开 direct/adjacency/observable-intent obligation 只保证回应机会，并显式 `actor_may_pass=True`，不预选答案或 outcome。
+- **enactment / queue**：`apply_visible_group_output_budget` 会过滤未获 grant 的角色输出；普通未播放 floor queue 被玩家 barge-in 取消时直接丢弃，不写 history，因此不会把未说出口台词预记成事实。stall escalation 只留导演提示，`stall_escalation_floor_effect=none`，不能抢 Floor。
+- **隐私与公平**：同一公开输入只改 player thought 时 intents/floor inputs/grants 完全相同；改 MH id/desc 或 director scene goal 不直接改 actor intent；不同持久 Mind commitment 可产生不同 intent，但 Floor view 不含 goal/commitment/reason text。公平性只按公开 obligation、actor urgency 与 recent occupancy 仲裁。
+- **性能观测**：participation deliberation 固定 `llm_calls=0`；actor orchestrator 记录实际 actor call count 与逐路 `latency_ms/success/error`，FreeStage debug payload 暴露 `participation_performance`，不为未获 grant 的角色新增模型调用。
+- **required gate**：新增 quick `actor_participation_p4`，覆盖 thought/MH 隔离、Mind 差异、side/action/pass、fairness、公共请求可 pass、stall 无 floor 权、未授权 enactment 过滤、队列取消无预记、唯一 Floor 静态接线与调用数/延迟观测；旧 Ryuya 单人场测试同步升级为“不强塞 speaker”合同。
+- **验证**：代码态 `ad68d27c`，Actions `37121176314` success；quick **62 PASS / 0 FAIL / 162 SKIP**；`actor_participation_p4`、`social_participation`、`dual_lane_companion`、`ryuya_voice_cog_loop` 均 `[OK]`，`data/world_truth.db: OK`。
+- **完成结论/报账**：主计划 P4 的 intent/grant 分权、私有隔离、pass、无内容竞价、多人/侧聊/公平性、取消队列与性能观测均已有机器证据，**P4 正式关闭**。未改 run=0、场卡、Seed/VOICE、★★★ 挂坠裁决或 `data/world_truth.db`；正典/人物/剧情新增 = 0。下一 loop 才进入 P5，P4 分支不搬 ContextAssembler。
+
 ### 2026-10-03（P3 完成：P3b event coverage × working-context 重建 × migration audit）
 
 - **分支/对账**：以最新 P3a final `95477f90` 新开 `loop/actor-mind-p3b-reconcile-2026-10-03`。既有 `loop/actor-mind-p3b-2026-10-03` 相对该基线已 ahead 14 / behind 3，因此没有粗暴 merge；逐项吸收其已绿的可见事件 receipt、working-context 重建、scene goal/commitment 与 required gate，再在 reconcile 线上修掉后续测试暴露的真实缺口。

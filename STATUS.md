@@ -8,7 +8,7 @@
 - **working / Reflect 分语义**：`private_inner_states` 明确降为 `TurnWorkingContextState`，`prior_reflect_by_cons` 明确为 `ReflectProposalState`；二者保留兼容 snapshot/read view，但不再是持久 ActorMind writer。审计 target 分别改为 `TurnWorkingContext` / `ReflectProposalCache`，不是为了 writer=0 把不同寿命状态硬塞进一个 reducer。
 - **FSM / RelState**：开场旧 `fsm_by_cons / rel_state_by_cons` 不再每拍直接写。既有数值/词表启发式原样迁入 ActorMind 的显式 `legacy_opening_compat` facet，标工程兼容而非人物正典；旧 snapshot 可迁入，兼容字段只读从 Mind 投影。没有改 Seed REL baseline，也没有发明新的心理评分规则。
 - **P3a Authority Map**：当前 `actor_minds / private_inner_states / fsm_by_cons / rel_state_by_cons / prior_reflect_by_cons` 五组事实均为 **production=0 / unknown_alias=0**；全仓 unknown-alias characterization 也升级为精确逐域汇总，合法 0 不再被旧测试误判。
-- **回归**：`actor_mind_v2` 覆盖 seed 隐私、receipt 幂等/actor scope、owner copy-safe、旧 FSM/Rel snapshot 迁移、旧 friendly 数值结果等价、working/Reflect 防御性副本与动态 writer=0。代码态 Actions `37091734122` success，quick **60 PASS / 0 FAIL / 162 SKIP**，`data/world_truth.db: OK`。
+- **回归**：`actor_mind_v2` 覆盖 seed 隐私、receipt 幂等/actor scope、owner copy-safe、旧 FSM/Rel snapshot 迁移、旧 friendly 数值结果等价、working/Reflect 防御性副本与动态 writer=0。最终代码态 `2f245d58`，Actions `37092617907` success，quick **60 PASS / 0 FAIL / 162 SKIP**，`data/world_truth.db: OK`。
 - **未完成边界**：**P3 尚未整体完成**。普通聊天/观察他人/scene enter-leave 的完整 MindReceipt 覆盖、每拍从 Mind+当前可见场景重建 TurnWorkingContext（并证明篡改 cache 不影响下一拍）、跨场持续 commitment/关系 facet 的完整 replay/隔离仍属下一段 P3b。现有 Reflect 仍只是 proposal cache，没有被偷偷升格为持久事实。
 - **报账/停点**：未改 run=0、场卡、Seed/VOICE、★★★ 挂坠裁决或 `data/world_truth.db`；正典/人物/剧情新增 = 0。**P3a 在此关闭，不启动 P4/P5。下一 loop 只做 P3b event coverage × working-context 重建。**
 

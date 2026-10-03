@@ -75,11 +75,13 @@ def test_p2c_physical_projections_have_no_direct_or_unknown_writer():
         assert meta["unknown_alias_count"] == 0, meta["writers"]
 
 
-def test_known_bug_legacy_mind_writer_is_visible_until_p3():
+def test_p3_working_context_is_not_a_persistent_mind_writer():
     report = load_report()
-    rows = production(report, "private_inner_states")
-    assert rows
-    assert any(row["symbol"].endswith("_tick_private_inner_states") for row in rows)
+    meta = report["facts"]["private_inner_states"]
+    assert meta["target_owner"] == "TurnWorkingContext"
+    assert production(report, "private_inner_states") == []
+    assert meta["production_writer_count"] == 0
+    assert meta["unknown_alias_count"] == 0
 
 
 def test_p1b_lifecycle_projection_has_one_production_writer():
@@ -117,7 +119,7 @@ if __name__ == "__main__":
     test_p2c_observation_ledger_has_no_direct_production_writer()
     test_p2c_world_ledgers_have_no_direct_production_writer()
     test_p2c_physical_projections_have_no_direct_or_unknown_writer()
-    test_known_bug_legacy_mind_writer_is_visible_until_p3()
+    test_p3_working_context_is_not_a_persistent_mind_writer()
     test_p1b_lifecycle_projection_has_one_production_writer()
     test_p1b_sediment_is_append_only_but_run_meta_projection_update_remains()
     test_unknown_aliases_are_reported_not_hidden()

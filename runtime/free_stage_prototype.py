@@ -7286,7 +7286,14 @@ class FreeStageSession:
         self.working_context_state = TurnWorkingContextState.from_snapshot(
             data.get("private_inner_states", {})
         )
-        self.actor_mind_state = ActorMindState.from_snapshot(data.get("actor_minds", {}))
+        self.actor_mind_state = ActorMindState.from_snapshot(
+            data.get("actor_minds", {}),
+            legacy_audit=(
+                data.get("actor_mind_legacy_audit", {})
+                if isinstance(data.get("actor_mind_legacy_audit"), dict)
+                else {}
+            ),
+        )
         self.actor_mind_state.absorb_legacy_opening_projection(
             data.get("fsm_by_cons", {}) if isinstance(data.get("fsm_by_cons"), dict) else {},
             data.get("rel_state_by_cons", {}) if isinstance(data.get("rel_state_by_cons"), dict) else {},
@@ -7458,6 +7465,8 @@ class FreeStageSession:
             "fsm_by_cons": getattr(self, "fsm_by_cons", {}) or {},
             "rel_state_by_cons": getattr(self, "rel_state_by_cons", {}) or {},
             "actor_minds": self.actor_minds,
+            "actor_mind_legacy_audit": self.actor_mind_state.legacy_audit,
+            "actor_mind_migration_report": self.actor_mind_state.migration_report,
             "active_exit_state_by_card": self.active_exit_state_by_card,
             "stall": self.stall,
             "stall_escalation_fired_scenes": sorted(self._stall_escalation_fired_scenes),

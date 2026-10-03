@@ -1865,6 +1865,21 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_social_participation.py",
     },
     {
+        "id": "actor_participation_p4",
+        "desc": "P4 Actor参与意图→内容盲Floor→Enactment过滤（零LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_actor_participation_p4.py"],
+        "triggers": [
+            "runtime/participation.py",
+            "runtime/free_stage_prototype.py",
+            "runtime/intent_runtime.py",
+            "scripts/tests/test_actor_participation_p4.py",
+        ],
+        "need_db": False,
+        "need": [],
+        "need_file": "scripts/tests/test_actor_participation_p4.py",
+    },
+    {
         "id": "utterance_stream",
         "desc": "话轮流 B：单气泡×hold×barge-in×心想 delta",
         "tier": "quick",

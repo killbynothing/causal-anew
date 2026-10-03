@@ -9932,6 +9932,122 @@ class FreeStageSession:
         selected = personas & present if present else personas
         return sorted(selected or personas)
 
+    def _commit_mind_observation(
+        self,
+        card: dict[str, Any],
+        *,
+        recipient_cons: str,
+        turn_no: int,
+        source_actor: str,
+        source_ref: str,
+        event_kind: str,
+        outcome: str,
+        public_dialogue_count: int = 0,
+        private_perception_count: int = 0,
+        scene_effects: tuple[str, ...] | list[str] = (),
+        apply_scene_seed: bool = False,
+    ) -> str:
+        cons = str(recipient_cons or "").strip()
+        persona = (card.get("persona_cards") or {}).get(cons)
+        if not cons or not isinstance(persona, dict):
+            return ""
+        if not self._ensure_actor_mind(card, cons):
+            return ""
+        receipt = resolve_observed_event(
+            recipient_cons=cons,
+            scene_id=str(card.get("scene_id", self.card_path) or ""),
+            turn=turn_no,
+            source_actor=source_actor,
+            source_ref=source_ref,
+            event_kind=event_kind,
+            outcome=outcome,
+            scene_effects=scene_effects,
+            public_dialogue_count=public_dialogue_count,
+            private_perception_count=private_perception_count,
+            source_trace_count=1,
+        ).to_dict()
+        self.world_ledger.record_causal_receipt(receipt)
+        if apply_scene_seed:
+            self.actor_mind_state.apply_scene_receipt(cons, receipt, persona)
+        else:
+            self.actor_mind_state.apply_receipt(cons, receipt)
+        return str(receipt.get("receipt_id") or "")
+
+    def _record_scene_lifecycle_mind_receipts(
+        self,
+        card: dict[str, Any],
+        *,
+        event_kind: str,
+        outcome: str,
+        turn_no: int,
+        source_ref: str,
+    ) -> list[str]:
+        ids: list[str] = []
+        for cons in self._mind_recipients(card):
+            receipt_id = self._commit_mind_observation(
+                card,
+                recipient_cons=cons,
+                turn_no=turn_no,
+                source_actor="world",
+                source_ref=f"{source_ref}:{cons}",
+                event_kind=event_kind,
+                outcome=outcome,
+                scene_effects=(event_kind,),
+                apply_scene_seed=(event_kind == "scene_enter"),
+            )
+            if receipt_id:
+                ids.append(receipt_id)
+        return ids
+
+    def _record_public_actor_mind_receipts(
+        self,
+        card: dict[str, Any],
+        turns: list[dict[str, Any]] | None,
+        turn_no: int,
+    ) -> list[str]:
+        """Project actual public actor enactments only to actors who could hear them."""
+        ids: list[str] = []
+        rows = [dict(item) for item in (turns or []) if isinstance(item, dict)]
+        if not rows:
+            return ids
+        for recipient in self._mind_recipients(card):
+            audible = acv2.turns_audible_to_actor(rows, recipient)
+            for index, item in enumerate(audible):
+                if str(item.get("channel") or "") != "public":
+                    continue
+                source_cons = _cons_from_speaker(card, str(item.get("speaker") or ""))
+                if not source_cons:
+                    continue
+                digest = hashlib.sha256(
+                    json.dumps(
+                        {
+                            "speaker": item.get("speaker"),
+                            "text": item.get("text"),
+                            "stage": item.get("stage"),
+                            "turn": item.get("turn"),
+                        },
+                        ensure_ascii=False,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ).encode("utf-8")
+                ).hexdigest()[:16]
+                receipt_id = self._commit_mind_observation(
+                    card,
+                    recipient_cons=recipient,
+                    turn_no=turn_no,
+                    source_actor=source_cons,
+                    source_ref=(
+                        f"actor-public:{self.session_id}:{turn_no}:"
+                        f"{source_cons}:{index}:{digest}"
+                    ),
+                    event_kind="actor_public_enactment",
+                    outcome="spoke",
+                    public_dialogue_count=1,
+                )
+                if receipt_id:
+                    ids.append(receipt_id)
+        return ids
+
     def _record_player_visible_mind_receipts(
         self,
         card: dict[str, Any],

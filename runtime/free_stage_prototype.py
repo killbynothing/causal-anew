@@ -8594,7 +8594,7 @@ class FreeStageSession:
             source_kind="flashback_scene_enter",
             source_ref=str(self.card.get("scene_id", self.card_path)),
         )
-        self._refresh_inner_states_on_scene_enter(self.card)
+        self._refresh_inner_states_on_scene_enter(self.card, turn_no=turn_no)
 
         entry = str(self.card.get("entry_hook") or "").strip()
         if entry:
@@ -12638,45 +12638,31 @@ class FreeStageSession:
         res["transition"] = transition_marker
         return res
 
-    def _refresh_inner_states_on_scene_enter(self, card: dict[str, Any]) -> None:
-        """换场用目标场 persona 重建内心目标，清空上一场身体物件与开场残留。"""
-        previous_all = {
-            str(cons): dict(state)
-            for cons, state in self.private_inner_states.items()
-            if isinstance(state, dict)
-        }
+    def _refresh_inner_states_on_scene_enter(
+        self,
+        card: dict[str, Any],
+        *,
+        turn_no: int = 0,
+    ) -> None:
+        """Rebuild target-scene working contexts from ActorMind + target persona only."""
         refreshed: dict[str, dict[str, Any]] = {}
         for cons, persona in (card.get("persona_cards") or {}).items():
             if not isinstance(persona, dict):
                 continue
-            previous = previous_all.get(str(cons), {})
-            seed = copy.deepcopy(persona.get("inner_state") or {})
-            if not isinstance(seed, dict):
-                seed = {}
-            seed["version"] = int(previous.get("version", 0) or 0) + 1
-            seed["status"] = "scene_enter_refreshed"
-            seed["_from_opening"] = False
-            seed["body_props"] = []
-            seed.setdefault(
-                "want_now",
-                str(seed.get("want_now", "") or "").strip() or "观察并推进当下对话",
-            )
-            refreshed[str(cons)] = seed
-        # 未进入目标场的意识也清掉上一场物件，避免奶茶杯等残留被带到医院旁注
-        for cons, previous in previous_all.items():
-            if cons in refreshed:
+            cons = str(cons)
+            mind = self._ensure_actor_mind(card, cons)
+            if not mind:
                 continue
-            exited = {
-                "want_now": "处理离场后的下一步",
-                "knot": str(previous.get("knot", "") or "").strip(),
-                "unsaid": str(previous.get("unsaid", "") or "").strip(),
-                "stance_to_player": str(previous.get("stance_to_player", "") or "").strip() or "中性",
-                "version": int(previous.get("version", 0) or 0) + 1,
-                "status": "scene_exit_cleared",
-                "_from_opening": False,
-                "body_props": [],
-            }
-            refreshed[cons] = exited
+            state = build_turn_working_context(
+                mind,
+                persona.get("inner_state") if isinstance(persona.get("inner_state"), dict) else {},
+                observed_player={},
+                turn=turn_no,
+            )
+            state["status"] = "scene_enter_refreshed"
+            state["_from_opening"] = False
+            state["body_props"] = []
+            refreshed[cons] = state
         self.working_context_state.replace(refreshed)
 
     def _maybe_transition(
@@ -13220,7 +13206,7 @@ class FreeStageSession:
             turn_no=turn_no,
             source_ref=f"{target_scope.scene_instance_id}:enter",
         )
-        self._refresh_inner_states_on_scene_enter(target_card)
+        self._refresh_inner_states_on_scene_enter(target_card, turn_no=turn_no)
 
         # 每张目标卡都欠玩家一次可见的入场介绍。闪回返回原场时不再重播入场。
         target_intro_turns: list[dict[str, Any]] = []

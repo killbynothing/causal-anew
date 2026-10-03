@@ -9920,7 +9920,7 @@ class FreeStageSession:
             # cards and observatory panels.  It must not be mistaken for the
             # persistent ActorMind reducer state above.
             mind = self._ensure_actor_mind(card, str(cons))
-            previous = dict(self.private_inner_states.get(str(cons), {}))
+            previous = self.working_context_state.get(str(cons)) or {}
             if not previous:
                 previous = copy.deepcopy(persona.get("inner_state", {}))
             observed = _observable_player_for_actor(card, str(cons), raw_input)
@@ -9979,7 +9979,7 @@ class FreeStageSession:
                 {"step": "decision", "value": next_state["visible_decision"]},
             ]
             next_state["actor_mind"] = observer_safe_summary(mind)
-            self.private_inner_states[str(cons)] = next_state
+            self.working_context_state.set_context(str(cons), next_state)
 
     def _interpret_current_intent(
         self, card: dict[str, Any], player_modalities: dict[str, Any], turn_no: int,
@@ -10911,9 +10911,7 @@ class FreeStageSession:
                 introduced_cons=introduced_now,
             )
             for cons, want in want_updates.items():
-                state = self.private_inner_states.setdefault(cons, {})
-                if isinstance(state, dict):
-                    state["want_now"] = want
+                self.working_context_state.patch(cons, {"want_now": want})
             facts: list[str] = []
             if "tiananmen_video_unavailable" in self.branch_progress:
                 facts.append("玩家明确说：自己没有录到升旗视频；不得再次向其索取视频。")
@@ -10971,9 +10969,7 @@ class FreeStageSession:
             )
             resolved_card["_ryuya_topic_interface"] = bool(topic_hit)
             for cons, want in want_updates.items():
-                state = self.private_inner_states.setdefault(cons, {})
-                if isinstance(state, dict):
-                    state["want_now"] = want
+                self.working_context_state.patch(cons, {"want_now": want})
             resolved_card["_want_now_advances"] = want_updates
             resolved_card["_ryuya_flash_beats"] = flash_beats
         if str(resolved_card.get("scene_id", "")) == "CARD_16ZHONG_GATE":
@@ -11256,10 +11252,7 @@ class FreeStageSession:
                         flash_beats=max(flash_beats_for_cog, 4),
                         completed=soft_done,
                     )
-                prior_map = getattr(self, "prior_reflect_by_cons", None)
-                if not isinstance(prior_map, dict):
-                    prior_map = {}
-                    self.prior_reflect_by_cons = prior_map
+                prior_reflect = self.reflect_proposal_state.get(str(cons))
                 pacing_signal = (
                     director_harness.classify_cafe_pacing_signal(
                         {"speech": speech, "action": action},
@@ -11274,7 +11267,7 @@ class FreeStageSession:
                     scene_id=str(resolved_card.get("scene_id") or ""),
                     flash_beats=flash_beats_for_cog,
                     completed=self.completed,
-                    prior_reflect=prior_map.get(str(cons)),
+                    prior_reflect=prior_reflect,
                     stated_facts=stated_facts,
                     player_speech=speech,
                     pacing_signal=pacing_signal,
@@ -11284,10 +11277,13 @@ class FreeStageSession:
                     pkt.setdefault("conversation_contract", {})["pending_concerns"] = list(
                         decide.get("pending_concerns") or []
                     )
-                    priv = self.private_inner_states.setdefault(cons, {})
-                    if isinstance(priv, dict):
-                        priv["pending_concerns"] = list(decide.get("pending_concerns") or [])
-                        priv["top_concern"] = decide.get("top_concern")
+                    self.working_context_state.patch(
+                        cons,
+                        {
+                            "pending_concerns": list(decide.get("pending_concerns") or []),
+                            "top_concern": decide.get("top_concern"),
+                        },
+                    )
                 # Banter ceiling: after soft budget without deepen, hard-nudge off idle chat.
                 if (
                     resolved_card.get("prologue_active")
@@ -11995,11 +11991,9 @@ class FreeStageSession:
                 reflect_log.append({"turn_no": turn_no, **reflect})
                 if len(reflect_log) > 40:
                     del reflect_log[:-40]
-                prior_map = getattr(self, "prior_reflect_by_cons", None)
-                if not isinstance(prior_map, dict):
-                    prior_map = {}
-                    self.prior_reflect_by_cons = prior_map
-                prior_map[str(cons)] = {"turn_no": turn_no, **reflect}
+                self.reflect_proposal_state.set(
+                    str(cons), {"turn_no": turn_no, **reflect}
+                )
         solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
         solidified_now = build_solidified_visible_facts(
             resolved_card,
@@ -12433,7 +12427,7 @@ class FreeStageSession:
                 "body_props": [],
             }
             refreshed[cons] = exited
-        self.private_inner_states = refreshed
+        self.working_context_state.replace(refreshed)
 
     def _maybe_transition(
         self, player_input: str, turn_no: int, emitted: list[dict[str, Any]], *,

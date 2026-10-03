@@ -11103,7 +11103,7 @@ class FreeStageSession:
                 for item in performance_plan
                 if str(item.get("cons", "")).strip()
             ]
-            self._ensure_opening_mind_projections(card, present_for)
+            self._ensure_opening_mind_projections(resolved_card, present_for)
             resolved_card["_session_fsm"] = copy.deepcopy(self.fsm_by_cons)
             resolved_card["_session_rel_state"] = copy.deepcopy(self.rel_state_by_cons)
         actor_context_packets = {

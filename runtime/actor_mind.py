@@ -150,19 +150,30 @@ def observer_state_projection(
     }
 
 
-def _valid_receipt(receipt: Mapping[str, Any] | None) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+def _valid_receipt(
+    receipt: Mapping[str, Any] | None,
+) -> tuple[str, dict[str, Any], dict[str, Any], dict[str, Any]] | None:
     if not isinstance(receipt, Mapping):
         return None
     if _text(receipt.get("schema_version")) != "free_stage.causal_receipt.v1":
         return None
     receipt_id = _text(receipt.get("receipt_id"))
+    observation = receipt.get("observation") if isinstance(receipt.get("observation"), Mapping) else {}
     proposal = receipt.get("proposal") if isinstance(receipt.get("proposal"), Mapping) else {}
     event = receipt.get("event") if isinstance(receipt.get("event"), Mapping) else {}
-    if not receipt_id or not _text(proposal.get("proposal_id")) or not _text(event.get("event_id")):
+    if (
+        not receipt_id
+        or not _text(observation.get("observation_id"))
+        or not _text(observation.get("actor_cons"))
+        or not _text(proposal.get("proposal_id"))
+        or not _text(event.get("event_id"))
+    ):
         return None
     if _text(event.get("proposal_id")) != _text(proposal.get("proposal_id")):
         return None
-    return receipt_id, dict(proposal), dict(event)
+    if _text(proposal.get("observation_id")) != _text(observation.get("observation_id")):
+        return None
+    return receipt_id, dict(observation), dict(proposal), dict(event)
 
 
 def _goal_impact(event: Mapping[str, Any], actor_cons: str, receipt_actor: str) -> str:
@@ -225,15 +236,17 @@ def apply_event_receipt(
     valid = _valid_receipt(receipt)
     if valid is None:
         return current, False
-    receipt_id, proposal, event = valid
+    receipt_id, observation, proposal, event = valid
+    own_cons = _text(actor_cons or current.get("actor_cons"))
+    if not own_cons or _text(observation.get("actor_cons")) != own_cons:
+        return current, False
     appraisal = current.get("appraisal_state") if isinstance(current.get("appraisal_state"), Mapping) else {}
     seen = {_text(item) for item in appraisal.get("receipt_ids", ()) or ()}
     if receipt_id in seen:
         return current, False
 
-    own_cons = _text(actor_cons or current.get("actor_cons"))
     receipt_actor = _text(proposal.get("actor_cons"))
-    if not own_cons or not receipt_actor:
+    if not receipt_actor:
         return current, False
     current.setdefault("schema_version", SCHEMA_VERSION)
     current.setdefault("actor_cons", own_cons)

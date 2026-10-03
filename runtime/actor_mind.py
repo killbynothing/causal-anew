@@ -275,6 +275,102 @@ def apply_event_receipt(
     return current, True
 
 
+class TurnWorkingContextState:
+    """Mutable owner for per-turn/per-scene working context, not persistent psychology."""
+
+    def __init__(self, contexts: Mapping[str, Mapping[str, Any]] | None = None) -> None:
+        self._contexts: dict[str, dict[str, Any]] = {
+            _text(cons): copy.deepcopy(dict(state))
+            for cons, state in dict(contexts or {}).items()
+            if _text(cons) and isinstance(state, Mapping)
+        }
+
+    @classmethod
+    def empty(cls) -> "TurnWorkingContextState":
+        return cls()
+
+    @classmethod
+    def from_snapshot(cls, raw: Any) -> "TurnWorkingContextState":
+        if raw is None:
+            return cls.empty()
+        if not isinstance(raw, Mapping):
+            raise ValueError("private_inner_states snapshot must be a mapping")
+        return cls(raw)
+
+    @property
+    def contexts(self) -> dict[str, dict[str, Any]]:
+        return copy.deepcopy(self._contexts)
+
+    def get(self, actor_cons: str) -> dict[str, Any] | None:
+        row = self._contexts.get(_text(actor_cons))
+        return copy.deepcopy(row) if isinstance(row, dict) else None
+
+    def set_context(self, actor_cons: str, state: Mapping[str, Any]) -> None:
+        cons = _text(actor_cons)
+        if not cons:
+            raise ValueError("working context requires actor_cons")
+        self._contexts[cons] = copy.deepcopy(dict(state))
+
+    def patch(self, actor_cons: str, values: Mapping[str, Any]) -> dict[str, Any]:
+        cons = _text(actor_cons)
+        if not cons:
+            raise ValueError("working context patch requires actor_cons")
+        row = copy.deepcopy(self._contexts.get(cons, {}))
+        row.update(copy.deepcopy(dict(values)))
+        self._contexts[cons] = row
+        return copy.deepcopy(row)
+
+    def replace(self, contexts: Mapping[str, Mapping[str, Any]] | None) -> None:
+        self._contexts = {
+            _text(cons): copy.deepcopy(dict(state))
+            for cons, state in dict(contexts or {}).items()
+            if _text(cons) and isinstance(state, Mapping)
+        }
+
+    def reset(self) -> None:
+        self._contexts = {}
+
+
+class ReflectProposalState:
+    """One-step Reflect proposal cache; never a persistent psychological owner."""
+
+    def __init__(self, proposals: Mapping[str, Mapping[str, Any]] | None = None) -> None:
+        self._proposals: dict[str, dict[str, Any]] = {
+            _text(cons): copy.deepcopy(dict(row))
+            for cons, row in dict(proposals or {}).items()
+            if _text(cons) and isinstance(row, Mapping)
+        }
+
+    @classmethod
+    def empty(cls) -> "ReflectProposalState":
+        return cls()
+
+    @classmethod
+    def from_snapshot(cls, raw: Any) -> "ReflectProposalState":
+        if raw is None:
+            return cls.empty()
+        if not isinstance(raw, Mapping):
+            raise ValueError("prior_reflect_by_cons snapshot must be a mapping")
+        return cls(raw)
+
+    @property
+    def proposals(self) -> dict[str, dict[str, Any]]:
+        return copy.deepcopy(self._proposals)
+
+    def get(self, actor_cons: str) -> dict[str, Any] | None:
+        row = self._proposals.get(_text(actor_cons))
+        return copy.deepcopy(row) if isinstance(row, dict) else None
+
+    def set(self, actor_cons: str, proposal: Mapping[str, Any]) -> None:
+        cons = _text(actor_cons)
+        if not cons:
+            raise ValueError("reflect proposal requires actor_cons")
+        self._proposals[cons] = copy.deepcopy(dict(proposal))
+
+    def reset(self) -> None:
+        self._proposals = {}
+
+
 class ActorMindState:
     """Single mutable owner for persisted ActorMind snapshots.
 

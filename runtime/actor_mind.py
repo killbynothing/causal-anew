@@ -11,10 +11,13 @@ from __future__ import annotations
 import copy
 from typing import Any, Mapping, Sequence
 
+from runtime.npc_fsm import NpcFSM
+
 
 SCHEMA_VERSION = "free_stage.actor_mind.v2"
 RELATION_FACETS = ("trust", "intimacy", "alert", "cooperation")
 RESPONSE_KINDS = ("accept", "refuse", "defer", "offer_alternative", "ask_evidence", "set_boundary")
+LEGACY_OPENING_COMPAT_KEY = "legacy_opening_compat"
 
 
 def _text(value: Any) -> str:
@@ -385,6 +388,7 @@ class ActorMindState:
             for cons, mind in dict(minds or {}).items()
             if _text(cons) and isinstance(mind, Mapping)
         }
+        self._legacy_opening_pending: dict[str, dict[str, Any]] = {}
 
     @classmethod
     def empty(cls) -> "ActorMindState":
@@ -418,10 +422,175 @@ class ActorMindState:
             raise ValueError("ActorMindState.ensure requires actor_cons")
         existing = self._minds.get(cons)
         if isinstance(existing, dict) and existing.get("schema_version") == SCHEMA_VERSION:
-            return copy.deepcopy(existing)
+            self._apply_pending_opening(cons)
+            return copy.deepcopy(self._minds[cons])
         seeded = build_actor_mind(cons, persona, persona_core_hash=persona_core_hash)
         self._minds[cons] = copy.deepcopy(seeded)
-        return copy.deepcopy(seeded)
+        self._apply_pending_opening(cons)
+        return copy.deepcopy(self._minds[cons])
+
+    def absorb_legacy_opening_projection(
+        self,
+        fsm_by_cons: Mapping[str, Mapping[str, Any]] | None,
+        rel_by_cons: Mapping[str, Mapping[str, Any]] | None,
+    ) -> None:
+        """Migrate old opening FSM/Rel snapshots without granting them new authority."""
+        fsm_src = dict(fsm_by_cons or {})
+        rel_src = dict(rel_by_cons or {})
+        for cons in sorted(set(fsm_src) | set(rel_src)):
+            key = _text(cons)
+            if not key:
+                continue
+            pending = self._legacy_opening_pending.setdefault(key, {})
+            if isinstance(fsm_src.get(cons), Mapping):
+                pending["fsm"] = copy.deepcopy(dict(fsm_src[cons]))
+            if isinstance(rel_src.get(cons), Mapping):
+                pending["rel_state"] = copy.deepcopy(dict(rel_src[cons]))
+            self._apply_pending_opening(key)
+
+    def _apply_pending_opening(self, actor_cons: str) -> None:
+        cons = _text(actor_cons)
+        mind = self._minds.get(cons)
+        pending = self._legacy_opening_pending.get(cons)
+        if not isinstance(mind, dict) or not isinstance(pending, dict):
+            return
+        compat = copy.deepcopy(
+            mind.get(LEGACY_OPENING_COMPAT_KEY)
+            if isinstance(mind.get(LEGACY_OPENING_COMPAT_KEY), Mapping)
+            else {}
+        )
+        if "fsm" not in compat and isinstance(pending.get("fsm"), Mapping):
+            compat["fsm"] = copy.deepcopy(dict(pending["fsm"]))
+        if "rel_state" not in compat and isinstance(pending.get("rel_state"), Mapping):
+            compat["rel_state"] = copy.deepcopy(dict(pending["rel_state"]))
+        if compat:
+            compat.setdefault("source_kind", "legacy_opening_compat")
+            mind[LEGACY_OPENING_COMPAT_KEY] = compat
+            self._minds[cons] = mind
+        self._legacy_opening_pending.pop(cons, None)
+
+    def ensure_opening_compat(
+        self,
+        actor_cons: str,
+        *,
+        fsm_seed: Mapping[str, Any],
+        rel_seed: Mapping[str, Any],
+    ) -> None:
+        cons = _text(actor_cons)
+        mind = self._minds.get(cons)
+        if not isinstance(mind, dict):
+            raise ValueError("opening compatibility requires an existing ActorMind")
+        self._apply_pending_opening(cons)
+        mind = self._minds[cons]
+        compat = copy.deepcopy(
+            mind.get(LEGACY_OPENING_COMPAT_KEY)
+            if isinstance(mind.get(LEGACY_OPENING_COMPAT_KEY), Mapping)
+            else {}
+        )
+        compat.setdefault("fsm", copy.deepcopy(dict(fsm_seed)))
+        compat.setdefault("rel_state", copy.deepcopy(dict(rel_seed)))
+        compat.setdefault("source_kind", "legacy_opening_compat")
+        mind[LEGACY_OPENING_COMPAT_KEY] = compat
+        self._minds[cons] = mind
+
+    def opening_fsm_map(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for cons, mind in self._minds.items():
+            compat = mind.get(LEGACY_OPENING_COMPAT_KEY)
+            if isinstance(compat, Mapping) and isinstance(compat.get("fsm"), Mapping):
+                out[cons] = copy.deepcopy(dict(compat["fsm"]))
+        for cons, pending in self._legacy_opening_pending.items():
+            if cons not in out and isinstance(pending.get("fsm"), Mapping):
+                out[cons] = copy.deepcopy(dict(pending["fsm"]))
+        return out
+
+    def opening_rel_map(self) -> dict[str, dict[str, Any]]:
+        out: dict[str, dict[str, Any]] = {}
+        for cons, mind in self._minds.items():
+            compat = mind.get(LEGACY_OPENING_COMPAT_KEY)
+            if isinstance(compat, Mapping) and isinstance(compat.get("rel_state"), Mapping):
+                out[cons] = copy.deepcopy(dict(compat["rel_state"]))
+        for cons, pending in self._legacy_opening_pending.items():
+            if cons not in out and isinstance(pending.get("rel_state"), Mapping):
+                out[cons] = copy.deepcopy(dict(pending["rel_state"]))
+        return out
+
+    def apply_opening_player_signal(
+        self,
+        actor_cons: str,
+        *,
+        player_speech: str = "",
+        player_action: str = "",
+        hostile_hint: bool = False,
+    ) -> bool:
+        """Preserve the old opening heuristics inside ActorMind as legacy compat.
+
+        These numeric rules remain engineering compatibility, not canon/persona facts.
+        """
+        cons = _text(actor_cons)
+        mind = self._minds.get(cons)
+        if not isinstance(mind, dict):
+            return False
+        compat = copy.deepcopy(
+            mind.get(LEGACY_OPENING_COMPAT_KEY)
+            if isinstance(mind.get(LEGACY_OPENING_COMPAT_KEY), Mapping)
+            else {}
+        )
+        fsm_row = copy.deepcopy(compat.get("fsm") if isinstance(compat.get("fsm"), Mapping) else {})
+        rel_row = copy.deepcopy(
+            compat.get("rel_state") if isinstance(compat.get("rel_state"), Mapping) else {}
+        )
+        if not fsm_row and not rel_row:
+            return False
+
+        text = f"{player_speech} {player_action}"
+        if fsm_row:
+            fsm = NpcFSM(
+                trust=int(fsm_row.get("trust", 50) or 50),
+                intimacy=int(fsm_row.get("intimacy", 25) or 25),
+                alert=int(fsm_row.get("alert", 25) or 25),
+                state=_text(fsm_row.get("state")) or "open",
+            )
+            fsm.violations = int(fsm_row.get("violations") or 0)
+            d_trust = d_int = d_alert = 0
+            violation = False
+            if hostile_hint or any(tok in text for tok in ("滚开", "去死", "骗子", "报警", "骗子")):
+                d_trust, d_alert, violation = -8, 12, True
+            elif any(tok in text for tok in ("谢谢", "拜托", "相信", "朋友", "挂坠", "接过")):
+                d_trust, d_int, d_alert = 3, 2, -2
+            elif text.strip():
+                d_trust, d_int = 1, 1
+            fsm.apply(
+                d_trust=d_trust,
+                d_int=d_int,
+                d_alert=d_alert,
+                violation=violation,
+            )
+            compat["fsm"] = fsm.as_dict()
+
+        if rel_row:
+            tp = copy.deepcopy(
+                rel_row.get("to_player")
+                if isinstance(rel_row.get("to_player"), Mapping)
+                else {}
+            )
+            closeness = float(tp.get("closeness") or 0.2)
+            wariness = float(tp.get("wariness") or 0.3)
+            if any(tok in text for tok in ("谢谢", "帮忙", "一起", "朋友", "挂坠")):
+                closeness = min(1.0, closeness + 0.03)
+                wariness = max(0.0, wariness - 0.02)
+            elif any(tok in text for tok in ("滚", "骗子", "别碰", "走开")):
+                closeness = max(0.0, closeness - 0.05)
+                wariness = min(1.0, wariness + 0.08)
+            tp["closeness"] = round(closeness, 3)
+            tp["wariness"] = round(wariness, 3)
+            rel_row["to_player"] = tp
+            compat["rel_state"] = rel_row
+
+        compat["source_kind"] = "legacy_opening_compat"
+        mind[LEGACY_OPENING_COMPAT_KEY] = compat
+        self._minds[cons] = mind
+        return True
 
     def apply_receipt(
         self,
@@ -446,6 +615,7 @@ class ActorMindState:
 
     def reset(self) -> None:
         self._minds = {}
+        self._legacy_opening_pending = {}
 
 
 def assess_appeal(mind: Mapping[str, Any] | None, appeal: Mapping[str, Any] | None) -> dict[str, Any]:

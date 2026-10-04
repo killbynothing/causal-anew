@@ -6,6 +6,7 @@ import hashlib
 import inspect
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -224,6 +225,176 @@ def test_run_scope_is_forwarded_to_slow_memory_retrieval():
     finally:
         context_assembly.acv2.fetch_slow_memory = original
     assert seen == [7]
+
+
+def test_cross_run_memory_candidates_do_not_cross_into_prompt():
+    original_slow = context_assembly.acv2.fetch_slow_memory
+    original_activate = context_assembly.acv2.activate_memory_candidates
+
+    def run_scoped_fetch(actor_cons, ch_anchor, *, run_no=1, top_k=64, include_anchor=True):
+        return [
+            {
+                "mem_id": f"run-{int(run_no)}",
+                "text": f"RUN_{int(run_no)}_ONLY",
+                "owner_cons": actor_cons,
+            }
+        ]
+
+    def activate_all(knowledge_candidates, slow_memory_candidates, activation_context, slow_activation_cues=None):
+        return {
+            "knowledge_activated": list(knowledge_candidates),
+            "knowledge_withheld": [],
+            "slow_memory_activated": copy.deepcopy(list(slow_memory_candidates)),
+            "slow_memory_withheld": [],
+        }
+
+    context_assembly.acv2.fetch_slow_memory = run_scoped_fetch
+    context_assembly.acv2.activate_memory_candidates = activate_all
+    try:
+        one, _ = context_assembly.finalize_actor_context(_packet(run_no=1))
+        two, _ = context_assembly.finalize_actor_context(_packet(run_no=2))
+    finally:
+        context_assembly.acv2.fetch_slow_memory = original_slow
+        context_assembly.acv2.activate_memory_candidates = original_activate
+
+    blob_one = json.dumps(one, ensure_ascii=False)
+    blob_two = json.dumps(two, ensure_ascii=False)
+    assert "RUN_1_ONLY" in blob_one
+    assert "RUN_2_ONLY" not in blob_one
+    assert "RUN_2_ONLY" in blob_two
+    assert "RUN_1_ONLY" not in blob_two
+
+
+def test_debug_observer_flag_does_not_change_actor_request_or_visible_result():
+    captures: dict[str, list[dict]] = {"off": [], "on": []}
+
+    def make_caller(bucket):
+        def caller(**kwargs):
+            raw = kwargs.get("user_content") or ""
+            try:
+                obj = json.loads(raw)
+            except (json.JSONDecodeError, TypeError):
+                obj = {}
+            if isinstance(obj, dict) and isinstance(obj.get("actor_context_packet"), dict):
+                captures[bucket].append(copy.deepcopy(obj["actor_context_packet"]))
+            return proto.fixed_selftest_actor(**kwargs)
+        return caller
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        off = proto.FreeStageSession(
+            session_id="p5-observer-off",
+            card_path=RYUYA_CARD,
+            state_dir=root / "off-state",
+            runtime_state_path=root / "off-runtime.db",
+            load_existing=False,
+            autosave=False,
+            caller=make_caller("off"),
+        )
+        on = proto.FreeStageSession(
+            session_id="p5-observer-on",
+            card_path=RYUYA_CARD,
+            state_dir=root / "on-state",
+            runtime_state_path=root / "on-runtime.db",
+            load_existing=False,
+            autosave=False,
+            caller=make_caller("on"),
+        )
+        out_off = off.step("雨是不是又大了", debug=False)
+        out_on = on.step("雨是不是又大了", debug=True)
+
+    assert captures["off"] == captures["on"]
+    assert out_off.get("turns") == out_on.get("turns")
+    assert out_off.get("completed") == out_on.get("completed")
+    assert "debug_payload" not in out_off
+    assert isinstance(out_on.get("debug_payload"), dict)
+
+
+def test_transport_variants_share_same_finalizer_and_prompt_receipt():
+    base = _packet()
+    variants = {
+        "normal": {},
+        "opening": {
+            "conversation_contract": {
+                "response_slot": "primary",
+                "participation_mode": "speak",
+                "opening_first_line": True,
+            }
+        },
+        "repair": {
+            "conversation_contract": {
+                "response_slot": "secondary",
+                "participation_mode": "speak",
+                "social_instruction": "repair_only_visible_continuity",
+            }
+        },
+        "fallback": {
+            "physical_scene": {"degradation": "scene_projection_incomplete"},
+            "conversation_contract": {
+                "response_slot": "primary",
+                "participation_mode": "speak",
+            },
+        },
+        "autonomous": {
+            "conversation_contract": {
+                "response_slot": "primary",
+                "participation_mode": "speak",
+            },
+            "decision_request": {
+                "intent_id": "intent:p5:autonomous",
+                "valid_outcomes": ["accept", "refuse", "defer"],
+                "output_contract": {
+                    "actor_cons": "C.ryuya.W1",
+                    "intent_id": "intent:p5:autonomous",
+                    "outcome": "one valid_outcomes value",
+                    "visible_response": "observable speech/action",
+                    "reason_sources": "actor-owned packet paths only",
+                },
+            },
+        },
+    }
+
+    for name, overlay in variants.items():
+        packet = copy.deepcopy(base)
+        packet.update(copy.deepcopy(overlay))
+        captured: list[dict] = []
+
+        def caller(**kwargs):
+            request = json.loads(kwargs["user_content"])
+            captured.append(request)
+            payload = {
+                "pre_speech": {
+                    "notice": "fixture",
+                    "intention": "fixture",
+                    "social_move": "continuer",
+                },
+                "turns": [],
+                "mh_progress": [],
+                "director_note": "",
+            }
+            if name == "autonomous":
+                payload["actor_decision"] = {
+                    "actor_cons": "C.ryuya.W1",
+                    "intent_id": "intent:p5:autonomous",
+                    "outcome": "accept",
+                    "visible_response": "我答应。",
+                    "reason_sources": ["self_state.actor_mind"],
+                    "conditions": [],
+                    "uncertainty": "",
+                    "commitment": "",
+                    "revises_decision_id": "",
+                    "participation_mode": "speak",
+                }
+            return json.dumps(payload, ensure_ascii=False)
+
+        result = proto.call_actor_packet(packet, config={}, caller=caller)
+        assert len(captured) == 1, name
+        sent = captured[0]["actor_context_packet"]
+        receipt = result["context_receipt"]["context_assembly"]
+        assert receipt["prompt_sha256"] == _hash(sent), name
+        assert receipt["enforcement"] == "authoritative", name
+        assert "memory_activation" not in sent, name
+        assert "knowledge_candidates" not in sent, name
 
 
 def test_finalize_paths_do_not_requery_after_draft_assembly():

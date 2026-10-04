@@ -87,6 +87,7 @@ from runtime import player_action as player_action_commit
 from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import participation as participation_runtime
+from runtime import scene_policies
 from runtime import utterance_stream as ustream
 from runtime.thought_delta import ingest_player_thought
 from runtime import view_projection
@@ -3636,76 +3637,13 @@ def tiananmen_player_facts(
     *,
     recent_history: list[dict[str, Any]] | None = None,
 ) -> set[str]:
-    """Facts explicitly supplied by the player in the flag-raising scene.
-
-    They are not optional prompt flavour: once someone says there is no video,
-    an NPC cannot keep treating a copy as available.
-    """
-    text = re.sub(r"\s+", "", _player_public_input_text(player_input))
-    facts: set[str] = set()
-    if any(token in text for token in ("没录到", "没有录到", "没拍到", "没有视频", "没录视频", "忘了拍", "错过升旗")):
-        facts.add("tiananmen_video_unavailable")
-    video_words = ("视频", "录像", "手机")
-    if any(token in text for token in video_words) and any(token in text for token in ("给你", "给你们", "可以", "拿去", "传给", "拷")):
-        facts.add("tiananmen_video_offered")
-    if (
-        any(token in text for token in ("听得懂日语", "听得懂日文", "会日语", "会日文", "能听懂日语"))
-        # 「我会一点日语」不含连续子串「会日语」
-        or (
-            any(token in text for token in ("日语", "日文"))
-            and any(token in text for token in ("会", "懂", "听得"))
-        )
-        or bool(KANA_RE.search(text))
-        or (
-            _last_visible_npc_was_japanese(recent_history)
-            and _player_chinese_reply_signals_japanese_comprehension(player_input)
-        )
-    ):
-        facts.add("tiananmen_japanese_understood")
-    aquarium_tokens = ("海洋馆", "水族馆", "海族馆")
-    aquarium_in_text = any(token in text for token in aquarium_tokens)
-    aquarium_already_on_table = any(
-        isinstance(item, dict)
-        and item.get("role") == "npc"
-        and any(token in str(item.get("text") or "") for token in aquarium_tokens)
-        for item in (recent_history or [])
+    """Compatibility adapter; P6 ScenePolicy owns Tiananmen evidence classification."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OPENING_TIANANMEN_002",
+        player_input=player_input,
+        recent_history=recent_history,
     )
-    if any(token in text for token in ("我自己去海洋馆", "我一个人去海洋馆")) or (
-        aquarium_in_text and any(token in text for token in ("我自己去", "我一个人去"))
-    ):
-        facts.add("tiananmen_independent_aquarium_destination")
-    elif aquarium_in_text and any(
-        token in text
-        for token in (
-            "不去海洋馆",
-            "我不去海洋馆",
-            "不去水族馆",
-            "不一起去",
-            "不跟你们去",
-            "不去了",
-            "算了不去",
-        )
-    ):
-        facts.add("tiananmen_aquarium_declined")
-    elif aquarium_already_on_table and any(
-        token in text
-        for token in (
-            "不去了",
-            "算了不去",
-            "不一起去",
-            "不跟你们去",
-            "先回去",
-            "我先走了",
-        )
-    ):
-        # Leave-phrases only after someone already put the aquarium on the table.
-        facts.add("tiananmen_aquarium_declined")
-    elif any(token in text for token in ("一起去海洋馆", "跟你们去海洋馆")) or (
-        (aquarium_in_text or aquarium_already_on_table)
-        and any(token in text for token in ("一起走", "跟你们一起", "一起去"))
-    ):
-        facts.add("tiananmen_aquarium_accepted")
-    return facts
+    return set(scene_policies.evaluate_tiananmen(snapshot).evidence)
 
 
 def repair_descriptor_self_intro_names(

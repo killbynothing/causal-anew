@@ -286,7 +286,7 @@ def test_debug_observer_flag_does_not_change_actor_request_or_visible_result():
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         off = proto.FreeStageSession(
-            session_id="p5-observer-off",
+            session_id="p5-observer-parity",
             card_path=RYUYA_CARD,
             state_dir=root / "off-state",
             runtime_state_path=root / "off-runtime.db",
@@ -295,7 +295,7 @@ def test_debug_observer_flag_does_not_change_actor_request_or_visible_result():
             caller=make_caller("off"),
         )
         on = proto.FreeStageSession(
-            session_id="p5-observer-on",
+            session_id="p5-observer-parity",
             card_path=RYUYA_CARD,
             state_dir=root / "on-state",
             runtime_state_path=root / "on-runtime.db",

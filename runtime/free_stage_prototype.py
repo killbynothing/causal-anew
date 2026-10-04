@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import copy
 import hashlib
+import inspect
 import json
 import os
 import re
@@ -10938,8 +10939,10 @@ class FreeStageSession:
                         f"{prev_si} {hold_hint}".strip() if prev_si else hold_hint
                     )
                     pkt["conversation_contract"]["hold_participation_hint"] = hold_hint
-                if ott.is_opening_top_tier_scene(resolved_card):
-                    # Zero-LLM selftest double reads this; production LLMs ignore underscore keys.
+                if ott.is_opening_top_tier_scene(resolved_card) and self.caller is not None:
+                    # Test-only transport metadata. P5 finalization strips root
+                    # underscore keys from the actor prompt and forwards this
+                    # only out-of-band to compatible injected test callers.
                     pkt["_playtest"] = {
                         "completed": list(self.completed),
                         "branch_progress": list(self.branch_progress),
@@ -13175,7 +13178,20 @@ def call_actor_packet(
     prompt = json.dumps(request, ensure_ascii=False)
     context_receipt: dict[str, Any]
     if caller is not None:
-        payload = extract_json(caller(user_content=prompt))
+        caller_kwargs: dict[str, Any] = {"user_content": prompt}
+        playtest = packet.get("_playtest") if isinstance(packet.get("_playtest"), dict) else None
+        if playtest is not None:
+            try:
+                signature = inspect.signature(caller)
+                accepts_extra = any(
+                    param.kind == inspect.Parameter.VAR_KEYWORD
+                    for param in signature.parameters.values()
+                )
+                if accepts_extra or "_playtest" in signature.parameters:
+                    caller_kwargs["_playtest"] = copy.deepcopy(playtest)
+            except (TypeError, ValueError):
+                pass
+        payload = extract_json(caller(**caller_kwargs))
         context_receipt = build_context_receipt(
             kind="actor",
             actor_cons=str(packet.get("actor_cons") or "") or None,
@@ -13666,8 +13682,9 @@ def fixed_selftest_actor(**kwargs: Any) -> str:
                 },
                 ensure_ascii=False,
             )
-        # Opening top-tier isolation: reuse legacy scene selftest script via _playtest.
-        playtest = packet.get("_playtest") if isinstance(packet.get("_playtest"), dict) else {}
+        # Opening top-tier isolation: reuse legacy scene selftest script via
+        # out-of-band test metadata, never via the actor-visible packet.
+        playtest = kwargs.get("_playtest") if isinstance(kwargs.get("_playtest"), dict) else {}
         scene_id = str(packet.get("scene") or "")
         if scene_id in ("OPENING_TIANANMEN_002", "OPENING_TIANANMEN_001", "OPENING_RYUYA_PROLOGUE_001") or str(
             packet.get("actor_cons") or ""

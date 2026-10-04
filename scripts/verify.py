@@ -876,7 +876,7 @@ VALIDATORS = [
     },
     {
         "id": "context_assembly",
-        "desc": "N6 四层上下文装配：稳定人格、权威当前帧、场内窗口与目标记忆分层（零 LLM）",
+        "desc": "P5 ContextAssembler：唯一检索装配、真实caller同源receipt、候选/私密零泄漏（零LLM）",
         "tier": "quick",
         "cmd": [PY, "scripts/tests/test_context_assembly.py"],
         "triggers": ["runtime/context_assembly.py", "runtime/free_stage_prototype.py", "scripts/tests/test_context_assembly.py"],

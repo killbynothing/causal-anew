@@ -57,6 +57,9 @@ class AssemblyHooks:
 def actor_prompt_projection(packet: Mapping[str, Any]) -> dict[str, Any]:
     """Strip observatory-only candidate/withheld material before actor transport."""
     prompt_packet = copy.deepcopy(dict(packet))
+    for key in list(prompt_packet):
+        if str(key).startswith("_"):
+            prompt_packet.pop(key, None)
     for key in ("memory_activation", "knowledge_candidates"):
         prompt_packet.pop(key, None)
     self_memory = prompt_packet.get("self_memory")

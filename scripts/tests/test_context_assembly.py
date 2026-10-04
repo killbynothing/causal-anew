@@ -74,6 +74,9 @@ def test_production_builder_is_thin_and_context_assembler_owns_retrieval():
 
     projection = inspect.getsource(proto.actor_packet_for_prompt)
     assert "context_assembly.actor_prompt_projection(" in projection
+    initial_debug = inspect.getsource(proto.FreeStageSession.initial_debug_payload)
+    assert "acv2.fetch_slow_memory(" not in initial_debug
+    assert 'get("slow_memory_top_k")' in initial_debug
     transport = inspect.getsource(proto.call_actor_packet)
     assert "context_assembly.finalize_actor_context(packet)" in transport
     assert "assemble_actor_context(actor_packet_for_prompt(packet))" not in transport

@@ -90,6 +90,7 @@ def test_real_caller_packet_matches_authoritative_assembly_receipt():
         "actor_may_pass": True,
     }
     packet["cog_loop"] = {"decide": {"top_concern": "接住当下话题"}}
+    packet["_debug_private"] = {"secret": "ROOT_PRIVATE_DEBUG"}
     captured: list[dict] = []
 
     def caller(**kwargs):
@@ -124,6 +125,8 @@ def test_real_caller_packet_matches_authoritative_assembly_receipt():
     assert "knowledge_candidates" not in sent
     assert "slow_memory_candidates" not in (sent.get("self_memory") or {})
     assert "scene_episode_withheld" not in sent_blob
+    assert "ROOT_PRIVATE_DEBUG" not in sent_blob
+    assert "_debug_private" not in sent
     assert receipt["layers"]["scene_overlay"]["sha256"] == _hash(
         {
             "conversation_contract": sent.get("conversation_contract", {}),
@@ -132,6 +135,32 @@ def test_real_caller_packet_matches_authoritative_assembly_receipt():
             "director_instruction": sent.get("director_instruction", {}),
         }
     )
+
+
+def test_fixed_selftest_receives_playtest_only_out_of_band():
+    packet = _packet()
+    packet["conversation_contract"] = {
+        "response_slot": "primary",
+        "participation_mode": "speak",
+    }
+    packet["_playtest"] = {
+        "completed": ["RP1"],
+        "branch_progress": [],
+        "must_happen_ids": ["RP1", "RP2", "RP3", "RP4"],
+    }
+    captured: list[dict] = []
+
+    def wrapper(**kwargs):
+        request = json.loads(kwargs["user_content"])
+        captured.append(request)
+        assert isinstance(kwargs.get("_playtest"), dict)
+        return proto.fixed_selftest_actor(**kwargs)
+
+    proto.call_actor_packet(packet, config={}, caller=wrapper)
+    assert captured
+    sent = captured[0]["actor_context_packet"]
+    assert "_playtest" not in sent
+    assert "RP2" not in json.dumps(sent, ensure_ascii=False)
 
 
 def test_observer_candidates_and_withheld_never_change_actor_prompt():

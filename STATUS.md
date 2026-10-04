@@ -1,5 +1,17 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-04（P5 完成：ContextAssembler 唯一检索装配 × authoritative receipt × observer 零旁路）
+
+- **分支/基线**：`loop/context-assembly-p5-2026-10-03` 从 P4 final `5a0c534f` 起步；当前代码态 `acc5282a`。本轮只改 ContextAssembler、FreeStage 兼容适配、P5 required gate 与 verify 描述，不夹带 P6 TurnEngine/ScenePolicy。
+- **唯一装配 owner**：原 `free_stage_prototype.build_actor_context_packet()` 的真实取库/激活/分层/裁剪逻辑已迁入 `runtime/context_assembly.py::build_actor_context_draft()`。FreeStage 同名函数只保留薄 adapter，通过显式 `AssemblyHooks` 注入 scene helper；不再平行执行 knowledge/slow-memory/KGE/relation/world-slice 装配。
+- **唯一传输出口**：`call_actor_packet()` 直接调用 `context_assembly.finalize_actor_context(packet)`。finalizer 负责 actor prompt projection、五层摘要与 receipt 签名；`context_receipt.context_assembly.prompt_sha256` 与真实 caller 收到的最终 `actor_context_packet` 完全同源，`enforcement=authoritative`。
+- **零泄漏**：`memory_activation`、`knowledge_candidates`、`slow_memory_candidates`、withheld episode/knowledge 与其它意识私密只留 observer/debug draft，不进入 actor prompt；根层 `_...` 调试字段也统一剥离。此前 opening selftest 的 `_playtest` 已改成仅测试注入 caller 可收的 out-of-band kwarg，不再随模型 JSON 发送。
+- **scope / retrieval**：slow memory 检索继续显式携带当前 `run_no`；required gate 用 run-local fixture 验证 run 1 / run 2 候选不会串入彼此 prompt。normal/opening/repair/autonomous/fallback 都在 draft 后复用同一 finalizer，且 finalization 阶段禁止重新查询 memory/knowledge。
+- **observer 无权**：debug on/off 在同 session identity 下得到相同 actor 请求和相同可见结果；关闭 observer 只少 debug payload，不改生产行为。turn-zero observer 的慢环 badge 不再自行 `fetch_slow_memory`，而是复用 assembler 已生成的 preflight packet 统计，消除 observer 二次取库旁路。
+- **required gate**：quick `context_assembly` 已升级为 P5 gate，覆盖生产 builder 薄适配、真实 caller SHA 同源、候选/withheld/其它意识私密隔离、跨 run 记忆隔离、observer parity、五类调用 finalizer 一致、draft 后 no-requery、根层私有字段与 `_playtest` 隔离。
+- **验证**：Actions `37211358100` success；quick **63 PASS / 0 FAIL / 161 SKIP**；`context_assembly` `[OK]`，此前 P0–P4 required gates 继续全绿；`data/world_truth.db: OK`。DB LFS SHA256 仍为 `5af683f316ec04067338412934b8c8ece128109c70b41d4b37ff4b7052e02852`。
+- **完成结论/报账**：主计划 P5 的真实 caller 同源、withheld/candidate 零泄漏、其它意识私密隔离、跨周目隔离、observer 可拔、旧 builder 不并行取库均有机器证据，**P5 正式关闭**。未改 run=0、场卡、Seed/VOICE、★★★ 挂坠裁决或真人 `data/world_truth.db`；正典/人物/剧情新增 = 0。下一独立 loop 才进入 P6。
+
 ### 2026-10-03（P4 完成：Actor ParticipationIntent × content-blind Floor × enactment gate）
 
 - **分支/基线**：独立分支 `loop/actor-participation-p4-2026-10-03` 从 P3 final `a4d1ea7f` 起步；本轮只改参与协议、Floor 接线、actor 调用观测与验收，没有夹带 P5 ContextAssembler。

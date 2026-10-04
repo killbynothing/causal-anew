@@ -8472,16 +8472,9 @@ class FreeStageSession:
             raw_inner = persona.get("inner_state", {}) if isinstance(persona.get("inner_state"), dict) else {}
             inner_states[cons] = _merge_inner_for_observatory(raw_inner, str(cons), ch_anchor)
             boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
-        run_no = int(self.world_cursor.get("run", 1) or 1)
-        slow_mem_count = sum(
-            len(acv2.fetch_slow_memory(str(cons), ch_anchor, run_no))
-            for cons in card.get("persona_cards", {})
-        )
         badges = []
         if context_memory:
             badges.append(f"已注入 {len(context_memory)} 条因果底层记忆")
-        if slow_mem_count:
-            badges.append(f"慢环激活 {slow_mem_count} 条角色未了之话")
         turn_zero_player = [
             dict(item)
             for item in self.history
@@ -8523,6 +8516,15 @@ class FreeStageSession:
                 )
             except Exception:
                 continue
+        slow_mem_count = sum(
+            len(
+                ((packet.get("self_memory") or {}).get("slow_memory_top_k") or [])
+            )
+            for packet in preflight_packets.values()
+            if isinstance(packet, dict)
+        )
+        if slow_mem_count:
+            badges.append(f"慢环激活 {slow_mem_count} 条角色未了之话")
         intro_done = intro_done_for_card(
             card,
             self.completed,

@@ -6454,6 +6454,13 @@ class _TurnObserveStageResult:
     early_result: dict[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class _TurnExitStageResult:
+    transition: dict[str, Any] | None = None
+    emitted_turns: tuple[dict[str, Any], ...] = ()
+    degradations: tuple[dict[str, Any], ...] = ()
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -10270,6 +10277,55 @@ class FreeStageSession:
             result["history"] = self.history
         return self._with_receipt(result)
 
+    def _run_turn_exit_stage(
+        self,
+        *,
+        player_input: str | dict[str, Any],
+        turn_no: int,
+        emitted: list[dict[str, Any]],
+        semantic_exit: int | None,
+    ) -> _TurnExitStageResult:
+        """Execute the already-authorized exit/transition boundary."""
+        transition = self._maybe_transition(
+            player_input,
+            turn_no,
+            emitted,
+            semantic_exit_index=semantic_exit,
+        )
+        extra_emitted: list[dict[str, Any]] = []
+        extra_degradations: list[dict[str, Any]] = []
+
+        if transition is None:
+            flashback_turns = self._maybe_enter_ryuya_flashback(turn_no)
+            if flashback_turns:
+                extra_emitted.extend(flashback_turns)
+
+        if transition:
+            extra_emitted.append(dict(transition["bridge"]))
+            extra_degradations.extend(
+                dict(item)
+                for item in transition.get("degradations", [])
+                if isinstance(item, dict)
+            )
+            offscreen_player_state = (
+                self.card.pop("_offscreen_player_state", None)
+                if isinstance(self.card, dict)
+                else None
+            )
+            if isinstance(offscreen_player_state, dict):
+                self.physical_state.patch_player(
+                    offscreen_player_state,
+                    preserve=("elapsed_minutes",),
+                    source_kind="offscreen_projection",
+                    source_ref=str(self.card.get("scene_id", "")),
+                )
+
+        return _TurnExitStageResult(
+            transition=transition,
+            emitted_turns=tuple(extra_emitted),
+            degradations=tuple(extra_degradations),
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11737,22 +11793,15 @@ class FreeStageSession:
         )
         present_characters = _present_characters_from_card(resolved_card)
         privileged_facts = dict(_resolved_layers.get("per_npc_privileged_facts", {}))
-        transition = self._maybe_transition(player_input, turn_no, emitted, semantic_exit_index=semantic_exit)
-        if transition is None:
-            flashback_turns = self._maybe_enter_ryuya_flashback(turn_no)
-            if flashback_turns:
-                emitted.extend(flashback_turns)
-        if transition:
-            emitted.append(transition["bridge"])
-            turn_degradations.extend(transition.get("degradations", []))
-            offscreen_player_state = self.card.pop("_offscreen_player_state", None) if isinstance(self.card, dict) else None
-            if isinstance(offscreen_player_state, dict):
-                self.physical_state.patch_player(
-                    offscreen_player_state,
-                    preserve=("elapsed_minutes",),
-                    source_kind="offscreen_projection",
-                    source_ref=str(self.card.get("scene_id", "")),
-                )
+        exit_stage = self._run_turn_exit_stage(
+            player_input=player_input,
+            turn_no=turn_no,
+            emitted=emitted,
+            semantic_exit=semantic_exit,
+        )
+        transition = exit_stage.transition
+        emitted.extend(exit_stage.emitted_turns)
+        turn_degradations.extend(exit_stage.degradations)
         player_visible_turns = [
             dict(item) for item in self.history
             if item.get("turn") == turn_no

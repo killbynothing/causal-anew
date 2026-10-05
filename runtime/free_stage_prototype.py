@@ -15,6 +15,7 @@ import re
 import sys
 from functools import lru_cache
 from json import JSONDecodeError
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -6347,6 +6348,25 @@ def apply_offscreen_lives(source_card: dict[str, Any], target_card: dict[str, An
 _DEFAULT_INTENT_CALLER = object()
 
 
+@dataclass(frozen=True)
+class _TurnInputStageResult:
+    turn_no: int
+    parsed_input: dict[str, Any]
+    is_oob: bool
+    oob_bridge: str
+    violation: dict[str, Any] | None
+    speech: str
+    action: str
+    thought: str
+    suppress_visible_input: bool
+
+
+@dataclass(frozen=True)
+class _TurnObserveStageResult:
+    thought_deltas: tuple[dict[str, Any], ...] = ()
+    early_result: dict[str, Any] | None = None
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -9894,6 +9914,199 @@ class FreeStageSession:
             applied.append(event)
         return resolved, applied
 
+    def _run_turn_input_stage(
+        self,
+        player_input: str | dict[str, Any],
+    ) -> _TurnInputStageResult:
+        """Normalize one player turn and preserve existing owner writes."""
+        turn_no = len(self.inputs) + 1
+        self.physical_state.increment_elapsed(
+            2,
+            source_kind="turn_clock",
+            source_ref=f"turn:{turn_no}",
+        )
+
+        triggered_this_turn: list[dict[str, Any]] = []
+        current_clock = advance_clock(
+            self.card.get("clock", "未知时刻"),
+            self.player_state.get("elapsed_minutes", 0),
+        )
+        for ac in self.card.get("at_clock", []):
+            trigger_time = str(ac.get("time", "")).strip()
+            trigger_key = f"{self.card.get('scene_id', self.card_path)}|{trigger_time}"
+            if (
+                trigger_time
+                and trigger_key not in self._triggered_at_clocks
+                and _clock_gte(current_clock, trigger_time)
+            ):
+                self._triggered_at_clocks.add(trigger_key)
+                triggered_this_turn.append(ac)
+        for ac in triggered_this_turn:
+            offscreen_narrative = render_offscreen_narrative_for_clock(
+                ac.get("narrative", ""),
+                current_clock,
+            )
+            self.history.append(
+                {
+                    "role": "post_offstage",
+                    "speaker": "事后得知",
+                    "text": offscreen_narrative,
+                    "turn": turn_no,
+                    "clock_triggered": ac.get("time", ""),
+                }
+            )
+
+        parsed_input = parse_player_input_modalities(player_input)
+        is_oob = bool(parsed_input.get("is_out_of_bounds", False))
+        oob_bridge = str(parsed_input.get("director_defense_bridge", "") or "")
+        raw_violation = parsed_input.get("violation")
+        violation = raw_violation if isinstance(raw_violation, dict) else None
+
+        if violation:
+            self._record_player_violation(violation)
+        if is_oob and violation and violation.get("handled") == "blocked":
+            self.physical_state.decrease_convergence(
+                10,
+                source_kind="oob_violation",
+                source_ref=f"turn:{turn_no}",
+            )
+
+        prophecy = parsed_input.get("prophecy")
+        if prophecy:
+            if isinstance(player_input, dict):
+                prophecy_digest = " ".join(
+                    str(player_input.get(key, "") or "").strip()
+                    for key in ("speech", "action", "thought")
+                ).strip()
+            else:
+                prophecy_digest = str(player_input or "").strip()
+            self.player_prophecies.append(
+                {
+                    "terms": prophecy.get("terms", []),
+                    "input": prophecy_digest[:100],
+                    "turn": turn_no,
+                    "scene_id": self.card.get("scene_id", ""),
+                    "fulfilled": False,
+                    "recycled": False,
+                }
+            )
+
+        speech = str(parsed_input.get("speech", "") or "")
+        action = str(parsed_input.get("action", "") or "")
+        thought = str(parsed_input.get("thought", "") or "")
+        suppress_visible_input = bool(
+            violation and violation.get("handled") in {"blocked", "swallowed"}
+        )
+        return _TurnInputStageResult(
+            turn_no=turn_no,
+            parsed_input=parsed_input,
+            is_oob=is_oob,
+            oob_bridge=oob_bridge,
+            violation=violation,
+            speech=speech,
+            action=action,
+            thought=thought,
+            suppress_visible_input=suppress_visible_input,
+        )
+
+    def _run_turn_observe_stage(
+        self,
+        player_input: str | dict[str, Any],
+        stage: _TurnInputStageResult,
+    ) -> _TurnObserveStageResult:
+        """Publish player-observable input and thought receipts without story decisions."""
+        thought_deltas: list[dict[str, Any]] = []
+        if stage.thought:
+            thought_ledger, thought_deltas = ingest_player_thought(
+                stage.thought,
+                ledger=self.run_observation_ledger,
+                turn=len(self.inputs) + 1,
+                scene_id=str(self.card.get("scene_id", "")),
+                session_id=self.session_id,
+                run_id=self.run_no,
+            )
+            self._observation_replace(thought_ledger)
+
+        if (stage.action or stage.speech) and not stage.suppress_visible_input:
+            self._barge_in_stream()
+
+        thought_only = (
+            bool(stage.thought)
+            and not stage.speech
+            and not stage.action
+            and not stage.suppress_visible_input
+        )
+        if thought_only:
+            turn_no_thought = len(self.inputs) + 1
+            self.inputs.append(player_input)
+            self.history.append(
+                {
+                    "role": "player_thought",
+                    "speaker": "玩家内心",
+                    "text": stage.thought,
+                    "turn": turn_no_thought,
+                }
+            )
+            if self.autosave:
+                self.save()
+            return _TurnObserveStageResult(
+                thought_deltas=tuple(thought_deltas),
+                early_result={
+                    "session_id": self.session_id,
+                    "turns": [],
+                    "completed": self.completed,
+                    "issues": self.last_issues,
+                    "degradations": self.last_degradations,
+                    "player_violations": self.player_violations,
+                    "player_violation_warning_levels": self.player_violation_warning_levels,
+                    "player_prophecies": self.player_prophecies,
+                    "ended": self.ended,
+                    "surface": self.surface(),
+                    "opening_id": self.opening_id,
+                    "player_profile": self.player_profile,
+                    "thought_recorded": True,
+                    "thought_deltas": thought_deltas,
+                    "stream": self._stream_status_payload(),
+                },
+            )
+
+        self.inputs.append(player_input)
+        if stage.thought:
+            self.history.append(
+                {
+                    "role": "player_thought",
+                    "speaker": "玩家内心",
+                    "text": stage.thought,
+                    "turn": stage.turn_no,
+                }
+            )
+        player_name = (
+            "你"
+            if self.card.get("prologue_active")
+            else str(self.player_profile.get("name") or "玩家")
+        )
+        if stage.action and not stage.suppress_visible_input:
+            self.history.append(
+                {
+                    "role": "player",
+                    "speaker": player_name,
+                    "text": f"（{stage.action}）",
+                    "turn": stage.turn_no,
+                }
+            )
+        if not stage.suppress_visible_input and (
+            stage.speech or (not stage.action and not stage.thought)
+        ):
+            self.history.append(
+                {
+                    "role": "player",
+                    "speaker": player_name,
+                    "text": stage.speech,
+                    "turn": stage.turn_no,
+                }
+            )
+        return _TurnObserveStageResult(thought_deltas=tuple(thought_deltas))
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -9919,137 +10132,21 @@ class FreeStageSession:
                 "surface": self.surface(),
             })
 
-        turn_no = len(self.inputs) + 1
-        self.physical_state.increment_elapsed(
-            2,
-            source_kind="turn_clock",
-            source_ref=f"turn:{turn_no}",
-        )
+        input_stage = self._run_turn_input_stage(player_input)
+        turn_no = input_stage.turn_no
+        parsed_input = input_stage.parsed_input
+        is_oob = input_stage.is_oob
+        oob_bridge = input_stage.oob_bridge
+        violation = input_stage.violation
+        speech = input_stage.speech
+        action = input_stage.action
+        thought = input_stage.thought
+        suppress_visible_input = input_stage.suppress_visible_input
 
-        # ── T-03 J3 at_clock 时钟触发器 ─────────────────────────────────────────
-        # 每拍：计算当前时钟，检查是否有 at_clock 到点
-        # 去重靠 _triggered_at_clocks 全局集合（scene_id+time 键），不靠 _meta_flags
-        _triggered_this_turn: list[dict[str, Any]] = []
-        current_clock = advance_clock(self.card.get("clock", "未知时刻"), self.player_state.get("elapsed_minutes", 0))
-        for ac in self.card.get("at_clock", []):
-            trigger_time = str(ac.get("time", "")).strip()
-            trigger_key = f"{self.card.get('scene_id', self.card_path)}|{trigger_time}"
-            if trigger_time and trigger_key not in self._triggered_at_clocks and _clock_gte(current_clock, trigger_time):
-                self._triggered_at_clocks.add(trigger_key)
-                _triggered_this_turn.append(ac)
-        for ac in _triggered_this_turn:
-            offscreen_narrative = render_offscreen_narrative_for_clock(
-                ac.get("narrative", ""), current_clock
-            )
-            self.history.append({
-                "role": "post_offstage",
-                "speaker": "事后得知",
-                "text": offscreen_narrative,
-                "turn": turn_no,
-                "clock_triggered": ac.get("time", ""),
-            })
-        
-        parsed_input = parse_player_input_modalities(player_input)
-        is_oob = parsed_input.get("is_out_of_bounds", False)
-        oob_bridge = parsed_input.get("director_defense_bridge", "")
-        violation = parsed_input.get("violation")
-        
-        if violation:
-            self._record_player_violation(violation)
-        if is_oob and violation and violation.get("handled") == "blocked":
-            self.physical_state.decrease_convergence(
-                10,
-                source_kind="oob_violation",
-                source_ref=f"turn:{turn_no}",
-            )
-
-        # ── T-05 J2 预言闸：记录玩家触及未来知识的预言 ───────────────────
-        prophecy = parsed_input.get("prophecy")
-        if prophecy:
-            turn_no = len(self.inputs) + 1
-            if isinstance(player_input, dict):
-                prophecy_digest = " ".join(
-                    str(player_input.get(key, "") or "").strip()
-                    for key in ("speech", "action", "thought")
-                ).strip()
-            else:
-                prophecy_digest = str(player_input or "").strip()
-            self.player_prophecies.append({
-                "terms": prophecy.get("terms", []),
-                "input": prophecy_digest[:100],
-                "turn": turn_no,
-                "scene_id": self.card.get("scene_id", ""),
-                "fulfilled": False,
-                "recycled": False,
-            })
-
-        speech = parsed_input.get("speech", "")
-        action = parsed_input.get("action", "")
-        thought = parsed_input.get("thought", "")
-        suppress_visible_input = bool(violation and violation.get("handled") in {"blocked", "swallowed"})
-
-        scene_id_for_obs_early = str(self.card.get("scene_id", ""))
-        thought_deltas: list[dict[str, Any]] = []
-        if thought:
-            thought_ledger, thought_deltas = ingest_player_thought(
-                thought,
-                ledger=self.run_observation_ledger,
-                turn=len(self.inputs) + 1,
-                scene_id=scene_id_for_obs_early,
-                session_id=self.session_id,
-                run_id=self.run_no,
-            )
-            self._observation_replace(thought_ledger)
-
-        if (action or speech) and not suppress_visible_input:
-            self._barge_in_stream()
-
-        thought_only = (
-            bool(thought)
-            and not speech
-            and not action
-            and not suppress_visible_input
-        )
-        if thought_only:
-            turn_no_thought = len(self.inputs) + 1
-            self.inputs.append(player_input)
-            self.history.append({
-                "role": "player_thought",
-                "speaker": "玩家内心",
-                "text": thought,
-                "turn": turn_no_thought,
-            })
-            if self.autosave:
-                self.save()
-            return {
-                "session_id": self.session_id,
-                "turns": [],
-                "completed": self.completed,
-                "issues": self.last_issues,
-                "degradations": self.last_degradations,
-                "player_violations": self.player_violations,
-                "player_violation_warning_levels": self.player_violation_warning_levels,
-                "player_prophecies": self.player_prophecies,
-                "ended": self.ended,
-                "surface": self.surface(),
-                "opening_id": self.opening_id,
-                "player_profile": self.player_profile,
-                "thought_recorded": True,
-                "thought_deltas": thought_deltas,
-                "stream": self._stream_status_payload(),
-            }
-            
-        self.inputs.append(player_input)
-        
-        if thought:
-            self.history.append({"role": "player_thought", "speaker": "玩家内心", "text": thought, "turn": turn_no})
-        # The selected template belongs to the destination scene.  It must
-        # not leak name, place, or job into the common prologue.
-        player_name = "你" if self.card.get("prologue_active") else str(self.player_profile.get("name") or "玩家")
-        if action and not suppress_visible_input:
-            self.history.append({"role": "player", "speaker": player_name, "text": f"（{action}）", "turn": turn_no})
-        if not suppress_visible_input and (speech or (not action and not thought)):
-            self.history.append({"role": "player", "speaker": player_name, "text": speech, "turn": turn_no})
+        observe_stage = self._run_turn_observe_stage(player_input, input_stage)
+        thought_deltas = list(observe_stage.thought_deltas)
+        if observe_stage.early_result is not None:
+            return observe_stage.early_result
 
         # 保留原始三通道文本用于环境结算；解析器的职责是隔离语义，不应
         # 吞掉已经在街上实际喊出的声音。

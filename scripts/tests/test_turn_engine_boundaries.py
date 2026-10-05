@@ -203,6 +203,127 @@ def test_future_turn_engine_core_has_no_concrete_scene_policy_or_scene_ids():
         assert forbidden not in source, forbidden
 
 
+
+def test_c16_classifiers_are_policy_owned_without_behavior_drift():
+    gate_cases = [
+        (
+            {"speech": "可以，一起去。", "action": ""},
+            "accepted",
+            "undecided",
+            "undecided",
+        ),
+        (
+            {"speech": "", "action": "我带她们走另一条街。"},
+            "undecided",
+            "girls_redirected",
+            "undecided",
+        ),
+        (
+            {"speech": "", "action": "我跟上张尘。"},
+            "undecided",
+            "undecided",
+            "follow_zhangchen",
+        ),
+        (
+            {"speech": "", "action": "我进奶茶店，在取餐口旁观。"},
+            "undecided",
+            "undecided",
+            "inside_observer",
+        ),
+    ]
+    for raw, cafe, diversion, shop in gate_cases:
+        snapshot = scene_policies.ScenePolicyInput.from_runtime(
+            scene_id="CARD_16ZHONG_GATE",
+            player_input=raw,
+        )
+        assert scene_policies.c16_milktea_disposition(snapshot) == cafe
+        assert scene_policies.c16_counter_encounter_diversion(snapshot) == diversion
+        assert scene_policies.c16_shop_follow_disposition(snapshot) == shop
+        assert proto.c16_milktea_disposition(raw) == cafe
+        assert proto.c16_counter_encounter_diversion(raw) == diversion
+        assert proto.c16_shop_follow_disposition(raw) == shop
+        assert proto.c16_gate_disposition(raw) == scene_policies.c16_gate_disposition(snapshot)
+
+    table_cases = [
+        ({"speech": "", "action": "我留在取餐口。"}, "stay_counter"),
+        ({"speech": "", "action": "我跟上楼，在旁桌旁观。"}, "table_observer"),
+        ({"speech": "", "action": "我跟上楼，加入他们一起坐。"}, "join_request"),
+    ]
+    for raw, expected in table_cases:
+        snapshot = scene_policies.ScenePolicyInput.from_runtime(
+            scene_id="CARD_MILKTEA_WATCH",
+            player_input=raw,
+        )
+        assert scene_policies.c16_table_follow_disposition(snapshot) == expected
+        assert proto.c16_table_follow_disposition(raw) == expected
+
+
+def test_c16_visibility_evidence_is_policy_owned():
+    quiet = {"speech": "", "action": "我站在旁边看着。"}
+    overt = {"speech": "", "action": "我上前拦住他。"}
+    thought_only = {"speech": "", "action": "", "thought": "我想过去看看"}
+
+    quiet_snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=quiet,
+    )
+    overt_snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=overt,
+    )
+    thought_snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=thought_only,
+    )
+
+    assert scene_policies.c16_subtle_peripheral_watch(quiet_snapshot)
+    assert proto._c16_subtle_peripheral_watch(quiet)
+    assert not scene_policies.c16_subtle_peripheral_watch(overt_snapshot)
+    assert scene_policies.c16_overt_intervention(overt_snapshot)
+    assert proto._c16_overt_intervention(overt)
+    assert not scene_policies.c16_overt_intervention(thought_snapshot)
+
+
+def test_c16_scene_policy_returns_proposals_without_committing_them():
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input={"speech": "", "action": "我跟上张尘。"},
+    )
+    first = scene_policies.evaluate_c16(snapshot)
+    second = scene_policies.evaluate_c16(snapshot)
+    assert first == second
+    assert first.evidence == ()
+    assert "c16_shop_follow_disposition:follow_zhangchen" in first.proposals
+
+    other = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="UNRELATED_SCENE",
+        player_input={"speech": "", "action": "我跟上张尘。"},
+    )
+    assert scene_policies.evaluate_c16(other) == scene_policies.ScenePolicyOutput()
+
+
+def test_c16_session_classifiers_are_thin_policy_adapters():
+    for name in (
+        "c16_milktea_disposition",
+        "c16_counter_encounter_diversion",
+        "c16_shop_follow_disposition",
+        "c16_gate_disposition",
+        "c16_table_follow_disposition",
+        "_c16_subtle_peripheral_watch",
+        "_c16_overt_intervention",
+    ):
+        source = inspect.getsource(getattr(proto, name))
+        assert "scene_policies.ScenePolicyInput.from_runtime(" in source, name
+        assert "scene_policies.c16_" in source, name
+        for forbidden in (
+            "_branch_add(",
+            "_beat_complete(",
+            "_canon_update(",
+            "_maybe_transition(",
+            ".save(",
+        ):
+            assert forbidden not in source, (name, forbidden)
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

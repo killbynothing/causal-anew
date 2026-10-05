@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import sys
+import tempfile
 import textwrap
 from dataclasses import FrozenInstanceError, fields
 from pathlib import Path
@@ -1172,6 +1173,31 @@ def test_normal_actor_path_is_actually_driven_by_turn_engine():
     assert 'TurnStageReceipt.project(\n                    "deliberate"' in source
     assert 'note="short_circuit_passthrough"' in source
     assert 'self._last_turn_engine_stages = frame.stages' in source
+
+
+def test_real_session_thought_only_short_circuits_to_project_without_actor_call():
+    calls = []
+
+    def caller(**kwargs):
+        calls.append(dict(kwargs))
+        raise AssertionError("thought-only turn must not call actor transport")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        session = proto.FreeStageSession(
+            session_id="p6-thought-only",
+            state_dir=tmp,
+            config={"api_key": "", "api_url": "", "model": "mock"},
+            caller=caller,
+            autosave=False,
+        )
+        result = session.step(
+            {"speech": "", "action": "", "thought": "我先观察，不出声。"}
+        )
+
+    assert calls == []
+    assert session._last_turn_engine_stages == ("input", "observe", "project")
+    assert result.get("thought_recorded") is True
+    assert result.get("turns") == []
 
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):

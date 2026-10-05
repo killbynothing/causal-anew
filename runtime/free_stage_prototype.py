@@ -188,24 +188,20 @@ def build_actor_system_prompt(*, repairing: bool = False) -> str:
 
 
 def _c16_subtle_peripheral_watch(raw_input: dict[str, Any]) -> bool:
-    """低显著外围观察：不说话、不靠近、不接触，只是站在一旁看。"""
-    speech = str(raw_input.get("speech", "")).strip()
-    action = str(raw_input.get("action", "")).strip()
-    if speech or not action:
-        return False
-    quiet_markers = ("看着", "观察", "围观", "旁观", "远远", "站在旁边", "站在一边", "不动")
-    salient_markers = ("上前", "靠近", "走过去", "拦住", "拍", "喊", "叫住", "挥手", "挡住", "拉住")
-    return any(marker in action for marker in quiet_markers) and not any(marker in action for marker in salient_markers)
-
+    """Compatibility adapter; P6 ScenePolicy owns peripheral-watch evidence."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=raw_input,
+    )
+    return scene_policies.c16_subtle_peripheral_watch(snapshot)
 
 def _c16_overt_intervention(raw_input: dict[str, Any]) -> bool:
-    """C16 的最小确定性介入：走入对话圈、直接阻止，或公开向三人报名。"""
-    speech = str(raw_input.get("speech", "")).strip()
-    action = str(raw_input.get("action", "")).strip()
-    if any(marker in action for marker in ("上前", "靠近", "走过去", "拦住", "插话", "解围", "护住", "制止")):
-        return True
-    return bool(speech and any(marker in speech for marker in ("我叫", "我是", "你们没事吧", "别骚扰", "想做什么")))
-
+    """Compatibility adapter; P6 ScenePolicy owns overt-intervention evidence."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=raw_input,
+    )
+    return scene_policies.c16_overt_intervention(snapshot)
 
 def _observable_player_for_actor(
     card: dict[str, Any], actor_cons: str, raw_input: dict[str, Any]
@@ -3233,19 +3229,12 @@ def adjacent_addressee_for_input(
 
 
 def c16_milktea_disposition(player_input: str | dict[str, str]) -> str:
-    """C16 的软收敛意向；只识别明确接受/拒绝，不猜沉默。"""
-    text = _player_public_input_text(player_input)
-    compact = re.sub(r"\s+", "", text)
-    accept = ("一起去", "我也去", "跟你们去", "去喝", "去奶茶店", "好啊", "可以")
-    decline = ("不去", "不跟", "不用了", "别跟他去", "不想去", "不喝")
-    if any(token in compact for token in decline):
-        if any(token in compact for token in ("斑驳", "雨璇", "她们", "两个女生", "我们不")):
-            return "girls_declined"
-        return "player_declined"
-    if any(token in compact for token in accept):
-        return "accepted"
-    return "undecided"
-
+    """Compatibility adapter; P6 ScenePolicy owns C16 cafe classification."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=player_input,
+    )
+    return scene_policies.c16_milktea_disposition(snapshot)
 
 def prologue_receipt_disposition(player_input: str | dict[str, str]) -> str:
     """托付回应：只回答承诺/照顾，不作为挂坠 custody 的证据。"""
@@ -4128,99 +4117,36 @@ def collect_own_recent_lines(
 
 
 def c16_counter_encounter_diversion(player_input: str | dict[str, str]) -> str:
-    """Detect an observable action that removes an NPC route from the counter encounter."""
-    if isinstance(player_input, dict):
-        text = " ".join(
-            str(player_input.get(key, "")).strip()
-            for key in ("speech", "action")
-            if str(player_input.get(key, "")).strip()
-        )
-    else:
-        text = str(player_input or "")
-    compact = re.sub(r"\s+", "", text)
-    if not compact:
-        return "undecided"
-    girls = ("女生", "她们", "两人", "斑驳", "雨璇")
-    redirect = ("另一条街", "另一家", "换一家", "带她们走", "带两人走", "别去那家", "离开校门")
-    if any(token in compact for token in girls) and any(token in compact for token in redirect):
-        return "girls_redirected"
-    zhang_block = ("拦住张尘", "拦住那个男人", "阻止他接触", "不让他跟", "别跟过去")
-    if any(token in compact for token in zhang_block):
-        return "zhangchen_blocked"
-    return "undecided"
-
+    """Compatibility adapter; P6 ScenePolicy owns C16 encounter diversion."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=player_input,
+    )
+    return scene_policies.c16_counter_encounter_diversion(snapshot)
 
 def c16_shop_follow_disposition(player_input: str | dict[str, str]) -> str:
-    """Resolve only explicit P2 position choices; never infer entry from silence."""
-    if isinstance(player_input, dict):
-        text = " ".join(
-            str(player_input.get(key, "")).strip()
-            for key in ("speech", "action")
-            if str(player_input.get(key, "")).strip()
-        )
-    else:
-        text = str(player_input or "")
-    text = re.sub(r"\s+", "", text)
-    if not text:
-        return "wait"
-    leave_tokens = ("离开这里", "离开场景", "去别处", "去别的地方", "直接回家", "我先走了")
-    if any(token in text for token in leave_tokens):
-        return "left_scene"
-    zhang_follow_tokens = (
-        "跟上张尘", "跟着张尘", "跟上那个年轻男人", "跟着那个年轻男人",
-        "跟上那男人", "跟着那男人", "跟上他", "跟着他",
+    """Compatibility adapter; P6 ScenePolicy owns C16 shop-position classification."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=player_input,
     )
-    if any(token in text for token in zhang_follow_tokens):
-        return "follow_zhangchen"
-    outside_tokens = ("不进去", "留在校门口", "待在校门口", "留在门外", "待在门外", "门外等")
-    if any(token in text for token in outside_tokens):
-        return "stay_outside"
-    enter_tokens = ("跟进店", "跟进去", "进奶茶店", "走进店", "进店里", "到取餐口")
-    observer_tokens = ("旁观", "旁边看", "只看", "不加入", "保持距离", "外围", "取餐口")
-    if any(token in text for token in enter_tokens) and any(token in text for token in observer_tokens):
-        return "inside_observer"
-    join_tokens = ("加入他们", "加入你们", "一起坐", "一起吃", "上前打招呼", "主动加入")
-    if any(token in text for token in enter_tokens) and any(token in text for token in join_tokens):
-        return "join_request"
-    return "undecided"
-
+    return scene_policies.c16_shop_follow_disposition(snapshot)
 
 def c16_gate_disposition(player_input: str | dict[str, str]) -> str:
-    """Resolve the first camera choice at the gate.
-
-    Following Zhangchen is a physical choice made *before* the two girls have
-    their private exchange.  It must therefore be resolved before the watched
-    continuation is emitted, rather than being retroactively inferred at the
-    shop entrance.
-    """
-    return c16_shop_follow_disposition(player_input)
-
+    """Compatibility adapter; P6 ScenePolicy owns the first C16 camera choice."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=player_input,
+    )
+    return scene_policies.c16_gate_disposition(snapshot)
 
 def c16_table_follow_disposition(player_input: str | dict[str, str]) -> str:
-    """Resolve the P2 counter-to-table move without treating thought as movement."""
-    if isinstance(player_input, dict):
-        text = " ".join(
-            str(player_input.get(key, "")).strip()
-            for key in ("speech", "action")
-            if str(player_input.get(key, "")).strip()
-        )
-    else:
-        text = str(player_input or "")
-    text = re.sub(r"\s+", "", text)
-    if not text:
-        return "wait"
-    stay_tokens = ("留在取餐口", "待在取餐口", "站在取餐口", "不上楼", "不跟上楼")
-    if any(token in text for token in stay_tokens):
-        return "stay_counter"
-    table_tokens = ("跟上楼", "跟到楼上", "上楼", "旁桌", "落座区")
-    observer_tokens = ("旁桌", "继续看", "旁观", "不加入", "保持距离", "外围")
-    if any(token in text for token in table_tokens) and any(token in text for token in observer_tokens):
-        return "table_observer"
-    join_tokens = ("一起坐", "坐到他们", "加入他们", "加入你们", "同桌")
-    if any(token in text for token in table_tokens) and any(token in text for token in join_tokens):
-        return "join_request"
-    return "undecided"
-
+    """Compatibility adapter; P6 ScenePolicy owns C16 table-position classification."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_MILKTEA_WATCH",
+        player_input=player_input,
+    )
+    return scene_policies.c16_table_follow_disposition(snapshot)
 
 def _director_only_aliases(name: str) -> list[str]:
     normalized = str(name or "").strip()

@@ -882,6 +882,38 @@ def test_project_stage_preserves_public_contract_without_authority_writes():
     ):
         assert forbidden not in source, forbidden
 
+
+def test_session_step_delegates_transition_execution_to_exit_stage():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "self._run_turn_exit_stage(" in source
+    tail = source[source.index("exit_stage = self._run_turn_exit_stage("):]
+    assert "transition = exit_stage.transition" in tail
+    assert "emitted.extend(exit_stage.emitted_turns)" in tail
+    assert "turn_degradations.extend(exit_stage.degradations)" in tail
+    assert "self._maybe_transition(" not in tail
+
+
+def test_exit_stage_uses_existing_exit_authority_and_returns_value_result():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_exit_stage)
+    assert "self._maybe_transition(" in source
+    assert "self._maybe_enter_ryuya_flashback(" in source
+    assert "self.physical_state.patch_player(" in source
+    assert "return _TurnExitStageResult(" in source
+
+    for forbidden in (
+        "exit_policy.decide_exit(",
+        "_branch_add(",
+        "_beat_complete(",
+        "_commit_world_transaction(",
+        "_append_actor_decisions(",
+        ".save(",
+    ):
+        assert forbidden not in source, forbidden
+
+    params = getattr(proto._TurnExitStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

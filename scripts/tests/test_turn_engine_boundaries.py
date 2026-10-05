@@ -695,6 +695,76 @@ def test_ryuya_cafe_session_keeps_wording_and_mutation_outside_policy():
     assert "want_now" not in policy_source
     assert "goal_head" not in policy_source
 
+
+def test_session_step_delegates_input_and_observe_prefix():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "self._run_turn_input_stage(player_input)" in source
+    assert "self._run_turn_observe_stage(player_input, input_stage)" in source
+    assert source.index("_run_turn_input_stage") < source.index("_run_turn_observe_stage")
+
+    for forbidden in (
+        "parse_player_input_modalities(",
+        "ingest_player_thought(",
+        "self._barge_in_stream(",
+        "self.inputs.append(player_input)",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_input_stage_owns_normalization_not_story_decisions():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_input_stage)
+    for required in (
+        "self.physical_state.increment_elapsed(",
+        "parse_player_input_modalities(",
+        "self._record_player_violation(",
+        "self.player_prophecies.append(",
+    ):
+        assert required in source, required
+
+    for forbidden in (
+        "scene_policies.",
+        "build_speaker_plan(",
+        "_branch_add(",
+        "_beat_complete(",
+        "_commit_world_transaction(",
+        "_maybe_transition(",
+        "call_actor",
+        "arbitrate_floor",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_observe_stage_owns_player_observation_and_thought_only_short_circuit():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_observe_stage)
+    for required in (
+        "ingest_player_thought(",
+        "self._observation_replace(",
+        "self._barge_in_stream(",
+        "self.inputs.append(player_input)",
+        '"thought_recorded": True',
+        '"thought_deltas": thought_deltas',
+    ):
+        assert required in source, required
+
+    for forbidden in (
+        "scene_policies.",
+        "build_speaker_plan(",
+        "_branch_add(",
+        "_beat_complete(",
+        "_commit_world_transaction(",
+        "_maybe_transition(",
+        "call_actor",
+        "arbitrate_floor",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_input_observe_stage_results_are_frozen_value_boundaries():
+    for cls in (proto._TurnInputStageResult, proto._TurnObserveStageResult):
+        params = getattr(cls, "__dataclass_params__", None)
+        assert params is not None
+        assert params.frozen is True
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

@@ -10340,6 +10340,7 @@ class FreeStageSession:
         actor_context_packets: Mapping[str, dict[str, Any]],
         speaker_plan: dict[str, Any],
         player_input: str | dict[str, Any],
+        turn_no: int,
         beats_on_card: int,
         facts_this_turn: set[str],
     ) -> _TurnResolveStageResult:
@@ -10420,7 +10421,7 @@ class FreeStageSession:
             for _item in turns:
                 _surface = f"{str(_item.get('text') or '')} {str(_item.get('stage') or '')}"
                 if re.search(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)", _surface):
-                    turn_degradations.append({
+                    resolve_degradations.append({
                         "kind": "maki_aquarium_false_link",
                         "severity": "SOFT",
                         "reason": "海洋馆是三人自己决定，不是真纪指示",
@@ -10507,7 +10508,7 @@ class FreeStageSession:
                             f"KGE:{cons}:{issue.get('violations')}"
                         )
                     else:
-                        turn_degradations.append(issue)
+                        resolve_degradations.append(issue)
             # Opening numeric compatibility now updates only downstream of
             # each actor's visibility-correct player MindReceipt.
         if leak_issues:
@@ -11567,6 +11568,7 @@ class FreeStageSession:
                 actor_context_packets=actor_context_packets,
                 speaker_plan=speaker_plan,
                 player_input=player_input,
+                turn_no=turn_no,
                 beats_on_card=int(beats_on_card or 0),
                 facts_this_turn=facts_this_turn,
             )

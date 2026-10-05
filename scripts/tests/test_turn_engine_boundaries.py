@@ -768,7 +768,7 @@ def test_input_observe_stage_results_are_frozen_value_boundaries():
 
 
 def test_session_step_exposes_deliberate_then_floor_order():
-    source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     assert "deliberate_stage = self._run_turn_deliberate_stage(" in source
     assert "floor_stage = self._run_turn_floor_stage(" in source
     assert source.index("_run_turn_deliberate_stage(") < source.index(
@@ -807,7 +807,7 @@ def test_participation_deliberation_snapshot_is_frozen():
 
 
 def test_session_step_delegates_actor_transport_to_enact_stage():
-    source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     assert "self._run_turn_enact_stage(" in source
     for forbidden in (
         "run_director_and_isolated_actors(",
@@ -838,8 +838,11 @@ def test_enact_stage_calls_transport_without_authority_commits():
 
 
 def test_session_step_uses_single_public_project_boundary():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    assert "return self._run_turn_project_pipeline_stage(" in source
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    assert "return self._run_normal_turn_with_engine(" in step_source
+
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    assert "self._run_turn_project_pipeline_stage(" in source
     assert "self._run_turn_project_stage(" not in source
     assert "return self._with_receipt(result)" not in source
 
@@ -887,13 +890,13 @@ def test_project_stage_preserves_public_contract_without_authority_writes():
 
 
 def test_session_step_delegates_transition_execution_to_exit_stage():
-    source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     assert "self._run_turn_exit_stage(" in source
-    tail = source[source.index("exit_stage = self._run_turn_exit_stage("):]
-    assert "transition = exit_stage.transition" in tail
-    assert "emitted.extend(exit_stage.emitted_turns)" in tail
-    assert "turn_degradations.extend(exit_stage.degradations)" in tail
-    assert "self._maybe_transition(" not in tail
+    assert "stage = self._run_turn_exit_stage(" in source
+    assert 'ctx["transition"] = stage.transition' in source
+    assert 'ctx["emitted"].extend(stage.emitted_turns)' in source
+    assert 'ctx["turn_degradations"].extend(stage.degradations)' in source
+    assert "self._maybe_transition(" not in source
 
 
 def test_exit_stage_uses_existing_exit_authority_and_returns_value_result():
@@ -960,11 +963,11 @@ def test_resolve_stage_is_read_only_and_returns_progress_proposals():
 
 
 def test_step_commits_only_after_resolve_returns():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    resolve_at = source.index("resolve_stage = self._run_turn_resolve_stage(")
-    commit_at = source.index("commit_stage = self._run_turn_commit_stage(")
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    resolve_at = source.index("stage = self._run_turn_resolve_stage(")
+    commit_at = source.index("stage = self._run_turn_commit_stage(")
     assert resolve_at < commit_at
-    assert "turn_degradations.extend(resolve_stage.degradations)" in source
+    assert 'ctx["turn_degradations"].extend(stage.degradations)' in source
 
     commit_source = inspect.getsource(proto.FreeStageSession._run_turn_commit_stage)
     assert "self._append_actor_decisions(" in commit_source
@@ -997,10 +1000,10 @@ def test_commit_stage_owns_authority_but_not_resolution_or_policy():
 
 
 def test_step_order_is_enact_resolve_commit():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    enact_at = source.index("payload = self._run_turn_enact_stage(")
-    resolve_at = source.index("resolve_stage = self._run_turn_resolve_stage(")
-    commit_at = source.index("commit_stage = self._run_turn_commit_stage(")
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    enact_at = source.index('ctx["payload"] = self._run_turn_enact_stage(')
+    resolve_at = source.index("stage = self._run_turn_resolve_stage(")
+    commit_at = source.index("stage = self._run_turn_commit_stage(")
     assert enact_at < resolve_at < commit_at
 
     post_resolve = source[resolve_at:commit_at]
@@ -1015,9 +1018,9 @@ def test_step_order_is_enact_resolve_commit():
 
 
 def test_session_step_delegates_deliberate_and_floor_stage_helpers():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    deliberate_at = source.index("deliberate_stage = self._run_turn_deliberate_stage(")
-    floor_at = source.index("floor_stage = self._run_turn_floor_stage(")
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    deliberate_at = source.index("stage = self._run_turn_deliberate_stage(")
+    floor_at = source.index("stage = self._run_turn_floor_stage(")
     assert deliberate_at < floor_at
     assert "active_state = self.get_active_exit_state()" not in source
     assert "participation_deliberation = build_participation_deliberation(" not in source
@@ -1062,7 +1065,7 @@ def test_floor_stage_only_builds_p4_plan_and_stall_projection():
 
 
 def test_session_step_delegates_actor_packet_and_prompt_preparation():
-    source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     assert "enact_prep = self._prepare_turn_enact_stage(" in source
     for forbidden in (
         "build_actor_context_packet(",
@@ -1097,9 +1100,9 @@ def test_enact_prep_owns_packet_prompt_but_not_transport_or_commit():
 
 
 def test_session_step_delegates_complete_project_pipeline():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    assert "return self._run_turn_project_pipeline_stage(" in source
-    tail = source[source.index("exit_stage = self._run_turn_exit_stage("):]
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    assert "self._run_turn_project_pipeline_stage(" in source
+    tail = source[source.index("def exit_port"):]
     for forbidden in (
         "debug_payload = _with_agent_modules(",
         "self.debug_history.append(",
@@ -1131,6 +1134,20 @@ def test_project_pipeline_owns_observer_save_and_public_projection():
         "_run_turn_commit_stage(",
     ):
         assert forbidden not in source, forbidden
+
+
+def test_normal_actor_path_is_actually_driven_by_turn_engine():
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    assert "return self._run_normal_turn_with_engine(" in step_source
+
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    assert "turn_engine.TurnEngine(" in source
+    assert "turn_engine.TurnPorts(" in source
+    assert "engine.run_turn(" in source
+    for stage in turn_engine.TURN_STAGE_ORDER:
+        assert f'"{stage}"' in source, stage
+    assert source.count('note="legacy_prefix_already_applied"') == 2
+    assert 'self._last_turn_engine_stages = frame.stages' in source
 
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):

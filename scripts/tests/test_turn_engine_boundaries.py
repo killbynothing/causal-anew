@@ -804,6 +804,37 @@ def test_participation_deliberation_snapshot_is_frozen():
     assert params is not None
     assert params.frozen is True
 
+
+def test_session_step_delegates_actor_transport_to_enact_stage():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "self._run_turn_enact_stage(" in source
+    for forbidden in (
+        "run_director_and_isolated_actors(",
+        "call_actor(prompt",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_enact_stage_calls_transport_without_authority_commits():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_enact_stage)
+    assert "run_director_and_isolated_actors(" in source
+    assert "call_actor(" in source
+
+    for forbidden in (
+        "_branch_add(",
+        "_branch_remove(",
+        "_beat_complete(",
+        "_beat_complete_many(",
+        "_commit_world_transaction(",
+        "_append_actor_decisions(",
+        "_record_scene_receipt(",
+        "_observe(",
+        "_maybe_transition(",
+        "_mark_ended(",
+        ".save(",
+    ):
+        assert forbidden not in source, forbidden
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

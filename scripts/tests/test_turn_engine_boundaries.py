@@ -914,6 +914,59 @@ def test_exit_stage_uses_existing_exit_authority_and_returns_value_result():
     assert params is not None
     assert params.frozen is True
 
+
+def test_resolve_stage_is_read_only_and_returns_progress_proposals():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_resolve_stage)
+    tree = ast.parse(source)
+    forbidden_calls = {
+        "_append_actor_decisions",
+        "_publish_director_opportunity",
+        "_branch_add",
+        "_branch_remove",
+        "_branch_remove_ids",
+        "_beat_complete",
+        "_beat_complete_many",
+        "_commit_world_transaction",
+        "_record_scene_receipt",
+        "_observe",
+        "_record_public_actor_mind_receipts",
+        "_tick_private_inner_states",
+        "_body_settle",
+        "_push_stream_turns",
+        "_enqueue_stream_items",
+        "_maybe_transition",
+        "_mark_ended",
+        "save",
+        "patch_player",
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = ""
+            if isinstance(func, ast.Name):
+                name = func.id
+            elif isinstance(func, ast.Attribute):
+                name = func.attr
+            assert name not in forbidden_calls, name
+
+    assert "beat_evidence.resolve_completions(" in source
+    assert "return _TurnResolveStageResult(" in source
+    params = getattr(proto._TurnResolveStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
+
+def test_step_commits_only_after_resolve_returns():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    resolve_at = source.index("resolve_stage = self._run_turn_resolve_stage(")
+    actor_commit_at = source.index("committed_actor_decisions = self._append_actor_decisions(")
+    opportunity_at = source.index("self._publish_director_opportunity(")
+    beat_commit_at = source.index("newly_completed = self._beat_complete_many(")
+
+    assert resolve_at < actor_commit_at < beat_commit_at
+    assert resolve_at < opportunity_at < beat_commit_at
+    assert "turn_degradations.extend(resolve_stage.degradations)" in source
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

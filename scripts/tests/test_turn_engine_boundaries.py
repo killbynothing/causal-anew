@@ -607,6 +607,94 @@ def test_turn_engine_core_is_orchestration_only():
     ):
         assert forbidden not in source, forbidden
 
+
+def test_ryuya_cafe_topic_interface_is_policy_owned():
+    history = [
+        {"role": "player", "text": "最近还好吗？"},
+        {"role": "npc", "text": "还行。"},
+        {"role": "player", "text": "时间不早了。"},
+    ]
+    raw = {"speech": "你是不是有话想说？", "action": ""}
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="RYUYA_CAFE_POLICY",
+        player_input=raw,
+        recent_history=history,
+    )
+    assert scene_policies.ryuya_topic_interface(snapshot)
+    assert proto.ryuya_deep_topic_interface(raw, history)
+
+    adapter = inspect.getsource(proto.ryuya_deep_topic_interface)
+    assert "scene_policies.ryuya_topic_interface(snapshot)" in adapter
+    assert "_RYUYA_TOPIC_INTERFACE_MARKERS" not in inspect.getsource(proto)
+
+
+def test_ryuya_cafe_phase_policy_preserves_original_ladder_order():
+    cases = [
+        (0, (), False, "opening"),
+        (1, (), False, "banter"),
+        (1, (), True, "deepen"),
+        (2, (), False, "deepen"),
+        (0, ("RP2",), False, "entrust_clear"),
+        (0, ("RP2", "RP3"), False, "post_entrust_gift"),
+        (0, ("RP2", "RP3", "RP4"), False, "farewell"),
+    ]
+    for beats, completed, topic_interface, expected in cases:
+        output = scene_policies.evaluate_ryuya_cafe_state(
+            scene_policies.RyuyaCafeStateInput.from_runtime(
+                flash_beats=beats,
+                completed=completed,
+                topic_interface=topic_interface,
+            )
+        )
+        assert scene_policies.proposal_value(
+            output,
+            "ryuya_cafe_phase",
+        ) == expected
+
+
+def test_ryuya_cafe_policy_does_not_mutate_card_or_own_authority():
+    completed = ["RP2"]
+    snapshot = scene_policies.RyuyaCafeStateInput.from_runtime(
+        flash_beats=3,
+        completed=completed,
+        topic_interface=True,
+    )
+    completed.append("RP4")
+    output = scene_policies.evaluate_ryuya_cafe_state(snapshot)
+    assert scene_policies.proposal_value(
+        output,
+        "ryuya_cafe_phase",
+    ) == "entrust_clear"
+
+    source = inspect.getsource(scene_policies.evaluate_ryuya_cafe_state)
+    tree = ast.parse(source)
+    forbidden = {
+        "_branch_add",
+        "_beat_complete",
+        "_commit_world_transaction",
+        "_finalize_prologue_pendant",
+        "commit_world_fact",
+        "commit_world_batch",
+        "save",
+    }
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            assert node.id not in forbidden, node.id
+        elif isinstance(node, ast.Attribute):
+            assert node.attr not in forbidden, node.attr
+
+
+def test_ryuya_cafe_session_keeps_wording_and_mutation_outside_policy():
+    source = inspect.getsource(proto.advance_ryuya_prologue_want_now)
+    assert "scene_policies.evaluate_ryuya_cafe_state(" in source
+    assert '"ryuya_cafe_phase"' in source
+    assert 'inner["want_now"] = want' in source
+    assert 'working["goals"] = [goal_head, *rest][:4]' in source
+
+    policy_source = inspect.getsource(scene_policies.evaluate_ryuya_cafe_state)
+    assert "want_now" not in policy_source
+    assert "goal_head" not in policy_source
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

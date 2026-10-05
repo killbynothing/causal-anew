@@ -304,7 +304,7 @@ def c16_overt_intervention(snapshot: ScenePolicyInput) -> bool:
 
 
 def evaluate_c16(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
-    """Return C16 evidence/proposals without mutating any runtime owner."""
+    """Return C16 evidence/classification proposals without mutating runtime authority."""
     if snapshot.scene_id not in {"CARD_16ZHONG_GATE", "CARD_MILKTEA_WATCH"}:
         return ScenePolicyOutput()
 
@@ -318,26 +318,40 @@ def evaluate_c16(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
             evidence.append("c16_overt_intervention")
 
         diversion = c16_counter_encounter_diversion(snapshot)
-        if diversion != "undecided":
-            proposals.append(f"c16_counter_encounter_diversion:{diversion}")
-        else:
-            cafe = c16_milktea_disposition(snapshot)
-            if cafe != "undecided":
-                proposals.append(f"c16_milktea_disposition:{cafe}")
-
-        shop = c16_shop_follow_disposition(snapshot)
-        if shop not in {"undecided", "wait"}:
-            proposals.append(f"c16_shop_follow_disposition:{shop}")
+        proposals.append(f"c16_counter_encounter_diversion:{diversion}")
+        cafe = (
+            c16_milktea_disposition(snapshot)
+            if diversion == "undecided"
+            else "undecided"
+        )
+        proposals.append(f"c16_milktea_disposition:{cafe}")
+        proposals.append(
+            f"c16_shop_follow_disposition:{c16_shop_follow_disposition(snapshot)}"
+        )
 
     if snapshot.scene_id == "CARD_MILKTEA_WATCH":
-        table = c16_table_follow_disposition(snapshot)
-        if table not in {"undecided", "wait"}:
-            proposals.append(f"c16_table_follow_disposition:{table}")
+        proposals.append(
+            f"c16_table_follow_disposition:{c16_table_follow_disposition(snapshot)}"
+        )
 
     return ScenePolicyOutput(
         evidence=tuple(evidence),
         proposals=tuple(proposals),
     )
+
+
+def proposal_value(
+    output: ScenePolicyOutput,
+    key: str,
+    *,
+    default: str = "undecided",
+) -> str:
+    """Read one opaque proposal value without giving the caller scene-specific logic."""
+    prefix = f"{key}:"
+    for proposal in output.proposals:
+        if proposal.startswith(prefix):
+            return proposal[len(prefix):]
+    return default
 
 def evaluate(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
     """Dispatch a pure snapshot to the scene policy known to this module."""

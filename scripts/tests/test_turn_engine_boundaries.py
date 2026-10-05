@@ -768,13 +768,16 @@ def test_input_observe_stage_results_are_frozen_value_boundaries():
 
 
 def test_session_step_exposes_deliberate_then_floor_order():
-    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
-    assert "deliberate_stage = self._run_turn_deliberate_stage(" in source
-    assert "floor_stage = self._run_turn_floor_stage(" in source
-    assert source.index("_run_turn_deliberate_stage(") < source.index(
-        "_run_turn_floor_stage("
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    engine_source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+
+    assert "self._run_normal_turn_with_engine(" in step_source
+    assert engine_source.count("self._run_turn_deliberate_stage(") == 1
+    assert engine_source.count("self._run_turn_floor_stage(") == 1
+    assert engine_source.index("self._run_turn_deliberate_stage(") < engine_source.index(
+        "self._run_turn_floor_stage("
     )
-    assert "speaker_plan = build_speaker_plan(" not in source
+    assert "speaker_plan = build_speaker_plan(" not in engine_source
 
 
 def test_deliberate_and_floor_adapters_keep_p4_single_arbiter_boundary():

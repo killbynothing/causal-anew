@@ -10166,8 +10166,19 @@ class FreeStageSession:
 
         facts_this_turn: set[str] = set()
         scene_id_for_obs = str(self.card.get("scene_id", ""))
+        policy_input = (
+            player_input
+            if scene_id_for_obs == "OPENING_TIANANMEN_002"
+            else parsed_input
+        )
+        scene_policy_snapshot = scene_policies.ScenePolicyInput.from_runtime(
+            scene_id=scene_id_for_obs,
+            player_input=policy_input,
+            recent_history=self.history,
+        )
+        scene_policy_output = scene_policies.evaluate(scene_policy_snapshot)
         if scene_id_for_obs == "OPENING_TIANANMEN_002":
-            for fact in tiananmen_player_facts(player_input, recent_history=self.history):
+            for fact in scene_policy_output.evidence:
                 self._record_scene_receipt(
                     fact, owner="player", turn_no=turn_no, source_input=_player_public_input_text(player_input),
                 )
@@ -10196,9 +10207,9 @@ class FreeStageSession:
                 if bp_id not in self.branch_progress:
                     recent_script = visible_transcript(self.history[:-1])
                     if (
-                        str(self.card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
+                        scene_id_for_obs == "CARD_16ZHONG_GATE"
                         and bp_id == "intervene"
-                        and _c16_overt_intervention(parsed_input)
+                        and "c16_overt_intervention" in scene_policy_output.evidence
                     ):
                         is_satisfied = True
                     else:
@@ -10238,10 +10249,28 @@ class FreeStageSession:
 
         cafe_disposition = "undecided"
         encounter_diversion = "undecided"
-        if str(self.card.get("scene_id", "")) == "CARD_16ZHONG_GATE":
-            encounter_diversion = c16_counter_encounter_diversion(parsed_input)
-            if encounter_diversion == "undecided":
-                cafe_disposition = c16_milktea_disposition(parsed_input)
+        c16_shop_follow_this_turn = "undecided"
+        c16_table_follow_this_turn = "undecided"
+        if scene_id_for_obs == "CARD_16ZHONG_GATE":
+            encounter_diversion = scene_policies.proposal_value(
+                scene_policy_output,
+                "c16_counter_encounter_diversion",
+            )
+            cafe_disposition = scene_policies.proposal_value(
+                scene_policy_output,
+                "c16_milktea_disposition",
+            )
+            c16_shop_follow_this_turn = scene_policies.proposal_value(
+                scene_policy_output,
+                "c16_shop_follow_disposition",
+            )
+        elif scene_id_for_obs == "CARD_MILKTEA_WATCH":
+            c16_table_follow_this_turn = scene_policies.proposal_value(
+                scene_policy_output,
+                "c16_table_follow_disposition",
+            )
+
+        if scene_id_for_obs == "CARD_16ZHONG_GATE":
             if cafe_disposition == "accepted":
                 self._branch_remove_ids(("c16_player_cafe_declined",))
                 self._branch_add(
@@ -10265,9 +10294,9 @@ class FreeStageSession:
                     self._record_c16_cafe_refusal(cafe_disposition, turn_no)
 
         canon_state = self._canon_scene_state()
-        if str(self.card.get("scene_id", "")) == "CARD_16ZHONG_GATE":
+        if scene_id_for_obs == "CARD_16ZHONG_GATE":
             pending_stop = str(canon_state.get("pending_stop", "") or "")
-            gate_disposition = c16_gate_disposition(parsed_input)
+            gate_disposition = c16_shop_follow_this_turn
             if pending_stop == "P1_GATE_INTERVENE" and gate_disposition == "follow_zhangchen":
                 # The girls' source conversation still happens, but the player
                 # chose Zhangchen's route before it began.  Do not leak private
@@ -10390,10 +10419,10 @@ class FreeStageSession:
             return self._canon_step_result(canon_turns, turn_no=turn_no, debug=debug)
 
         if (
-            str(self.card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
+            scene_id_for_obs == "CARD_16ZHONG_GATE"
             and str(canon_state.get("pending_stop", "")) == "P2_SHOP_FOLLOW"
         ):
-            shop_follow = c16_shop_follow_disposition(parsed_input)
+            shop_follow = c16_shop_follow_this_turn
             p2_markers = {
                 "c16_p2_inside_observer",
                 "c16_p2_follow_zhangchen",
@@ -10454,10 +10483,10 @@ class FreeStageSession:
                     return self._canon_step_result([bridge], turn_no=turn_no, debug=debug)
 
         if (
-            str(self.card.get("scene_id", "")) == "CARD_MILKTEA_WATCH"
+            scene_id_for_obs == "CARD_MILKTEA_WATCH"
             and str(canon_state.get("pending_stop", "")) == "P2_TABLE_POSITION"
         ):
-            table_follow = c16_table_follow_disposition(parsed_input)
+            table_follow = c16_table_follow_this_turn
             p2_table_markers = {
                 "c16_p2_table_observer",
                 "c16_p2_stay_counter",

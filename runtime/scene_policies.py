@@ -14,6 +14,13 @@ from typing import Any, Mapping, Sequence
 _KANA_RE = re.compile(r"[\u3040-\u30ff]")
 _JA_MARK_PREFIXES = ("（日）", "(日)", "（日语）", "(日语)")
 
+_RYUYA_TOPIC_INTERFACE_MARKERS = (
+    "弟弟", "修哉", "家人", "家里", "托付", "拜托", "有事", "想说",
+    "临走", "走之前", "分别", "要走", "离开", "照顾", "帮忙", "以后",
+    "保重", "挂坠", "吊坠", "项链", "怎么了", "还好吗", "有心事",
+    "今天好像", "该走了", "时间不早", "有话",
+)
+
 
 @dataclass(frozen=True)
 class PublicTurn:
@@ -182,6 +189,27 @@ class FlashbackHandoffInput:
     has_return_frame: bool
     all_must_happen_complete: bool
 
+
+@dataclass(frozen=True)
+class RyuyaCafeStateInput:
+    flash_beats: int
+    completed: frozenset[str] = frozenset()
+    topic_interface: bool = False
+
+    @classmethod
+    def from_runtime(
+        cls,
+        *,
+        flash_beats: int,
+        completed: Sequence[str] = (),
+        topic_interface: bool = False,
+    ) -> "RyuyaCafeStateInput":
+        return cls(
+            flash_beats=max(0, int(flash_beats or 0)),
+            completed=frozenset(str(item) for item in completed),
+            topic_interface=bool(topic_interface),
+        )
+
 @dataclass(frozen=True)
 class ScenePolicyOutput:
     evidence: tuple[str, ...] = ()
@@ -226,6 +254,47 @@ def _player_chinese_reply_signals_japanese_comprehension(
     ):
         return False
     return True
+
+
+def ryuya_topic_interface(snapshot: ScenePolicyInput) -> bool:
+    """Detect a player-visible seam for naturally deepening the cafe conversation."""
+    chunks: list[str] = []
+    if snapshot.player_speech:
+        chunks.append(snapshot.player_speech)
+    if snapshot.player_action:
+        chunks.append(snapshot.player_action)
+    for item in reversed(snapshot.recent_history):
+        if item.role != "player":
+            continue
+        text = item.text.strip()
+        if text:
+            chunks.append(text)
+        if len(chunks) >= 3:
+            break
+    blob = re.sub(r"\s+", "", "".join(chunks))
+    if not blob:
+        return False
+    return any(marker in blob for marker in _RYUYA_TOPIC_INTERFACE_MARKERS)
+
+
+def evaluate_ryuya_cafe_state(snapshot: RyuyaCafeStateInput) -> ScenePolicyOutput:
+    """Classify only the cafe desire-ladder phase; wording and state writes stay outside."""
+    done = snapshot.completed
+    beats = snapshot.flash_beats
+    early_deepen = snapshot.topic_interface and beats >= 1
+    if "RP4" in done:
+        phase = "farewell"
+    elif "RP3" in done:
+        phase = "post_entrust_gift"
+    elif "RP2" in done:
+        phase = "entrust_clear"
+    elif beats >= 2 or early_deepen:
+        phase = "deepen"
+    elif beats >= 1:
+        phase = "banter"
+    else:
+        phase = "opening"
+    return ScenePolicyOutput(proposals=(f"ryuya_cafe_phase:{phase}",))
 
 
 def evaluate_tiananmen(snapshot: ScenePolicyInput) -> ScenePolicyOutput:

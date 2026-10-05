@@ -48,7 +48,11 @@ def test_step_and_one_shot_no_longer_invent_endrun_from_mh_completion():
     )
     assert old_generic not in step_source
     assert "session.ended = True" not in run_source
-    assert "ExitPolicy is the sole decider" in step_source
+    engine_source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+    exit_stage_source = inspect.getsource(proto.FreeStageSession._run_turn_exit_stage)
+    assert "_run_normal_turn_with_engine(" in step_source
+    assert "_run_turn_exit_stage(" in engine_source
+    assert "self._maybe_transition(" in exit_stage_source
     # P1b upgrades the compatibility boolean to a lifecycle projection.
     # ExitPolicy still authorizes; only _set_lifecycle_state may project ended.
     assert "self.ended =" not in inspect.getsource(proto.FreeStageSession._mark_ended)

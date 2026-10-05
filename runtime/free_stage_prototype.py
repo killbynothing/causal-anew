@@ -89,6 +89,7 @@ from runtime import actor_orchestrator
 from runtime import social_participation as soc
 from runtime import participation as participation_runtime
 from runtime import scene_policies
+from runtime import turn_engine
 from runtime import utterance_stream as ustream
 from runtime.thought_delta import ingest_player_thought
 from runtime import view_projection
@@ -11722,6 +11723,359 @@ class FreeStageSession:
             debug_payload=debug_payload,
         )
 
+    def _run_normal_turn_with_engine(
+        self,
+        *,
+        player_input: str | dict[str, Any],
+        debug: bool,
+        turn_no: int,
+        speech: str,
+        action: str,
+        thought: str,
+        suppress_visible_input: bool,
+        facts_this_turn: set[str],
+        cafe_disposition: str,
+        layer_c_turns: list[dict[str, Any]],
+        is_oob: bool,
+        oob_bridge: str,
+        newly_triggered_bps: list[str],
+    ) -> dict[str, Any]:
+        """Drive the normal actor path through the generic P6 TurnEngine.
+
+        Input/observe have already executed before scene-specific early-return
+        routing. Their ports record that prefix fact; deliberate onward executes
+        here in the engine's fixed order.
+        """
+        ctx: dict[str, Any] = {
+            "pipeline_failed": False,
+            "payload": {},
+            "context_receipts": [],
+            "turns": [],
+            "new_progress": [],
+            "ambient_turns": [],
+            "committed_actor_decisions": [],
+            "emitted": [
+                item
+                for item in self.history
+                if item.get("role") == "narrate"
+                and item.get("turn") == turn_no
+                and item.get("stage") == "环境对可见行为作出的即时反应。"
+            ],
+            "stream_response_turns": [],
+            "actor_errors": [],
+            "turn_degradations": [],
+        }
+
+        def record_pipeline_failure(exc: Exception) -> None:
+            if ctx["pipeline_failed"]:
+                return
+            ctx["pipeline_failed"] = True
+            fallback_text, fallback_degradations = guard_visible_text(
+                "远端演算这一拍没有接通。你的话仍然留在现场，眼前的人短暂安静下来，空气先替他们接住了这句话。",
+                "actor_fallback",
+            )
+            ctx["turn_degradations"].extend(fallback_degradations)
+            ctx["turn_degradations"].append(
+                make_degradation(
+                    "actor_llm",
+                    "template_fallback",
+                    "演员生成失败，已用场内旁白降级保住回合。",
+                    detail=str(exc)[:180],
+                )
+            )
+            err_item = {
+                "role": "npc",
+                "speaker": "旁白",
+                "text": fallback_text,
+                "stage": "",
+                "turn": turn_no,
+                "fallback_error": str(exc)[:240],
+            }
+            ctx["stream_response_turns"].extend(
+                self._push_stream_turns(
+                    [err_item],
+                    turn_no=turn_no,
+                    emitted=ctx["emitted"],
+                )
+            )
+            ctx["actor_errors"].append(str(exc))
+
+        def input_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            return turn_engine.TurnStageReceipt.continue_(
+                "input",
+                note="legacy_prefix_already_applied",
+                artifact_keys=("input_stage",),
+            )
+
+        def observe_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            return turn_engine.TurnStageReceipt.continue_(
+                "observe",
+                note="legacy_prefix_already_applied",
+                artifact_keys=("observe_stage",),
+            )
+
+        def deliberate_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            stage = self._run_turn_deliberate_stage(
+                player_input=player_input,
+                turn_no=turn_no,
+                speech=speech,
+                action=action,
+                thought=thought,
+                facts_this_turn=facts_this_turn,
+                cafe_disposition=cafe_disposition,
+            )
+            ctx["deliberate_stage"] = stage
+            return turn_engine.TurnStageReceipt.continue_(
+                "deliberate",
+                artifact_keys=("resolved_card", "intent_resolution"),
+            )
+
+        def floor_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            deliberate = ctx["deliberate_stage"]
+            stage = self._run_turn_floor_stage(
+                resolved_card=deliberate.resolved_card,
+                player_input=player_input,
+                intent_resolution=deliberate.intent_resolution,
+            )
+            ctx["floor_stage"] = stage
+            return turn_engine.TurnStageReceipt.continue_(
+                "floor",
+                artifact_keys=("speaker_plan",),
+            )
+
+        def enact_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            deliberate = ctx["deliberate_stage"]
+            floor = ctx["floor_stage"]
+            prep = self._prepare_turn_enact_stage(
+                resolved_card=deliberate.resolved_card,
+                speaker_plan=floor.speaker_plan,
+                intent_resolution=deliberate.intent_resolution,
+                active_state=deliberate.active_state,
+                turn_no=turn_no,
+                player_input=player_input,
+                speech=speech,
+                action=action,
+                thought=thought,
+                suppress_visible_input=suppress_visible_input,
+                stall_escalation=floor.stall_escalation,
+            )
+            ctx["enact_prep"] = prep
+            if layer_c_turns:
+                self._enqueue_stream_items(layer_c_turns, turn_no=turn_no)
+            try:
+                ctx["payload"] = self._run_turn_enact_stage(
+                    prompt=prep.prompt,
+                    actor_context_packets=prep.actor_context_packets,
+                    performance_plan=list(prep.performance_plan),
+                    resolved_card=deliberate.resolved_card,
+                    intent_resolution=deliberate.intent_resolution,
+                )
+            except Exception as exc:
+                record_pipeline_failure(exc)
+            return turn_engine.TurnStageReceipt.continue_(
+                "enact",
+                artifact_keys=("payload",),
+            )
+
+        def resolve_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            if ctx["pipeline_failed"]:
+                return turn_engine.TurnStageReceipt.continue_(
+                    "resolve",
+                    note="actor_pipeline_fallback",
+                )
+            deliberate = ctx["deliberate_stage"]
+            floor = ctx["floor_stage"]
+            prep = ctx["enact_prep"]
+            try:
+                stage = self._run_turn_resolve_stage(
+                    payload=ctx["payload"],
+                    resolved_card=deliberate.resolved_card,
+                    actor_context_packets=prep.actor_context_packets,
+                    speaker_plan=floor.speaker_plan,
+                    player_input=player_input,
+                    turn_no=turn_no,
+                    beats_on_card=deliberate.beats_on_card,
+                    facts_this_turn=facts_this_turn,
+                )
+                ctx["resolve_stage"] = stage
+                ctx["context_receipts"] = list(stage.context_receipts)
+                ctx["turns"] = [dict(item) for item in stage.turns]
+                ctx["note"] = stage.note
+                ctx["ambient_turns"] = [dict(item) for item in stage.ambient_turns]
+                ctx["new_progress"] = list(stage.new_progress)
+                ctx["turn_degradations"].extend(stage.degradations)
+            except Exception as exc:
+                record_pipeline_failure(exc)
+            return turn_engine.TurnStageReceipt.continue_(
+                "resolve",
+                artifact_keys=("resolved_turns", "progress_proposals"),
+            )
+
+        def commit_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            if ctx["pipeline_failed"]:
+                return turn_engine.TurnStageReceipt.continue_(
+                    "commit",
+                    note="actor_pipeline_fallback",
+                )
+            deliberate = ctx["deliberate_stage"]
+            floor = ctx["floor_stage"]
+            prep = ctx["enact_prep"]
+            try:
+                stage = self._run_turn_commit_stage(
+                    payload=ctx["payload"],
+                    intent_resolution=deliberate.intent_resolution,
+                    resolved_card=deliberate.resolved_card,
+                    actor_context_packets=prep.actor_context_packets,
+                    speaker_plan=floor.speaker_plan,
+                    player_input=player_input,
+                    turn_no=turn_no,
+                    ambient_turns=ctx["ambient_turns"],
+                    new_progress=ctx["new_progress"],
+                    turns=ctx["turns"],
+                    note=ctx.get("note", ""),
+                    facts_this_turn=facts_this_turn,
+                    stall_escalation=floor.stall_escalation,
+                    current_scene_id=floor.current_scene_id,
+                    is_oob=is_oob,
+                    oob_bridge=oob_bridge,
+                    newly_triggered_bps=newly_triggered_bps,
+                    emitted=ctx["emitted"],
+                    stream_response_turns=ctx["stream_response_turns"],
+                    degradations=ctx["turn_degradations"],
+                )
+                ctx["turns"] = [dict(item) for item in stage.turns]
+                ctx["committed_actor_decisions"] = [
+                    dict(item) for item in stage.committed_actor_decisions
+                ]
+            except Exception as exc:
+                record_pipeline_failure(exc)
+            return turn_engine.TurnStageReceipt.continue_(
+                "commit",
+                artifact_keys=("authority_receipts",),
+            )
+
+        def exit_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            deliberate = ctx["deliberate_stage"]
+            floor = ctx["floor_stage"]
+            prep = ctx["enact_prep"]
+
+            director_only_hits = list(deliberate.director_only_hits)
+            director_only_turn = director_only_bridge_turn(director_only_hits, turn_no)
+            if director_only_turn:
+                director_only_turn["text"], spoiler_degradations = guard_visible_text(
+                    director_only_turn["text"],
+                    "director_only_bridge",
+                )
+                ctx["turn_degradations"].extend(spoiler_degradations)
+                self.history.append(director_only_turn)
+                ctx["emitted"].append(dict(director_only_turn))
+
+            self._maybe_emit_violation_warning(turn_no, ctx["emitted"])
+            ctx["turn_degradations"].extend(self._evaluate_heart_stages())
+            self._record_public_actor_mind_receipts(
+                deliberate.resolved_card,
+                ctx["emitted"],
+                turn_no,
+            )
+            self._tick_private_inner_states(
+                deliberate.resolved_card,
+                {"speech": speech, "action": action, "thought": thought},
+                turn_no,
+                emitted=ctx["emitted"],
+                speaker_plan=floor.speaker_plan,
+            )
+
+            self.last_issues = list(ctx["actor_errors"]) + hard_check(
+                self.history,
+                self.completed,
+                deliberate.resolved_card,
+            )
+            ctx["exit_reason"] = format_exit_reason(
+                player_input,
+                self.completed,
+                deliberate.resolved_card,
+                self.stall,
+            )
+            stage = self._run_turn_exit_stage(
+                player_input=player_input,
+                turn_no=turn_no,
+                emitted=ctx["emitted"],
+                semantic_exit=deliberate.semantic_exit,
+            )
+            ctx["exit_stage"] = stage
+            ctx["transition"] = stage.transition
+            ctx["emitted"].extend(stage.emitted_turns)
+            ctx["turn_degradations"].extend(stage.degradations)
+            ctx["director_only_hits"] = director_only_hits
+            return turn_engine.TurnStageReceipt.continue_(
+                "exit",
+                artifact_keys=("transition",),
+            )
+
+        def project_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
+            del frame
+            deliberate = ctx["deliberate_stage"]
+            floor = ctx["floor_stage"]
+            prep = ctx["enact_prep"]
+            ctx["result"] = self._run_turn_project_pipeline_stage(
+                player_input=player_input,
+                turn_no=turn_no,
+                resolved_card=deliberate.resolved_card,
+                actor_context_packets=prep.actor_context_packets,
+                turns=ctx["turns"],
+                emitted=ctx["emitted"],
+                stream_response_turns=ctx["stream_response_turns"],
+                transition=ctx.get("transition"),
+                debug=debug,
+                prompt=prep.prompt,
+                speaker_plan=floor.speaker_plan,
+                context_receipts=ctx["context_receipts"],
+                payload=ctx["payload"],
+                intent_resolution=deliberate.intent_resolution,
+                committed_actor_decisions=ctx["committed_actor_decisions"],
+                director_only_hits=ctx.get("director_only_hits", []),
+                stall_escalation=floor.stall_escalation,
+                ambient_turns=ctx["ambient_turns"],
+                layer_c_turns=layer_c_turns,
+                speech=speech,
+                turn_degradations=ctx["turn_degradations"],
+                exit_reason=ctx.get("exit_reason", ""),
+            )
+            return turn_engine.TurnStageReceipt.continue_(
+                "project",
+                artifact_keys=("public_result",),
+            )
+
+        engine = turn_engine.TurnEngine(
+            turn_engine.TurnPorts(
+                input=input_port,
+                observe=observe_port,
+                deliberate=deliberate_port,
+                floor=floor_port,
+                enact=enact_port,
+                resolve=resolve_port,
+                commit=commit_port,
+                exit=exit_port,
+                project=project_port,
+            )
+        )
+        frame = engine.run_turn(
+            request_id=f"{self.session_id}:turn:{turn_no}",
+        )
+        self._last_turn_engine_stages = frame.stages
+        result = ctx.get("result")
+        if not isinstance(result, dict):
+            raise RuntimeError("TurnEngine project stage did not produce a result")
+        return result
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -12206,203 +12560,20 @@ class FreeStageSession:
                     )
                     return self._canon_step_result([], turn_no=turn_no, debug=debug)
 
-        deliberate_stage = self._run_turn_deliberate_stage(
+        return self._run_normal_turn_with_engine(
             player_input=player_input,
+            debug=debug,
             turn_no=turn_no,
-            speech=speech,
-            action=action,
-            thought=thought,
-            facts_this_turn=facts_this_turn,
-            cafe_disposition=cafe_disposition,
-        )
-        resolved_card = deliberate_stage.resolved_card
-        active_state = deliberate_stage.active_state
-        beats_on_card = deliberate_stage.beats_on_card
-        intent_resolution = deliberate_stage.intent_resolution
-        semantic_exit = deliberate_stage.semantic_exit
-        director_only_hits = list(deliberate_stage.director_only_hits)
-
-        floor_stage = self._run_turn_floor_stage(
-            resolved_card=resolved_card,
-            player_input=player_input,
-            intent_resolution=intent_resolution,
-        )
-        speaker_plan = floor_stage.speaker_plan
-        current_scene_id = floor_stage.current_scene_id
-        stall_escalation = floor_stage.stall_escalation
-
-        enact_prep = self._prepare_turn_enact_stage(
-            resolved_card=resolved_card,
-            speaker_plan=speaker_plan,
-            intent_resolution=intent_resolution,
-            active_state=active_state,
-            turn_no=turn_no,
-            player_input=player_input,
             speech=speech,
             action=action,
             thought=thought,
             suppress_visible_input=suppress_visible_input,
-            stall_escalation=stall_escalation,
-        )
-        performance_plan = [dict(item) for item in enact_prep.performance_plan]
-        actor_context_packets = {
-            str(cons): dict(packet)
-            for cons, packet in enact_prep.actor_context_packets.items()
-        }
-        prompt = enact_prep.prompt
-
-        emitted: list[dict[str, Any]] = []
-        stream_response_turns: list[dict[str, Any]] = []
-        emitted.extend([
-            item for item in self.history
-            if item.get("role") == "narrate" and item.get("turn") == turn_no
-            and item.get("stage") == "环境对可见行为作出的即时反应。"
-        ])
-        if layer_c_turns:
-            self._enqueue_stream_items(layer_c_turns, turn_no=turn_no)
-        actor_errors: list[str] = []
-        turn_degradations: list[dict[str, Any]] = []
-        committed_actor_decisions: list[dict[str, Any]] = []
-        context_receipts: list[dict[str, Any]] = []
-        payload: dict[str, Any] = {}
-        turns: list[dict[str, Any]] = []
-        progress: list[str] = []
-        new_progress: list[str] = []
-        ambient_turns: list[dict[str, Any]] = []
-        try:
-            payload = self._run_turn_enact_stage(
-                prompt=prompt,
-                actor_context_packets=actor_context_packets,
-                performance_plan=performance_plan,
-                resolved_card=resolved_card,
-                intent_resolution=intent_resolution,
-            )
-            resolve_stage = self._run_turn_resolve_stage(
-                payload=payload,
-                resolved_card=resolved_card,
-                actor_context_packets=actor_context_packets,
-                speaker_plan=speaker_plan,
-                player_input=player_input,
-                turn_no=turn_no,
-                beats_on_card=int(beats_on_card or 0),
-                facts_this_turn=facts_this_turn,
-            )
-            context_receipts = list(resolve_stage.context_receipts)
-            turns = [dict(item) for item in resolve_stage.turns]
-            note = resolve_stage.note
-            ambient_turns = [dict(item) for item in resolve_stage.ambient_turns]
-            new_progress = list(resolve_stage.new_progress)
-            turn_degradations.extend(resolve_stage.degradations)
-
-            commit_stage = self._run_turn_commit_stage(
-                payload=payload,
-                intent_resolution=intent_resolution,
-                resolved_card=resolved_card,
-                actor_context_packets=actor_context_packets,
-                speaker_plan=speaker_plan,
-                player_input=player_input,
-                turn_no=turn_no,
-                ambient_turns=ambient_turns,
-                new_progress=new_progress,
-                turns=turns,
-                note=note,
-                facts_this_turn=facts_this_turn,
-                stall_escalation=stall_escalation,
-                current_scene_id=current_scene_id,
-                is_oob=is_oob,
-                oob_bridge=oob_bridge,
-                newly_triggered_bps=newly_triggered_bps,
-                emitted=emitted,
-                stream_response_turns=stream_response_turns,
-                degradations=turn_degradations,
-            )
-            turns = [dict(item) for item in commit_stage.turns]
-            committed_actor_decisions = [
-                dict(item) for item in commit_stage.committed_actor_decisions
-            ]
-        except Exception as exc:
-            fallback_text, fallback_degradations = guard_visible_text(
-                "远端演算这一拍没有接通。你的话仍然留在现场，眼前的人短暂安静下来，空气先替他们接住了这句话。",
-                "actor_fallback",
-            )
-            turn_degradations.extend(fallback_degradations)
-            turn_degradations.append(make_degradation(
-                "actor_llm",
-                "template_fallback",
-                "演员生成失败，已用场内旁白降级保住回合。",
-                detail=str(exc)[:180],
-            ))
-            err_item = {
-                "role": "npc",
-                "speaker": "旁白",
-                "text": fallback_text,
-                "stage": "",
-                "turn": turn_no,
-                "fallback_error": str(exc)[:240],
-            }
-            stream_response_turns.extend(
-                self._push_stream_turns([err_item], turn_no=turn_no, emitted=emitted)
-            )
-            actor_errors.append(str(exc))
-
-        director_only_turn = director_only_bridge_turn(director_only_hits, turn_no)
-        if director_only_turn:
-            director_only_turn["text"], spoiler_degradations = guard_visible_text(
-                director_only_turn["text"], "director_only_bridge"
-            )
-            turn_degradations.extend(spoiler_degradations)
-            self.history.append(director_only_turn)
-            emitted.append(dict(director_only_turn))
-
-        self._maybe_emit_violation_warning(turn_no, emitted)
-        turn_degradations.extend(self._evaluate_heart_stages())
-        self._record_public_actor_mind_receipts(resolved_card, emitted, turn_no)
-        self._tick_private_inner_states(
-            resolved_card,
-            {"speech": speech, "action": action, "thought": thought},
-            turn_no,
-            emitted=emitted,
-            speaker_plan=speaker_plan,
-        )
-
-        self.last_issues = actor_errors + hard_check(self.history, self.completed, resolved_card)
-
-        # P1a: must-happen completion only changes exit eligibility. It never
-        # closes a social/free scene by itself; ExitPolicy is the sole decider.
-        exit_reason = format_exit_reason(player_input, self.completed, resolved_card, self.stall)
-
-        exit_stage = self._run_turn_exit_stage(
-            player_input=player_input,
-            turn_no=turn_no,
-            emitted=emitted,
-            semantic_exit=semantic_exit,
-        )
-        transition = exit_stage.transition
-        emitted.extend(exit_stage.emitted_turns)
-        turn_degradations.extend(exit_stage.degradations)
-        return self._run_turn_project_pipeline_stage(
-            player_input=player_input,
-            turn_no=turn_no,
-            resolved_card=resolved_card,
-            actor_context_packets=actor_context_packets,
-            turns=turns,
-            emitted=emitted,
-            stream_response_turns=stream_response_turns,
-            transition=transition,
-            debug=debug,
-            prompt=prompt,
-            speaker_plan=speaker_plan,
-            context_receipts=context_receipts,
-            payload=payload,
-            intent_resolution=intent_resolution,
-            committed_actor_decisions=committed_actor_decisions,
-            director_only_hits=director_only_hits,
-            stall_escalation=stall_escalation,
-            ambient_turns=ambient_turns,
+            facts_this_turn=facts_this_turn,
+            cafe_disposition=cafe_disposition,
             layer_c_turns=layer_c_turns,
-            speech=speech,
-            turn_degradations=turn_degradations,
-            exit_reason=exit_reason,
+            is_oob=is_oob,
+            oob_bridge=oob_bridge,
+            newly_triggered_bps=newly_triggered_bps,
         )
 
     def result(self, debug: bool = False) -> dict[str, Any]:

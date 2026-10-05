@@ -6480,6 +6480,7 @@ class _TurnCommitStageResult:
 @dataclass(frozen=True)
 class _TurnDeliberateStageResult:
     resolved_card: dict[str, Any]
+    active_state: str
     beats_on_card: int
     intent_resolution: Any = None
     semantic_exit: int | None = None
@@ -11004,6 +11005,7 @@ class FreeStageSession:
 
         return _TurnDeliberateStageResult(
             resolved_card=resolved_card,
+            active_state=str(active_state or ""),
             beats_on_card=int(beats_on_card or 0),
             intent_resolution=intent_resolution,
             semantic_exit=semantic_exit,
@@ -11551,6 +11553,7 @@ class FreeStageSession:
             cafe_disposition=cafe_disposition,
         )
         resolved_card = deliberate_stage.resolved_card
+        active_state = deliberate_stage.active_state
         beats_on_card = deliberate_stage.beats_on_card
         intent_resolution = deliberate_stage.intent_resolution
         semantic_exit = deliberate_stage.semantic_exit

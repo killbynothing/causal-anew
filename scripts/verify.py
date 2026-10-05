@@ -884,6 +884,20 @@ VALIDATORS = [
         "need_file": "scripts/tests/test_context_assembly.py",
     },
     {
+        "id": "turn_engine_boundaries",
+        "desc": "P6 ScenePolicy/TurnEngine 边界：纯快照、禁权威写、核心禁具体场景依赖（零LLM）",
+        "tier": "quick",
+        "cmd": [PY, "scripts/tests/test_turn_engine_boundaries.py"],
+        "triggers": [
+            "runtime/scene_policies.py",
+            "runtime/turn_engine.py",
+            "runtime/free_stage_prototype.py",
+            "scripts/tests/test_turn_engine_boundaries.py",
+        ],
+        "need": [],
+        "need_file": "scripts/tests/test_turn_engine_boundaries.py",
+    },
+    {
         "id": "runtime_authority_map",
         "desc": "P0a 运行时权威 writer 测绘：五域字段、caller、分类与 verify inventory",
         "tier": "quick",

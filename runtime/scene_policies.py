@@ -198,8 +198,151 @@ def evaluate_tiananmen(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
     return ScenePolicyOutput(evidence=tuple(sorted(facts)))
 
 
+
+def c16_milktea_disposition(snapshot: ScenePolicyInput) -> str:
+    """Classify only explicit cafe acceptance/refusal from observable player input."""
+    compact = re.sub(r"\s+", "", snapshot.player_public_text)
+    accept = ("一起去", "我也去", "跟你们去", "去喝", "去奶茶店", "好啊", "可以")
+    decline = ("不去", "不跟", "不用了", "别跟他去", "不想去", "不喝")
+    if any(token in compact for token in decline):
+        if any(token in compact for token in ("斑驳", "雨璇", "她们", "两个女生", "我们不")):
+            return "girls_declined"
+        return "player_declined"
+    if any(token in compact for token in accept):
+        return "accepted"
+    return "undecided"
+
+
+def c16_counter_encounter_diversion(snapshot: ScenePolicyInput) -> str:
+    """Classify an observable action that diverts the later counter encounter."""
+    compact = re.sub(r"\s+", "", snapshot.player_public_text)
+    if not compact:
+        return "undecided"
+    girls = ("女生", "她们", "两人", "斑驳", "雨璇")
+    redirect = ("另一条街", "另一家", "换一家", "带她们走", "带两人走", "别去那家", "离开校门")
+    if any(token in compact for token in girls) and any(token in compact for token in redirect):
+        return "girls_redirected"
+    zhang_block = ("拦住张尘", "拦住那个男人", "阻止他接触", "不让他跟", "别跟过去")
+    if any(token in compact for token in zhang_block):
+        return "zhangchen_blocked"
+    return "undecided"
+
+
+def c16_shop_follow_disposition(snapshot: ScenePolicyInput) -> str:
+    """Resolve only explicit shop-position choices; silence never means entry."""
+    text = re.sub(r"\s+", "", snapshot.player_public_text)
+    if not text:
+        return "wait"
+    leave_tokens = ("离开这里", "离开场景", "去别处", "去别的地方", "直接回家", "我先走了")
+    if any(token in text for token in leave_tokens):
+        return "left_scene"
+    zhang_follow_tokens = (
+        "跟上张尘", "跟着张尘", "跟上那个年轻男人", "跟着那个年轻男人",
+        "跟上那男人", "跟着那男人", "跟上他", "跟着他",
+    )
+    if any(token in text for token in zhang_follow_tokens):
+        return "follow_zhangchen"
+    outside_tokens = ("不进去", "留在校门口", "待在校门口", "留在门外", "待在门外", "门外等")
+    if any(token in text for token in outside_tokens):
+        return "stay_outside"
+    enter_tokens = ("跟进店", "跟进去", "进奶茶店", "走进店", "进店里", "到取餐口")
+    observer_tokens = ("旁观", "旁边看", "只看", "不加入", "保持距离", "外围", "取餐口")
+    if any(token in text for token in enter_tokens) and any(token in text for token in observer_tokens):
+        return "inside_observer"
+    join_tokens = ("加入他们", "加入你们", "一起坐", "一起吃", "上前打招呼", "主动加入")
+    if any(token in text for token in enter_tokens) and any(token in text for token in join_tokens):
+        return "join_request"
+    return "undecided"
+
+
+def c16_gate_disposition(snapshot: ScenePolicyInput) -> str:
+    """The gate camera choice shares the explicit shop-follow vocabulary."""
+    return c16_shop_follow_disposition(snapshot)
+
+
+def c16_table_follow_disposition(snapshot: ScenePolicyInput) -> str:
+    """Resolve the counter-to-table move without treating thought as movement."""
+    text = re.sub(r"\s+", "", snapshot.player_public_text)
+    if not text:
+        return "wait"
+    stay_tokens = ("留在取餐口", "待在取餐口", "站在取餐口", "不上楼", "不跟上楼")
+    if any(token in text for token in stay_tokens):
+        return "stay_counter"
+    table_tokens = ("跟上楼", "跟到楼上", "上楼", "旁桌", "落座区")
+    observer_tokens = ("旁桌", "继续看", "旁观", "不加入", "保持距离", "外围")
+    if any(token in text for token in table_tokens) and any(token in text for token in observer_tokens):
+        return "table_observer"
+    join_tokens = ("一起坐", "坐到他们", "加入他们", "加入你们", "同桌")
+    if any(token in text for token in table_tokens) and any(token in text for token in join_tokens):
+        return "join_request"
+    return "undecided"
+
+
+def c16_subtle_peripheral_watch(snapshot: ScenePolicyInput) -> bool:
+    """Low-salience peripheral observation that should not be broadcast to all actors."""
+    speech = snapshot.player_speech.strip()
+    action = snapshot.player_action.strip()
+    if speech or not action:
+        return False
+    quiet_markers = ("看着", "观察", "围观", "旁观", "远远", "站在旁边", "站在一边", "不动")
+    salient_markers = ("上前", "靠近", "走过去", "拦住", "拍", "喊", "叫住", "挥手", "挡住", "拉住")
+    return any(marker in action for marker in quiet_markers) and not any(
+        marker in action for marker in salient_markers
+    )
+
+
+def c16_overt_intervention(snapshot: ScenePolicyInput) -> bool:
+    """Minimal deterministic evidence that the player openly enters the interaction."""
+    speech = snapshot.player_speech.strip()
+    action = snapshot.player_action.strip()
+    if any(marker in action for marker in ("上前", "靠近", "走过去", "拦住", "插话", "解围", "护住", "制止")):
+        return True
+    return bool(
+        speech
+        and any(marker in speech for marker in ("我叫", "我是", "你们没事吧", "别骚扰", "想做什么"))
+    )
+
+
+def evaluate_c16(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
+    """Return C16 evidence/proposals without mutating any runtime owner."""
+    if snapshot.scene_id not in {"CARD_16ZHONG_GATE", "CARD_MILKTEA_WATCH"}:
+        return ScenePolicyOutput()
+
+    evidence: list[str] = []
+    proposals: list[str] = []
+
+    if snapshot.scene_id == "CARD_16ZHONG_GATE":
+        if c16_subtle_peripheral_watch(snapshot):
+            evidence.append("c16_subtle_peripheral_watch")
+        if c16_overt_intervention(snapshot):
+            evidence.append("c16_overt_intervention")
+
+        diversion = c16_counter_encounter_diversion(snapshot)
+        if diversion != "undecided":
+            proposals.append(f"c16_counter_encounter_diversion:{diversion}")
+        else:
+            cafe = c16_milktea_disposition(snapshot)
+            if cafe != "undecided":
+                proposals.append(f"c16_milktea_disposition:{cafe}")
+
+        shop = c16_shop_follow_disposition(snapshot)
+        if shop not in {"undecided", "wait"}:
+            proposals.append(f"c16_shop_follow_disposition:{shop}")
+
+    if snapshot.scene_id == "CARD_MILKTEA_WATCH":
+        table = c16_table_follow_disposition(snapshot)
+        if table not in {"undecided", "wait"}:
+            proposals.append(f"c16_table_follow_disposition:{table}")
+
+    return ScenePolicyOutput(
+        evidence=tuple(evidence),
+        proposals=tuple(proposals),
+    )
+
 def evaluate(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
     """Dispatch a pure snapshot to the scene policy known to this module."""
     if snapshot.scene_id == "OPENING_TIANANMEN_002":
         return evaluate_tiananmen(snapshot)
+    if snapshot.scene_id in {"CARD_16ZHONG_GATE", "CARD_MILKTEA_WATCH"}:
+        return evaluate_c16(snapshot)
     return ScenePolicyOutput()

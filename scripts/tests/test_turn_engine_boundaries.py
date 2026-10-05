@@ -1093,6 +1093,43 @@ def test_enact_prep_owns_packet_prompt_but_not_transport_or_commit():
     assert params is not None
     assert params.frozen is True
 
+
+def test_session_step_delegates_complete_project_pipeline():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "return self._run_turn_project_pipeline_stage(" in source
+    tail = source[source.index("exit_stage = self._run_turn_exit_stage("):]
+    for forbidden in (
+        "debug_payload = _with_agent_modules(",
+        "self.debug_history.append(",
+        "self.save()",
+        "return self._run_turn_project_stage(",
+    ):
+        assert forbidden not in tail, forbidden
+
+
+def test_project_pipeline_owns_observer_save_and_public_projection():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_project_pipeline_stage)
+    for required in (
+        "debug_payload = _with_agent_modules(",
+        "self.debug_history.append(debug_payload)",
+        "if self.autosave:",
+        "self.save()",
+        "return self._run_turn_project_stage(",
+    ):
+        assert required in source, required
+
+    for forbidden in (
+        "run_director_and_isolated_actors(",
+        "call_actor(",
+        "normalize_turns(",
+        "beat_evidence.resolve_completions(",
+        "participation_runtime.arbitrate_floor(",
+        "scene_policies.evaluate(",
+        "_run_turn_resolve_stage(",
+        "_run_turn_commit_stage(",
+    ):
+        assert forbidden not in source, forbidden
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

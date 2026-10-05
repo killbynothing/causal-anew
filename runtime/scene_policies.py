@@ -76,6 +76,112 @@ class ScenePolicyInput:
         )
 
 
+
+@dataclass(frozen=True)
+class CanonSegmentSpec:
+    segment_id: str
+    trigger: str = ""
+    after_stop: str = ""
+    requires_branch: frozenset[str] = frozenset()
+    requires_autonomous_decisions: frozenset[str] = frozenset()
+    requires_autonomous_outcomes: tuple[tuple[str, str], ...] = ()
+    auto_continue: bool = False
+
+    @classmethod
+    def from_mapping(cls, raw: Mapping[str, Any]) -> "CanonSegmentSpec":
+        outcomes = raw.get("requires_autonomous_outcomes")
+        outcome_items: list[tuple[str, str]] = []
+        if isinstance(outcomes, Mapping):
+            outcome_items = sorted(
+                (
+                    str(key or "").strip(),
+                    str(value or "").strip(),
+                )
+                for key, value in outcomes.items()
+                if str(key or "").strip()
+            )
+        return cls(
+            segment_id=str(raw.get("segment_id") or "").strip(),
+            trigger=str(raw.get("trigger") or "").strip(),
+            after_stop=str(raw.get("after_stop") or "").strip(),
+            requires_branch=frozenset(
+                str(item or "").strip()
+                for item in (raw.get("requires_branch") or ())
+                if str(item or "").strip()
+            ),
+            requires_autonomous_decisions=frozenset(
+                str(item or "").strip()
+                for item in (raw.get("requires_autonomous_decisions") or ())
+                if str(item or "").strip()
+            ),
+            requires_autonomous_outcomes=tuple(outcome_items),
+            auto_continue=bool(raw.get("auto_continue")),
+        )
+
+
+@dataclass(frozen=True)
+class CanonSelectionInput:
+    pending_stop: str
+    completed_segments: frozenset[str] = frozenset()
+    branch_progress: frozenset[str] = frozenset()
+    resolved_decisions: frozenset[str] = frozenset()
+    decision_outcomes: tuple[tuple[str, str], ...] = ()
+    segments: tuple[CanonSegmentSpec, ...] = ()
+
+    @classmethod
+    def from_runtime(
+        cls,
+        *,
+        pending_stop: str,
+        completed_segments: Sequence[str] = (),
+        branch_progress: Sequence[str] = (),
+        actor_decisions: Sequence[Mapping[str, Any]] = (),
+        segments: Sequence[Mapping[str, Any]] = (),
+    ) -> "CanonSelectionInput":
+        decisions: set[str] = set()
+        outcomes: dict[str, str] = {}
+        for item in actor_decisions:
+            if not isinstance(item, Mapping):
+                continue
+            decision_id = str(item.get("autonomous_decision_id") or "").strip()
+            if not decision_id:
+                continue
+            decisions.add(decision_id)
+            outcomes[decision_id] = str(item.get("outcome") or "").strip()
+        return cls(
+            pending_stop=str(pending_stop or "").strip(),
+            completed_segments=frozenset(
+                str(item or "").strip()
+                for item in completed_segments
+                if str(item or "").strip()
+            ),
+            branch_progress=frozenset(
+                str(item or "").strip()
+                for item in branch_progress
+                if str(item or "").strip()
+            ),
+            resolved_decisions=frozenset(decisions),
+            decision_outcomes=tuple(sorted(outcomes.items())),
+            segments=tuple(
+                CanonSegmentSpec.from_mapping(item)
+                for item in segments
+                if isinstance(item, Mapping)
+            ),
+        )
+
+
+@dataclass(frozen=True)
+class CanonSegmentSelection:
+    segment_id: str
+    auto_continue: bool = False
+
+
+@dataclass(frozen=True)
+class FlashbackHandoffInput:
+    prologue_active: bool
+    has_return_frame: bool
+    all_must_happen_complete: bool
+
 @dataclass(frozen=True)
 class ScenePolicyOutput:
     evidence: tuple[str, ...] = ()
@@ -339,6 +445,48 @@ def evaluate_c16(snapshot: ScenePolicyInput) -> ScenePolicyOutput:
         proposals=tuple(proposals),
     )
 
+
+
+def select_pending_canon_segment(
+    snapshot: CanonSelectionInput,
+) -> CanonSegmentSelection | None:
+    """Select the first eligible after-stop segment without touching runtime state."""
+    if not snapshot.pending_stop:
+        return None
+    outcome_by_decision = dict(snapshot.decision_outcomes)
+    for segment in snapshot.segments:
+        if not segment.segment_id or segment.segment_id in snapshot.completed_segments:
+            continue
+        if segment.trigger != "after_stop":
+            continue
+        if segment.after_stop != snapshot.pending_stop:
+            continue
+        if not segment.requires_branch.issubset(snapshot.branch_progress):
+            continue
+        if (
+            segment.requires_autonomous_decisions
+            and not segment.requires_autonomous_decisions.issubset(snapshot.resolved_decisions)
+        ):
+            continue
+        if any(
+            outcome_by_decision.get(decision_id) != expected
+            for decision_id, expected in segment.requires_autonomous_outcomes
+        ):
+            continue
+        return CanonSegmentSelection(
+            segment_id=segment.segment_id,
+            auto_continue=segment.auto_continue,
+        )
+    return None
+
+
+def flashback_handoff_ready(snapshot: FlashbackHandoffInput) -> bool:
+    """Only classify handoff readiness; pendant/world settlement stays outside policy."""
+    return bool(
+        snapshot.prologue_active
+        and snapshot.has_return_frame
+        and snapshot.all_must_happen_complete
+    )
 
 def proposal_value(
     output: ScenePolicyOutput,

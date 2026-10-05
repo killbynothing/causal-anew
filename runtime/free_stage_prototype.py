@@ -4382,7 +4382,20 @@ def apply_stall_escalation_to_speaker_plan(plan: dict[str, Any], escalation: dic
     return out
 
 
-def build_speaker_plan(
+@dataclass(frozen=True)
+class _ParticipationDeliberation:
+    max_speakers: int
+    name_by_cons: tuple[tuple[str, str], ...]
+    relation_stage_by_cons: tuple[tuple[str, str], ...]
+    conversation_contract: tuple[tuple[str, Any], ...]
+    direct_addressee: str = ""
+    intro_wave_pending: tuple[str, ...] = ()
+    recent_occupancy: tuple[tuple[str, int], ...] = ()
+    intents: tuple[participation_runtime.ParticipationIntent, ...] = ()
+    c16_peripheral_watch: bool = False
+
+
+def build_participation_deliberation(
     card: dict[str, Any],
     history: list[dict[str, Any]],
     player_input: str | dict[str, Any],
@@ -4390,14 +4403,8 @@ def build_speaker_plan(
     completed: list[str] | None = None,
     branch_progress: list[str] | None = None,
     actor_minds: Mapping[str, Mapping[str, Any]] | None = None,
-) -> dict[str, Any]:
-    """P4: actor-owned participation intent, then content-blind FloorGrant.
-
-    Legacy fields such as speakers/bids/backchannel_actors remain projections so
-    downstream callers do not need a flag day. Floor itself receives only
-    intent metadata, never actor goal text, MH ids, director instructions or
-    player thought.
-    """
+) -> _ParticipationDeliberation:
+    """P6 deliberate stage adapter over P4 actor-owned participation intents."""
     del completed, branch_progress
     is_c16_gate = str(card.get("scene_id", "")) == "CARD_16ZHONG_GATE"
     if is_c16_gate:
@@ -4448,7 +4455,9 @@ def build_speaker_plan(
     recent_npc = [
         str(item.get("cons") or "")
         for item in scene_state.get("recent_log", [])[-8:]
-        if isinstance(item, dict) and item.get("role") == "npc" and str(item.get("cons") or "")
+        if isinstance(item, dict)
+        and item.get("role") == "npc"
+        and str(item.get("cons") or "")
     ]
     recent_public_actor = recent_npc[-1] if recent_npc else ""
     occupancy: dict[str, int] = {}
@@ -4456,6 +4465,7 @@ def build_speaker_plan(
         occupancy[cons] = occupancy.get(cons, 0) + 1
 
     intents: list[participation_runtime.ParticipationIntent] = []
+    relation_stage_by_cons: dict[str, str] = {}
     for item in present:
         cons = str(item.get("cons") or "").strip()
         persona = personas.get(cons) if isinstance(personas.get(cons), dict) else {}
@@ -4465,8 +4475,11 @@ def build_speaker_plan(
         visible_input = _observable_player_for_actor(
             card,
             cons,
-            player_input if isinstance(player_input, dict)
-            else {"speech": str(player_input or ""), "action": ""},
+            (
+                player_input
+                if isinstance(player_input, dict)
+                else {"speech": str(player_input or ""), "action": ""}
+            ),
         )
         intents.append(
             participation_runtime.deliberate_participation(
@@ -4478,33 +4491,74 @@ def build_speaker_plan(
                 recent_public_actor=recent_public_actor,
             )
         )
+        relation = str(
+            (persona.get("structured_memory") or {}).get("relation", "")
+        ).strip()
+        relation_stage_by_cons[cons] = map_relation_to_stage(relation)
+
+    peripheral_watch = bool(
+        is_c16_gate
+        and _c16_subtle_peripheral_watch(
+            (
+                player_input
+                if isinstance(player_input, dict)
+                else {"action": player_input}
+            )
+        )
+    )
+    return _ParticipationDeliberation(
+        max_speakers=int(max_speakers),
+        name_by_cons=tuple(name_by_cons.items()),
+        relation_stage_by_cons=tuple(relation_stage_by_cons.items()),
+        conversation_contract=tuple(dict(conversation_contract).items()),
+        direct_addressee=str(direct_addressee or ""),
+        intro_wave_pending=tuple(str(item) for item in intro_wave_pending),
+        recent_occupancy=tuple(occupancy.items()),
+        intents=tuple(intents),
+        c16_peripheral_watch=peripheral_watch,
+    )
+
+
+def build_floor_plan(
+    deliberation: _ParticipationDeliberation,
+) -> dict[str, Any]:
+    """P6 floor stage adapter; only P4 metadata reaches the sole arbiter."""
+    name_by_cons = dict(deliberation.name_by_cons)
+    relation_stage_by_cons = dict(deliberation.relation_stage_by_cons)
+    conversation_contract = dict(deliberation.conversation_contract)
+    occupancy = dict(deliberation.recent_occupancy)
+    intents = list(deliberation.intents)
+    direct_addressee = deliberation.direct_addressee or None
+    intro_wave_pending = tuple(deliberation.intro_wave_pending)
 
     grants = participation_runtime.arbitrate_floor(
         intents,
         recent_occupancy=occupancy,
-        max_floor=max_speakers,
+        max_floor=deliberation.max_speakers,
         max_companion=2,
         max_stage=1,
     )
     grant_rows = [grant.to_dict() for grant in grants]
-    grant_by_cons = participation_runtime.grant_map(grants)
 
     bids: list[dict[str, Any]] = []
     for intent in intents:
-        persona = personas.get(intent.actor_cons) if isinstance(personas.get(intent.actor_cons), dict) else {}
-        relation = str((persona.get("structured_memory") or {}).get("relation", "")).strip()
         bids.append(
             {
                 "cons": intent.actor_cons,
                 "name": name_by_cons.get(intent.actor_cons, intent.actor_cons),
                 "score": float(intent.urgency),
                 "reasons": list(intent.reason_codes),
-                "relation_stage": map_relation_to_stage(relation),
+                "relation_stage": relation_stage_by_cons.get(intent.actor_cons, "S1"),
                 "participation_mode": intent.mode,
                 "lane": intent.lane,
             }
         )
-    bids.sort(key=lambda row: (-float(row.get("score", 0.0)), str(row.get("cons", ""))))
+    bids.sort(
+        key=lambda row: (
+            -float(row.get("score", 0.0)),
+            str(row.get("cons", "")),
+        )
+    )
 
     speakers: list[dict[str, Any]] = []
     stage_actors: list[dict[str, Any]] = []
@@ -4519,7 +4573,11 @@ def build_speaker_plan(
             "cons": cons,
             "name": name_by_cons.get(cons, cons),
             "bid": float(grant.urgency),
-            "reason": "public_obligation" if grant.public_obligation else "participation_intent",
+            "reason": (
+                "public_obligation"
+                if grant.public_obligation
+                else "participation_intent"
+            ),
             "bid_reasons": list(bid.get("reasons") or []),
             "relation_stage": bid.get("relation_stage", "S1"),
             "response_slot": grant.response_slot,
@@ -4530,7 +4588,10 @@ def build_speaker_plan(
         }
         if cons in intro_wave_pending and grant.lane == "floor":
             row["social_instruction"] = "natural_self_or_friend_introduction"
-        elif cons == direct_addressee and conversation_contract.get("social_instruction"):
+        elif (
+            cons == direct_addressee
+            and conversation_contract.get("social_instruction")
+        ):
             row["social_instruction"] = conversation_contract["social_instruction"]
 
         if grant.lane == "floor":
@@ -4543,30 +4604,56 @@ def build_speaker_plan(
             side_actors.append(row)
 
     plan = {
-        "max_speakers": int(max_speakers),
+        "max_speakers": int(deliberation.max_speakers),
         "speakers": speakers,
         "stage_actors": stage_actors,
         "bids": bids,
         "allow_silence": not bool(grants),
         "direct_addressee": direct_addressee,
         "conversation_contract": conversation_contract,
-        "intro_wave_pending": intro_wave_pending,
+        "intro_wave_pending": list(intro_wave_pending),
         "beat_speaker_hints": [],
         "participation_intents": [intent.to_dict() for intent in intents],
-        "floor_inputs": [participation_runtime.floor_view(intent) for intent in intents],
+        "floor_inputs": [
+            participation_runtime.floor_view(intent)
+            for intent in intents
+        ],
         "floor_grants": grant_rows,
-        "participation_llm_calls": sum(int(intent.llm_calls) for intent in intents),
+        "participation_llm_calls": sum(
+            int(intent.llm_calls)
+            for intent in intents
+        ),
         "floor_recent_occupancy": dict(occupancy),
         "backchannel_actors": backchannel_actors,
         "side_actors": side_actors,
     }
     plan["companion_actors"] = soc.merge_companion_actors(plan, max_n=2)
-    if is_c16_gate and _c16_subtle_peripheral_watch(
-        player_input if isinstance(player_input, dict) else {"action": player_input}
-    ):
+    if deliberation.c16_peripheral_watch:
         plan["silent_observer_cons"] = "C.zhangchen.WMAIN"
         plan["player_signal_mode"] = "peripheral_watch_isolated"
     return plan
+
+
+def build_speaker_plan(
+    card: dict[str, Any],
+    history: list[dict[str, Any]],
+    player_input: str | dict[str, Any],
+    max_speakers: int = MAX_BID_SPEAKERS,
+    completed: list[str] | None = None,
+    branch_progress: list[str] | None = None,
+    actor_minds: Mapping[str, Mapping[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Compatibility facade over explicit P6 deliberate -> floor stages."""
+    deliberation = build_participation_deliberation(
+        card,
+        history,
+        player_input,
+        max_speakers=max_speakers,
+        completed=completed,
+        branch_progress=branch_progress,
+        actor_minds=actor_minds,
+    )
+    return build_floor_plan(deliberation)
 
 def _cap_question_marks(text: str, remaining: int) -> tuple[str, int]:
     chars = []

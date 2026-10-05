@@ -967,6 +967,48 @@ def test_step_commits_only_after_resolve_returns():
     assert resolve_at < opportunity_at < beat_commit_at
     assert "turn_degradations.extend(resolve_stage.degradations)" in source
 
+
+def test_commit_stage_owns_authority_but_not_resolution_or_policy():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_commit_stage)
+    assert "self._beat_complete_many(" in source
+    assert "self._append_actor_decisions(" in source
+    assert "self._record_scene_receipt(" in source
+    assert "self._observe(" in source
+    assert "self._body_settle(" in source
+
+    for forbidden in (
+        "scene_policies.",
+        "participation_runtime.deliberate_participation(",
+        "participation_runtime.arbitrate_floor(",
+        "normalize_turns(",
+        "beat_evidence.resolve_completions(",
+        "run_director_and_isolated_actors(",
+        "call_actor(",
+    ):
+        assert forbidden not in source, forbidden
+
+    params = getattr(proto._TurnCommitStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
+
+def test_step_order_is_enact_resolve_commit():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    enact_at = source.index("payload = self._run_turn_enact_stage(")
+    resolve_at = source.index("resolve_stage = self._run_turn_resolve_stage(")
+    commit_at = source.index("commit_stage = self._run_turn_commit_stage(")
+    assert enact_at < resolve_at < commit_at
+
+    post_resolve = source[resolve_at:commit_at]
+    for forbidden in (
+        "_beat_complete_many(",
+        "_append_actor_decisions(",
+        "_record_scene_receipt(",
+        "_observe(",
+        "_body_settle(",
+    ):
+        assert forbidden not in post_resolve, forbidden
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

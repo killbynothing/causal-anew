@@ -328,8 +328,11 @@ def test_c16_session_classifiers_are_thin_policy_adapters():
 
 
 def test_session_step_consumes_one_policy_output_instead_of_reclassifying_c16():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    assert "scene_policies.evaluate(scene_policy_snapshot)" in source
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_turn_scene_prelude_stage)
+
+    assert "self._run_turn_scene_prelude_stage(" in step_source
+    assert "scene_policies.evaluate(scene_policy_snapshot)" not in step_source
     assert source.count("scene_policies.evaluate(scene_policy_snapshot)") == 1
     assert "scene_policies.proposal_value(" in source
     assert '"c16_overt_intervention" in scene_policy_output.evidence' in source
@@ -344,6 +347,10 @@ def test_session_step_consumes_one_policy_output_instead_of_reclassifying_c16():
         "tiananmen_player_facts(player_input",
     ):
         assert forbidden not in source, forbidden
+
+    params = getattr(proto._TurnScenePreludeResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
 
 
 def test_policy_output_preserves_wait_vs_undecided_for_c16_position_gates():

@@ -13,6 +13,7 @@ if str(ROOT) not in sys.path:
 
 from runtime import free_stage_prototype as proto
 from runtime import scene_policies
+from runtime import turn_engine
 
 
 def _snapshot(*, scene_id: str = "OPENING_TIANANMEN_002"):
@@ -495,6 +496,110 @@ def test_flashback_policy_only_classifies_handoff_readiness():
     assert "scene_policies.flashback_handoff_ready(" in transition_source
     assert 'self._finalize_prologue_pendant("deferred"' in transition_source
     assert '"ryuya_pendant_disposition"' in transition_source
+
+
+def _turn_ports(factory):
+    return turn_engine.TurnPorts(
+        input=factory("input"),
+        observe=factory("observe"),
+        deliberate=factory("deliberate"),
+        floor=factory("floor"),
+        enact=factory("enact"),
+        resolve=factory("resolve"),
+        commit=factory("commit"),
+        exit=factory("exit"),
+        project=factory("project"),
+    )
+
+
+def test_turn_engine_executes_exact_stage_order():
+    seen = []
+
+    def factory(stage):
+        def port(frame):
+            seen.append((stage, frame.stages))
+            return turn_engine.TurnStageReceipt.continue_(stage)
+        return port
+
+    frame = turn_engine.TurnEngine(_turn_ports(factory)).run_turn(request_id="turn:test:1")
+    assert frame.stages == turn_engine.TURN_STAGE_ORDER
+    assert [stage for stage, _prior in seen] == list(turn_engine.TURN_STAGE_ORDER)
+    for index, (_stage, prior) in enumerate(seen):
+        assert prior == turn_engine.TURN_STAGE_ORDER[:index]
+
+
+def test_turn_engine_short_circuit_can_only_jump_to_project():
+    seen = []
+
+    def factory(stage):
+        def port(frame):
+            seen.append(stage)
+            if stage == "observe":
+                return turn_engine.TurnStageReceipt.project(
+                    stage,
+                    note="thought_only",
+                    artifact_keys=("observation_receipt",),
+                )
+            return turn_engine.TurnStageReceipt.continue_(stage)
+        return port
+
+    frame = turn_engine.TurnEngine(_turn_ports(factory)).run_turn(request_id="turn:test:2")
+    assert frame.stages == ("input", "observe", "project")
+    assert seen == ["input", "observe", "project"]
+    assert frame.short_circuited
+    assert frame.short_circuit_reason == "thought_only"
+
+
+def test_turn_engine_rejects_stage_mismatch():
+    def factory(stage):
+        def port(frame):
+            wrong = "observe" if stage == "input" else stage
+            return turn_engine.TurnStageReceipt.continue_(wrong)
+        return port
+
+    try:
+        turn_engine.TurnEngine(_turn_ports(factory)).run_turn(request_id="turn:test:3")
+    except ValueError as exc:
+        assert "stage mismatch" in str(exc)
+    else:
+        raise AssertionError("TurnEngine accepted a mismatched stage receipt")
+
+
+def test_turn_engine_core_is_orchestration_only():
+    source = inspect.getsource(turn_engine)
+    tree = ast.parse(source)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = str(node.module or "")
+            assert module not in {
+                "runtime.scene_policies",
+                "runtime.free_stage_prototype",
+                "runtime.world_commit",
+                "runtime.player_action",
+                "runtime.exit_policy",
+            }, module
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                assert alias.name not in {
+                    "runtime.scene_policies",
+                    "runtime.free_stage_prototype",
+                    "runtime.world_commit",
+                    "runtime.player_action",
+                    "runtime.exit_policy",
+                }, alias.name
+
+    for forbidden in (
+        "_branch_add(",
+        "_beat_complete(",
+        "_canon_update(",
+        "_maybe_transition(",
+        "commit_world_",
+        "commit_player_action(",
+        "decide_exit(",
+        ".save(",
+    ):
+        assert forbidden not in source, forbidden
 
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):

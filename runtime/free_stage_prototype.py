@@ -6471,6 +6471,12 @@ class _TurnResolveStageResult:
     degradations: tuple[dict[str, Any], ...] = ()
 
 
+@dataclass(frozen=True)
+class _TurnCommitStageResult:
+    turns: tuple[dict[str, Any], ...] = ()
+    committed_actor_decisions: tuple[dict[str, Any], ...] = ()
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -10591,6 +10597,240 @@ class FreeStageSession:
             degradations=tuple(dict(item) for item in resolve_degradations),
         )
 
+    def _run_turn_commit_stage(
+        self,
+        *,
+        payload: Mapping[str, Any],
+        intent_resolution: Any,
+        resolved_card: dict[str, Any],
+        actor_context_packets: Mapping[str, dict[str, Any]],
+        speaker_plan: dict[str, Any],
+        player_input: str | dict[str, Any],
+        turn_no: int,
+        ambient_turns: list[dict[str, Any]],
+        new_progress: list[str],
+        turns: list[dict[str, Any]],
+        note: str,
+        facts_this_turn: set[str],
+        stall_escalation: dict[str, Any] | None,
+        current_scene_id: str,
+        is_oob: bool,
+        oob_bridge: str,
+        newly_triggered_bps: list[str],
+        emitted: list[dict[str, Any]],
+        stream_response_turns: list[dict[str, Any]],
+        degradations: list[dict[str, Any]],
+    ) -> _TurnCommitStageResult:
+        """Commit an already-resolved turn through existing authority owners."""
+        committed_actor_decisions: list[dict[str, Any]] = []
+        if intent_resolution is not None:
+            committed_actor_decisions = self._append_actor_decisions(
+                intent_resolution,
+                [
+                    dict(item)
+                    for item in payload.get("actor_decisions", ())
+                    if isinstance(item, dict)
+                ],
+                card=resolved_card,
+                actor_packets=actor_context_packets,
+            )
+        self._publish_director_opportunity(
+            payload.get("opportunity"),
+            turn_no=turn_no,
+        )
+        if ambient_turns:
+            for amb in ambient_turns:
+                self.public_environment_deltas.append({
+                    "kind": "director_ambient",
+                    "visibility": "nearby",
+                    "text": str(amb.get("text") or ""),
+                    "speaker": str(amb.get("speaker") or "旁白"),
+                    "turn": turn_no,
+                    "source": "director_ambient",
+                    "actor_instruction": "这是可观察的环境事实，不是命令；是否理会由你自己决定。",
+                })
+            stream_response_turns.extend(
+                self._push_stream_turns(
+                    ambient_turns,
+                    turn_no=turn_no,
+                    emitted=emitted,
+                    speaker_plan=speaker_plan,
+                )
+            )
+
+        newly_completed = self._beat_complete_many(
+            new_progress,
+            source_kind="observed_progress",
+            source_ref=f"turn:{turn_no}",
+            turn_no=turn_no,
+        )
+        must_happen_by_id = {
+            str(item.get("id", "") or "").strip(): item
+            for item in resolved_card.get("must_happen", [])
+            if isinstance(item, dict) and str(item.get("id", "") or "").strip()
+        }
+        for beat in new_progress:
+            receipt_owner = str(must_happen_by_id.get(beat, {}).get("receipt_owner", "") or "").strip()
+            if receipt_owner:
+                self._record_scene_receipt(
+                    beat,
+                    owner=receipt_owner,
+                    turn_no=turn_no,
+                    source_input=_player_public_input_text(player_input),
+                    source_kind="observed_progress",
+                )
+
+        # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
+        # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
+        if "RP3" in newly_completed:
+            self._observe(turn=turn_no,
+                scene_id=str(self.card.get("scene_id", "")),
+                fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
+                kind="entrust",
+            )
+            self._observe(turn=turn_no,
+                scene_id=str(self.card.get("scene_id", "")),
+                fact_text="禁名警告已说出：说了会有危险，会死人",
+                kind="name_ban_warning",
+            )
+        # 挂坠先“明确递出”，再等玩家下一拍决定收/拒/暂放。
+        # 口头赠与 + 可见递物只建立 offer，不直接完成 RP4。
+        if (
+            self.card.get("prologue_active")
+            and ("RP3" in self.completed or "RP3" in newly_completed)
+            and "RP4" not in self.completed
+            and turns_cover_ryuya_pendant_gift(turns)
+        ):
+            self._branch_add(
+                "prologue_pendant_offered",
+                source_kind="npc_public_output",
+                source_ref=f"turn:{turn_no}",
+                turn_no=turn_no,
+            )
+            if not any(
+                isinstance(row, dict)
+                and str(row.get("kind") or "") == "pendant_offer"
+                for row in self.run_observation_ledger
+            ):
+                self._observe(turn=turn_no,
+                    scene_id=str(self.card.get("scene_id", "")),
+                    fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
+                    kind="pendant_offer",
+                )
+        if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
+            turns = repair_tiananmen_video_contradiction(
+                turns,
+                set(self.branch_progress),
+                newly_settled=facts_this_turn,
+            )
+        turns = repair_same_turn_content_overlap(turns, speaker_plan)
+        self._mark_frame_beats_for_progress(resolved_card, new_progress)
+        _maybe_emit_director_beats(
+            resolved_card,
+            self.completed,
+            turn_no,
+            self._fired_director_beats,
+            self.history,
+            emitted,
+        )
+        _maybe_emit_c16_longye_whisper(
+            resolved_card,
+            self.history,
+            turns,
+            turn_no,
+            self.player_profile,
+            self._fired_director_beats,
+            emitted,
+        )
+        scene_id = str(resolved_card.get("scene_id", self.card_path))
+        self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
+        self.stall = 0 if new_progress else self.stall + 1
+        if stall_escalation:
+            self._stall_escalation_fired_scenes.add(current_scene_id)
+        if is_oob and oob_bridge:
+            degradations.extend(guard_visible_text(oob_bridge, "bridge")[1])
+            defense_item = {
+                "role": "npc",
+                "speaker": "旁白",
+                "text": guard_visible_text(oob_bridge, "bridge")[0],
+                "stage": "",
+                "turn": turn_no
+            }
+            turns.insert(0, defense_item)
+
+        turns = ustream.enrich_turns_with_companion_queue(
+            turns, speaker_plan, resolved_card, turn_no=turn_no,
+        )
+        stream_response_turns.extend(
+            self._push_stream_turns(
+                turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,
+            )
+        )
+        body_issues = self._body_settle(
+            resolved_card,
+            turns,
+            source_ref=f"turn:{turn_no}:actor",
+        )
+        if body_issues:
+            self.last_issues.extend(body_issues)
+            for msg in body_issues:
+                degradations.append(
+                    make_degradation(
+                        "body_frame",
+                        "busy_hands_block",
+                        msg,
+                    )
+                )
+        # A canon performance unlocked by this actor beat belongs after the
+        # observed beat in the same visible turn.  It may chain only through
+        # explicit auto_continue segments; it never asks the player to
+        # repeat a neutral "continue" input to make an emergency happen.
+        auto_canon_turns: list[dict[str, Any]] = []
+        remaining_canon = len(canon_performance_segments(self.card))
+        while remaining_canon > 0:
+            ready_segment = self._ready_after_must_happen_canon_segment()
+            if ready_segment is None:
+                break
+            auto_canon_turns.extend(self._emit_canon_burst(ready_segment, turn_no=turn_no))
+            remaining_canon -= 1
+        if auto_canon_turns:
+            self._enqueue_stream_items(auto_canon_turns, turn_no=turn_no)
+            self._body_settle(
+                resolved_card,
+                auto_canon_turns,
+                source_ref=f"turn:{turn_no}:canon",
+            )
+            self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
+        note_item = {
+            "role": "director_note",
+            "speaker": "导演暗注",
+            "text": note,
+            "mh_progress": new_progress,
+            "turn": turn_no,
+        }
+        self.history.append(note_item)
+        emitted.append(note_item)
+        for bp_id in newly_triggered_bps:
+            whisper = BRANCH_POINT_WHISPERS.get(bp_id)
+            if whisper:
+                degradations.extend(guard_visible_text(whisper, "actor")[1])
+                whisper_turn = {
+                    "role": "npc",
+                    "speaker": "旁白",
+                    "text": guard_visible_text(whisper, "actor")[0],
+                    "stage": "",
+                    "turn": turn_no,
+                }
+                self.history.append(whisper_turn)
+                emitted.append(whisper_turn)
+
+        return _TurnCommitStageResult(
+            turns=tuple(dict(item) for item in turns),
+            committed_actor_decisions=tuple(
+                dict(item) for item in committed_actor_decisions
+            ),
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11579,206 +11819,32 @@ class FreeStageSession:
             new_progress = list(resolve_stage.new_progress)
             turn_degradations.extend(resolve_stage.degradations)
 
-            if intent_resolution is not None:
-                committed_actor_decisions = self._append_actor_decisions(
-                    intent_resolution,
-                    [
-                        dict(item)
-                        for item in payload.get("actor_decisions", ())
-                        if isinstance(item, dict)
-                    ],
-                    card=resolved_card,
-                    actor_packets=actor_context_packets,
-                )
-            self._publish_director_opportunity(
-                payload.get("opportunity"),
+            commit_stage = self._run_turn_commit_stage(
+                payload=payload,
+                intent_resolution=intent_resolution,
+                resolved_card=resolved_card,
+                actor_context_packets=actor_context_packets,
+                speaker_plan=speaker_plan,
+                player_input=player_input,
                 turn_no=turn_no,
+                ambient_turns=ambient_turns,
+                new_progress=new_progress,
+                turns=turns,
+                note=note,
+                facts_this_turn=facts_this_turn,
+                stall_escalation=stall_escalation,
+                current_scene_id=current_scene_id,
+                is_oob=is_oob,
+                oob_bridge=oob_bridge,
+                newly_triggered_bps=newly_triggered_bps,
+                emitted=emitted,
+                stream_response_turns=stream_response_turns,
+                degradations=turn_degradations,
             )
-            if ambient_turns:
-                for amb in ambient_turns:
-                    self.public_environment_deltas.append({
-                        "kind": "director_ambient",
-                        "visibility": "nearby",
-                        "text": str(amb.get("text") or ""),
-                        "speaker": str(amb.get("speaker") or "旁白"),
-                        "turn": turn_no,
-                        "source": "director_ambient",
-                        "actor_instruction": "这是可观察的环境事实，不是命令；是否理会由你自己决定。",
-                    })
-                stream_response_turns.extend(
-                    self._push_stream_turns(
-                        ambient_turns,
-                        turn_no=turn_no,
-                        emitted=emitted,
-                        speaker_plan=speaker_plan,
-                    )
-                )
-
-            newly_completed = self._beat_complete_many(
-                new_progress,
-                source_kind="observed_progress",
-                source_ref=f"turn:{turn_no}",
-                turn_no=turn_no,
-            )
-            must_happen_by_id = {
-                str(item.get("id", "") or "").strip(): item
-                for item in resolved_card.get("must_happen", [])
-                if isinstance(item, dict) and str(item.get("id", "") or "").strip()
-            }
-            for beat in new_progress:
-                receipt_owner = str(must_happen_by_id.get(beat, {}).get("receipt_owner", "") or "").strip()
-                if receipt_owner:
-                    self._record_scene_receipt(
-                        beat,
-                        owner=receipt_owner,
-                        turn_no=turn_no,
-                        source_input=_player_public_input_text(player_input),
-                        source_kind="observed_progress",
-                    )
-
-            # 必须在 extend 之后用 newly_completed 记账——旧逻辑在 extend 后查
-            # 「RP3 not in completed」恒假，托付永远进不了 run_observation_ledger。
-            if "RP3" in newly_completed:
-                self._observe(turn=turn_no,
-                    scene_id=str(self.card.get("scene_id", "")),
-                    fact_text="龙也当面托付：照顾张尘与折原修哉；禁名警告为危险/会死",
-                    kind="entrust",
-                )
-                self._observe(turn=turn_no,
-                    scene_id=str(self.card.get("scene_id", "")),
-                    fact_text="禁名警告已说出：说了会有危险，会死人",
-                    kind="name_ban_warning",
-                )
-            # 挂坠先“明确递出”，再等玩家下一拍决定收/拒/暂放。
-            # 口头赠与 + 可见递物只建立 offer，不直接完成 RP4。
-            if (
-                self.card.get("prologue_active")
-                and ("RP3" in self.completed or "RP3" in newly_completed)
-                and "RP4" not in self.completed
-                and turns_cover_ryuya_pendant_gift(turns)
-            ):
-                self._branch_add(
-                    "prologue_pendant_offered",
-                    source_kind="npc_public_output",
-                    source_ref=f"turn:{turn_no}",
-                    turn_no=turn_no,
-                )
-                if not any(
-                    isinstance(row, dict)
-                    and str(row.get("kind") or "") == "pendant_offer"
-                    for row in self.run_observation_ledger
-                ):
-                    self._observe(turn=turn_no,
-                        scene_id=str(self.card.get("scene_id", "")),
-                        fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
-                        kind="pendant_offer",
-                    )
-            if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
-                turns = repair_tiananmen_video_contradiction(
-                    turns,
-                    set(self.branch_progress),
-                    newly_settled=facts_this_turn,
-                )
-            turns = repair_same_turn_content_overlap(turns, speaker_plan)
-            self._mark_frame_beats_for_progress(resolved_card, new_progress)
-            _maybe_emit_director_beats(
-                resolved_card,
-                self.completed,
-                turn_no,
-                self._fired_director_beats,
-                self.history,
-                emitted,
-            )
-            _maybe_emit_c16_longye_whisper(
-                resolved_card,
-                self.history,
-                turns,
-                turn_no,
-                self.player_profile,
-                self._fired_director_beats,
-                emitted,
-            )
-            scene_id = str(resolved_card.get("scene_id", self.card_path))
-            self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
-            self.stall = 0 if new_progress else self.stall + 1
-            if stall_escalation:
-                self._stall_escalation_fired_scenes.add(current_scene_id)
-            if is_oob and oob_bridge:
-                turn_degradations.extend(guard_visible_text(oob_bridge, "bridge")[1])
-                defense_item = {
-                    "role": "npc",
-                    "speaker": "旁白",
-                    "text": guard_visible_text(oob_bridge, "bridge")[0],
-                    "stage": "",
-                    "turn": turn_no
-                }
-                turns.insert(0, defense_item)
-
-            turns = ustream.enrich_turns_with_companion_queue(
-                turns, speaker_plan, resolved_card, turn_no=turn_no,
-            )
-            stream_response_turns.extend(
-                self._push_stream_turns(
-                    turns, turn_no=turn_no, emitted=emitted, speaker_plan=speaker_plan,
-                )
-            )
-            body_issues = self._body_settle(
-                resolved_card,
-                turns,
-                source_ref=f"turn:{turn_no}:actor",
-            )
-            if body_issues:
-                self.last_issues.extend(body_issues)
-                for msg in body_issues:
-                    turn_degradations.append(
-                        make_degradation(
-                            "body_frame",
-                            "busy_hands_block",
-                            msg,
-                        )
-                    )
-            # A canon performance unlocked by this actor beat belongs after the
-            # observed beat in the same visible turn.  It may chain only through
-            # explicit auto_continue segments; it never asks the player to
-            # repeat a neutral "continue" input to make an emergency happen.
-            auto_canon_turns: list[dict[str, Any]] = []
-            remaining_canon = len(canon_performance_segments(self.card))
-            while remaining_canon > 0:
-                ready_segment = self._ready_after_must_happen_canon_segment()
-                if ready_segment is None:
-                    break
-                auto_canon_turns.extend(self._emit_canon_burst(ready_segment, turn_no=turn_no))
-                remaining_canon -= 1
-            if auto_canon_turns:
-                self._enqueue_stream_items(auto_canon_turns, turn_no=turn_no)
-                self._body_settle(
-                    resolved_card,
-                    auto_canon_turns,
-                    source_ref=f"turn:{turn_no}:canon",
-                )
-                self._archive_scene_beats(scene_id, source_kind="scene_completion_snapshot")
-            note_item = {
-                "role": "director_note",
-                "speaker": "导演暗注",
-                "text": note,
-                "mh_progress": new_progress,
-                "turn": turn_no,
-            }
-            self.history.append(note_item)
-            emitted.append(note_item)
-            for bp_id in newly_triggered_bps:
-                whisper = BRANCH_POINT_WHISPERS.get(bp_id)
-                if whisper:
-                    turn_degradations.extend(guard_visible_text(whisper, "actor")[1])
-                    whisper_turn = {
-                        "role": "npc",
-                        "speaker": "旁白",
-                        "text": guard_visible_text(whisper, "actor")[0],
-                        "stage": "",
-                        "turn": turn_no,
-                    }
-                    self.history.append(whisper_turn)
-                    emitted.append(whisper_turn)
+            turns = [dict(item) for item in commit_stage.turns]
+            committed_actor_decisions = [
+                dict(item) for item in commit_stage.committed_actor_decisions
+            ]
         except Exception as exc:
             fallback_text, fallback_degradations = guard_visible_text(
                 "远端演算这一拍没有接通。你的话仍然留在现场，眼前的人短暂安静下来，空气先替他们接住了这句话。",

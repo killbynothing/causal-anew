@@ -10,6 +10,8 @@
 - **facade / 合同**：`FreeStageSession.step()` gate 禁止出现 ScenePolicy、Beat/World/Mind/branch、actor transport、transition 等业务裁决；公开 API 仍由同一 Session facade 提供。quick 中 `free_stage_session_api`、`utterance_stream`、`opening_two_scene_closeout`、`context_assembly` 均 `[OK]`，one-shot/save-load、Web endpoint、话轮 hold/barge-in、receipt/context 同源合同未回归。
 - **验证**：Actions `37275472307` success；quick **64 PASS / 0 FAIL / 161 SKIP**；`turn_engine_boundaries`、P0–P5 required gates（含 Exit/Lifecycle、World/P2c、ActorMind、P4 Participation、P5 ContextAssembler）均 `[OK]`；`data/world_truth.db: OK`。
 - **报账/完成边界**：P6 工程代码与 required gate **完成**。本轮未改正典、场卡、Seed/VOICE、run=0、★★★ 挂坠事实粒度或 `data/world_truth.db`，正典/人物/剧情新增 = 0。**整个专项尚未最终关闭**：主计划 §14.3 / §16 要求的咖啡馆 + 天安门真人完整体验验收仍待执行，机器绿不冒充人验。
+- **人验准备**：已建立 `play_logs/2026-10/p6_cafe_human_acceptance_2026-10-05.md` 与 `play_logs/2026-10/p6_tiananmen_human_acceptance_2026-10-05.md`；两份均显式标记 `PENDING HUMAN RUN`，只预填分支/build/schema/机器基线，session/run/实际输入输出/verdict 必须由真实游玩填写，不以模板存在冒充人验通过。
+- **当前下一动**：停止继续改 P6 runtime；按两份 play log 先跑咖啡馆接受+继续聊+主动离场与拒/暂放，再跑天安门多人接话/语言姓名门控/side-pass/thought-only/主动离场。若人验失败，先按 owner/policy/adapter 归因，不在 `TurnEngine` core 加场名补丁。
 
 ### 2026-10-04（P5 完成：ContextAssembler 唯一检索装配 × authoritative receipt × observer 零旁路）
 

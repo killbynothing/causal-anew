@@ -19,6 +19,8 @@ from runtime.actor_mind import build_actor_mind
 from runtime.free_stage_prototype import (
     apply_stall_escalation_to_speaker_plan,
     apply_visible_group_output_budget,
+    build_floor_plan,
+    build_participation_deliberation,
     build_speaker_plan,
     ensure_solo_or_prologue_speakers,
     FreeStageSession,
@@ -400,16 +402,39 @@ def test_actor_runner_metrics_count_only_actual_actor_calls():
 
 
 def test_production_floor_builder_no_longer_calls_legacy_content_bidding():
-    source = inspect.getsource(build_speaker_plan)
+    facade_source = inspect.getsource(build_speaker_plan)
+    assert "build_participation_deliberation(" in facade_source
+    assert "build_floor_plan(" in facade_source
     for forbidden in (
         "bid_turn_taking(",
         "_speaker_bid_modifiers(",
+        "participation_runtime.deliberate_participation(",
+        "participation_runtime.arbitrate_floor(",
+    ):
+        assert forbidden not in facade_source, forbidden
+
+    deliberate_source = inspect.getsource(build_participation_deliberation)
+    for forbidden in (
+        "bid_turn_taking(",
+        "_speaker_bid_modifiers(",
+        "participation_runtime.arbitrate_floor(",
+    ):
+        assert forbidden not in deliberate_source, forbidden
+    assert "participation_runtime.deliberate_participation(" in deliberate_source
+
+    floor_source = inspect.getsource(build_floor_plan)
+    assert floor_source.count("participation_runtime.arbitrate_floor(") == 1
+    assert "participation_runtime.deliberate_participation(" not in floor_source
+    for forbidden in (
         "short_term_agenda",
         "scene_working_memory",
+        "must_happen",
+        "director_instruction",
+        "player_input",
+        "history",
+        "card",
     ):
-        assert forbidden not in source, forbidden
-    assert "participation_runtime.deliberate_participation(" in source
-    assert "participation_runtime.arbitrate_floor(" in source
+        assert forbidden not in floor_source, forbidden
 
     request_source = inspect.getsource(ensure_decision_target_in_speaker_plan)
     assert "participation_runtime.arbitrate_floor(" in request_source

@@ -839,10 +839,12 @@ def test_enact_stage_calls_transport_without_authority_commits():
 
 def test_session_step_uses_single_public_project_boundary():
     source = inspect.getsource(proto.FreeStageSession.step)
-    assert "self._run_turn_project_stage(" in source
-    tail = source[source.rfind("if self.autosave:"):]
-    assert "return self._run_turn_project_stage(" in tail
-    assert "return self._with_receipt(result)" not in tail
+    assert "return self._run_turn_project_pipeline_stage(" in source
+    assert "self._run_turn_project_stage(" not in source
+    assert "return self._with_receipt(result)" not in source
+
+    pipeline = inspect.getsource(proto.FreeStageSession._run_turn_project_pipeline_stage)
+    assert "return self._run_turn_project_stage(" in pipeline
 
 
 def test_project_stage_preserves_public_contract_without_authority_writes():

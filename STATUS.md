@@ -1,5 +1,14 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-10-05（P6 开工：主循环 / ScenePolicy / FreeStageSession writer 基线测绘）
+
+- **独立分支**：`loop/turn-engine-p6-2026-10-05` 从 P5 final 文档 HEAD `655c550e6ff9ea958817e23606e93ab14108fd9d` 创建，没有在 P5 分支继续写 P6。
+- **P5 基线核对**：`acc5282a..655c550e` 仅修改 `STATUS.md` 与主计划，runtime/tests/workflow/DB 内容不变，因此已绿代码态的 quick **63 PASS / 0 FAIL / 161 SKIP**、`context_assembly [OK]`、P0–P4 required gates 与 DB 内容均由同一代码树继承。当前 GitHub connector 的 commit workflow 查询只枚举 PR-triggered runs，`655c550e` 返回空；不把“查不到 push run”写成该文档 commit 的 Actions success。
+- **writer 测绘**：新增 `docs/analysis/P6_主循环_ScenePolicy_FreeStageSession_writer测绘_2026-10-05.md`。当前 `FreeStageSession` 约 6337 行，`step()` 约 1910 行，`_maybe_transition()` 约 644 行；P2–P5 的 Beat/World/Mind/Participation/Context owner 没有重新分叉，主要剩余债是 Session 同时承担 owner 调用编排、场特化策略、transition execution 与 delivery queue。
+- **P6a 候选**：C16、天安门、龙也序幕及 canon/flashback 已有大量纯或近纯 helper，可迁成只读快照 → evidence/opportunity/proposal 的 ScenePolicy；policy 不得持 Session、不保存、不关局、不直接调用权威 mutator。C16 分支最集中，适合作为首迁 fixture。
+- **P6b 边界**：TurnEngine 只排 `input→observe→deliberate→floor→enact→resolve→commit→exit→project`，复用既有 `exit_policy/beat_state/player_action/world_commit/actor_mind/participation/context_assembly`；`FreeStageSession` 最终只留 API facade/state handle。web 的 `reset/start/skip_scene/stream_hold/advance_utterance/player_say` 以及 one-shot/save-load 合同必须不变。
+- **本步报账**：当前 P6 只新增测绘文档与本 STATUS 条目；未改 runtime、测试、正典、场卡、Seed/VOICE、run=0、★★★ 挂坠裁决或 `data/world_truth.db`，正典/人物/剧情新增 = 0。
+
 ### 2026-10-04（P5 完成：ContextAssembler 唯一检索装配 × authoritative receipt × observer 零旁路）
 
 - **分支/基线**：`loop/context-assembly-p5-2026-10-03` 从 P4 final `5a0c534f` 起步；当前代码态 `acc5282a`。本轮只改 ContextAssembler、FreeStage 兼容适配、P5 required gate 与 verify 描述，不夹带 P6 TurnEngine/ScenePolicy。

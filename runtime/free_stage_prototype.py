@@ -3964,46 +3964,17 @@ def advance_tiananmen_want_now(
     return updated
 
 
-# Player-side openings that let Ryuya naturally deepen (not invent) toward entrustment.
-_RYUYA_TOPIC_INTERFACE_MARKERS = (
-    "弟弟", "修哉", "家人", "家里", "托付", "拜托", "有事", "想说",
-    "临走", "走之前", "分别", "要走", "离开", "照顾", "帮忙", "以后",
-    "保重", "挂坠", "吊坠", "项链", "怎么了", "还好吗", "有心事",
-    "今天好像", "该走了", "时间不早", "有话",
-)
-
-
 def ryuya_deep_topic_interface(
     player_input: str | dict[str, Any] | None = None,
     history: list[dict[str, Any]] | None = None,
 ) -> bool:
-    """True when recent player speech/action offers a natural deepen-topic seam.
-
-    Used as an early ladder trigger under beat floor/ceiling (option A), not a gate.
-    """
-    chunks: list[str] = []
-    if isinstance(player_input, dict):
-        for key in ("speech", "action"):
-            text = str(player_input.get(key, "") or "").strip()
-            if text:
-                chunks.append(text)
-    elif player_input:
-        chunks.append(str(player_input).strip())
-    for item in reversed(list(history or [])):
-        if not isinstance(item, dict):
-            continue
-        if str(item.get("role") or "") != "player":
-            continue
-        text = str(item.get("text") or "").strip()
-        if text:
-            chunks.append(text)
-        if len(chunks) >= 3:
-            break
-    blob = re.sub(r"\s+", "", "".join(chunks))
-    if not blob:
-        return False
-    return any(marker in blob for marker in _RYUYA_TOPIC_INTERFACE_MARKERS)
-
+    """Compatibility adapter; P6 ScenePolicy owns the cafe topic-interface test."""
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="RYUYA_CAFE_POLICY",
+        player_input=player_input or "",
+        recent_history=history,
+    )
+    return scene_policies.ryuya_topic_interface(snapshot)
 
 def advance_ryuya_prologue_want_now(
     card: dict[str, Any],
@@ -4029,20 +4000,28 @@ def advance_ryuya_prologue_want_now(
     personas = card.get("persona_cards") if isinstance(card.get("persona_cards"), dict) else {}
     if "C.ryuya.W1" not in personas:
         return {}
-    done = {str(x) for x in (completed or [])}
-    beats = max(0, int(flash_beats or 0))
-    early_deepen = bool(topic_interface) and beats >= 1
-    if "RP4" in done:
+    phase = scene_policies.proposal_value(
+        scene_policies.evaluate_ryuya_cafe_state(
+            scene_policies.RyuyaCafeStateInput.from_runtime(
+                flash_beats=flash_beats,
+                completed=tuple(str(x) for x in (completed or [])),
+                topic_interface=topic_interface,
+            )
+        ),
+        "ryuya_cafe_phase",
+        default="opening",
+    )
+    if phase == "farewell":
         want = "挂坠已经交到对方手里；像平常分别那样道别，别把场面拖成仪式。"
         goal_head = "平常道别，收束这场见面"
-    elif "RP3" in done:
+    elif phase == "post_entrust_gift":
         want = (
             "托付已经说清；下一步要把挂坠的意思用话说清楚：明确告诉对方这是给她的临别礼物，"
             "再把古铜色挂坠递到她这边。不要只靠动作，不要擅自塞进手里；说完停住，等她自己接、拒绝或暂放。"
             "禁止把「照顾」再宣读一遍。"
         )
         goal_head = "明确口头赠坠，递出后等回应"
-    elif "RP2" in done:
+    elif phase == "entrust_clear":
         want = (
             "该把压在心里的事说清楚了：碰巧遇见——先是张尘（看着成熟什么都能扛、其实挺累，多照顾点），"
             "再是亲弟弟折原修哉（天才，好人，嘴有点毒，也照应一下）；点名用全名。"
@@ -4050,13 +4029,13 @@ def advance_ryuya_prologue_want_now(
             "只说一次托付口径，不要补宿舍楼、外貌小传等没写过的特征，不要复读「照顾」。"
         )
         goal_head = "当面说清托付与禁名"
-    elif beats >= 2 or early_deepen:
+    elif phase == "deepen":
         want = (
             "熟人闲聊已经够了；主动把话题往『临走前有件事』挪一小步——"
             "仍轻松，但别再原地复读近况。心里更放不下的是张尘；也可以提弟弟折原修哉，或说有话想拜托。"
         )
         goal_head = "把谈话自然转到放不下的事"
-    elif beats >= 1:
+    elif phase == "banter":
         want = (
             "接住对方的话；可轻渗一句初遇泼袖或开档里已知的对方近况作玩笑燃料，"
             "没有具体事实就问近况。不要复问自己刚问过的问题，不要编没写过的共同细节，更别急着托付。"

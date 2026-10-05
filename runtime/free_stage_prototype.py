@@ -11380,6 +11380,348 @@ class FreeStageSession:
             prompt=str(prompt),
         )
 
+    def _run_turn_project_pipeline_stage(
+        self,
+        *,
+        player_input: str | dict[str, Any],
+        turn_no: int,
+        resolved_card: dict[str, Any],
+        actor_context_packets: Mapping[str, dict[str, Any]],
+        turns: list[dict[str, Any]],
+        emitted: list[dict[str, Any]],
+        stream_response_turns: list[dict[str, Any]],
+        transition: dict[str, Any] | None,
+        debug: bool,
+        prompt: str,
+        speaker_plan: dict[str, Any],
+        context_receipts: list[dict[str, Any]],
+        payload: Mapping[str, Any],
+        intent_resolution: Any,
+        committed_actor_decisions: list[dict[str, Any]],
+        director_only_hits: list[Any],
+        stall_escalation: dict[str, Any] | None,
+        ambient_turns: list[dict[str, Any]],
+        layer_c_turns: list[dict[str, Any]],
+        speech: str,
+        turn_degradations: list[dict[str, Any]],
+        exit_reason: str,
+    ) -> dict[str, Any]:
+        """Build observer/debug projections, persist, and return the stable public response."""
+        _resolved_layers = resolved_card.get("memory_layers", {})
+        memory_injected = list(_resolved_layers.get("context_memory", []))
+        per_npc_memory_context = {
+            cons: list(persona.get("memory_context", []))
+            for cons, persona in resolved_card.get("persona_cards", {}).items()
+            if isinstance(persona, dict) and persona.get("memory_context")
+        }
+        structured_memories = _structured_memories_for_observatory(
+            resolved_card,
+            dict(_resolved_layers.get("structured_memories", {})),
+        )
+        present_characters = _present_characters_from_card(resolved_card)
+        privileged_facts = dict(_resolved_layers.get("per_npc_privileged_facts", {}))
+        player_visible_turns = [
+            dict(item) for item in self.history
+            if item.get("turn") == turn_no
+            and item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
+            and item.get("player_visible") is not False
+            and item.get("audience") != "director_only"
+        ]
+        if not any(item.get("role") == "player" for item in player_visible_turns):
+            player_visible_turns = [
+                dict(item) for item in emitted
+                if item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
+                and item.get("player_visible") is not False
+                and item.get("audience") != "director_only"
+            ]
+        truth_turns = [
+            dict(item) for item in emitted
+            if item.get("role") in {"director_note", "bridge", "marker", "error"}
+        ]
+
+        # NPC 内心流与拒绝权边界的加载（使用真数据投影函数）
+        inner_states = {}
+        boundaries = {}
+        ch_anchor = resolved_card.get("ch_anchor", 0)
+        for cons, persona in resolved_card.get("persona_cards", {}).items():
+            if isinstance(persona, dict):
+                raw_inner = self.private_inner_states.get(cons) or persona.get("inner_state", {})
+                inner_states[cons] = _merge_inner_for_observatory(
+                    raw_inner if isinstance(raw_inner, dict) else {},
+                    str(cons),
+                    int(ch_anchor or 0),
+                )
+                
+                # 优先读取卡里的 boundaries，否则从全局 persona_core 投影
+                boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
+
+        physical_patch: dict[str, Any] = {
+            "status": "行动中" if not self.ended else "已完成",
+        }
+        physical_source = "lifecycle_projection"
+        if "choiceA_brace" in self.branch_progress:
+            physical_patch["injury"] = "肋骨骨折 (重伤残血)"
+            physical_source = "branch:choiceA_brace"
+        elif "B1_dog" in self.branch_progress:
+            physical_patch["injury"] = "无明显外伤"
+            physical_source = "branch:B1_dog"
+        self.physical_state.patch_player(
+            physical_patch,
+            source_kind="world_projection",
+            source_ref=physical_source,
+        )
+        self.last_degradations = turn_degradations
+
+        intro_done_snapshot = intro_done_for_card(
+            resolved_card,
+            self.completed,
+            history=self.history,
+            player_profile=self.player_profile,
+        )
+        player_knowable, player_blocked = split_player_knowledge_gate(
+            list(_resolved_layers.get("knowledge_gate", [])),
+            dict(_resolved_layers.get("per_npc_knowledge_gate", {})),
+            privileged_facts,
+        )
+
+        annotate_packets_with_spoken_turns(actor_context_packets, turns, resolved_card)
+        # ActorCogLoop Reflect: private conclusion when the cafe beat moved.
+        reflect_log = getattr(self, "private_reflections", None)
+        if not isinstance(reflect_log, list):
+            reflect_log = []
+            self.private_reflections = reflect_log
+        for cons, pkt in list(actor_context_packets.items()):
+            if not isinstance(pkt, dict):
+                continue
+            spoken_rows = pkt.get("spoken_this_turn") or []
+            spoken_texts = [
+                str(r.get("text") or "").strip()
+                for r in spoken_rows
+                if isinstance(r, dict) and str(r.get("text") or "").strip()
+            ]
+            decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+            reflect = cogloop.build_reflect_thought(
+                cons_id=str(cons),
+                decide=decide if isinstance(decide, dict) else {},
+                spoken_texts=spoken_texts,
+                player_speech=speech,
+                completed_after=self.completed,
+            )
+            if reflect:
+                cogloop.stamp_reflect_on_packet(pkt, reflect)
+                reflect_log.append({"turn_no": turn_no, **reflect})
+                if len(reflect_log) > 40:
+                    del reflect_log[:-40]
+                self.reflect_proposal_state.set(
+                    str(cons), {"turn_no": turn_no, **reflect}
+                )
+        solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
+        solidified_now = build_solidified_visible_facts(
+            resolved_card,
+            self.history,
+            run_observation_ledger=getattr(self, "run_observation_ledger", None),
+            scene_receipts=getattr(self, "scene_receipts", None),
+            branch_progress=list(self.branch_progress),
+            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
+        )
+        packet_coverage = fact_packet_coverage(solidified_pre_speak, actor_context_packets)
+
+        debug_payload = _with_agent_modules({
+            "schema_version": "free_stage.debug_payload.v3",
+            "prompt_chars": len(prompt),
+            "turn_no": turn_no,
+            "scene_frame": {
+                **resolved_card.get("scene_frame", {}),
+                "scene": resolved_card.get("scene", "-"),
+                "scene_id": resolved_card.get("scene_id", "-")
+            },
+            "memory_injected": memory_injected,
+            "knowledge_gate": resolved_card.get("memory_layers", {}).get("knowledge_gate", []),
+            "per_npc_knowledge_gate": resolved_card.get("memory_layers", {}).get("per_npc_knowledge_gate", {}),
+            "privileged_facts": privileged_facts,
+            "completed_beats": self.completed_beats,
+            "world_cursor": self.world_cursor,
+            "offscreen_ledger": self.offscreen_ledger,
+            "heart_stages": self.heart_stages,
+            "frame_folded_beats": resolved_card.get("_folded_frame_beats", []),
+            "must_happen_progress": {
+                "completed": list(self.completed),
+                "allowed": card_must_happen_ids(resolved_card),
+                "items": [
+                    {
+                        "id": str(item.get("id", "")).strip(),
+                        "desc": str(item.get("desc", "")).strip(),
+                        "done": str(item.get("id", "")).strip() in set(self.completed),
+                    }
+                    for item in resolved_card.get("must_happen", [])
+                    if str(item.get("id", "")).strip()
+                ],
+            },
+            "speaker_plan": speaker_plan,
+            "must_happen_environment_hint": (
+                speaker_plan.get("must_happen_environment_hint")
+                or resolved_card.get("_must_happen_environment_hint")
+            ),
+            "situation_classify": resolved_card.get("_situation_classify") or {},
+            "actor_context_packets": actor_context_packets,
+            "private_reflections": list(getattr(self, "private_reflections", []) or [])[-8:],
+            "context_receipts": context_receipts,
+            "context_budget_audit": audit_context_receipts(context_receipts),
+            "participation_performance": {
+                "deliberation_llm_calls": int(speaker_plan.get("participation_llm_calls", 0) or 0),
+                "planned_actor_calls": len(actor_context_packets),
+                "actual_actor_calls": int(
+                    (payload.get("actor_call_count", 0) if isinstance(payload, dict) else 0) or 0
+                ),
+                "actor_latency_ms": [
+                    float(item.get("latency_ms", 0.0) or 0.0)
+                    for item in (
+                        payload.get("actor_call_metrics", [])
+                        if isinstance(payload, dict)
+                        else []
+                    )
+                    if isinstance(item, dict)
+                ],
+                "actor_call_metrics": [
+                    dict(item)
+                    for item in (
+                        payload.get("actor_call_metrics", [])
+                        if isinstance(payload, dict)
+                        else []
+                    )
+                    if isinstance(item, dict)
+                ],
+            },
+            "intent_runtime": {
+                "current": intent_resolution.debug_payload() if intent_resolution is not None else None,
+                "committed_actor_decisions": committed_actor_decisions,
+                "threads": list(self.intent_threads),
+                "storylets": list(self.intent_storylets),
+            },
+            "director_only_gate": {
+                "active": bool(director_only_hits),
+                "hits": director_only_hits,
+                "mode": "director_narrate" if director_only_hits else "pass",
+            },
+            "player_visible_turns": player_visible_turns,
+            "truth_turns": truth_turns,
+            "exit_decision": exit_reason,
+            "issues": list(self.last_issues),
+            "degradations": list(self.last_degradations),
+            "player_violations": list(self.player_violations),
+            "player_violation_warning_levels": list(self.player_violation_warning_levels),
+            "stall_count": self.stall,
+            "director_stall_escalation": stall_escalation,
+            "branch_progress": list(self.branch_progress),
+            "scene_receipts": [dict(item) for item in self.scene_receipts],
+            "world_transactions": [dict(item) for _, item in sorted(self.world_transactions.items())],
+            "causal_receipts": [dict(item) for item in self.causal_receipts],
+            "director_port_trace": [dict(item) for item in self.director_port_trace[-40:]],
+            "actor_minds": {
+                cons: observer_safe_summary(mind)
+                for cons, mind in sorted(self.actor_minds.items())
+            },
+            "actor_state": _observer_actor_state_map(
+                self.actor_minds, inner_states, actor_context_packets
+            ),
+            "soft_beat_budget": stall_budget_for_card(resolved_card),
+            "clock": advance_clock(resolved_card.get("clock", "未知时刻"), self.player_state.get("elapsed_minutes", 0)),
+            "player_state": self.player_state,
+            "inner_states": inner_states,
+            "boundaries": boundaries,
+            "per_npc_memory_context": per_npc_memory_context,
+            "structured_memories": structured_memories,
+            "scene_consolidation": {
+                "facts": list(_resolved_layers.get("scene_facts", [])),
+                "director_summaries": list(_resolved_layers.get("director_summaries", [])),
+                "episodes": list(_resolved_layers.get("scene_episode_history", [])),
+                "render_style": "乙偏丙",
+            },
+            "present_characters": present_characters,
+            "player_roster": build_player_roster(
+                resolved_card,
+                intro_done=intro_done_snapshot,
+                introduced_cons=_npc_introduced_to_player_after_turn(
+                    resolved_card, self.history, None, 0
+                ),
+            ),
+            "opening_id": self.opening_id,
+            "player_profile": self.player_profile,
+            "context_memory": memory_injected,
+            "director_voice_profile": load_director_voice_profile(),
+            "ambient_stage": resolved_card.get("ambient_stage", {}),
+            "director_ambient": [dict(x) for x in ambient_turns],
+            "observatory_badges": resolved_card.get("observatory_badges", []),
+            "intro_done": intro_done_snapshot,
+            "player_observation_ledger": build_player_observation_ledger(
+                self.history,
+                intro_done=intro_done_snapshot,
+                player_profile=self.player_profile,
+                card=resolved_card,
+            ),
+            "player_knowable_gate": player_knowable,
+            "player_blocked_gate": player_blocked,
+            "world_state": acv2.project_world_events(
+                int(resolved_card.get("ch_anchor", 0) or 0),
+                list(resolved_card.get("present") or []),
+                current_location=str(
+                    resolved_card.get("scene")
+                    or (resolved_card.get("scene_frame") or {}).get("where")
+                    or ""
+                ),
+                current_scene_id=str(resolved_card.get("scene_id") or ""),
+            ),
+            "world_coordinates": project_world_coordinates(
+                world_state=acv2.project_world_events(
+                    int(resolved_card.get("ch_anchor", 0) or 0), list(resolved_card.get("present") or []),
+                    current_location=str(resolved_card.get("scene") or (resolved_card.get("scene_frame") or {}).get("where") or ""),
+                    current_scene_id=str(resolved_card.get("scene_id") or ""),
+                ),
+                world_cursor=self.world_cursor,
+                current_location=str(resolved_card.get("scene") or (resolved_card.get("scene_frame") or {}).get("where") or ""),
+                intent_runtime={
+                    "threads": self.intent_threads, "storylets": self.intent_storylets,
+                    "committed_actor_decisions": self.actor_decisions,
+                },
+                ambient_actor_registry=self.ambient_actor_registry,
+            ),
+            "beat_io": self._beat_io_projection(
+                turn_no=turn_no,
+                player_input=player_input,
+                player_visible_turns=player_visible_turns,
+                truth_turns=truth_turns,
+                emitted_events=[
+                    {
+                        "kind": "pendant_layer_c",
+                        "emitted": bool(layer_c_turns),
+                        "n": len(layer_c_turns or []),
+                    }
+                ],
+            ),
+            "body_frames": copy.deepcopy(self.body_frames or {}),
+            "run_observation_ledger": [
+                dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)
+            ],
+            "solidified_visible_facts": solidified_now,
+            "solidified_facts_in_packets": solidified_pre_speak,
+            "fact_packet_coverage": packet_coverage,
+            "visible_holding_map": build_visible_holding_map(resolved_card),
+            "object_use_memory": extract_object_use_memory(resolved_card, self.history),
+            "assembly_projection": self._assembly_projection_status(resolved_card),
+        })
+        self.debug_history.append(debug_payload)
+
+        if self.autosave:
+            self.save()
+
+        return self._run_turn_project_stage(
+            stream_response_turns=stream_response_turns,
+            emitted=emitted,
+            transition=transition,
+            debug=debug,
+            debug_payload=debug_payload,
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -12029,23 +12371,6 @@ class FreeStageSession:
         # closes a social/free scene by itself; ExitPolicy is the sole decider.
         exit_reason = format_exit_reason(player_input, self.completed, resolved_card, self.stall)
 
-        # 观测台"注入的因果记忆"数据源：读已解析卡的 memory_layers（apply_consolidated_memory
-        # 已把开场 opening_memory 与跨场固化都合进这里），而不是只读 consolidated_memory_by_card
-        # ——后者在开场第一场恒为空，导致开场底色/场前事件/未了之话在观测台不可见（看似"没注入"）。
-        _resolved_layers = resolved_card.get("memory_layers", {})
-        memory_injected = list(_resolved_layers.get("context_memory", []))
-        # per-NPC 私有记忆（开场底色/住所/行程/关系 + 跨场第一人称固化）与结构化四字段，供右栏下钻
-        per_npc_memory_context = {
-            cons: list(persona.get("memory_context", []))
-            for cons, persona in resolved_card.get("persona_cards", {}).items()
-            if isinstance(persona, dict) and persona.get("memory_context")
-        }
-        structured_memories = _structured_memories_for_observatory(
-            resolved_card,
-            dict(_resolved_layers.get("structured_memories", {})),
-        )
-        present_characters = _present_characters_from_card(resolved_card)
-        privileged_facts = dict(_resolved_layers.get("per_npc_privileged_facts", {}))
         exit_stage = self._run_turn_exit_stage(
             player_input=player_input,
             turn_no=turn_no,
@@ -12055,305 +12380,29 @@ class FreeStageSession:
         transition = exit_stage.transition
         emitted.extend(exit_stage.emitted_turns)
         turn_degradations.extend(exit_stage.degradations)
-        player_visible_turns = [
-            dict(item) for item in self.history
-            if item.get("turn") == turn_no
-            and item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
-            and item.get("player_visible") is not False
-            and item.get("audience") != "director_only"
-        ]
-        if not any(item.get("role") == "player" for item in player_visible_turns):
-            player_visible_turns = [
-                dict(item) for item in emitted
-                if item.get("role") in {"player", "npc", "bridge", "marker", "error", "narrate"}
-                and item.get("player_visible") is not False
-                and item.get("audience") != "director_only"
-            ]
-        truth_turns = [
-            dict(item) for item in emitted
-            if item.get("role") in {"director_note", "bridge", "marker", "error"}
-        ]
-
-        # NPC 内心流与拒绝权边界的加载（使用真数据投影函数）
-        inner_states = {}
-        boundaries = {}
-        ch_anchor = resolved_card.get("ch_anchor", 0)
-        for cons, persona in resolved_card.get("persona_cards", {}).items():
-            if isinstance(persona, dict):
-                raw_inner = self.private_inner_states.get(cons) or persona.get("inner_state", {})
-                inner_states[cons] = _merge_inner_for_observatory(
-                    raw_inner if isinstance(raw_inner, dict) else {},
-                    str(cons),
-                    int(ch_anchor or 0),
-                )
-                
-                # 优先读取卡里的 boundaries，否则从全局 persona_core 投影
-                boundaries[cons] = persona.get("boundaries") or project_initial_boundaries(cons)
-
-        physical_patch: dict[str, Any] = {
-            "status": "行动中" if not self.ended else "已完成",
-        }
-        physical_source = "lifecycle_projection"
-        if "choiceA_brace" in self.branch_progress:
-            physical_patch["injury"] = "肋骨骨折 (重伤残血)"
-            physical_source = "branch:choiceA_brace"
-        elif "B1_dog" in self.branch_progress:
-            physical_patch["injury"] = "无明显外伤"
-            physical_source = "branch:B1_dog"
-        self.physical_state.patch_player(
-            physical_patch,
-            source_kind="world_projection",
-            source_ref=physical_source,
-        )
-        self.last_degradations = turn_degradations
-
-        intro_done_snapshot = intro_done_for_card(
-            resolved_card,
-            self.completed,
-            history=self.history,
-            player_profile=self.player_profile,
-        )
-        player_knowable, player_blocked = split_player_knowledge_gate(
-            list(_resolved_layers.get("knowledge_gate", [])),
-            dict(_resolved_layers.get("per_npc_knowledge_gate", {})),
-            privileged_facts,
-        )
-
-        annotate_packets_with_spoken_turns(actor_context_packets, turns, resolved_card)
-        # ActorCogLoop Reflect: private conclusion when the cafe beat moved.
-        reflect_log = getattr(self, "private_reflections", None)
-        if not isinstance(reflect_log, list):
-            reflect_log = []
-            self.private_reflections = reflect_log
-        for cons, pkt in list(actor_context_packets.items()):
-            if not isinstance(pkt, dict):
-                continue
-            spoken_rows = pkt.get("spoken_this_turn") or []
-            spoken_texts = [
-                str(r.get("text") or "").strip()
-                for r in spoken_rows
-                if isinstance(r, dict) and str(r.get("text") or "").strip()
-            ]
-            decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
-            reflect = cogloop.build_reflect_thought(
-                cons_id=str(cons),
-                decide=decide if isinstance(decide, dict) else {},
-                spoken_texts=spoken_texts,
-                player_speech=speech,
-                completed_after=self.completed,
-            )
-            if reflect:
-                cogloop.stamp_reflect_on_packet(pkt, reflect)
-                reflect_log.append({"turn_no": turn_no, **reflect})
-                if len(reflect_log) > 40:
-                    del reflect_log[:-40]
-                self.reflect_proposal_state.set(
-                    str(cons), {"turn_no": turn_no, **reflect}
-                )
-        solidified_pre_speak = list(resolved_card.get("_solidified_visible_facts") or [])
-        solidified_now = build_solidified_visible_facts(
-            resolved_card,
-            self.history,
-            run_observation_ledger=getattr(self, "run_observation_ledger", None),
-            scene_receipts=getattr(self, "scene_receipts", None),
-            branch_progress=list(self.branch_progress),
-            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
-        )
-        packet_coverage = fact_packet_coverage(solidified_pre_speak, actor_context_packets)
-
-        debug_payload = _with_agent_modules({
-            "schema_version": "free_stage.debug_payload.v3",
-            "prompt_chars": len(prompt),
-            "turn_no": turn_no,
-            "scene_frame": {
-                **resolved_card.get("scene_frame", {}),
-                "scene": resolved_card.get("scene", "-"),
-                "scene_id": resolved_card.get("scene_id", "-")
-            },
-            "memory_injected": memory_injected,
-            "knowledge_gate": resolved_card.get("memory_layers", {}).get("knowledge_gate", []),
-            "per_npc_knowledge_gate": resolved_card.get("memory_layers", {}).get("per_npc_knowledge_gate", {}),
-            "privileged_facts": privileged_facts,
-            "completed_beats": self.completed_beats,
-            "world_cursor": self.world_cursor,
-            "offscreen_ledger": self.offscreen_ledger,
-            "heart_stages": self.heart_stages,
-            "frame_folded_beats": resolved_card.get("_folded_frame_beats", []),
-            "must_happen_progress": {
-                "completed": list(self.completed),
-                "allowed": card_must_happen_ids(resolved_card),
-                "items": [
-                    {
-                        "id": str(item.get("id", "")).strip(),
-                        "desc": str(item.get("desc", "")).strip(),
-                        "done": str(item.get("id", "")).strip() in set(self.completed),
-                    }
-                    for item in resolved_card.get("must_happen", [])
-                    if str(item.get("id", "")).strip()
-                ],
-            },
-            "speaker_plan": speaker_plan,
-            "must_happen_environment_hint": (
-                speaker_plan.get("must_happen_environment_hint")
-                or resolved_card.get("_must_happen_environment_hint")
-            ),
-            "situation_classify": resolved_card.get("_situation_classify") or {},
-            "actor_context_packets": actor_context_packets,
-            "private_reflections": list(getattr(self, "private_reflections", []) or [])[-8:],
-            "context_receipts": context_receipts,
-            "context_budget_audit": audit_context_receipts(context_receipts),
-            "participation_performance": {
-                "deliberation_llm_calls": int(speaker_plan.get("participation_llm_calls", 0) or 0),
-                "planned_actor_calls": len(actor_context_packets),
-                "actual_actor_calls": int(
-                    (payload.get("actor_call_count", 0) if isinstance(payload, dict) else 0) or 0
-                ),
-                "actor_latency_ms": [
-                    float(item.get("latency_ms", 0.0) or 0.0)
-                    for item in (
-                        payload.get("actor_call_metrics", [])
-                        if isinstance(payload, dict)
-                        else []
-                    )
-                    if isinstance(item, dict)
-                ],
-                "actor_call_metrics": [
-                    dict(item)
-                    for item in (
-                        payload.get("actor_call_metrics", [])
-                        if isinstance(payload, dict)
-                        else []
-                    )
-                    if isinstance(item, dict)
-                ],
-            },
-            "intent_runtime": {
-                "current": intent_resolution.debug_payload() if intent_resolution is not None else None,
-                "committed_actor_decisions": committed_actor_decisions,
-                "threads": list(self.intent_threads),
-                "storylets": list(self.intent_storylets),
-            },
-            "director_only_gate": {
-                "active": bool(director_only_hits),
-                "hits": director_only_hits,
-                "mode": "director_narrate" if director_only_hits else "pass",
-            },
-            "player_visible_turns": player_visible_turns,
-            "truth_turns": truth_turns,
-            "exit_decision": exit_reason,
-            "issues": list(self.last_issues),
-            "degradations": list(self.last_degradations),
-            "player_violations": list(self.player_violations),
-            "player_violation_warning_levels": list(self.player_violation_warning_levels),
-            "stall_count": self.stall,
-            "director_stall_escalation": stall_escalation,
-            "branch_progress": list(self.branch_progress),
-            "scene_receipts": [dict(item) for item in self.scene_receipts],
-            "world_transactions": [dict(item) for _, item in sorted(self.world_transactions.items())],
-            "causal_receipts": [dict(item) for item in self.causal_receipts],
-            "director_port_trace": [dict(item) for item in self.director_port_trace[-40:]],
-            "actor_minds": {
-                cons: observer_safe_summary(mind)
-                for cons, mind in sorted(self.actor_minds.items())
-            },
-            "actor_state": _observer_actor_state_map(
-                self.actor_minds, inner_states, actor_context_packets
-            ),
-            "soft_beat_budget": stall_budget_for_card(resolved_card),
-            "clock": advance_clock(resolved_card.get("clock", "未知时刻"), self.player_state.get("elapsed_minutes", 0)),
-            "player_state": self.player_state,
-            "inner_states": inner_states,
-            "boundaries": boundaries,
-            "per_npc_memory_context": per_npc_memory_context,
-            "structured_memories": structured_memories,
-            "scene_consolidation": {
-                "facts": list(_resolved_layers.get("scene_facts", [])),
-                "director_summaries": list(_resolved_layers.get("director_summaries", [])),
-                "episodes": list(_resolved_layers.get("scene_episode_history", [])),
-                "render_style": "乙偏丙",
-            },
-            "present_characters": present_characters,
-            "player_roster": build_player_roster(
-                resolved_card,
-                intro_done=intro_done_snapshot,
-                introduced_cons=_npc_introduced_to_player_after_turn(
-                    resolved_card, self.history, None, 0
-                ),
-            ),
-            "opening_id": self.opening_id,
-            "player_profile": self.player_profile,
-            "context_memory": memory_injected,
-            "director_voice_profile": load_director_voice_profile(),
-            "ambient_stage": resolved_card.get("ambient_stage", {}),
-            "director_ambient": [dict(x) for x in ambient_turns],
-            "observatory_badges": resolved_card.get("observatory_badges", []),
-            "intro_done": intro_done_snapshot,
-            "player_observation_ledger": build_player_observation_ledger(
-                self.history,
-                intro_done=intro_done_snapshot,
-                player_profile=self.player_profile,
-                card=resolved_card,
-            ),
-            "player_knowable_gate": player_knowable,
-            "player_blocked_gate": player_blocked,
-            "world_state": acv2.project_world_events(
-                int(resolved_card.get("ch_anchor", 0) or 0),
-                list(resolved_card.get("present") or []),
-                current_location=str(
-                    resolved_card.get("scene")
-                    or (resolved_card.get("scene_frame") or {}).get("where")
-                    or ""
-                ),
-                current_scene_id=str(resolved_card.get("scene_id") or ""),
-            ),
-            "world_coordinates": project_world_coordinates(
-                world_state=acv2.project_world_events(
-                    int(resolved_card.get("ch_anchor", 0) or 0), list(resolved_card.get("present") or []),
-                    current_location=str(resolved_card.get("scene") or (resolved_card.get("scene_frame") or {}).get("where") or ""),
-                    current_scene_id=str(resolved_card.get("scene_id") or ""),
-                ),
-                world_cursor=self.world_cursor,
-                current_location=str(resolved_card.get("scene") or (resolved_card.get("scene_frame") or {}).get("where") or ""),
-                intent_runtime={
-                    "threads": self.intent_threads, "storylets": self.intent_storylets,
-                    "committed_actor_decisions": self.actor_decisions,
-                },
-                ambient_actor_registry=self.ambient_actor_registry,
-            ),
-            "beat_io": self._beat_io_projection(
-                turn_no=turn_no,
-                player_input=player_input,
-                player_visible_turns=player_visible_turns,
-                truth_turns=truth_turns,
-                emitted_events=[
-                    {
-                        "kind": "pendant_layer_c",
-                        "emitted": bool(layer_c_turns),
-                        "n": len(layer_c_turns or []),
-                    }
-                ],
-            ),
-            "body_frames": copy.deepcopy(self.body_frames or {}),
-            "run_observation_ledger": [
-                dict(x) for x in (self.run_observation_ledger or []) if isinstance(x, dict)
-            ],
-            "solidified_visible_facts": solidified_now,
-            "solidified_facts_in_packets": solidified_pre_speak,
-            "fact_packet_coverage": packet_coverage,
-            "visible_holding_map": build_visible_holding_map(resolved_card),
-            "object_use_memory": extract_object_use_memory(resolved_card, self.history),
-            "assembly_projection": self._assembly_projection_status(resolved_card),
-        })
-        self.debug_history.append(debug_payload)
-
-        if self.autosave:
-            self.save()
-        return self._run_turn_project_stage(
-            stream_response_turns=stream_response_turns,
+        return self._run_turn_project_pipeline_stage(
+            player_input=player_input,
+            turn_no=turn_no,
+            resolved_card=resolved_card,
+            actor_context_packets=actor_context_packets,
+            turns=turns,
             emitted=emitted,
+            stream_response_turns=stream_response_turns,
             transition=transition,
             debug=debug,
-            debug_payload=debug_payload,
+            prompt=prompt,
+            speaker_plan=speaker_plan,
+            context_receipts=context_receipts,
+            payload=payload,
+            intent_resolution=intent_resolution,
+            committed_actor_decisions=committed_actor_decisions,
+            director_only_hits=director_only_hits,
+            stall_escalation=stall_escalation,
+            ambient_turns=ambient_turns,
+            layer_c_turns=layer_c_turns,
+            speech=speech,
+            turn_degradations=turn_degradations,
+            exit_reason=exit_reason,
         )
 
     def result(self, debug: bool = False) -> dict[str, Any]:

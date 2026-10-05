@@ -10232,6 +10232,44 @@ class FreeStageSession:
         payload.setdefault("turns", [])
         return payload
 
+    def _run_turn_project_stage(
+        self,
+        *,
+        stream_response_turns: list[dict[str, Any]],
+        emitted: list[dict[str, Any]],
+        transition: dict[str, Any] | None,
+        debug: bool,
+        debug_payload: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Project the stable public turn response; authority writes happen earlier."""
+        result = {
+            "session_id": self.session_id,
+            "turns": stream_response_turns + [
+                dict(item)
+                for item in emitted
+                if item.get("role") in {"director_note", "marker", "error"}
+                and dict(item) not in stream_response_turns
+            ],
+            "completed": self.completed,
+            "issues": self.last_issues,
+            "degradations": self.last_degradations,
+            "player_violations": self.player_violations,
+            "player_violation_warning_levels": self.player_violation_warning_levels,
+            "player_prophecies": self.player_prophecies,
+            "ended": self.ended,
+            "surface": self.surface(),
+            "opening_id": self.opening_id,
+            "player_profile": self.player_profile,
+            "stream": self._stream_status_payload(),
+        }
+        if transition:
+            result["transition"] = transition
+        if debug:
+            result["debug_payload"] = debug_payload
+            result["debug_history"] = self.debug_history
+            result["history"] = self.history
+        return self._with_receipt(result)
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -12008,32 +12046,13 @@ class FreeStageSession:
 
         if self.autosave:
             self.save()
-        result = {
-            "session_id": self.session_id,
-            "turns": stream_response_turns + [
-                dict(x) for x in emitted
-                if x.get("role") in {"director_note", "marker", "error"}
-                and dict(x) not in stream_response_turns
-            ],
-            "completed": self.completed,
-            "issues": self.last_issues,
-            "degradations": self.last_degradations,
-            "player_violations": self.player_violations,
-            "player_violation_warning_levels": self.player_violation_warning_levels,
-            "player_prophecies": self.player_prophecies,
-            "ended": self.ended,
-            "surface": self.surface(),
-            "opening_id": self.opening_id,
-            "player_profile": self.player_profile,
-            "stream": self._stream_status_payload(),
-        }
-        if "transition" in locals() and transition:
-            result["transition"] = transition
-        if debug:
-            result["debug_payload"] = debug_payload
-            result["debug_history"] = self.debug_history
-            result["history"] = self.history
-        return self._with_receipt(result)
+        return self._run_turn_project_stage(
+            stream_response_turns=stream_response_turns,
+            emitted=emitted,
+            transition=transition,
+            debug=debug,
+            debug_payload=debug_payload,
+        )
 
     def result(self, debug: bool = False) -> dict[str, Any]:
         issues = self.last_issues if self.ended else hard_check(self.history, self.completed, self.card)

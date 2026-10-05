@@ -6494,6 +6494,13 @@ class _TurnFloorStageResult:
     stall_escalation: dict[str, Any] | None = None
 
 
+@dataclass(frozen=True)
+class _TurnEnactPrepStageResult:
+    performance_plan: tuple[dict[str, Any], ...]
+    actor_context_packets: dict[str, dict[str, Any]]
+    prompt: str
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -11059,6 +11066,320 @@ class FreeStageSession:
             stall_escalation=stall_escalation,
         )
 
+    def _prepare_turn_enact_stage(
+        self,
+        *,
+        resolved_card: dict[str, Any],
+        speaker_plan: dict[str, Any],
+        intent_resolution: Any,
+        active_state: str,
+        turn_no: int,
+        player_input: str | dict[str, Any],
+        speech: str,
+        action: str,
+        thought: str,
+        suppress_visible_input: bool,
+        stall_escalation: dict[str, Any] | None,
+    ) -> _TurnEnactPrepStageResult:
+        """Build actor-scoped packets and the finalized prompt before transport."""
+        companion_pool = list(speaker_plan.get("companion_actors", []) or [])
+        if not companion_pool:
+            companion_pool = (
+                list(speaker_plan.get("backchannel_actors", []) or [])
+                + list(speaker_plan.get("side_actors", []) or [])
+            )
+        performance_plan = (
+            list(speaker_plan.get("speakers", []) or [])
+            + list(speaker_plan.get("stage_actors", []) or [])
+            + companion_pool
+        )
+        self._body_ensure(
+            resolved_card,
+            source_kind="actor_context_prepare",
+            source_ref=f"turn:{turn_no}",
+        )
+        visible_mind_input = {
+            "speech": "" if suppress_visible_input else speech,
+            "action": "" if suppress_visible_input else action,
+        }
+        mind_receipt_ids_this_turn = self._record_player_visible_mind_receipts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+        )
+        self._rebuild_turn_working_contexts(
+            resolved_card,
+            visible_mind_input,
+            turn_no,
+            speaker_plan,
+        )
+        if ott.is_opening_top_tier_scene(resolved_card):
+            present_for = [
+                str(item.get("cons", "")).strip()
+                for item in performance_plan
+                if str(item.get("cons", "")).strip()
+            ]
+            self._ensure_opening_mind_projections(resolved_card, present_for)
+            resolved_card["_session_fsm"] = copy.deepcopy(self.fsm_by_cons)
+            resolved_card["_session_rel_state"] = copy.deepcopy(self.rel_state_by_cons)
+        actor_context_packets = {
+            cons: build_actor_context_packet(
+                resolved_card,
+                cons,
+                self.history,
+                {"speech": speech, "action": action, "thought": thought},
+                turn_no,
+                self.world_cursor,
+                self.private_inner_states.get(cons),
+                self._ensure_actor_mind(resolved_card, cons),
+                player_profile=self.player_profile,
+            )
+            for cons in [
+                str(item.get("cons", "")).strip()
+                for item in performance_plan
+                if str(item.get("cons", "")).strip()
+            ]
+        }
+        for cons, pkt in actor_context_packets.items():
+            if isinstance(pkt, dict):
+                plan_item = next(
+                    (item for item in performance_plan if item.get("cons") == cons),
+                    {},
+                )
+                part_mode = str(
+                    plan_item.get("participation_mode")
+                    or (
+                        "backchannel"
+                        if plan_item.get("response_slot") == "backchannel"
+                        else "side"
+                        if plan_item.get("response_slot") == "side"
+                        else "speak"
+                    )
+                )
+                floor_order = int(plan_item.get("floor_order") or 0)
+                if plan_item.get("response_slot") == "secondary" and floor_order == 0:
+                    floor_order = 1
+                rel_stage = str(
+                    ((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("relation_stage")
+                    or plan_item.get("relation_stage")
+                    or "S1"
+                )
+                stream_lane = str(
+                    plan_item.get("stream_lane")
+                    or ("companion" if part_mode in ("backchannel", "side") else "floor")
+                )
+                pkt["conversation_contract"] = {
+                    "response_slot": plan_item.get("response_slot", "primary"),
+                    "participation_mode": part_mode,
+                    "stream_lane": stream_lane,
+                    "floor_order": floor_order,
+                    "direct_addressee": speaker_plan.get("direct_addressee"),
+                    "obligation_kind": (speaker_plan.get("conversation_contract") or {}).get("kind", "unowned"),
+                    "obligation_evidence": (speaker_plan.get("conversation_contract") or {}).get("evidence", ""),
+                    "actor_may_pass": bool(
+                        plan_item.get("actor_may_pass")
+                        or (speaker_plan.get("conversation_contract") or {}).get("actor_may_pass", False)
+                    ),
+                    "social_instruction": plan_item.get("social_instruction", ""),
+                    "max_new_questions": (
+                        0
+                        if part_mode in ("backchannel", "side", "pass")
+                        else (2 if plan_item.get("response_slot", "primary") == "primary" else 0)
+                    ),
+                }
+                inner = (pkt.get("self_state") or {}).get("inner_state") or {}
+                pending = inner.get("pending_concerns") or []
+                if pending:
+                    pkt["conversation_contract"]["pending_concerns"] = pending
+                hold_hint = hold_slot_social_hint(
+                    pkt.get("identity_relations"),
+                    str(plan_item.get("response_slot") or "primary"),
+                    actor_cons=str(cons),
+                    participation_mode=part_mode,
+                    floor_order=floor_order,
+                    relation_stage=rel_stage,
+                )
+                if hold_hint:
+                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
+                    pkt["conversation_contract"]["social_instruction"] = (
+                        f"{prev_si} {hold_hint}".strip() if prev_si else hold_hint
+                    )
+                    pkt["conversation_contract"]["hold_participation_hint"] = hold_hint
+                if ott.is_opening_top_tier_scene(resolved_card) and self.caller is not None:
+                    # Test-only transport metadata. P5 finalization strips root
+                    # underscore keys from the actor prompt and forwards this
+                    # only out-of-band to compatible injected test callers.
+                    pkt["_playtest"] = {
+                        "completed": list(self.completed),
+                        "branch_progress": list(self.branch_progress),
+                        "must_happen_ids": card_must_happen_ids(resolved_card),
+                        "player_speech": speech,
+                        "player_action": action,
+                    }
+                # Continuity: he already sees own lines in observable_dialogue;
+                # still surface them so the model cannot "forget" and re-ask.
+                actor_name = str(((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("name") or "")
+                own_recent = collect_own_recent_lines(
+                    self.history, actor_cons=cons, actor_name=actor_name, limit=2,
+                )
+                if own_recent:
+                    pkt["conversation_contract"]["own_recent_lines"] = own_recent
+                    joined = " / ".join(line[:48] for line in own_recent)
+                    continuity_hint = (
+                        f"你自己刚说过：「{joined}」。"
+                        "别换皮复问同一句；接新信息，或等话题自然转到你在意的事。"
+                    )
+                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
+                    pkt["conversation_contract"]["social_instruction"] = (
+                        f"{prev_si} {continuity_hint}".strip() if prev_si else continuity_hint
+                    )
+                intent_request = (
+                    decision_request_for_actor(intent_resolution, cons)
+                    if intent_resolution is not None else None
+                )
+                if intent_request is not None:
+                    pkt["decision_request"] = intent_request
+                intent_memory = self._actor_intent_memory(cons)
+                if intent_memory:
+                    pkt.setdefault("self_memory", {})["intent_commitments"] = intent_memory
+                pkt["director_instruction"] = acv2.build_director_instruction(
+                    resolved_card,
+                    cons,
+                    turn_no,
+                    self.history,
+                    {"speech": speech, "action": action, "thought": thought},
+                    completed=self.completed,
+                )
+                if stall_escalation and cons == stall_escalation.get("actor_cons"):
+                    base_director_instruction = pkt.get("director_instruction")
+                    pkt["director_instruction"] = {
+                        "base_instruction": copy.deepcopy(base_director_instruction),
+                        "stall_escalation": copy.deepcopy(stall_escalation),
+                    }
+                # ActorCogLoop Decide: top concern + pending (maps to observer step 7.5).
+                flash_beats_for_cog = int(resolved_card.get("_ryuya_flash_beats") or 0)
+                stated_facts = (
+                    cogloop.prologue_stated_public_facts(
+                        self.history,
+                        ledger=getattr(self, "run_observation_ledger", None),
+                    )
+                    if resolved_card.get("prologue_active")
+                    else []
+                )
+                # Soft want sync: 托付/照顾已出口但 MH 滞后 → 推到交坠带，停复读。
+                care_spoken = any(
+                    k in f
+                    for f in stated_facts
+                    for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
+                )
+                if (
+                    resolved_card.get("prologue_active")
+                    and care_spoken
+                    and "RP4" not in self.completed
+                ):
+                    soft_done = list(self.completed)
+                    if "RP3" not in soft_done and any(
+                        k in f for f in stated_facts for k in ("已当面提过", "账本已记：托付")
+                    ):
+                        soft_done = [*soft_done, "RP3"]
+                    elif "RP3" not in soft_done:
+                        # 半截照顾：仍停在 entrust 带，但 want 文案用 RP2+ 的「说清」而非 idle
+                        soft_done = [*soft_done, "RP2"]
+                    advance_ryuya_prologue_want_now(
+                        resolved_card,
+                        flash_beats=max(flash_beats_for_cog, 4),
+                        completed=soft_done,
+                    )
+                prior_reflect = self.reflect_proposal_state.get(str(cons))
+                pacing_signal = (
+                    director_harness.classify_cafe_pacing_signal(
+                        {"speech": speech, "action": action},
+                        flash_beats=flash_beats_for_cog,
+                        completed=self.completed,
+                    )
+                    if resolved_card.get("prologue_active")
+                    else None
+                )
+                cogloop.attach_cog_loop_to_packet(
+                    pkt,
+                    scene_id=str(resolved_card.get("scene_id") or ""),
+                    flash_beats=flash_beats_for_cog,
+                    completed=self.completed,
+                    prior_reflect=prior_reflect,
+                    stated_facts=stated_facts,
+                    player_speech=speech,
+                    pacing_signal=pacing_signal,
+                )
+                decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+                if decide.get("pending_concerns") is not None:
+                    pkt.setdefault("conversation_contract", {})["pending_concerns"] = list(
+                        decide.get("pending_concerns") or []
+                    )
+                    self.working_context_state.patch(
+                        cons,
+                        {
+                            "pending_concerns": list(decide.get("pending_concerns") or []),
+                            "top_concern": decide.get("top_concern"),
+                        },
+                    )
+                # Banter ceiling: after soft budget without deepen, hard-nudge off idle chat.
+                if (
+                    resolved_card.get("prologue_active")
+                    and cons == "C.ryuya.W1"
+                    and "RP2" not in set(self.completed)
+                    and flash_beats_for_cog >= stall_budget_for_card(resolved_card)
+                ):
+                    ceiling = (
+                        "闲聊已持续多拍：禁止复问同一近况或编共同细节；"
+                        "本拍请换一个自然招法（新角度、环境回应、短暂停顿或轻微探口都可以）。"
+                        "拍数本身不是推进许可，不得仅因时间到了就强行进入托付。"
+                    )
+                    prev_si = str(
+                        (pkt.get("conversation_contract") or {}).get("social_instruction") or ""
+                    ).strip()
+                    pkt.setdefault("conversation_contract", {})["social_instruction"] = (
+                        f"{prev_si} {ceiling}".strip() if prev_si else ceiling
+                    )
+
+        context_memory_count = len(resolved_card.get("memory_layers", {}).get("context_memory", []))
+        slow_mem_count = sum(
+            len((pkt.get("self_memory") or {}).get("slow_memory_top_k") or [])
+            for pkt in actor_context_packets.values()
+            if isinstance(pkt, dict)
+        )
+        badges = []
+        if context_memory_count > 0:
+            badges.append(f"已注入 {context_memory_count} 条因果底层记忆")
+        if slow_mem_count > 0:
+            badges.append(f"慢环激活 {slow_mem_count} 条角色未了之话")
+        resolved_card["observatory_badges"] = badges
+
+        prompt = build_prompt(
+            resolved_card,
+            self.history,
+            player_input,
+            self.completed,
+            self.stall,
+            self.branch_progress,
+            active_state,
+            speaker_plan,
+            (
+                prologue_friend_known_profile(self.player_profile)
+                if self.card.get("prologue_active")
+                else self.player_profile
+            ),
+        )
+
+        return _TurnEnactPrepStageResult(
+            performance_plan=tuple(dict(item) for item in performance_plan),
+            actor_context_packets={
+                str(cons): dict(packet)
+                for cons, packet in actor_context_packets.items()
+                if isinstance(packet, dict)
+            },
+            prompt=str(prompt),
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11568,293 +11889,26 @@ class FreeStageSession:
         current_scene_id = floor_stage.current_scene_id
         stall_escalation = floor_stage.stall_escalation
 
-        companion_pool = list(speaker_plan.get("companion_actors", []) or [])
-        if not companion_pool:
-            companion_pool = (
-                list(speaker_plan.get("backchannel_actors", []) or [])
-                + list(speaker_plan.get("side_actors", []) or [])
-            )
-        performance_plan = (
-            list(speaker_plan.get("speakers", []) or [])
-            + list(speaker_plan.get("stage_actors", []) or [])
-            + companion_pool
+        enact_prep = self._prepare_turn_enact_stage(
+            resolved_card=resolved_card,
+            speaker_plan=speaker_plan,
+            intent_resolution=intent_resolution,
+            active_state=active_state,
+            turn_no=turn_no,
+            player_input=player_input,
+            speech=speech,
+            action=action,
+            thought=thought,
+            suppress_visible_input=suppress_visible_input,
+            stall_escalation=stall_escalation,
         )
-        self._body_ensure(
-            resolved_card,
-            source_kind="actor_context_prepare",
-            source_ref=f"turn:{turn_no}",
-        )
-        visible_mind_input = {
-            "speech": "" if suppress_visible_input else speech,
-            "action": "" if suppress_visible_input else action,
-        }
-        mind_receipt_ids_this_turn = self._record_player_visible_mind_receipts(
-            resolved_card,
-            visible_mind_input,
-            turn_no,
-        )
-        self._rebuild_turn_working_contexts(
-            resolved_card,
-            visible_mind_input,
-            turn_no,
-            speaker_plan,
-        )
-        if ott.is_opening_top_tier_scene(resolved_card):
-            present_for = [
-                str(item.get("cons", "")).strip()
-                for item in performance_plan
-                if str(item.get("cons", "")).strip()
-            ]
-            self._ensure_opening_mind_projections(resolved_card, present_for)
-            resolved_card["_session_fsm"] = copy.deepcopy(self.fsm_by_cons)
-            resolved_card["_session_rel_state"] = copy.deepcopy(self.rel_state_by_cons)
+        performance_plan = [dict(item) for item in enact_prep.performance_plan]
         actor_context_packets = {
-            cons: build_actor_context_packet(
-                resolved_card,
-                cons,
-                self.history,
-                {"speech": speech, "action": action, "thought": thought},
-                turn_no,
-                self.world_cursor,
-                self.private_inner_states.get(cons),
-                self._ensure_actor_mind(resolved_card, cons),
-                player_profile=self.player_profile,
-            )
-            for cons in [
-                str(item.get("cons", "")).strip()
-                for item in performance_plan
-                if str(item.get("cons", "")).strip()
-            ]
+            str(cons): dict(packet)
+            for cons, packet in enact_prep.actor_context_packets.items()
         }
-        for cons, pkt in actor_context_packets.items():
-            if isinstance(pkt, dict):
-                plan_item = next(
-                    (item for item in performance_plan if item.get("cons") == cons),
-                    {},
-                )
-                part_mode = str(
-                    plan_item.get("participation_mode")
-                    or (
-                        "backchannel"
-                        if plan_item.get("response_slot") == "backchannel"
-                        else "side"
-                        if plan_item.get("response_slot") == "side"
-                        else "speak"
-                    )
-                )
-                floor_order = int(plan_item.get("floor_order") or 0)
-                if plan_item.get("response_slot") == "secondary" and floor_order == 0:
-                    floor_order = 1
-                rel_stage = str(
-                    ((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("relation_stage")
-                    or plan_item.get("relation_stage")
-                    or "S1"
-                )
-                stream_lane = str(
-                    plan_item.get("stream_lane")
-                    or ("companion" if part_mode in ("backchannel", "side") else "floor")
-                )
-                pkt["conversation_contract"] = {
-                    "response_slot": plan_item.get("response_slot", "primary"),
-                    "participation_mode": part_mode,
-                    "stream_lane": stream_lane,
-                    "floor_order": floor_order,
-                    "direct_addressee": speaker_plan.get("direct_addressee"),
-                    "obligation_kind": (speaker_plan.get("conversation_contract") or {}).get("kind", "unowned"),
-                    "obligation_evidence": (speaker_plan.get("conversation_contract") or {}).get("evidence", ""),
-                    "actor_may_pass": bool(
-                        plan_item.get("actor_may_pass")
-                        or (speaker_plan.get("conversation_contract") or {}).get("actor_may_pass", False)
-                    ),
-                    "social_instruction": plan_item.get("social_instruction", ""),
-                    "max_new_questions": (
-                        0
-                        if part_mode in ("backchannel", "side", "pass")
-                        else (2 if plan_item.get("response_slot", "primary") == "primary" else 0)
-                    ),
-                }
-                inner = (pkt.get("self_state") or {}).get("inner_state") or {}
-                pending = inner.get("pending_concerns") or []
-                if pending:
-                    pkt["conversation_contract"]["pending_concerns"] = pending
-                hold_hint = hold_slot_social_hint(
-                    pkt.get("identity_relations"),
-                    str(plan_item.get("response_slot") or "primary"),
-                    actor_cons=str(cons),
-                    participation_mode=part_mode,
-                    floor_order=floor_order,
-                    relation_stage=rel_stage,
-                )
-                if hold_hint:
-                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
-                    pkt["conversation_contract"]["social_instruction"] = (
-                        f"{prev_si} {hold_hint}".strip() if prev_si else hold_hint
-                    )
-                    pkt["conversation_contract"]["hold_participation_hint"] = hold_hint
-                if ott.is_opening_top_tier_scene(resolved_card) and self.caller is not None:
-                    # Test-only transport metadata. P5 finalization strips root
-                    # underscore keys from the actor prompt and forwards this
-                    # only out-of-band to compatible injected test callers.
-                    pkt["_playtest"] = {
-                        "completed": list(self.completed),
-                        "branch_progress": list(self.branch_progress),
-                        "must_happen_ids": card_must_happen_ids(resolved_card),
-                        "player_speech": speech,
-                        "player_action": action,
-                    }
-                # Continuity: he already sees own lines in observable_dialogue;
-                # still surface them so the model cannot "forget" and re-ask.
-                actor_name = str(((resolved_card.get("persona_cards") or {}).get(cons) or {}).get("name") or "")
-                own_recent = collect_own_recent_lines(
-                    self.history, actor_cons=cons, actor_name=actor_name, limit=2,
-                )
-                if own_recent:
-                    pkt["conversation_contract"]["own_recent_lines"] = own_recent
-                    joined = " / ".join(line[:48] for line in own_recent)
-                    continuity_hint = (
-                        f"你自己刚说过：「{joined}」。"
-                        "别换皮复问同一句；接新信息，或等话题自然转到你在意的事。"
-                    )
-                    prev_si = str(pkt["conversation_contract"].get("social_instruction") or "").strip()
-                    pkt["conversation_contract"]["social_instruction"] = (
-                        f"{prev_si} {continuity_hint}".strip() if prev_si else continuity_hint
-                    )
-                intent_request = (
-                    decision_request_for_actor(intent_resolution, cons)
-                    if intent_resolution is not None else None
-                )
-                if intent_request is not None:
-                    pkt["decision_request"] = intent_request
-                intent_memory = self._actor_intent_memory(cons)
-                if intent_memory:
-                    pkt.setdefault("self_memory", {})["intent_commitments"] = intent_memory
-                pkt["director_instruction"] = acv2.build_director_instruction(
-                    resolved_card,
-                    cons,
-                    turn_no,
-                    self.history,
-                    {"speech": speech, "action": action, "thought": thought},
-                    completed=self.completed,
-                )
-                if stall_escalation and cons == stall_escalation.get("actor_cons"):
-                    base_director_instruction = pkt.get("director_instruction")
-                    pkt["director_instruction"] = {
-                        "base_instruction": copy.deepcopy(base_director_instruction),
-                        "stall_escalation": copy.deepcopy(stall_escalation),
-                    }
-                # ActorCogLoop Decide: top concern + pending (maps to observer step 7.5).
-                flash_beats_for_cog = int(resolved_card.get("_ryuya_flash_beats") or 0)
-                stated_facts = (
-                    cogloop.prologue_stated_public_facts(
-                        self.history,
-                        ledger=getattr(self, "run_observation_ledger", None),
-                    )
-                    if resolved_card.get("prologue_active")
-                    else []
-                )
-                # Soft want sync: 托付/照顾已出口但 MH 滞后 → 推到交坠带，停复读。
-                care_spoken = any(
-                    k in f
-                    for f in stated_facts
-                    for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
-                )
-                if (
-                    resolved_card.get("prologue_active")
-                    and care_spoken
-                    and "RP4" not in self.completed
-                ):
-                    soft_done = list(self.completed)
-                    if "RP3" not in soft_done and any(
-                        k in f for f in stated_facts for k in ("已当面提过", "账本已记：托付")
-                    ):
-                        soft_done = [*soft_done, "RP3"]
-                    elif "RP3" not in soft_done:
-                        # 半截照顾：仍停在 entrust 带，但 want 文案用 RP2+ 的「说清」而非 idle
-                        soft_done = [*soft_done, "RP2"]
-                    advance_ryuya_prologue_want_now(
-                        resolved_card,
-                        flash_beats=max(flash_beats_for_cog, 4),
-                        completed=soft_done,
-                    )
-                prior_reflect = self.reflect_proposal_state.get(str(cons))
-                pacing_signal = (
-                    director_harness.classify_cafe_pacing_signal(
-                        {"speech": speech, "action": action},
-                        flash_beats=flash_beats_for_cog,
-                        completed=self.completed,
-                    )
-                    if resolved_card.get("prologue_active")
-                    else None
-                )
-                cogloop.attach_cog_loop_to_packet(
-                    pkt,
-                    scene_id=str(resolved_card.get("scene_id") or ""),
-                    flash_beats=flash_beats_for_cog,
-                    completed=self.completed,
-                    prior_reflect=prior_reflect,
-                    stated_facts=stated_facts,
-                    player_speech=speech,
-                    pacing_signal=pacing_signal,
-                )
-                decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
-                if decide.get("pending_concerns") is not None:
-                    pkt.setdefault("conversation_contract", {})["pending_concerns"] = list(
-                        decide.get("pending_concerns") or []
-                    )
-                    self.working_context_state.patch(
-                        cons,
-                        {
-                            "pending_concerns": list(decide.get("pending_concerns") or []),
-                            "top_concern": decide.get("top_concern"),
-                        },
-                    )
-                # Banter ceiling: after soft budget without deepen, hard-nudge off idle chat.
-                if (
-                    resolved_card.get("prologue_active")
-                    and cons == "C.ryuya.W1"
-                    and "RP2" not in set(self.completed)
-                    and flash_beats_for_cog >= stall_budget_for_card(resolved_card)
-                ):
-                    ceiling = (
-                        "闲聊已持续多拍：禁止复问同一近况或编共同细节；"
-                        "本拍请换一个自然招法（新角度、环境回应、短暂停顿或轻微探口都可以）。"
-                        "拍数本身不是推进许可，不得仅因时间到了就强行进入托付。"
-                    )
-                    prev_si = str(
-                        (pkt.get("conversation_contract") or {}).get("social_instruction") or ""
-                    ).strip()
-                    pkt.setdefault("conversation_contract", {})["social_instruction"] = (
-                        f"{prev_si} {ceiling}".strip() if prev_si else ceiling
-                    )
+        prompt = enact_prep.prompt
 
-        context_memory_count = len(resolved_card.get("memory_layers", {}).get("context_memory", []))
-        slow_mem_count = sum(
-            len((pkt.get("self_memory") or {}).get("slow_memory_top_k") or [])
-            for pkt in actor_context_packets.values()
-            if isinstance(pkt, dict)
-        )
-        badges = []
-        if context_memory_count > 0:
-            badges.append(f"已注入 {context_memory_count} 条因果底层记忆")
-        if slow_mem_count > 0:
-            badges.append(f"慢环激活 {slow_mem_count} 条角色未了之话")
-        resolved_card["observatory_badges"] = badges
-
-        prompt = build_prompt(
-            resolved_card,
-            self.history,
-            player_input,
-            self.completed,
-            self.stall,
-            self.branch_progress,
-            active_state,
-            speaker_plan,
-            (
-                prologue_friend_known_profile(self.player_profile)
-                if self.card.get("prologue_active")
-                else self.player_profile
-            ),
-        )
         emitted: list[dict[str, Any]] = []
         stream_response_turns: list[dict[str, Any]] = []
         emitted.extend([

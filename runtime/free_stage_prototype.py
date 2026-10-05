@@ -8658,57 +8658,36 @@ class FreeStageSession:
         emitted = self._emit_canon_segment(segment, turn_no=turn_no)
         remaining = len(canon_performance_segments(self.card))
         while remaining > 0:
-            next_segment = self._pending_canon_segment()
-            if next_segment is None or not bool(next_segment.get("auto_continue")):
+            next_segment, auto_continue = self._pending_canon_selection()
+            if next_segment is None or not auto_continue:
                 break
             emitted.extend(self._emit_canon_segment(next_segment, turn_no=turn_no))
             remaining -= 1
         return emitted
 
-    def _pending_canon_segment(self) -> dict[str, Any] | None:
+    def _pending_canon_selection(self) -> tuple[dict[str, Any] | None, bool]:
         state = self._canon_scene_state()
-        pending_stop = str(state.get("pending_stop", "") or "").strip()
-        if not pending_stop:
-            return None
-        completed = set(state.get("completed_segments", []))
-        for segment in canon_performance_segments(self.card):
-            segment_id = str(segment.get("segment_id", "") or "").strip()
-            if not segment_id or segment_id in completed:
-                continue
-            if str(segment.get("trigger", "") or "").strip() != "after_stop":
-                continue
-            if str(segment.get("after_stop", "") or "").strip() != pending_stop:
-                continue
-            required_branches = {
-                str(item or "").strip()
-                for item in segment.get("requires_branch", [])
-                if str(item or "").strip()
-            }
-            if not required_branches.issubset(set(self.branch_progress)):
-                continue
-            required_decisions = {
-                str(item).strip() for item in segment.get("requires_autonomous_decisions", [])
-                if str(item).strip()
-            }
-            resolved_decisions = {
-                str(item.get("autonomous_decision_id", "")).strip()
-                for item in self.actor_decisions if isinstance(item, dict)
-            }
-            if required_decisions and not required_decisions.issubset(resolved_decisions):
-                continue
-            required_outcomes = segment.get("requires_autonomous_outcomes", {})
-            if isinstance(required_outcomes, dict):
-                by_point = {
-                    str(item.get("autonomous_decision_id", "")): str(item.get("outcome", ""))
-                    for item in self.actor_decisions if isinstance(item, dict)
-                }
-                if any(
-                    by_point.get(str(point_id)) not in {str(value)}
-                    for point_id, value in required_outcomes.items()
-                ):
-                    continue
-            return segment
-        return None
+        segments = canon_performance_segments(self.card)
+        snapshot = scene_policies.CanonSelectionInput.from_runtime(
+            pending_stop=str(state.get("pending_stop", "") or ""),
+            completed_segments=tuple(state.get("completed_segments", ()) or ()),
+            branch_progress=tuple(self.branch_progress),
+            actor_decisions=tuple(
+                dict(item) for item in self.actor_decisions if isinstance(item, dict)
+            ),
+            segments=tuple(segments),
+        )
+        selection = scene_policies.select_pending_canon_segment(snapshot)
+        if selection is None:
+            return None, False
+        for segment in segments:
+            if str(segment.get("segment_id", "") or "").strip() == selection.segment_id:
+                return segment, bool(selection.auto_continue)
+        return None, False
+
+    def _pending_canon_segment(self) -> dict[str, Any] | None:
+        segment, _auto_continue = self._pending_canon_selection()
+        return segment
 
     def _ready_after_must_happen_canon_segment(self) -> dict[str, Any] | None:
         """Return the next source-bound burst unlocked by completed scene beats.
@@ -12177,14 +12156,20 @@ class FreeStageSession:
         # Only a real in-story flashback may auto-return when its required beats
         # are complete. A standalone prologue uses the normal player-intent exit
         # policy below: RP completion unlocks leaving; it never means "leave now".
-        prologue_handoff_ready = False
-        if (
-            self.card.get("prologue_active")
-            and self.ryuya_flashback_return
-            and all_must_happen_complete(self.card, self.completed)
-        ):
+        prologue_handoff_ready = scene_policies.flashback_handoff_ready(
+            scene_policies.FlashbackHandoffInput(
+                prologue_active=bool(self.card.get("prologue_active")),
+                has_return_frame=bool(self.ryuya_flashback_return),
+                all_must_happen_complete=all_must_happen_complete(
+                    self.card,
+                    self.completed,
+                ),
+            )
+        )
+        if prologue_handoff_ready:
             # 闪回演完：世界账本在开场已交付则只恢复收据标记；禁止没演完就静默收束。
             # 沉默≠答应：无世界账本且无当面收据时记 deferred，不默认 accepted。
+            # P6 policy 只判 handoff-ready；下列 ★★★ 挂坠结算保持原 owner/原语义。
             has_receipt = any(str(item).startswith("prologue_receipt_") for item in self.branch_progress)
             if self._world_transaction("ryuya_pendant_disposition") is not None:
                 if not has_receipt:
@@ -12203,7 +12188,6 @@ class FreeStageSession:
                     "ryuya_pendant_disposition",
                     turn_no=turn_no,
                 )
-            prologue_handoff_ready = True
         semantic_exit_spec: dict[str, Any] | None = None
         if semantic_exit_index is not None:
             exits = [item for item in self.card.get("exits", []) if isinstance(item, dict)]

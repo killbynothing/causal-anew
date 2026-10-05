@@ -6477,6 +6477,22 @@ class _TurnCommitStageResult:
     committed_actor_decisions: tuple[dict[str, Any], ...] = ()
 
 
+@dataclass(frozen=True)
+class _TurnDeliberateStageResult:
+    resolved_card: dict[str, Any]
+    beats_on_card: int
+    intent_resolution: Any = None
+    semantic_exit: int | None = None
+    director_only_hits: tuple[Any, ...] = ()
+
+
+@dataclass(frozen=True)
+class _TurnFloorStageResult:
+    speaker_plan: dict[str, Any]
+    current_scene_id: str
+    stall_escalation: dict[str, Any] | None = None
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -10831,6 +10847,216 @@ class FreeStageSession:
             ),
         )
 
+    def _run_turn_deliberate_stage(
+        self,
+        *,
+        player_input: str | dict[str, Any],
+        turn_no: int,
+        speech: str,
+        action: str,
+        thought: str,
+        facts_this_turn: set[str],
+        cafe_disposition: str,
+    ) -> _TurnDeliberateStageResult:
+        """Prepare actor-visible scene state and intent context before Floor."""
+        active_state = self.get_active_exit_state()
+        resolved_card = resolve_card_must_happen_variants(self.card, active_state)
+        # 环境余波可被下一拍真正轮到回应的角色看见；它仍只是可观察条件，
+        # 不携带任何指定行动。
+        resolved_card["_public_environment_deltas"] = [
+            item for item in self.public_environment_deltas
+            if 0 <= turn_no - int(item.get("turn", 0) or 0) <= 1
+        ]
+        resolved_card["_verbatim_field_window"] = build_verbatim_field_window(self.history, limit=8)
+        if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
+            introduced_now = _npc_introduced_to_player_after_turn(
+                resolved_card, self.history, None, 0
+            )
+            want_updates = advance_tiananmen_want_now(
+                resolved_card,
+                self.branch_progress,
+                history=self.history,
+                player_input=player_input,
+                introduced_cons=introduced_now,
+            )
+            for cons, want in want_updates.items():
+                self.working_context_state.patch(cons, {"want_now": want})
+            facts: list[str] = []
+            if "tiananmen_video_unavailable" in self.branch_progress:
+                facts.append("玩家明确说：自己没有录到升旗视频；不得再次向其索取视频。")
+            if "tiananmen_video_offered" in self.branch_progress:
+                if "tiananmen_video_offered" in facts_this_turn:
+                    facts.append("玩家本拍刚答应可以借看升旗视频；接住这份好意即可，不要当成早就谈妥、也不要再开口借。")
+                else:
+                    facts.append("玩家已答应可以借看升旗视频；这件事本场已经谈妥，不要再重复开口借。")
+            resolved_card["_player_visible_scene_facts"] = facts
+            resolved_card["_want_now_advances"] = want_updates
+            if "tiananmen_japanese_understood" in facts_this_turn:
+                self._language_discovery_observation = language_discovery_observation(
+                    {"speech": speech, "action": action, "thought": thought},
+                    self.history,
+                )
+            if self._language_discovery_observation:
+                # Observation only — never a line-forcing order.
+                resolved_card["_language_discovery_observation"] = self._language_discovery_observation
+            else:
+                resolved_card.pop("_language_discovery_observation", None)
+        # Solidified run/scene facts → every actor packet (emergence, not hard gate).
+        resolved_card["_solidified_visible_facts"] = build_solidified_visible_facts(
+            resolved_card,
+            self.history,
+            run_observation_ledger=getattr(self, "run_observation_ledger", None),
+            scene_receipts=getattr(self, "scene_receipts", None),
+            branch_progress=list(self.branch_progress),
+            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
+        )
+        if (
+            resolved_card.get("prologue_active")
+            and "C.ryuya.W1" in (resolved_card.get("persona_cards") or {})
+        ):
+            flash_beats = max(
+                0,
+                len(self.inputs) - int(getattr(self, "_flashback_inputs_at_enter", len(self.inputs)) or 0),
+            ) if self.ryuya_flashback_return else max(0, len(self.inputs))
+            # 闲聊已发生 = 可记账的场面进度，不是玩家闸。
+            if flash_beats >= 1 and "RP1" not in self.completed:
+                self._beat_complete(
+                    "RP1",
+                    source_kind="scene_activity",
+                    source_ref=f"player-turn:{turn_no}",
+                    turn_no=turn_no,
+                )
+            topic_hit = ryuya_deep_topic_interface(
+                {"speech": speech, "action": action},
+                self.history,
+            )
+            want_updates = advance_ryuya_prologue_want_now(
+                resolved_card,
+                flash_beats=flash_beats,
+                completed=self.completed,
+                topic_interface=topic_hit,
+            )
+            resolved_card["_ryuya_topic_interface"] = bool(topic_hit)
+            for cons, want in want_updates.items():
+                self.working_context_state.patch(cons, {"want_now": want})
+            resolved_card["_want_now_advances"] = want_updates
+            resolved_card["_ryuya_flash_beats"] = flash_beats
+        if str(resolved_card.get("scene_id", "")) == "CARD_16ZHONG_GATE":
+            resolved_card["cafe_disposition"] = {
+                "this_turn": cafe_disposition,
+                "player_declined": "c16_player_cafe_declined" in self.branch_progress,
+                "girls_declined": "c16_girls_cafe_declined" in self.branch_progress,
+                "player_accepted": "c16_player_cafe_accepted" in self.branch_progress,
+                "rule": "张尘可提议一次；任何明确拒绝都生效，不得自动进店。",
+            }
+        resolved_card = self._resolve_frame_beat_view(resolved_card)
+        resolved_card["_branch_progress_for_facets"] = list(self.branch_progress)
+        resolved_card["_completed_for_facets"] = list(self.completed)
+        resolved_card["_flash_beats_for_facets"] = int(
+            resolved_card.get("_ryuya_flash_beats") or 0
+        )
+        beats_on_card = int(resolved_card.get("_ryuya_flash_beats") or 0)
+        if not resolved_card.get("prologue_active"):
+            # Tiananmen / other: count inputs on this card roughly via completed empty + inputs
+            beats_on_card = max(0, len(self.inputs))
+        soft_hint = opening_soft_progress_hint(
+            resolved_card,
+            self.completed,
+            beats_on_card=beats_on_card,
+            already_fired=bool(getattr(self, "_opening_soft_hint_fired", False)),
+        )
+        if soft_hint:
+            resolved_card["_opening_soft_inner_hint"] = soft_hint
+            self._opening_soft_hint_fired = True
+        else:
+            resolved_card.pop("_opening_soft_inner_hint", None)
+        # Director soft-classify: live (no custom actor caller) + api_key → LLM;
+        # tests/offline actor caller → rules unless session.situation_caller set.
+        situation_caller = getattr(self, "situation_caller", None)
+        classify_config = self.config
+        if situation_caller is None and self.caller is not None:
+            classify_config = {**(self.config or {}), "api_key": ""}
+        situation_receipt = classify_opening_situation(
+            resolved_card,
+            self.history,
+            {"speech": speech, "action": action, "thought": thought},
+            self.branch_progress,
+            self.completed,
+            flash_beats=int(resolved_card.get("_ryuya_flash_beats") or 0),
+            config=classify_config,
+            caller=situation_caller,
+        )
+        resolved_card["_director_facet_ids"] = list(situation_receipt.get("facet_ids") or [])
+        resolved_card["_situation_classify"] = situation_receipt
+        if situation_receipt.get("eligible_ids") is not None:
+            self._record_director_port(dict(situation_receipt), turn_no=turn_no)
+        intent_resolution = self._interpret_current_intent(
+            resolved_card,
+            {"speech": speech, "action": action, "thought": thought},
+            turn_no,
+        )
+        semantic_exit = semantic_exit_index(intent_resolution)
+        if intent_resolution is not None:
+            self._append_intent_opened(intent_resolution)
+            self._publish_dramaturgy_moves(intent_resolution, turn_no=turn_no)
+        director_only_hits = detect_director_only_address(resolved_card, player_input)
+
+
+        return _TurnDeliberateStageResult(
+            resolved_card=resolved_card,
+            beats_on_card=int(beats_on_card or 0),
+            intent_resolution=intent_resolution,
+            semantic_exit=semantic_exit,
+            director_only_hits=tuple(director_only_hits or ()),
+        )
+
+    def _run_turn_floor_stage(
+        self,
+        *,
+        resolved_card: dict[str, Any],
+        player_input: str | dict[str, Any],
+        intent_resolution: Any,
+    ) -> _TurnFloorStageResult:
+        """Build the P4 content-blind floor projection and stall metadata."""
+        participation_deliberation = build_participation_deliberation(
+            resolved_card,
+            self.history[:-1],
+            player_input,
+            completed=self.completed,
+            branch_progress=self.branch_progress,
+            actor_minds=self.actor_minds,
+        )
+        speaker_plan = build_floor_plan(participation_deliberation)
+        current_scene_id = str(resolved_card.get("scene_id", self.card_path))
+        stall_escalation = build_stall_escalation(
+            resolved_card,
+            self.stall,
+            current_scene_id in self._stall_escalation_fired_scenes,
+        )
+        speaker_plan = apply_stall_escalation_to_speaker_plan(speaker_plan, stall_escalation)
+        mh_env_hint = soc.must_happen_director_env_hint(
+            resolved_card,
+            self.completed,
+            stall=int(self.stall or 0),
+            min_stall=2,
+        )
+        if mh_env_hint:
+            speaker_plan["must_happen_environment_hint"] = mh_env_hint
+            # Environment residue for director / observatory — not actor dialogue script.
+            resolved_card["_must_happen_environment_hint"] = copy.deepcopy(mh_env_hint)
+        if intent_resolution is not None:
+            speaker_plan = ensure_decision_target_in_speaker_plan(speaker_plan, intent_resolution)
+        # M1: materialize the exact per-consciousness projections before any
+        # actor call.  M2 will consume these one by one; keeping this receipt
+        # now makes the boundary observable and prevents a future runner from
+        # silently reconstructing a broad shared prompt.
+
+        return _TurnFloorStageResult(
+            speaker_plan=speaker_plan,
+            current_scene_id=current_scene_id,
+            stall_escalation=stall_escalation,
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11315,180 +11541,30 @@ class FreeStageSession:
                     )
                     return self._canon_step_result([], turn_no=turn_no, debug=debug)
 
-        active_state = self.get_active_exit_state()
-        resolved_card = resolve_card_must_happen_variants(self.card, active_state)
-        # 环境余波可被下一拍真正轮到回应的角色看见；它仍只是可观察条件，
-        # 不携带任何指定行动。
-        resolved_card["_public_environment_deltas"] = [
-            item for item in self.public_environment_deltas
-            if 0 <= turn_no - int(item.get("turn", 0) or 0) <= 1
-        ]
-        resolved_card["_verbatim_field_window"] = build_verbatim_field_window(self.history, limit=8)
-        if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
-            introduced_now = _npc_introduced_to_player_after_turn(
-                resolved_card, self.history, None, 0
-            )
-            want_updates = advance_tiananmen_want_now(
-                resolved_card,
-                self.branch_progress,
-                history=self.history,
-                player_input=player_input,
-                introduced_cons=introduced_now,
-            )
-            for cons, want in want_updates.items():
-                self.working_context_state.patch(cons, {"want_now": want})
-            facts: list[str] = []
-            if "tiananmen_video_unavailable" in self.branch_progress:
-                facts.append("玩家明确说：自己没有录到升旗视频；不得再次向其索取视频。")
-            if "tiananmen_video_offered" in self.branch_progress:
-                if "tiananmen_video_offered" in facts_this_turn:
-                    facts.append("玩家本拍刚答应可以借看升旗视频；接住这份好意即可，不要当成早就谈妥、也不要再开口借。")
-                else:
-                    facts.append("玩家已答应可以借看升旗视频；这件事本场已经谈妥，不要再重复开口借。")
-            resolved_card["_player_visible_scene_facts"] = facts
-            resolved_card["_want_now_advances"] = want_updates
-            if "tiananmen_japanese_understood" in facts_this_turn:
-                self._language_discovery_observation = language_discovery_observation(
-                    {"speech": speech, "action": action, "thought": thought},
-                    self.history,
-                )
-            if self._language_discovery_observation:
-                # Observation only — never a line-forcing order.
-                resolved_card["_language_discovery_observation"] = self._language_discovery_observation
-            else:
-                resolved_card.pop("_language_discovery_observation", None)
-        # Solidified run/scene facts → every actor packet (emergence, not hard gate).
-        resolved_card["_solidified_visible_facts"] = build_solidified_visible_facts(
-            resolved_card,
-            self.history,
-            run_observation_ledger=getattr(self, "run_observation_ledger", None),
-            scene_receipts=getattr(self, "scene_receipts", None),
-            branch_progress=list(self.branch_progress),
-            extra_facts=list(resolved_card.get("_player_visible_scene_facts") or []),
+        deliberate_stage = self._run_turn_deliberate_stage(
+            player_input=player_input,
+            turn_no=turn_no,
+            speech=speech,
+            action=action,
+            thought=thought,
+            facts_this_turn=facts_this_turn,
+            cafe_disposition=cafe_disposition,
         )
-        if (
-            resolved_card.get("prologue_active")
-            and "C.ryuya.W1" in (resolved_card.get("persona_cards") or {})
-        ):
-            flash_beats = max(
-                0,
-                len(self.inputs) - int(getattr(self, "_flashback_inputs_at_enter", len(self.inputs)) or 0),
-            ) if self.ryuya_flashback_return else max(0, len(self.inputs))
-            # 闲聊已发生 = 可记账的场面进度，不是玩家闸。
-            if flash_beats >= 1 and "RP1" not in self.completed:
-                self._beat_complete(
-                    "RP1",
-                    source_kind="scene_activity",
-                    source_ref=f"player-turn:{turn_no}",
-                    turn_no=turn_no,
-                )
-            topic_hit = ryuya_deep_topic_interface(
-                {"speech": speech, "action": action},
-                self.history,
-            )
-            want_updates = advance_ryuya_prologue_want_now(
-                resolved_card,
-                flash_beats=flash_beats,
-                completed=self.completed,
-                topic_interface=topic_hit,
-            )
-            resolved_card["_ryuya_topic_interface"] = bool(topic_hit)
-            for cons, want in want_updates.items():
-                self.working_context_state.patch(cons, {"want_now": want})
-            resolved_card["_want_now_advances"] = want_updates
-            resolved_card["_ryuya_flash_beats"] = flash_beats
-        if str(resolved_card.get("scene_id", "")) == "CARD_16ZHONG_GATE":
-            resolved_card["cafe_disposition"] = {
-                "this_turn": cafe_disposition,
-                "player_declined": "c16_player_cafe_declined" in self.branch_progress,
-                "girls_declined": "c16_girls_cafe_declined" in self.branch_progress,
-                "player_accepted": "c16_player_cafe_accepted" in self.branch_progress,
-                "rule": "张尘可提议一次；任何明确拒绝都生效，不得自动进店。",
-            }
-        resolved_card = self._resolve_frame_beat_view(resolved_card)
-        resolved_card["_branch_progress_for_facets"] = list(self.branch_progress)
-        resolved_card["_completed_for_facets"] = list(self.completed)
-        resolved_card["_flash_beats_for_facets"] = int(
-            resolved_card.get("_ryuya_flash_beats") or 0
-        )
-        beats_on_card = int(resolved_card.get("_ryuya_flash_beats") or 0)
-        if not resolved_card.get("prologue_active"):
-            # Tiananmen / other: count inputs on this card roughly via completed empty + inputs
-            beats_on_card = max(0, len(self.inputs))
-        soft_hint = opening_soft_progress_hint(
-            resolved_card,
-            self.completed,
-            beats_on_card=beats_on_card,
-            already_fired=bool(getattr(self, "_opening_soft_hint_fired", False)),
-        )
-        if soft_hint:
-            resolved_card["_opening_soft_inner_hint"] = soft_hint
-            self._opening_soft_hint_fired = True
-        else:
-            resolved_card.pop("_opening_soft_inner_hint", None)
-        # Director soft-classify: live (no custom actor caller) + api_key → LLM;
-        # tests/offline actor caller → rules unless session.situation_caller set.
-        situation_caller = getattr(self, "situation_caller", None)
-        classify_config = self.config
-        if situation_caller is None and self.caller is not None:
-            classify_config = {**(self.config or {}), "api_key": ""}
-        situation_receipt = classify_opening_situation(
-            resolved_card,
-            self.history,
-            {"speech": speech, "action": action, "thought": thought},
-            self.branch_progress,
-            self.completed,
-            flash_beats=int(resolved_card.get("_ryuya_flash_beats") or 0),
-            config=classify_config,
-            caller=situation_caller,
-        )
-        resolved_card["_director_facet_ids"] = list(situation_receipt.get("facet_ids") or [])
-        resolved_card["_situation_classify"] = situation_receipt
-        if situation_receipt.get("eligible_ids") is not None:
-            self._record_director_port(dict(situation_receipt), turn_no=turn_no)
-        intent_resolution = self._interpret_current_intent(
-            resolved_card,
-            {"speech": speech, "action": action, "thought": thought},
-            turn_no,
-        )
-        semantic_exit = semantic_exit_index(intent_resolution)
-        if intent_resolution is not None:
-            self._append_intent_opened(intent_resolution)
-            self._publish_dramaturgy_moves(intent_resolution, turn_no=turn_no)
-        director_only_hits = detect_director_only_address(resolved_card, player_input)
+        resolved_card = deliberate_stage.resolved_card
+        beats_on_card = deliberate_stage.beats_on_card
+        intent_resolution = deliberate_stage.intent_resolution
+        semantic_exit = deliberate_stage.semantic_exit
+        director_only_hits = list(deliberate_stage.director_only_hits)
 
-        participation_deliberation = build_participation_deliberation(
-            resolved_card,
-            self.history[:-1],
-            player_input,
-            completed=self.completed,
-            branch_progress=self.branch_progress,
-            actor_minds=self.actor_minds,
+        floor_stage = self._run_turn_floor_stage(
+            resolved_card=resolved_card,
+            player_input=player_input,
+            intent_resolution=intent_resolution,
         )
-        speaker_plan = build_floor_plan(participation_deliberation)
-        current_scene_id = str(resolved_card.get("scene_id", self.card_path))
-        stall_escalation = build_stall_escalation(
-            resolved_card,
-            self.stall,
-            current_scene_id in self._stall_escalation_fired_scenes,
-        )
-        speaker_plan = apply_stall_escalation_to_speaker_plan(speaker_plan, stall_escalation)
-        mh_env_hint = soc.must_happen_director_env_hint(
-            resolved_card,
-            self.completed,
-            stall=int(self.stall or 0),
-            min_stall=2,
-        )
-        if mh_env_hint:
-            speaker_plan["must_happen_environment_hint"] = mh_env_hint
-            # Environment residue for director / observatory — not actor dialogue script.
-            resolved_card["_must_happen_environment_hint"] = copy.deepcopy(mh_env_hint)
-        if intent_resolution is not None:
-            speaker_plan = ensure_decision_target_in_speaker_plan(speaker_plan, intent_resolution)
-        # M1: materialize the exact per-consciousness projections before any
-        # actor call.  M2 will consume these one by one; keeping this receipt
-        # now makes the boundary observable and prevents a future runner from
-        # silently reconstructing a broad shared prompt.
+        speaker_plan = floor_stage.speaker_plan
+        current_scene_id = floor_stage.current_scene_id
+        stall_escalation = floor_stage.stall_escalation
+
         companion_pool = list(speaker_plan.get("companion_actors", []) or [])
         if not companion_pool:
             companion_pool = (

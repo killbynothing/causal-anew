@@ -769,10 +769,10 @@ def test_input_observe_stage_results_are_frozen_value_boundaries():
 
 def test_session_step_exposes_deliberate_then_floor_order():
     source = inspect.getsource(proto.FreeStageSession.step)
-    assert "build_participation_deliberation(" in source
-    assert "build_floor_plan(participation_deliberation)" in source
-    assert source.index("build_participation_deliberation(") < source.index(
-        "build_floor_plan(participation_deliberation)"
+    assert "deliberate_stage = self._run_turn_deliberate_stage(" in source
+    assert "floor_stage = self._run_turn_floor_stage(" in source
+    assert source.index("_run_turn_deliberate_stage(") < source.index(
+        "_run_turn_floor_stage("
     )
     assert "speaker_plan = build_speaker_plan(" not in source
 

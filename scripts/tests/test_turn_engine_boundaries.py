@@ -1199,6 +1199,91 @@ def test_real_session_thought_only_short_circuits_to_project_without_actor_call(
     assert result.get("thought_recorded") is True
     assert result.get("turns") == []
 
+
+def test_free_stage_step_is_api_facade_not_business_writer():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert source.count("self._run_normal_turn_with_engine(") == 1
+
+    for forbidden in (
+        "scene_policies.",
+        "_run_turn_scene_prelude_stage(",
+        "_run_turn_input_stage(",
+        "_run_turn_observe_stage(",
+        "_branch_add(",
+        "_branch_remove(",
+        "_beat_complete(",
+        "_beat_complete_many(",
+        "_commit_world_transaction(",
+        "_record_scene_receipt(",
+        "_observe(",
+        "_record_player_visible_mind_receipts(",
+        "_record_public_actor_mind_receipts(",
+        "_run_turn_enact_stage(",
+        "_run_turn_resolve_stage(",
+        "_run_turn_commit_stage(",
+        "_run_turn_exit_stage(",
+        "_run_turn_project_pipeline_stage(",
+        "participation_runtime.",
+        "build_actor_context_packet(",
+        "build_speaker_plan(",
+        "_maybe_transition(",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_scene_policy_dispatch_does_not_cross_scene_families():
+    shared_input = {
+        "speech": "没有视频，可以给你们看。我跟张尘进店。",
+        "action": "",
+    }
+    history = [
+        {
+            "role": "npc",
+            "text": "（日）いっしょに行きますか。",
+            "lang": "ja",
+            "player_visible": True,
+        }
+    ]
+    tian = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OPENING_TIANANMEN_002",
+        player_input=shared_input,
+        recent_history=history,
+    )
+    c16 = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="CARD_16ZHONG_GATE",
+        player_input=shared_input,
+        recent_history=history,
+    )
+    unrelated = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="UNRELATED_SCENE",
+        player_input=shared_input,
+        recent_history=history,
+    )
+
+    tian_out = scene_policies.evaluate(tian)
+    c16_out = scene_policies.evaluate(c16)
+    unrelated_out = scene_policies.evaluate(unrelated)
+
+    assert any(item.startswith("tiananmen_") for item in tian_out.evidence)
+    assert all(
+        not item.startswith("c16_")
+        for item in (*tian_out.evidence, *tian_out.proposals)
+    )
+    assert all(
+        not item.startswith("tiananmen_")
+        for item in (*c16_out.evidence, *c16_out.proposals)
+    )
+    assert unrelated_out == scene_policies.ScenePolicyOutput()
+
+    cafe = scene_policies.RyuyaCafeStateInput.from_runtime(
+        flash_beats=2,
+        completed=(),
+        topic_interface=False,
+    )
+    cafe_out = scene_policies.evaluate_ryuya_cafe_state(cafe)
+    assert cafe_out.proposals
+    assert all(item.startswith("ryuya_cafe_phase:") for item in cafe_out.proposals)
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

@@ -10194,6 +10194,44 @@ class FreeStageSession:
             )
         return _TurnObserveStageResult(thought_deltas=tuple(thought_deltas))
 
+    def _run_turn_enact_stage(
+        self,
+        *,
+        prompt: str,
+        actor_context_packets: Mapping[str, dict[str, Any]],
+        performance_plan: list[dict[str, Any]],
+        resolved_card: dict[str, Any],
+        intent_resolution: IntentResolution | None,
+    ) -> dict[str, Any]:
+        """Call the actor/director transport only; no authority commit happens here."""
+        use_isolated_actor_runner = (
+            intent_resolution is not None
+            or self.caller is None
+            or bool(self.config.get("actor_context_isolation", False))
+            or ott.is_opening_top_tier_scene(resolved_card)
+        )
+        if use_isolated_actor_runner and actor_context_packets:
+            packets_in_order = [
+                (cons, actor_context_packets[cons])
+                for cons in [
+                    str(item.get("cons", "")).strip()
+                    for item in performance_plan
+                    if str(item.get("cons", "")).strip()
+                ]
+                if cons in actor_context_packets
+            ]
+            payload, _parallel_degs = run_director_and_isolated_actors(
+                prompt,
+                packets_in_order,
+                self.config,
+                caller=self.caller,
+            )
+            return payload
+
+        payload = call_actor(prompt, self.config, caller=self.caller)
+        payload.setdefault("turns", [])
+        return payload
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11158,34 +11196,13 @@ class FreeStageSession:
         new_progress: list[str] = []
         ambient_turns: list[dict[str, Any]] = []
         try:
-            # Production: director may overlap wall-clock with the actor chain;
-            # actors themselves are always sequential so secondary hears primary.
-            use_isolated_actor_runner = (
-                intent_resolution is not None
-                or self.caller is None
-                or bool(self.config.get("actor_context_isolation", False))
-                or ott.is_opening_top_tier_scene(resolved_card)
+            payload = self._run_turn_enact_stage(
+                prompt=prompt,
+                actor_context_packets=actor_context_packets,
+                performance_plan=performance_plan,
+                resolved_card=resolved_card,
+                intent_resolution=intent_resolution,
             )
-            if use_isolated_actor_runner and actor_context_packets:
-                packets_in_order = [
-                    (cons, actor_context_packets[cons])
-                    for cons in [
-                        str(item.get("cons", "")).strip()
-                        for item in performance_plan
-                        if str(item.get("cons", "")).strip()
-                    ]
-                    if cons in actor_context_packets
-                ]
-                payload, _parallel_degs = run_director_and_isolated_actors(
-                    prompt,
-                    packets_in_order,
-                    self.config,
-                    caller=self.caller,
-                )
-            else:
-                payload = call_actor(prompt, self.config, caller=self.caller)
-                # 刀 1：导演不写主卡台词；组合路径若没有演员行，就显式记为空行。
-                payload.setdefault("turns", [])
             context_receipts = [
                 dict(item) for item in (payload.get("context_receipts") or [])
                 if isinstance(item, dict)

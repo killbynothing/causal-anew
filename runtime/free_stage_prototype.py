@@ -10820,7 +10820,7 @@ class FreeStageSession:
             self._publish_dramaturgy_moves(intent_resolution, turn_no=turn_no)
         director_only_hits = detect_director_only_address(resolved_card, player_input)
 
-        speaker_plan = build_speaker_plan(
+        participation_deliberation = build_participation_deliberation(
             resolved_card,
             self.history[:-1],
             player_input,
@@ -10828,6 +10828,7 @@ class FreeStageSession:
             branch_progress=self.branch_progress,
             actor_minds=self.actor_minds,
         )
+        speaker_plan = build_floor_plan(participation_deliberation)
         current_scene_id = str(resolved_card.get("scene_id", self.card_path))
         stall_escalation = build_stall_escalation(
             resolved_card,

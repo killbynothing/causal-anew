@@ -12207,23 +12207,11 @@ class FreeStageSession:
         *,
         player_input: str | dict[str, Any],
         debug: bool,
-        turn_no: int,
-        speech: str,
-        action: str,
-        thought: str,
-        suppress_visible_input: bool,
-        facts_this_turn: set[str],
-        cafe_disposition: str,
-        layer_c_turns: list[dict[str, Any]],
-        is_oob: bool,
-        oob_bridge: str,
-        newly_triggered_bps: list[str],
     ) -> dict[str, Any]:
-        """Drive the normal actor path through the generic P6 TurnEngine.
+        """Drive one writable turn through the generic P6 TurnEngine.
 
-        Input/observe have already executed before scene-specific early-return
-        routing. Their ports record that prefix fact; deliberate onward executes
-        here in the engine's fixed order.
+        FreeStage supplies injected stage adapters. The engine owns only fixed
+        stage order and short-circuit control; it imports no concrete policy.
         """
         ctx: dict[str, Any] = {
             "pipeline_failed": False,
@@ -12233,13 +12221,7 @@ class FreeStageSession:
             "new_progress": [],
             "ambient_turns": [],
             "committed_actor_decisions": [],
-            "emitted": [
-                item
-                for item in self.history
-                if item.get("role") == "narrate"
-                and item.get("turn") == turn_no
-                and item.get("stage") == "环境对可见行为作出的即时反应。"
-            ],
+            "emitted": [],
             "stream_response_turns": [],
             "actor_errors": [],
             "turn_degradations": [],
@@ -12249,6 +12231,12 @@ class FreeStageSession:
             if ctx["pipeline_failed"]:
                 return
             ctx["pipeline_failed"] = True
+            input_stage = ctx.get("input_stage")
+            turn_no = (
+                input_stage.turn_no
+                if isinstance(input_stage, _TurnInputStageResult)
+                else max(1, len(self.inputs))
+            )
             fallback_text, fallback_degradations = guard_visible_text(
                 "远端演算这一拍没有接通。你的话仍然留在现场，眼前的人短暂安静下来，空气先替他们接住了这句话。",
                 "actor_fallback",
@@ -12281,35 +12269,66 @@ class FreeStageSession:
 
         def input_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            stage = self._run_turn_input_stage(player_input)
+            ctx["input_stage"] = stage
             return turn_engine.TurnStageReceipt.continue_(
                 "input",
-                note="legacy_prefix_already_applied",
                 artifact_keys=("input_stage",),
             )
 
         def observe_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            input_stage = ctx["input_stage"]
+            stage = self._run_turn_observe_stage(player_input, input_stage)
+            ctx["observe_stage"] = stage
+            if stage.early_result is not None:
+                ctx["result"] = stage.early_result
+                return turn_engine.TurnStageReceipt.project(
+                    "observe",
+                    note="observe_short_circuit",
+                    artifact_keys=("public_result",),
+                )
             return turn_engine.TurnStageReceipt.continue_(
                 "observe",
-                note="legacy_prefix_already_applied",
                 artifact_keys=("observe_stage",),
             )
 
         def deliberate_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            input_stage = ctx["input_stage"]
+            prelude = self._run_turn_scene_prelude_stage(
+                player_input=player_input,
+                debug=debug,
+                input_stage=input_stage,
+            )
+            if isinstance(prelude, dict):
+                ctx["result"] = prelude
+                return turn_engine.TurnStageReceipt.project(
+                    "deliberate",
+                    note="scene_prelude_short_circuit",
+                    artifact_keys=("public_result",),
+                )
+            ctx["scene_prelude"] = prelude
+            ctx["emitted"] = [
+                item
+                for item in self.history
+                if item.get("role") == "narrate"
+                and item.get("turn") == input_stage.turn_no
+                and item.get("stage") == "环境对可见行为作出的即时反应。"
+            ]
             stage = self._run_turn_deliberate_stage(
                 player_input=player_input,
-                turn_no=turn_no,
-                speech=speech,
-                action=action,
-                thought=thought,
-                facts_this_turn=facts_this_turn,
-                cafe_disposition=cafe_disposition,
+                turn_no=input_stage.turn_no,
+                speech=input_stage.speech,
+                action=input_stage.action,
+                thought=input_stage.thought,
+                facts_this_turn=set(prelude.facts_this_turn),
+                cafe_disposition=prelude.cafe_disposition,
             )
             ctx["deliberate_stage"] = stage
             return turn_engine.TurnStageReceipt.continue_(
                 "deliberate",
-                artifact_keys=("resolved_card", "intent_resolution"),
+                artifact_keys=("scene_prelude", "resolved_card", "intent_resolution"),
             )
 
         def floor_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
@@ -12328,6 +12347,8 @@ class FreeStageSession:
 
         def enact_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            input_stage = ctx["input_stage"]
+            prelude = ctx["scene_prelude"]
             deliberate = ctx["deliberate_stage"]
             floor = ctx["floor_stage"]
             prep = self._prepare_turn_enact_stage(
@@ -12335,17 +12356,21 @@ class FreeStageSession:
                 speaker_plan=floor.speaker_plan,
                 intent_resolution=deliberate.intent_resolution,
                 active_state=deliberate.active_state,
-                turn_no=turn_no,
+                turn_no=input_stage.turn_no,
                 player_input=player_input,
-                speech=speech,
-                action=action,
-                thought=thought,
-                suppress_visible_input=suppress_visible_input,
+                speech=input_stage.speech,
+                action=input_stage.action,
+                thought=input_stage.thought,
+                suppress_visible_input=input_stage.suppress_visible_input,
                 stall_escalation=floor.stall_escalation,
             )
             ctx["enact_prep"] = prep
+            layer_c_turns = [dict(item) for item in prelude.layer_c_turns]
             if layer_c_turns:
-                self._enqueue_stream_items(layer_c_turns, turn_no=turn_no)
+                self._enqueue_stream_items(
+                    layer_c_turns,
+                    turn_no=input_stage.turn_no,
+                )
             try:
                 ctx["payload"] = self._run_turn_enact_stage(
                     prompt=prep.prompt,
@@ -12368,6 +12393,8 @@ class FreeStageSession:
                     "resolve",
                     note="actor_pipeline_fallback",
                 )
+            input_stage = ctx["input_stage"]
+            prelude = ctx["scene_prelude"]
             deliberate = ctx["deliberate_stage"]
             floor = ctx["floor_stage"]
             prep = ctx["enact_prep"]
@@ -12378,9 +12405,9 @@ class FreeStageSession:
                     actor_context_packets=prep.actor_context_packets,
                     speaker_plan=floor.speaker_plan,
                     player_input=player_input,
-                    turn_no=turn_no,
+                    turn_no=input_stage.turn_no,
                     beats_on_card=deliberate.beats_on_card,
-                    facts_this_turn=facts_this_turn,
+                    facts_this_turn=set(prelude.facts_this_turn),
                 )
                 ctx["resolve_stage"] = stage
                 ctx["context_receipts"] = list(stage.context_receipts)
@@ -12403,6 +12430,8 @@ class FreeStageSession:
                     "commit",
                     note="actor_pipeline_fallback",
                 )
+            input_stage = ctx["input_stage"]
+            prelude = ctx["scene_prelude"]
             deliberate = ctx["deliberate_stage"]
             floor = ctx["floor_stage"]
             prep = ctx["enact_prep"]
@@ -12414,17 +12443,17 @@ class FreeStageSession:
                     actor_context_packets=prep.actor_context_packets,
                     speaker_plan=floor.speaker_plan,
                     player_input=player_input,
-                    turn_no=turn_no,
+                    turn_no=input_stage.turn_no,
                     ambient_turns=ctx["ambient_turns"],
                     new_progress=ctx["new_progress"],
                     turns=ctx["turns"],
                     note=ctx.get("note", ""),
-                    facts_this_turn=facts_this_turn,
+                    facts_this_turn=set(prelude.facts_this_turn),
                     stall_escalation=floor.stall_escalation,
                     current_scene_id=floor.current_scene_id,
-                    is_oob=is_oob,
-                    oob_bridge=oob_bridge,
-                    newly_triggered_bps=newly_triggered_bps,
+                    is_oob=input_stage.is_oob,
+                    oob_bridge=input_stage.oob_bridge,
+                    newly_triggered_bps=list(prelude.newly_triggered_bps),
                     emitted=ctx["emitted"],
                     stream_response_turns=ctx["stream_response_turns"],
                     degradations=ctx["turn_degradations"],
@@ -12442,12 +12471,15 @@ class FreeStageSession:
 
         def exit_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            input_stage = ctx["input_stage"]
             deliberate = ctx["deliberate_stage"]
             floor = ctx["floor_stage"]
-            prep = ctx["enact_prep"]
 
             director_only_hits = list(deliberate.director_only_hits)
-            director_only_turn = director_only_bridge_turn(director_only_hits, turn_no)
+            director_only_turn = director_only_bridge_turn(
+                director_only_hits,
+                input_stage.turn_no,
+            )
             if director_only_turn:
                 director_only_turn["text"], spoiler_degradations = guard_visible_text(
                     director_only_turn["text"],
@@ -12457,17 +12489,24 @@ class FreeStageSession:
                 self.history.append(director_only_turn)
                 ctx["emitted"].append(dict(director_only_turn))
 
-            self._maybe_emit_violation_warning(turn_no, ctx["emitted"])
+            self._maybe_emit_violation_warning(
+                input_stage.turn_no,
+                ctx["emitted"],
+            )
             ctx["turn_degradations"].extend(self._evaluate_heart_stages())
             self._record_public_actor_mind_receipts(
                 deliberate.resolved_card,
                 ctx["emitted"],
-                turn_no,
+                input_stage.turn_no,
             )
             self._tick_private_inner_states(
                 deliberate.resolved_card,
-                {"speech": speech, "action": action, "thought": thought},
-                turn_no,
+                {
+                    "speech": input_stage.speech,
+                    "action": input_stage.action,
+                    "thought": input_stage.thought,
+                },
+                input_stage.turn_no,
                 emitted=ctx["emitted"],
                 speaker_plan=floor.speaker_plan,
             )
@@ -12485,7 +12524,7 @@ class FreeStageSession:
             )
             stage = self._run_turn_exit_stage(
                 player_input=player_input,
-                turn_no=turn_no,
+                turn_no=input_stage.turn_no,
                 emitted=ctx["emitted"],
                 semantic_exit=deliberate.semantic_exit,
             )
@@ -12501,12 +12540,21 @@ class FreeStageSession:
 
         def project_port(frame: turn_engine.TurnFrame) -> turn_engine.TurnStageReceipt:
             del frame
+            if isinstance(ctx.get("result"), dict):
+                return turn_engine.TurnStageReceipt.continue_(
+                    "project",
+                    note="short_circuit_passthrough",
+                    artifact_keys=("public_result",),
+                )
+
+            input_stage = ctx["input_stage"]
+            prelude = ctx["scene_prelude"]
             deliberate = ctx["deliberate_stage"]
             floor = ctx["floor_stage"]
             prep = ctx["enact_prep"]
             ctx["result"] = self._run_turn_project_pipeline_stage(
                 player_input=player_input,
-                turn_no=turn_no,
+                turn_no=input_stage.turn_no,
                 resolved_card=deliberate.resolved_card,
                 actor_context_packets=prep.actor_context_packets,
                 turns=ctx["turns"],
@@ -12523,8 +12571,8 @@ class FreeStageSession:
                 director_only_hits=ctx.get("director_only_hits", []),
                 stall_escalation=floor.stall_escalation,
                 ambient_turns=ctx["ambient_turns"],
-                layer_c_turns=layer_c_turns,
-                speech=speech,
+                layer_c_turns=[dict(item) for item in prelude.layer_c_turns],
+                speech=input_stage.speech,
                 turn_degradations=ctx["turn_degradations"],
                 exit_reason=ctx.get("exit_reason", ""),
             )
@@ -12547,7 +12595,7 @@ class FreeStageSession:
             )
         )
         frame = engine.run_turn(
-            request_id=f"{self.session_id}:turn:{turn_no}",
+            request_id=f"{self.session_id}:turn:{len(self.inputs) + 1}",
         )
         self._last_turn_engine_stages = frame.stages
         result = ctx.get("result")
@@ -12580,44 +12628,9 @@ class FreeStageSession:
                 "surface": self.surface(),
             })
 
-        input_stage = self._run_turn_input_stage(player_input)
-        turn_no = input_stage.turn_no
-        parsed_input = input_stage.parsed_input
-        is_oob = input_stage.is_oob
-        oob_bridge = input_stage.oob_bridge
-        violation = input_stage.violation
-        speech = input_stage.speech
-        action = input_stage.action
-        thought = input_stage.thought
-        suppress_visible_input = input_stage.suppress_visible_input
-
-        observe_stage = self._run_turn_observe_stage(player_input, input_stage)
-        thought_deltas = list(observe_stage.thought_deltas)
-        if observe_stage.early_result is not None:
-            return observe_stage.early_result
-
-        scene_prelude = self._run_turn_scene_prelude_stage(
-            player_input=player_input,
-            debug=debug,
-            input_stage=input_stage,
-        )
-        if isinstance(scene_prelude, dict):
-            return scene_prelude
-
         return self._run_normal_turn_with_engine(
             player_input=player_input,
             debug=debug,
-            turn_no=input_stage.turn_no,
-            speech=input_stage.speech,
-            action=input_stage.action,
-            thought=input_stage.thought,
-            suppress_visible_input=input_stage.suppress_visible_input,
-            facts_this_turn=set(scene_prelude.facts_this_turn),
-            cafe_disposition=scene_prelude.cafe_disposition,
-            layer_c_turns=[dict(item) for item in scene_prelude.layer_c_turns],
-            is_oob=input_stage.is_oob,
-            oob_bridge=input_stage.oob_bridge,
-            newly_triggered_bps=list(scene_prelude.newly_triggered_bps),
         )
 
     def result(self, debug: bool = False) -> dict[str, Any]:

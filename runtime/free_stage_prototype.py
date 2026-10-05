@@ -10301,12 +10301,8 @@ class FreeStageSession:
                 extra_emitted.extend(flashback_turns)
 
         if transition:
-            extra_emitted.append(dict(transition["bridge"]))
-            extra_degradations.extend(
-                dict(item)
-                for item in transition.get("degradations", [])
-                if isinstance(item, dict)
-            )
+            extra_emitted.append(transition["bridge"])
+            extra_degradations.extend(transition.get("degradations", []))
             offscreen_player_state = (
                 self.card.pop("_offscreen_player_state", None)
                 if isinstance(self.card, dict)

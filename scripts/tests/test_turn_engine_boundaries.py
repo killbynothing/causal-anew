@@ -329,10 +329,13 @@ def test_c16_session_classifiers_are_thin_policy_adapters():
 
 def test_session_step_consumes_one_policy_output_instead_of_reclassifying_c16():
     step_source = inspect.getsource(proto.FreeStageSession.step)
+    engine_source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     source = inspect.getsource(proto.FreeStageSession._run_turn_scene_prelude_stage)
 
-    assert "self._run_turn_scene_prelude_stage(" in step_source
+    assert "self._run_normal_turn_with_engine(" in step_source
+    assert "self._run_turn_scene_prelude_stage(" in engine_source
     assert "scene_policies.evaluate(scene_policy_snapshot)" not in step_source
+    assert "scene_policies.evaluate(scene_policy_snapshot)" not in engine_source
     assert source.count("scene_policies.evaluate(scene_policy_snapshot)") == 1
     assert "scene_policies.proposal_value(" in source
     assert '"c16_overt_intervention" in scene_policy_output.evidence' in source
@@ -705,9 +708,14 @@ def test_ryuya_cafe_session_keeps_wording_and_mutation_outside_policy():
 
 
 def test_session_step_delegates_input_and_observe_prefix():
-    source = inspect.getsource(proto.FreeStageSession.step)
-    assert "self._run_turn_input_stage(player_input)" in source
-    assert "self._run_turn_observe_stage(player_input, input_stage)" in source
+    step_source = inspect.getsource(proto.FreeStageSession.step)
+    source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
+
+    assert "self._run_normal_turn_with_engine(" in step_source
+    assert "self._run_turn_input_stage(player_input)" not in step_source
+    assert "self._run_turn_observe_stage(" not in step_source
+    assert source.count("self._run_turn_input_stage(player_input)") == 1
+    assert source.count("self._run_turn_observe_stage(player_input, input_stage)") == 1
     assert source.index("_run_turn_input_stage") < source.index("_run_turn_observe_stage")
 
     for forbidden in (
@@ -1156,7 +1164,13 @@ def test_normal_actor_path_is_actually_driven_by_turn_engine():
     assert "engine.run_turn(" in source
     for stage in turn_engine.TURN_STAGE_ORDER:
         assert f'"{stage}"' in source, stage
-    assert source.count('note="legacy_prefix_already_applied"') == 2
+
+    assert "legacy_prefix_already_applied" not in source
+    assert source.count("self._run_turn_input_stage(player_input)") == 1
+    assert source.count("self._run_turn_observe_stage(player_input, input_stage)") == 1
+    assert 'TurnStageReceipt.project(\n                    "observe"' in source
+    assert 'TurnStageReceipt.project(\n                    "deliberate"' in source
+    assert 'note="short_circuit_passthrough"' in source
     assert 'self._last_turn_engine_stages = frame.stages' in source
 
 if __name__ == "__main__":

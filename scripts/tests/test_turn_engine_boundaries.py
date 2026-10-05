@@ -4,6 +4,7 @@ from __future__ import annotations
 import ast
 import inspect
 import sys
+import textwrap
 from dataclasses import FrozenInstanceError, fields
 from pathlib import Path
 
@@ -917,7 +918,7 @@ def test_exit_stage_uses_existing_exit_authority_and_returns_value_result():
 
 def test_resolve_stage_is_read_only_and_returns_progress_proposals():
     source = inspect.getsource(proto.FreeStageSession._run_turn_resolve_stage)
-    tree = ast.parse(source)
+    tree = ast.parse(textwrap.dedent(source))
     forbidden_calls = {
         "_append_actor_decisions",
         "_publish_director_opportunity",

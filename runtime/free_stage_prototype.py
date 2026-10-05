@@ -6461,6 +6461,16 @@ class _TurnExitStageResult:
     degradations: tuple[dict[str, Any], ...] = ()
 
 
+@dataclass(frozen=True)
+class _TurnResolveStageResult:
+    context_receipts: tuple[dict[str, Any], ...] = ()
+    turns: tuple[dict[str, Any], ...] = ()
+    note: str = ""
+    ambient_turns: tuple[dict[str, Any], ...] = ()
+    new_progress: tuple[str, ...] = ()
+    degradations: tuple[dict[str, Any], ...] = ()
+
+
 class FreeStageSession:
     """Step-wise free-stage session with JSON state persistence."""
 
@@ -10322,6 +10332,264 @@ class FreeStageSession:
             degradations=tuple(extra_degradations),
         )
 
+    def _run_turn_resolve_stage(
+        self,
+        *,
+        payload: Mapping[str, Any],
+        resolved_card: dict[str, Any],
+        actor_context_packets: Mapping[str, dict[str, Any]],
+        speaker_plan: dict[str, Any],
+        player_input: str | dict[str, Any],
+        beats_on_card: int,
+        facts_this_turn: set[str],
+    ) -> _TurnResolveStageResult:
+        """Normalize/repair actor output and propose progress without authority writes."""
+        context_receipts = [
+            dict(item) for item in (payload.get("context_receipts") or [])
+            if isinstance(item, dict)
+        ]
+        if not context_receipts and isinstance(payload.get("context_receipt"), dict):
+            context_receipts = [dict(payload["context_receipt"])]
+        turns, progress, note = normalize_turns(payload)
+        # ── Resolver-A 证据先行会计：注册节拍只认可见证据，模型 mh 只是 hint ──
+        _turns_blob = "".join(
+            str(item.get("text", "") or "") + str(item.get("stage", "") or "")
+            for item in turns
+        )
+        evidence_flags = {
+            "rp3_entrust": turns_cover_ryuya_entrust(turns, history=self.history),
+            "rp2_nudged": turns_cover_ryuya_deepen(turns),
+            "tm2_visible": tiananmen_tm2_visible_evidence(self.history, turns),
+            "tm3_intro": (
+                "C.xiuzai.WMAIN"
+                in _npc_self_introduced_to_player_after_turn(
+                    resolved_card, self.history, turns, 0
+                )
+                and "tiananmen_japanese_understood" in self.branch_progress
+            ),
+            "rp1_chatted": int(beats_on_card or 0) >= 1,
+            "tm1_played": bool(self.history) or bool(turns),
+            "flash_beats": int(beats_on_card or 0),
+            "topic_interface": bool(resolved_card.get("_ryuya_topic_interface")),
+            "tm4_aquarium": any(
+                token in _turns_blob for token in ("海洋馆", "海族馆", "水族馆")
+            ),
+        }
+        evidence_ctx = {
+            "card": resolved_card,
+            "history": self.history,
+            "turns": turns,
+            "evidence_flags": evidence_flags,
+        }
+        allowed = set(card_must_happen_ids(resolved_card))
+        evidence_completed = beat_evidence.resolve_completions(
+            evidence_ctx,
+            allowed=allowed,
+            completed=set(self.completed),
+            after=beat_evidence.after_map(resolved_card),
+        )
+        # 未注册证据的节拍仍走模型 hint（长尾场不因未登记而卡死）。
+        hint = [
+            mh for mh in progress
+            if mh in allowed
+            and mh not in self.completed
+            and mh not in beat_evidence.BEAT_EVIDENCE
+        ]
+        merged_progress = list(dict.fromkeys(progress + evidence_completed))
+        ambient_turns = normalize_director_ambient(payload, turn_no=turn_no)
+        resolve_degradations = list(payload.get("degradations", []))
+        turns = repair_descriptor_self_intro_names(turns, resolved_card)
+        turns = repair_surname_only_self_intro(turns, resolved_card)
+        turns = ensure_tiananmen_tm3_self_intro(
+            turns,
+            resolved_card,
+            history=self.history,
+            completed=self.completed,
+            branch_progress=self.branch_progress,
+            player_input=player_input,
+        )
+        if _is_c16_family_card(resolved_card):
+            turns, budget_degradations = apply_visible_group_output_budget(
+                turns,
+                speaker_plan,
+                resolved_card,
+            )
+            resolve_degradations.extend(budget_degradations)
+        if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
+            # 海洋馆改道是三人自己的决定，不是真纪指示（演员行软闸；WJ 路正典不同，不在此拦）。
+            for _item in turns:
+                _surface = f"{str(_item.get('text') or '')} {str(_item.get('stage') or '')}"
+                if re.search(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)", _surface):
+                    turn_degradations.append({
+                        "kind": "maki_aquarium_false_link",
+                        "severity": "SOFT",
+                        "reason": "海洋馆是三人自己决定，不是真纪指示",
+                        "text": _surface[:80],
+                    })
+                    _item["text"] = ""
+                    _item["stage"] = "（这句被导演拦下。）"
+        intro_done = intro_done_for_card(
+            resolved_card,
+            self.completed,
+            merged_progress,
+            turns,
+            history=self.history,
+            player_profile=self.player_profile,
+        )
+        # 只认历史里已经结束的气泡；当前批内的自报由 resolve/redact 递推到下一气泡。
+        introduced_cons = _npc_introduced_to_player_after_turn(
+            resolved_card,
+            self.history,
+            None,
+            0,
+        )
+        turns = resolve_actor_speaker_labels(turns, resolved_card, intro_done, introduced_cons)
+        turns = redact_pre_intro(
+            turns,
+            intro_done,
+            resolved_card,
+            introduced_cons,
+            progressive_intro=True,
+        )
+        turns = localize_kakashi_surface(
+            turns,
+            understood_by_player=("tiananmen_japanese_understood" in self.branch_progress),
+            card=resolved_card,
+        )
+        turns = sanitize_visible_names(turns)
+        for item in turns:
+            cons = _cons_from_speaker(resolved_card, item.get("speaker"))
+            if not cons or cons not in actor_context_packets:
+                continue
+            repaired, bio_degs = acv2.repair_biography_text(
+                str(item.get("text", "")),
+                actor_context_packets[cons],
+            )
+            if repaired != item.get("text"):
+                item["text"] = repaired
+                resolve_degradations.extend(bio_degs)
+            if resolved_card.get("prologue_active") and cons == "C.ryuya.W1":
+                repaired2, invent_degs = acv2.repair_ryuya_prologue_invent(
+                    str(item.get("text", "")),
+                    actor_context_packets[cons],
+                )
+                if repaired2 != item.get("text"):
+                    item["text"] = repaired2
+                    resolve_degradations.extend(invent_degs)
+        if resolved_card.get("prologue_active"):
+            turns, re_degs = repair_ryuya_reannounce_entrust(turns, history=self.history)
+            resolve_degradations.extend(re_degs)
+            turns, pendant_agency_degs = repair_ryuya_forced_pendant_transfer(
+                turns,
+                player_input=player_input,
+                entrust_ready=(
+                    "RP3" in self.completed
+                    or bool(evidence_flags.get("rp3_entrust"))
+                ),
+            )
+            resolve_degradations.extend(pendant_agency_degs)
+        leak_issues = inner_state_leak_violations(turns, resolved_card)
+        leak_issues.extend(privileged_leak_violations(turns, resolved_card))
+        leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
+        if ott.is_opening_top_tier_scene(resolved_card):
+            ch_now = int(resolved_card.get("ch_anchor", 0) or 0)
+            for item in turns:
+                if not isinstance(item, dict):
+                    continue
+                cons = _cons_from_speaker(resolved_card, item.get("speaker"))
+                if not cons:
+                    continue
+                for issue in ott.validate_turns_kge(
+                    cons, ch_now, [item], db_path=ROOT / "data" / "world_truth.db"
+                ):
+                    if issue.get("severity") == "BLOCK":
+                        leak_issues.append(
+                            f"KGE:{cons}:{issue.get('violations')}"
+                        )
+                    else:
+                        turn_degradations.append(issue)
+            # Opening numeric compatibility now updates only downstream of
+            # each actor's visibility-correct player MindReceipt.
+        if leak_issues:
+            raise ValueError(f"Inner state leak detected: {'; '.join(leak_issues)}")
+        # 证据先行：注册节拍只从证据完成；hint 只补未注册节拍；after 顺序闸拦跳拍。
+        new_progress = list(evidence_completed)
+        new_progress.extend(hint)
+        new_progress = list(dict.fromkeys(new_progress))
+        _after_map = beat_evidence.after_map(resolved_card)
+        new_progress = [
+            b for b in new_progress
+            if not (
+                (_after_map.get(b) or set())
+                - (set(self.completed) | set(new_progress[:new_progress.index(b)]))
+            )
+        ]
+        if (
+            str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
+            and "TM2" in new_progress
+            and not tiananmen_tm2_visible_evidence(self.history, turns)
+        ):
+            # 导演笔记 / 空标不算证据；可见层没发现语言也没借视频就不完成 TM2。
+            new_progress = [mh for mh in new_progress if mh != "TM2"]
+        if (
+            str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
+            and "TM3" in new_progress
+            and "C.xiuzai.WMAIN"
+            not in _npc_self_introduced_to_player_after_turn(
+                resolved_card, self.history, turns, 0
+            )
+        ):
+            new_progress = [mh for mh in new_progress if mh != "TM3"]
+        # Machine-verifiable completion: once language + Xiuzai self-intro exist,
+        # TM3 should not wait on the LLM remembering to emit mh_progress.
+        if (
+            str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
+            and ("TM2" in self.completed or "TM2" in new_progress)
+            and "TM3" not in self.completed
+            and "TM3" not in new_progress
+            and "tiananmen_japanese_understood" in self.branch_progress
+            and "C.xiuzai.WMAIN"
+            in _npc_self_introduced_to_player_after_turn(
+                resolved_card, self.history, turns, 0
+            )
+        ):
+            new_progress.append("TM3")
+        # 龙也托付：空标 RP3（台词未说清）不算完成。
+        # 闪回不在同拍默认递坠/默认答应；RP3 后等玩家当面表态，再落 RP4。
+        if self.card.get("prologue_active") and "RP3" in new_progress:
+            if not turns_cover_ryuya_entrust(turns, history=self.history):
+                new_progress = [mh for mh in new_progress if mh != "RP3"]
+            elif "RP4" in new_progress and self.ryuya_flashback_return:
+                # 闪回：禁止 LLM 同拍连跳 RP3→RP4，避免「还没答应就默认答应」。
+                new_progress = [mh for mh in new_progress if mh != "RP4"]
+        # 跨拍已齐托付但本拍未标 RP3：补记（避免因无 Agent 竞价空 speakers 永远卡在 RP2）。
+        if (
+            self.card.get("prologue_active")
+            and "RP3" not in self.completed
+            and "RP3" not in new_progress
+            and turns_cover_ryuya_entrust(turns, history=self.history)
+        ):
+            new_progress.append("RP3")
+        # 闪回至少先闲聊两拍，再允许跳到托付（RP2+）。
+        if self.card.get("prologue_active") and self.ryuya_flashback_return:
+            flash_beats = max(
+                0,
+                len(self.inputs) - int(getattr(self, "_flashback_inputs_at_enter", len(self.inputs)) or 0),
+            )
+            if flash_beats < 2:
+                new_progress = [mh for mh in new_progress if mh in {"RP1"}]
+            elif flash_beats < 3:
+                new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
+
+        return _TurnResolveStageResult(
+            context_receipts=tuple(context_receipts),
+            turns=tuple(dict(item) for item in turns),
+            note=str(note or ""),
+            ambient_turns=tuple(dict(item) for item in ambient_turns),
+            new_progress=tuple(str(item) for item in new_progress),
+            degradations=tuple(dict(item) for item in resolve_degradations),
+        )
+
     def step(self, player_input: str, debug: bool = False) -> dict[str, Any]:
         if self.write_mode != "writable":
             self._assert_writable("step")
@@ -11293,67 +11561,37 @@ class FreeStageSession:
                 resolved_card=resolved_card,
                 intent_resolution=intent_resolution,
             )
-            context_receipts = [
-                dict(item) for item in (payload.get("context_receipts") or [])
-                if isinstance(item, dict)
-            ]
-            if not context_receipts and isinstance(payload.get("context_receipt"), dict):
-                context_receipts = [dict(payload["context_receipt"])]
+            resolve_stage = self._run_turn_resolve_stage(
+                payload=payload,
+                resolved_card=resolved_card,
+                actor_context_packets=actor_context_packets,
+                speaker_plan=speaker_plan,
+                player_input=player_input,
+                beats_on_card=int(beats_on_card or 0),
+                facts_this_turn=facts_this_turn,
+            )
+            context_receipts = list(resolve_stage.context_receipts)
+            turns = [dict(item) for item in resolve_stage.turns]
+            note = resolve_stage.note
+            ambient_turns = [dict(item) for item in resolve_stage.ambient_turns]
+            new_progress = list(resolve_stage.new_progress)
+            turn_degradations.extend(resolve_stage.degradations)
+
             if intent_resolution is not None:
                 committed_actor_decisions = self._append_actor_decisions(
                     intent_resolution,
-                    [dict(item) for item in payload.get("actor_decisions", ()) if isinstance(item, dict)],
+                    [
+                        dict(item)
+                        for item in payload.get("actor_decisions", ())
+                        if isinstance(item, dict)
+                    ],
                     card=resolved_card,
                     actor_packets=actor_context_packets,
                 )
-            turns, progress, note = normalize_turns(payload)
-            self._publish_director_opportunity(payload.get("opportunity"), turn_no=turn_no)
-            # ── Resolver-A 证据先行会计：注册节拍只认可见证据，模型 mh 只是 hint ──
-            _turns_blob = "".join(
-                str(item.get("text", "") or "") + str(item.get("stage", "") or "")
-                for item in turns
+            self._publish_director_opportunity(
+                payload.get("opportunity"),
+                turn_no=turn_no,
             )
-            evidence_flags = {
-                "rp3_entrust": turns_cover_ryuya_entrust(turns, history=self.history),
-                "rp2_nudged": turns_cover_ryuya_deepen(turns),
-                "tm2_visible": tiananmen_tm2_visible_evidence(self.history, turns),
-                "tm3_intro": (
-                    "C.xiuzai.WMAIN"
-                    in _npc_self_introduced_to_player_after_turn(
-                        resolved_card, self.history, turns, 0
-                    )
-                    and "tiananmen_japanese_understood" in self.branch_progress
-                ),
-                "rp1_chatted": int(beats_on_card or 0) >= 1,
-                "tm1_played": bool(self.history) or bool(turns),
-                "flash_beats": int(beats_on_card or 0),
-                "topic_interface": bool(resolved_card.get("_ryuya_topic_interface")),
-                "tm4_aquarium": any(
-                    token in _turns_blob for token in ("海洋馆", "海族馆", "水族馆")
-                ),
-            }
-            evidence_ctx = {
-                "card": resolved_card,
-                "history": self.history,
-                "turns": turns,
-                "evidence_flags": evidence_flags,
-            }
-            allowed = set(card_must_happen_ids(resolved_card))
-            evidence_completed = beat_evidence.resolve_completions(
-                evidence_ctx,
-                allowed=allowed,
-                completed=set(self.completed),
-                after=beat_evidence.after_map(resolved_card),
-            )
-            # 未注册证据的节拍仍走模型 hint（长尾场不因未登记而卡死）。
-            hint = [
-                mh for mh in progress
-                if mh in allowed
-                and mh not in self.completed
-                and mh not in beat_evidence.BEAT_EVIDENCE
-            ]
-            merged_progress = list(dict.fromkeys(progress + evidence_completed))
-            ambient_turns = normalize_director_ambient(payload, turn_no=turn_no)
             if ambient_turns:
                 for amb in ambient_turns:
                     self.public_environment_deltas.append({
@@ -11373,189 +11611,7 @@ class FreeStageSession:
                         speaker_plan=speaker_plan,
                     )
                 )
-            turn_degradations.extend(payload.get("degradations", []))
-            turns = repair_descriptor_self_intro_names(turns, resolved_card)
-            turns = repair_surname_only_self_intro(turns, resolved_card)
-            turns = ensure_tiananmen_tm3_self_intro(
-                turns,
-                resolved_card,
-                history=self.history,
-                completed=self.completed,
-                branch_progress=self.branch_progress,
-                player_input=player_input,
-            )
-            if _is_c16_family_card(resolved_card):
-                turns, budget_degradations = apply_visible_group_output_budget(
-                    turns,
-                    speaker_plan,
-                    resolved_card,
-                )
-                turn_degradations.extend(budget_degradations)
-            if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
-                # 海洋馆改道是三人自己的决定，不是真纪指示（演员行软闸；WJ 路正典不同，不在此拦）。
-                for _item in turns:
-                    _surface = f"{str(_item.get('text') or '')} {str(_item.get('stage') or '')}"
-                    if re.search(r"真纪[^。！？\n]{0,24}(海族馆|海洋馆|水族馆)", _surface):
-                        turn_degradations.append({
-                            "kind": "maki_aquarium_false_link",
-                            "severity": "SOFT",
-                            "reason": "海洋馆是三人自己决定，不是真纪指示",
-                            "text": _surface[:80],
-                        })
-                        _item["text"] = ""
-                        _item["stage"] = "（这句被导演拦下。）"
-            intro_done = intro_done_for_card(
-                resolved_card,
-                self.completed,
-                merged_progress,
-                turns,
-                history=self.history,
-                player_profile=self.player_profile,
-            )
-            # 只认历史里已经结束的气泡；当前批内的自报由 resolve/redact 递推到下一气泡。
-            introduced_cons = _npc_introduced_to_player_after_turn(
-                resolved_card,
-                self.history,
-                None,
-                0,
-            )
-            turns = resolve_actor_speaker_labels(turns, resolved_card, intro_done, introduced_cons)
-            turns = redact_pre_intro(
-                turns,
-                intro_done,
-                resolved_card,
-                introduced_cons,
-                progressive_intro=True,
-            )
-            turns = localize_kakashi_surface(
-                turns,
-                understood_by_player=("tiananmen_japanese_understood" in self.branch_progress),
-                card=resolved_card,
-            )
-            turns = sanitize_visible_names(turns)
-            for item in turns:
-                cons = _cons_from_speaker(resolved_card, item.get("speaker"))
-                if not cons or cons not in actor_context_packets:
-                    continue
-                repaired, bio_degs = acv2.repair_biography_text(
-                    str(item.get("text", "")),
-                    actor_context_packets[cons],
-                )
-                if repaired != item.get("text"):
-                    item["text"] = repaired
-                    turn_degradations.extend(bio_degs)
-                if resolved_card.get("prologue_active") and cons == "C.ryuya.W1":
-                    repaired2, invent_degs = acv2.repair_ryuya_prologue_invent(
-                        str(item.get("text", "")),
-                        actor_context_packets[cons],
-                    )
-                    if repaired2 != item.get("text"):
-                        item["text"] = repaired2
-                        turn_degradations.extend(invent_degs)
-            if resolved_card.get("prologue_active"):
-                turns, re_degs = repair_ryuya_reannounce_entrust(turns, history=self.history)
-                turn_degradations.extend(re_degs)
-                turns, pendant_agency_degs = repair_ryuya_forced_pendant_transfer(
-                    turns,
-                    player_input=player_input,
-                    entrust_ready=(
-                        "RP3" in self.completed
-                        or bool(evidence_flags.get("rp3_entrust"))
-                    ),
-                )
-                turn_degradations.extend(pendant_agency_degs)
-            leak_issues = inner_state_leak_violations(turns, resolved_card)
-            leak_issues.extend(privileged_leak_violations(turns, resolved_card))
-            leak_issues.extend(opening_scene_secret_leak_violations(turns, resolved_card))
-            if ott.is_opening_top_tier_scene(resolved_card):
-                ch_now = int(resolved_card.get("ch_anchor", 0) or 0)
-                for item in turns:
-                    if not isinstance(item, dict):
-                        continue
-                    cons = _cons_from_speaker(resolved_card, item.get("speaker"))
-                    if not cons:
-                        continue
-                    for issue in ott.validate_turns_kge(
-                        cons, ch_now, [item], db_path=ROOT / "data" / "world_truth.db"
-                    ):
-                        if issue.get("severity") == "BLOCK":
-                            leak_issues.append(
-                                f"KGE:{cons}:{issue.get('violations')}"
-                            )
-                        else:
-                            turn_degradations.append(issue)
-                # Opening numeric compatibility now updates only downstream of
-                # each actor's visibility-correct player MindReceipt.
-            if leak_issues:
-                raise ValueError(f"Inner state leak detected: {'; '.join(leak_issues)}")
-            # 证据先行：注册节拍只从证据完成；hint 只补未注册节拍；after 顺序闸拦跳拍。
-            new_progress = list(evidence_completed)
-            new_progress.extend(hint)
-            new_progress = list(dict.fromkeys(new_progress))
-            _after_map = beat_evidence.after_map(resolved_card)
-            new_progress = [
-                b for b in new_progress
-                if not (
-                    (_after_map.get(b) or set())
-                    - (set(self.completed) | set(new_progress[:new_progress.index(b)]))
-                )
-            ]
-            if (
-                str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
-                and "TM2" in new_progress
-                and not tiananmen_tm2_visible_evidence(self.history, turns)
-            ):
-                # 导演笔记 / 空标不算证据；可见层没发现语言也没借视频就不完成 TM2。
-                new_progress = [mh for mh in new_progress if mh != "TM2"]
-            if (
-                str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
-                and "TM3" in new_progress
-                and "C.xiuzai.WMAIN"
-                not in _npc_self_introduced_to_player_after_turn(
-                    resolved_card, self.history, turns, 0
-                )
-            ):
-                new_progress = [mh for mh in new_progress if mh != "TM3"]
-            # Machine-verifiable completion: once language + Xiuzai self-intro exist,
-            # TM3 should not wait on the LLM remembering to emit mh_progress.
-            if (
-                str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002"
-                and ("TM2" in self.completed or "TM2" in new_progress)
-                and "TM3" not in self.completed
-                and "TM3" not in new_progress
-                and "tiananmen_japanese_understood" in self.branch_progress
-                and "C.xiuzai.WMAIN"
-                in _npc_self_introduced_to_player_after_turn(
-                    resolved_card, self.history, turns, 0
-                )
-            ):
-                new_progress.append("TM3")
-            # 龙也托付：空标 RP3（台词未说清）不算完成。
-            # 闪回不在同拍默认递坠/默认答应；RP3 后等玩家当面表态，再落 RP4。
-            if self.card.get("prologue_active") and "RP3" in new_progress:
-                if not turns_cover_ryuya_entrust(turns, history=self.history):
-                    new_progress = [mh for mh in new_progress if mh != "RP3"]
-                elif "RP4" in new_progress and self.ryuya_flashback_return:
-                    # 闪回：禁止 LLM 同拍连跳 RP3→RP4，避免「还没答应就默认答应」。
-                    new_progress = [mh for mh in new_progress if mh != "RP4"]
-            # 跨拍已齐托付但本拍未标 RP3：补记（避免因无 Agent 竞价空 speakers 永远卡在 RP2）。
-            if (
-                self.card.get("prologue_active")
-                and "RP3" not in self.completed
-                and "RP3" not in new_progress
-                and turns_cover_ryuya_entrust(turns, history=self.history)
-            ):
-                new_progress.append("RP3")
-            # 闪回至少先闲聊两拍，再允许跳到托付（RP2+）。
-            if self.card.get("prologue_active") and self.ryuya_flashback_return:
-                flash_beats = max(
-                    0,
-                    len(self.inputs) - int(getattr(self, "_flashback_inputs_at_enter", len(self.inputs)) or 0),
-                )
-                if flash_beats < 2:
-                    new_progress = [mh for mh in new_progress if mh in {"RP1"}]
-                elif flash_beats < 3:
-                    new_progress = [mh for mh in new_progress if mh in {"RP1", "RP2"}]
+
             newly_completed = self._beat_complete_many(
                 new_progress,
                 source_kind="observed_progress",

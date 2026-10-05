@@ -1,13 +1,15 @@
 # STATUS —— 当前真相（新的在最上）
 
-### 2026-10-05（P6 开工：主循环 / ScenePolicy / FreeStageSession writer 基线测绘）
+### 2026-10-05（P6 完成：ScenePolicy 纯化 × TurnEngine 九段主循环 × FreeStage facade）
 
-- **独立分支**：`loop/turn-engine-p6-2026-10-05` 从 P5 final 文档 HEAD `655c550e6ff9ea958817e23606e93ab14108fd9d` 创建，没有在 P5 分支继续写 P6。
-- **P5 基线核对**：`acc5282a..655c550e` 仅修改 `STATUS.md` 与主计划，runtime/tests/workflow/DB 内容不变，因此已绿代码态的 quick **63 PASS / 0 FAIL / 161 SKIP**、`context_assembly [OK]`、P0–P4 required gates 与 DB 内容均由同一代码树继承。当前 GitHub connector 的 commit workflow 查询只枚举 PR-triggered runs，`655c550e` 返回空；不把“查不到 push run”写成该文档 commit 的 Actions success。
-- **writer 测绘**：新增 `docs/analysis/P6_主循环_ScenePolicy_FreeStageSession_writer测绘_2026-10-05.md`。当前 `FreeStageSession` 约 6337 行，`step()` 约 1910 行，`_maybe_transition()` 约 644 行；P2–P5 的 Beat/World/Mind/Participation/Context owner 没有重新分叉，主要剩余债是 Session 同时承担 owner 调用编排、场特化策略、transition execution 与 delivery queue。
-- **P6a 候选**：C16、天安门、龙也序幕及 canon/flashback 已有大量纯或近纯 helper，可迁成只读快照 → evidence/opportunity/proposal 的 ScenePolicy；policy 不得持 Session、不保存、不关局、不直接调用权威 mutator。C16 分支最集中，适合作为首迁 fixture。
-- **P6b 边界**：TurnEngine 只排 `input→observe→deliberate→floor→enact→resolve→commit→exit→project`，复用既有 `exit_policy/beat_state/player_action/world_commit/actor_mind/participation/context_assembly`；`FreeStageSession` 最终只留 API facade/state handle。web 的 `reset/start/skip_scene/stream_hold/advance_utterance/player_say` 以及 one-shot/save-load 合同必须不变。
-- **本步报账**：当前 P6 只新增测绘文档与本 STATUS 条目；未改 runtime、测试、正典、场卡、Seed/VOICE、run=0、★★★ 挂坠裁决或 `data/world_truth.db`，正典/人物/剧情新增 = 0。
+- **独立分支/基线**：`loop/turn-engine-p6-2026-10-05` 从 P5 final 文档 HEAD `655c550e6ff9ea958817e23606e93ab14108fd9d` 创建，没有在 P5 分支继续写 P6；P6 代码验收基线为 `5c0b5ebadca58760105c81162c7095ff90b79ac2`。
+- **P6a ScenePolicy**：新增 `runtime/scene_policies.py`。Tiananmen、C16、Ryuya cafe phase/topic、canon selector、flashback readiness 等场特化判定改为冻结快照/值对象输入，输出仅为 evidence/opportunity/proposal；policy 模块不持 `FreeStageSession`、不 import runtime owner、不保存、不关局、不直接调用 Beat/World/Mind/Fact/Physical mutator。跨场 gate 证明 Tiananmen/C16/无关场不会串 policy family。
+- **P6b TurnEngine**：新增 `runtime/turn_engine.py`，core 只认固定顺序 `input→observe→deliberate→floor→enact→resolve→commit→exit→project` 与注入端口，不 import 具体 ScenePolicy、不含 scene ID/专名/内容判据。真实 `FreeStageSession.step()` 已缩成生命周期门卫 + 单一 engine 委托；input/observe 也由 engine 实执行，不再用 legacy prefix 假收据。thought-only 实测只走 `input→observe→project` 且 actor transport 零调用。
+- **阶段边界**：P4 participation 明确保持 `deliberate_participation → arbitrate_floor`，唯一 arbiter 不变；enact 只负责 actor/director transport；resolve 只做规范化/修复/evidence/progress proposal，机器检查无 authority mutator；commit 才兑现 Beat/World/Mind/Observation/branch/body/stream owner；exit 继续复用既有 ExitPolicy；project 统一 observer/save/public response。P5 ContextAssembler finalizer 与 authoritative prompt receipt 未被旁路。
+- **Scene/canon early route**：原 step 中场特化/正典 early-return 被收进 `_run_turn_scene_prelude_stage()` adapter；ScenePolicy 仍是纯判定，adapter 只消费 proposal 并调用既有 owner。early result 通过 TurnEngine `project` directive 正式短路，不再绕开九段调度器。
+- **facade / 合同**：`FreeStageSession.step()` gate 禁止出现 ScenePolicy、Beat/World/Mind/branch、actor transport、transition 等业务裁决；公开 API 仍由同一 Session facade 提供。quick 中 `free_stage_session_api`、`utterance_stream`、`opening_two_scene_closeout`、`context_assembly` 均 `[OK]`，one-shot/save-load、Web endpoint、话轮 hold/barge-in、receipt/context 同源合同未回归。
+- **验证**：Actions `37275472307` success；quick **64 PASS / 0 FAIL / 161 SKIP**；`turn_engine_boundaries`、P0–P5 required gates（含 Exit/Lifecycle、World/P2c、ActorMind、P4 Participation、P5 ContextAssembler）均 `[OK]`；`data/world_truth.db: OK`。
+- **报账/完成边界**：P6 工程代码与 required gate **完成**。本轮未改正典、场卡、Seed/VOICE、run=0、★★★ 挂坠事实粒度或 `data/world_truth.db`，正典/人物/剧情新增 = 0。**整个专项尚未最终关闭**：主计划 §14.3 / §16 要求的咖啡馆 + 天安门真人完整体验验收仍待执行，机器绿不冒充人验。
 
 ### 2026-10-04（P5 完成：ContextAssembler 唯一检索装配 × authoritative receipt × observer 零旁路）
 

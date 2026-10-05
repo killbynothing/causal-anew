@@ -226,3 +226,63 @@ ExitPolicy 已在 P1 成为唯一“该不该走”的 decider，P6 不重新发
 ## 9. 本次报账
 
 本测绘没有改 runtime、测试、数据库、场卡、Seed/VOICE 或正典；新增事实/人物/剧情 = 0。这里只把现有代码职责分层并登记 P6 迁移顺序。
+
+## 10. 实施后收口状态
+
+P6 实现完成后的权责变化如下，作为本文件开工测绘的后验对账。
+
+### 10.1 ScenePolicy
+
+新增 `runtime/scene_policies.py`，把 Tiananmen、C16、Ryuya cafe phase/topic、canon selector、flashback readiness 等场特化分类迁为冻结值输入与 `ScenePolicyOutput(evidence, opportunities, proposals)`。policy 不持 `FreeStageSession`，不 import runtime owner，不保存、不关局、不直接调用 Beat/World/Mind/Fact/Physical mutator。
+
+FreeStage 仍保留 proposal 消费 adapter，因为 proposal 最终必须由现有 owner 提交；这层不是第二个 policy，也不是第二个事实 owner。跨场 required gate 明确验证 Tiananmen/C16/无关场 family 不串线。
+
+### 10.2 TurnEngine
+
+新增 `runtime/turn_engine.py`，核心只认识固定九段：
+
+`input → observe → deliberate → floor → enact → resolve → commit → exit → project`
+
+core 只依赖注入 port 与 `TurnFrame/TurnStageReceipt`，不 import `scene_policies`、FreeStage、卡、actor、存储或任何具体场内容。short-circuit 只能转 project。
+
+真实生产接线已从最初的“input/observe 在 engine 外执行”继续收口：当前 input/observe 也由 TurnEngine port 真正执行，`legacy_prefix_already_applied` 已移除。真实 thought-only Session 的 stage trace 为 `("input", "observe", "project")`，actor transport 调用数为 0。
+
+### 10.3 FreeStageSession facade / state handle
+
+`FreeStageSession.step()` 当前只保留：
+
+1. 可写/lifecycle 门卫；
+2. 已 closing/closed 的兼容返回；
+3. 单一 `_run_normal_turn_with_engine(...)` 委托。
+
+P6 gate 禁止 `step()` 自身出现 ScenePolicy、Beat/World/Mind/branch、actor transport、transition、context assembly 等业务裁决。场特化/正典 early-route 已移到 `_run_turn_scene_prelude_stage()` adapter；normal actor path 的 deliberate/floor/enact/resolve/commit/exit/project 也都有显式 stage helper/port。
+
+这里不以文件 LOC 为验收。Session 仍作为 state handle 暴露既有 owner adapter 与兼容 API，但公开 step facade 不再自己裁事实。
+
+### 10.4 已关闭 owner 没有重新分叉
+
+- P4：`deliberate_participation → arbitrate_floor` 仍是唯一 participation/floor 路径，Floor 不读内容 agenda/MH 文案做竞价。
+- P5：actor context 仍由 ContextAssembler draft/finalizer 唯一装配，真实 caller prompt SHA receipt 同源。
+- P2/P3：resolve 阶段无 authority mutator；commit 才调用既有 Beat/World/Mind/Observation/branch/body/stream owner。
+- P1：exit stage 继续消费既有 ExitPolicy / transition authority，没有新建平行退出判断器。
+
+### 10.5 最终机器证据
+
+代码验收态：`5c0b5ebadca58760105c81162c7095ff90b79ac2`。
+
+GitHub Actions `37275472307` success，quick：
+
+- **64 PASS / 0 FAIL / 161 SKIP**
+- `turn_engine_boundaries [OK]`
+- `context_assembly [OK]`
+- `actor_participation_p4 [OK]`
+- `actor_mind_v2 / actor_mind_p3b [OK]`
+- `p2c_authority_closeout [OK]`
+- `exit_policy / exit_policy_production_wire / run_lifecycle_p1b [OK]`
+- `free_stage_session_api [OK]`
+- `utterance_stream [OK]`
+- `opening_two_scene_closeout [OK]`
+- `data/world_truth.db: OK`
+
+P6 工程代码与 required gate 可关闭。整个专项仍保留主计划 §14.3/§16 的真人咖啡馆 + 天安门完整体验验收，不用机器绿替代体验 verdict。本轮仍未修改正典、场卡、Seed/VOICE、run=0、★★★ 挂坠事实粒度或数据库内容。
+

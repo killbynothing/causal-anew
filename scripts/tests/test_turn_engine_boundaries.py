@@ -1066,7 +1066,7 @@ def test_floor_stage_only_builds_p4_plan_and_stall_projection():
 
 def test_session_step_delegates_actor_packet_and_prompt_preparation():
     source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
-    assert "enact_prep = self._prepare_turn_enact_stage(" in source
+    assert "self._prepare_turn_enact_stage(" in source
     for forbidden in (
         "build_actor_context_packet(",
         "build_prompt(",

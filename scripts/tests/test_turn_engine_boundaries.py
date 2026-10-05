@@ -367,6 +367,135 @@ def test_policy_output_preserves_wait_vs_undecided_for_c16_position_gates():
         "c16_table_follow_disposition",
     ) == "wait"
 
+
+def test_canon_selector_is_pure_ordered_and_detached_from_runtime_mappings():
+    raw_segments = [
+        {
+            "segment_id": "SEG_A",
+            "trigger": "after_stop",
+            "after_stop": "STOP_A",
+            "requires_branch": ["watch"],
+            "requires_autonomous_decisions": ["DECIDE_A"],
+            "requires_autonomous_outcomes": {"DECIDE_A": "accept"},
+            "auto_continue": False,
+        },
+        {
+            "segment_id": "SEG_B",
+            "trigger": "after_stop",
+            "after_stop": "STOP_A",
+            "requires_branch": ["watch"],
+            "auto_continue": True,
+        },
+    ]
+    decisions = [{"autonomous_decision_id": "DECIDE_A", "outcome": "accept"}]
+    snapshot = scene_policies.CanonSelectionInput.from_runtime(
+        pending_stop="STOP_A",
+        completed_segments=(),
+        branch_progress=("watch",),
+        actor_decisions=decisions,
+        segments=raw_segments,
+    )
+
+    raw_segments[0]["segment_id"] = "MUTATED"
+    raw_segments[0]["requires_branch"].append("MUTATED")
+    decisions[0]["outcome"] = "refuse"
+
+    selected = scene_policies.select_pending_canon_segment(snapshot)
+    assert selected == scene_policies.CanonSegmentSelection(
+        segment_id="SEG_A",
+        auto_continue=False,
+    )
+
+
+def test_canon_selector_preserves_first_eligible_and_auto_continue_semantics():
+    segments = (
+        {
+            "segment_id": "BLOCKER",
+            "trigger": "after_stop",
+            "after_stop": "STOP_A",
+            "auto_continue": False,
+        },
+        {
+            "segment_id": "LATER_AUTO",
+            "trigger": "after_stop",
+            "after_stop": "STOP_A",
+            "auto_continue": True,
+        },
+    )
+    snapshot = scene_policies.CanonSelectionInput.from_runtime(
+        pending_stop="STOP_A",
+        completed_segments=(),
+        branch_progress=(),
+        actor_decisions=(),
+        segments=segments,
+    )
+    selected = scene_policies.select_pending_canon_segment(snapshot)
+    assert selected is not None
+    assert selected.segment_id == "BLOCKER"
+    assert selected.auto_continue is False
+
+    after_first = scene_policies.CanonSelectionInput.from_runtime(
+        pending_stop="STOP_A",
+        completed_segments=("BLOCKER",),
+        branch_progress=(),
+        actor_decisions=(),
+        segments=segments,
+    )
+    next_selected = scene_policies.select_pending_canon_segment(after_first)
+    assert next_selected is not None
+    assert next_selected.segment_id == "LATER_AUTO"
+    assert next_selected.auto_continue is True
+
+
+def test_canon_session_selector_delegates_without_reimplementing_policy():
+    source = inspect.getsource(proto.FreeStageSession._pending_canon_selection)
+    assert "scene_policies.CanonSelectionInput.from_runtime(" in source
+    assert "scene_policies.select_pending_canon_segment(snapshot)" in source
+    for forbidden in (
+        'segment.get("trigger"',
+        'segment.get("after_stop"',
+        'segment.get("requires_branch"',
+        'segment.get("requires_autonomous_decisions"',
+        'segment.get("requires_autonomous_outcomes"',
+    ):
+        assert forbidden not in source, forbidden
+
+    burst = inspect.getsource(proto.FreeStageSession._emit_canon_burst)
+    assert "self._pending_canon_selection()" in burst
+    assert 'next_segment.get("auto_continue")' not in burst
+
+
+def test_flashback_policy_only_classifies_handoff_readiness():
+    assert scene_policies.flashback_handoff_ready(
+        scene_policies.FlashbackHandoffInput(
+            prologue_active=True,
+            has_return_frame=True,
+            all_must_happen_complete=True,
+        )
+    )
+    assert not scene_policies.flashback_handoff_ready(
+        scene_policies.FlashbackHandoffInput(
+            prologue_active=True,
+            has_return_frame=False,
+            all_must_happen_complete=True,
+        )
+    )
+
+    policy_source = inspect.getsource(scene_policies.flashback_handoff_ready)
+    for forbidden in (
+        "pendant",
+        "WorldCommit",
+        "_finalize_prologue_pendant",
+        "_branch_from_world_transaction",
+        "_world_transaction",
+    ):
+        assert forbidden not in policy_source, forbidden
+
+    transition_source = inspect.getsource(proto.FreeStageSession._maybe_transition)
+    assert "scene_policies.flashback_handoff_ready(" in transition_source
+    assert 'self._finalize_prologue_pendant("deferred"' in transition_source
+    assert '"ryuya_pendant_disposition"' in transition_source
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

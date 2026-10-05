@@ -835,6 +835,53 @@ def test_enact_stage_calls_transport_without_authority_commits():
     ):
         assert forbidden not in source, forbidden
 
+
+def test_session_step_uses_single_public_project_boundary():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "self._run_turn_project_stage(" in source
+    tail = source[source.rfind("if self.autosave:"):]
+    assert "return self._run_turn_project_stage(" in tail
+    assert "return self._with_receipt(result)" not in tail
+
+
+def test_project_stage_preserves_public_contract_without_authority_writes():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_project_stage)
+    for required in (
+        '"session_id"',
+        '"turns"',
+        '"completed"',
+        '"issues"',
+        '"degradations"',
+        '"player_violations"',
+        '"player_violation_warning_levels"',
+        '"player_prophecies"',
+        '"ended"',
+        '"surface"',
+        '"opening_id"',
+        '"player_profile"',
+        '"stream"',
+        'result["transition"] = transition',
+        'result["debug_payload"] = debug_payload',
+        "return self._with_receipt(result)",
+    ):
+        assert required in source, required
+
+    for forbidden in (
+        "_branch_add(",
+        "_branch_remove(",
+        "_beat_complete(",
+        "_beat_complete_many(",
+        "_commit_world_transaction(",
+        "_append_actor_decisions(",
+        "_record_scene_receipt(",
+        "_observe(",
+        "_maybe_transition(",
+        "_mark_ended(",
+        ".save(",
+        ".patch_player(",
+    ):
+        assert forbidden not in source, forbidden
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

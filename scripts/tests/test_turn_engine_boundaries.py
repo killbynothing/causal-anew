@@ -765,6 +765,45 @@ def test_input_observe_stage_results_are_frozen_value_boundaries():
         assert params is not None
         assert params.frozen is True
 
+
+def test_session_step_exposes_deliberate_then_floor_order():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "build_participation_deliberation(" in source
+    assert "build_floor_plan(participation_deliberation)" in source
+    assert source.index("build_participation_deliberation(") < source.index(
+        "build_floor_plan(participation_deliberation)"
+    )
+    assert "speaker_plan = build_speaker_plan(" not in source
+
+
+def test_deliberate_and_floor_adapters_keep_p4_single_arbiter_boundary():
+    deliberate = inspect.getsource(proto.build_participation_deliberation)
+    floor = inspect.getsource(proto.build_floor_plan)
+    facade = inspect.getsource(proto.build_speaker_plan)
+
+    assert "participation_runtime.deliberate_participation(" in deliberate
+    assert "participation_runtime.arbitrate_floor(" not in deliberate
+
+    assert floor.count("participation_runtime.arbitrate_floor(") == 1
+    assert "participation_runtime.deliberate_participation(" not in floor
+    for forbidden in (
+        "player_input",
+        "history",
+        "must_happen",
+        "director_instruction",
+        "scene_working_memory",
+    ):
+        assert forbidden not in floor, forbidden
+
+    assert "build_participation_deliberation(" in facade
+    assert "build_floor_plan(" in facade
+
+
+def test_participation_deliberation_snapshot_is_frozen():
+    params = getattr(proto._ParticipationDeliberation, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

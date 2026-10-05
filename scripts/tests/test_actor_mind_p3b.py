@@ -309,11 +309,13 @@ def test_opening_relationship_compat_updates_only_after_first_visible_receipt():
 
 def test_production_wires_player_actor_and_scene_receipts():
     step_source = inspect.getsource(proto.FreeStageSession.step)
+    engine_source = inspect.getsource(proto.FreeStageSession._run_normal_turn_with_engine)
     enact_prep_source = inspect.getsource(proto.FreeStageSession._prepare_turn_enact_stage)
-    assert "_prepare_turn_enact_stage(" in step_source
+    assert "_run_normal_turn_with_engine(" in step_source
+    assert "_prepare_turn_enact_stage(" in engine_source
     assert "_record_player_visible_mind_receipts(" in enact_prep_source
     assert "_rebuild_turn_working_contexts(" in enact_prep_source
-    assert "_record_public_actor_mind_receipts(" in step_source
+    assert "_record_public_actor_mind_receipts(" in engine_source
 
     assert set(_lifecycle_kinds(proto.FreeStageSession._maybe_transition)) >= {"scene_leave", "scene_enter"}
     assert set(_lifecycle_kinds(proto.FreeStageSession.skip_scene)) >= {"scene_leave", "scene_enter"}

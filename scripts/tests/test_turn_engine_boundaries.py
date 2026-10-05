@@ -1058,6 +1058,41 @@ def test_floor_stage_only_builds_p4_plan_and_stall_projection():
     assert params is not None
     assert params.frozen is True
 
+
+def test_session_step_delegates_actor_packet_and_prompt_preparation():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "enact_prep = self._prepare_turn_enact_stage(" in source
+    for forbidden in (
+        "build_actor_context_packet(",
+        "build_prompt(",
+        "self._record_player_visible_mind_receipts(",
+        "self._rebuild_turn_working_contexts(",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_enact_prep_owns_packet_prompt_but_not_transport_or_commit():
+    source = inspect.getsource(proto.FreeStageSession._prepare_turn_enact_stage)
+    assert "build_actor_context_packet(" in source
+    assert "build_prompt(" in source
+    assert "self._record_player_visible_mind_receipts(" in source
+    assert "self._rebuild_turn_working_contexts(" in source
+
+    for forbidden in (
+        "run_director_and_isolated_actors(",
+        "call_actor(",
+        "normalize_turns(",
+        "beat_evidence.resolve_completions(",
+        "_beat_complete_many(",
+        "_append_actor_decisions(",
+        "_maybe_transition(",
+    ):
+        assert forbidden not in source, forbidden
+
+    params = getattr(proto._TurnEnactPrepStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

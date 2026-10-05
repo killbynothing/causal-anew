@@ -1,0 +1,209 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import ast
+import inspect
+import sys
+from dataclasses import FrozenInstanceError, fields
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from runtime import free_stage_prototype as proto
+from runtime import scene_policies
+
+
+def _snapshot(*, scene_id: str = "OPENING_TIANANMEN_002"):
+    history = [
+        {
+            "role": "npc",
+            "text": "（日）いっしょに行きますか。",
+            "lang": "ja",
+            "player_visible": True,
+        }
+    ]
+    return scene_policies.ScenePolicyInput.from_runtime(
+        scene_id=scene_id,
+        player_input={"speech": "可以，我听得懂日语。", "action": ""},
+        recent_history=history,
+    )
+
+
+def test_policy_contract_is_frozen_and_value_only():
+    snapshot = _snapshot()
+    assert isinstance(snapshot.recent_history, tuple)
+    assert all(isinstance(item, scene_policies.PublicTurn) for item in snapshot.recent_history)
+
+    try:
+        snapshot.scene_id = "OTHER"
+    except FrozenInstanceError:
+        pass
+    else:
+        raise AssertionError("ScenePolicyInput must be frozen")
+
+    output_fields = tuple(item.name for item in fields(scene_policies.ScenePolicyOutput))
+    assert output_fields == ("evidence", "opportunities", "proposals")
+    out = scene_policies.evaluate(snapshot)
+    assert isinstance(out.evidence, tuple)
+    assert isinstance(out.opportunities, tuple)
+    assert isinstance(out.proposals, tuple)
+
+
+def test_policy_snapshot_detaches_from_mutable_runtime_input():
+    history = [
+        {
+            "role": "npc",
+            "text": "（日）いっしょに行きますか。",
+            "lang": "ja",
+            "player_visible": True,
+        }
+    ]
+    player_input = {"speech": "可以。", "action": ""}
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OPENING_TIANANMEN_002",
+        player_input=player_input,
+        recent_history=history,
+    )
+
+    history[0]["text"] = "MUTATED"
+    player_input["speech"] = "MUTATED"
+
+    assert snapshot.recent_history[0].text != "MUTATED"
+    assert snapshot.player_speech != "MUTATED"
+
+
+def test_scene_policy_module_cannot_write_runtime_authority():
+    source = inspect.getsource(scene_policies)
+    tree = ast.parse(source)
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = str(node.module or "")
+            assert not module.startswith("runtime"), module
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                assert not alias.name.startswith("runtime"), alias.name
+
+    for forbidden in (
+        "FreeStageSession",
+        "_beat_complete(",
+        "_beat_complete_many(",
+        "_branch_add(",
+        "_branch_remove(",
+        "_commit_world_transaction(",
+        "_mark_ended(",
+        "_maybe_transition(",
+        ".save(",
+        ".patch_player(",
+        ".increment_elapsed(",
+        "ActorMindState",
+        "PhysicalState",
+        "RuntimeStore",
+        "FactProjection",
+        "WorldCommit",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_tiananmen_policy_is_deterministic_and_scene_scoped():
+    snapshot = _snapshot()
+    first = scene_policies.evaluate(snapshot)
+    second = scene_policies.evaluate(snapshot)
+    assert first == second
+    assert "tiananmen_japanese_understood" in first.evidence
+
+    other = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OTHER_SCENE",
+        player_input={"speech": "可以，我听得懂日语。", "action": ""},
+        recent_history=[],
+    )
+    assert scene_policies.evaluate(other) == scene_policies.ScenePolicyOutput()
+
+
+def test_private_or_director_only_history_does_not_become_policy_evidence():
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OPENING_TIANANMEN_002",
+        player_input={"speech": "可以。", "action": ""},
+        recent_history=[
+            {
+                "role": "npc",
+                "text": "（日）いっしょに行きますか。",
+                "lang": "ja",
+                "player_visible": False,
+                "audience": "director_only",
+            }
+        ],
+    )
+    assert "tiananmen_japanese_understood" not in scene_policies.evaluate(snapshot).evidence
+
+
+def test_tiananmen_session_adapter_only_delegates_classification():
+    source = inspect.getsource(proto.tiananmen_player_facts)
+    assert "ScenePolicyInput.from_runtime(" in source
+    assert "evaluate_tiananmen(snapshot).evidence" in source
+
+    for forbidden in (
+        "tiananmen_video_unavailable",
+        "tiananmen_video_offered",
+        "tiananmen_japanese_understood",
+        "tiananmen_aquarium_accepted",
+        "tiananmen_aquarium_declined",
+        "tiananmen_independent_aquarium_destination",
+    ):
+        assert forbidden not in source, forbidden
+
+    sample = {
+        "speech": "没有视频，不过我听得懂日语，不跟你们去海洋馆了。",
+        "action": "",
+    }
+    history = [
+        {
+            "role": "npc",
+            "text": "（日）海洋館に行きますか。",
+            "lang": "ja",
+            "player_visible": True,
+        }
+    ]
+    snapshot = scene_policies.ScenePolicyInput.from_runtime(
+        scene_id="OPENING_TIANANMEN_002",
+        player_input=sample,
+        recent_history=history,
+    )
+    assert proto.tiananmen_player_facts(sample, recent_history=history) == set(
+        scene_policies.evaluate_tiananmen(snapshot).evidence
+    )
+
+
+def test_future_turn_engine_core_has_no_concrete_scene_policy_or_scene_ids():
+    path = ROOT / "runtime" / "turn_engine.py"
+    if not path.exists():
+        return
+
+    source = path.read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            module = str(node.module or "")
+            assert module not in {"runtime.scene_policies", "scene_policies"}, module
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                assert alias.name not in {"runtime.scene_policies", "scene_policies"}, alias.name
+
+    for forbidden in (
+        "OPENING_TIANANMEN_002",
+        "16ZHONG",
+        "C.ryuya",
+        "RP3",
+        "RP4",
+        "TM2",
+        "TM3",
+    ):
+        assert forbidden not in source, forbidden
+
+
+if __name__ == "__main__":
+    for name in sorted(n for n in globals() if n.startswith("test_")):
+        globals()[name]()
+        print("PASS", name)

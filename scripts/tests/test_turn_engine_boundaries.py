@@ -324,6 +324,49 @@ def test_c16_session_classifiers_are_thin_policy_adapters():
         ):
             assert forbidden not in source, (name, forbidden)
 
+
+def test_session_step_consumes_one_policy_output_instead_of_reclassifying_c16():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    assert "scene_policies.evaluate(scene_policy_snapshot)" in source
+    assert source.count("scene_policies.evaluate(scene_policy_snapshot)") == 1
+    assert "scene_policies.proposal_value(" in source
+    assert '"c16_overt_intervention" in scene_policy_output.evidence' in source
+
+    for forbidden in (
+        "c16_counter_encounter_diversion(parsed_input)",
+        "c16_milktea_disposition(parsed_input)",
+        "c16_gate_disposition(parsed_input)",
+        "c16_shop_follow_disposition(parsed_input)",
+        "c16_table_follow_disposition(parsed_input)",
+        "_c16_overt_intervention(parsed_input)",
+        "tiananmen_player_facts(player_input",
+    ):
+        assert forbidden not in source, forbidden
+
+
+def test_policy_output_preserves_wait_vs_undecided_for_c16_position_gates():
+    gate_wait = scene_policies.evaluate(
+        scene_policies.ScenePolicyInput.from_runtime(
+            scene_id="CARD_16ZHONG_GATE",
+            player_input={"speech": "", "action": ""},
+        )
+    )
+    assert scene_policies.proposal_value(
+        gate_wait,
+        "c16_shop_follow_disposition",
+    ) == "wait"
+
+    table_wait = scene_policies.evaluate(
+        scene_policies.ScenePolicyInput.from_runtime(
+            scene_id="CARD_MILKTEA_WATCH",
+            player_input={"speech": "", "action": ""},
+        )
+    )
+    assert scene_policies.proposal_value(
+        table_wait,
+        "c16_table_follow_disposition",
+    ) == "wait"
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

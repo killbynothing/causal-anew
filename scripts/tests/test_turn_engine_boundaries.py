@@ -483,14 +483,20 @@ def test_flashback_policy_only_classifies_handoff_readiness():
     )
 
     policy_source = inspect.getsource(scene_policies.flashback_handoff_ready)
-    for forbidden in (
-        "pendant",
+    policy_tree = ast.parse(policy_source)
+    forbidden_names = {
         "WorldCommit",
         "_finalize_prologue_pendant",
         "_branch_from_world_transaction",
         "_world_transaction",
-    ):
-        assert forbidden not in policy_source, forbidden
+        "commit_world_fact",
+        "commit_world_batch",
+    }
+    for node in ast.walk(policy_tree):
+        if isinstance(node, ast.Name):
+            assert node.id not in forbidden_names, node.id
+        elif isinstance(node, ast.Attribute):
+            assert node.attr not in forbidden_names, node.attr
 
     transition_source = inspect.getsource(proto.FreeStageSession._maybe_transition)
     assert "scene_policies.flashback_handoff_ready(" in transition_source

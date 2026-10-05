@@ -960,13 +960,14 @@ def test_resolve_stage_is_read_only_and_returns_progress_proposals():
 def test_step_commits_only_after_resolve_returns():
     source = inspect.getsource(proto.FreeStageSession.step)
     resolve_at = source.index("resolve_stage = self._run_turn_resolve_stage(")
-    actor_commit_at = source.index("committed_actor_decisions = self._append_actor_decisions(")
-    opportunity_at = source.index("self._publish_director_opportunity(")
-    beat_commit_at = source.index("newly_completed = self._beat_complete_many(")
-
-    assert resolve_at < actor_commit_at < beat_commit_at
-    assert resolve_at < opportunity_at < beat_commit_at
+    commit_at = source.index("commit_stage = self._run_turn_commit_stage(")
+    assert resolve_at < commit_at
     assert "turn_degradations.extend(resolve_stage.degradations)" in source
+
+    commit_source = inspect.getsource(proto.FreeStageSession._run_turn_commit_stage)
+    assert "self._append_actor_decisions(" in commit_source
+    assert "self._publish_director_opportunity(" in commit_source
+    assert "self._beat_complete_many(" in commit_source
 
 
 def test_commit_stage_owns_authority_but_not_resolution_or_policy():

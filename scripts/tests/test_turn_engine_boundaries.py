@@ -1011,6 +1011,53 @@ def test_step_order_is_enact_resolve_commit():
     ):
         assert forbidden not in post_resolve, forbidden
 
+
+def test_session_step_delegates_deliberate_and_floor_stage_helpers():
+    source = inspect.getsource(proto.FreeStageSession.step)
+    deliberate_at = source.index("deliberate_stage = self._run_turn_deliberate_stage(")
+    floor_at = source.index("floor_stage = self._run_turn_floor_stage(")
+    assert deliberate_at < floor_at
+    assert "active_state = self.get_active_exit_state()" not in source
+    assert "participation_deliberation = build_participation_deliberation(" not in source
+
+
+def test_deliberate_stage_returns_value_boundary_for_floor():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_deliberate_stage)
+    for required in (
+        "resolve_card_must_happen_variants(",
+        "self._interpret_current_intent(",
+        "semantic_exit_index(",
+        "return _TurnDeliberateStageResult(",
+    ):
+        assert required in source, required
+
+    params = getattr(proto._TurnDeliberateStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
+
+def test_floor_stage_only_builds_p4_plan_and_stall_projection():
+    source = inspect.getsource(proto.FreeStageSession._run_turn_floor_stage)
+    assert source.count("build_participation_deliberation(") == 1
+    assert source.count("build_floor_plan(") == 1
+    assert "build_stall_escalation(" in source
+
+    for forbidden in (
+        "scene_policies.",
+        "participation_runtime.arbitrate_floor(",
+        "participation_runtime.deliberate_participation(",
+        "run_director_and_isolated_actors(",
+        "call_actor(",
+        "_beat_complete(",
+        "_branch_add(",
+        "_commit_world_transaction(",
+    ):
+        assert forbidden not in source, forbidden
+
+    params = getattr(proto._TurnFloorStageResult, "__dataclass_params__", None)
+    assert params is not None
+    assert params.frozen is True
+
 if __name__ == "__main__":
     for name in sorted(n for n in globals() if n.startswith("test_")):
         globals()[name]()

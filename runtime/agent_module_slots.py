@@ -64,18 +64,60 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
     cog = packet.get("cog_loop") if isinstance(packet.get("cog_loop"), dict) else {}
     decide = cog.get("decide") if isinstance(cog.get("decide"), dict) else {}
     reflect = cog.get("reflect") if isinstance(cog.get("reflect"), dict) else {}
+    self_core = packet.get("self_core") if isinstance(packet.get("self_core"), dict) else {}
     persona = packet.get("persona") if isinstance(packet.get("persona"), dict) else {}
-    manner = packet.get("manner") or persona.get("manner") or packet.get("voice_rule")
+    self_state = packet.get("self_state") if isinstance(packet.get("self_state"), dict) else {}
+    inner_state = self_state.get("inner_state") if isinstance(self_state.get("inner_state"), dict) else {}
+
+    manner = (
+        self_core.get("seed_manners")
+        or self_core.get("manner")
+        or persona.get("manner")
+        or packet.get("manner")
+        or packet.get("voice_rule")
+    )
+    self_memory = packet.get("self_memory") if isinstance(packet.get("self_memory"), dict) else {}
     mem_act = packet.get("memory_activation") if isinstance(packet.get("memory_activation"), dict) else {}
-    slow = mem_act.get("slow_memory_activated") or []
-    episodic = packet.get("episodic_memory") or packet.get("memory_context") or []
+    slow = (
+        self_memory.get("slow_memory")
+        or self_memory.get("slow_memory_activated")
+        or mem_act.get("slow_memory_activated")
+        or []
+    )
+    episodic = (
+        self_memory.get("episodic_recent")
+        or self_memory.get("episodic_memory")
+        or packet.get("episodic_memory")
+        or packet.get("memory_context")
+        or []
+    )
+    rel_mem = self_memory.get("relationship_memory") or []
+    knowledge = packet.get("relevant_knowledge_top_k") or packet.get("knowledge_activated") or []
+
     if isinstance(data.get("structured_memories"), dict):
         n_struct = sum(len(v) for v in data["structured_memories"].values() if isinstance(v, list))
     else:
         n_struct = 0
-    n_mem = (len(slow) if isinstance(slow, list) else 0) + (
-        len(episodic) if isinstance(episodic, list) else 0
-    ) + n_struct
+    n_mem = (
+        (len(slow) if isinstance(slow, list) else 0)
+        + (len(episodic) if isinstance(episodic, list) else 0)
+        + (len(rel_mem) if isinstance(rel_mem, list) else 0)
+        + (len(knowledge) if isinstance(knowledge, list) else 0)
+        + n_struct
+    )
+
+    mem_bits: list[str] = []
+    if slow and isinstance(slow, list):
+        mem_bits.append(f"慢环×{len(slow)}")
+    if episodic and isinstance(episodic, list):
+        mem_bits.append(f"情景×{len(episodic)}")
+    if rel_mem and isinstance(rel_mem, list):
+        mem_bits.append(f"关系×{len(rel_mem)}")
+    if knowledge and isinstance(knowledge, list):
+        mem_bits.append(f"正典K×{len(knowledge)}")
+    if n_struct:
+        mem_bits.append(f"结构×{n_struct}")
+    mem_summary = " · ".join(mem_bits) if mem_bits else (f"激活 {n_mem} 条" if n_mem else "—")
 
     traces = data.get("director_port_trace") or []
     last_kind = ""
@@ -93,10 +135,28 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
     if isinstance(legal, list) and last_kind:
         tool_summary = f"{last_kind} · legal={last_kind in legal}"
 
+    contract = packet.get("conversation_contract") if isinstance(packet.get("conversation_contract"), dict) else {}
+    slot_mode = str(contract.get("response_slot") or "").strip()
+    part_mode = str(contract.get("participation_mode") or "").strip()
+    pacing_signal = cog.get("pacing_signal") if isinstance(cog.get("pacing_signal"), dict) else {}
+    if slot_mode or part_mode:
+        tool_bits = [f"slot={slot_mode or 'primary'}", f"mode={part_mode or 'speak'}"]
+        if pacing_signal.get("mode"):
+            tool_bits.append(f"pace={pacing_signal.get('mode')}")
+        if last_kind and last_kind != "quiet":
+            tool_bits.append(last_kind)
+        tool_summary = " · ".join(tool_bits)
+
     spoken = packet.get("spoken_this_turn") or []
     action_text = ""
     if isinstance(spoken, list) and spoken:
-        action_text = str(spoken[0].get("text") or "") if isinstance(spoken[0], dict) else str(spoken[0])
+        first_spk = spoken[0]
+        if isinstance(first_spk, dict):
+            t = str(first_spk.get("text") or "")
+            st = str(first_spk.get("stage") or "")
+            action_text = f"{t} 〔stage: {st}〕" if st else t
+        else:
+            action_text = str(first_spk)
     if not action_text:
         vis = data.get("player_visible_turns") or []
         for row in reversed(list(vis) if isinstance(vis, list) else []):
@@ -114,15 +174,27 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
             reflect_text = str(last.get("thought") or "")
 
     persona_bits = []
-    for key in ("name", "voice_rule", "core"):
-        val = persona.get(key) or packet.get(key)
-        if val:
-            persona_bits.append(str(val)[:40])
-    if manner:
-        persona_bits.append(str(manner)[:40])
+    char_name = self_core.get("name") or persona.get("name") or packet.get("name")
+    if char_name:
+        persona_bits.append(str(char_name))
+    boundaries = self_core.get("seed_boundaries") or []
+    voice_samples = self_core.get("voice_samples") or []
+    if isinstance(manner, list) and manner:
+        persona_bits.append(f"MANNER×{len(manner)}")
+    elif manner:
+        persona_bits.append(str(manner)[:30])
+    if isinstance(boundaries, list) and boundaries:
+        persona_bits.append(f"BOUNDARY×{len(boundaries)}")
+    if isinstance(voice_samples, list) and voice_samples:
+        persona_bits.append(f"VOICE×{len(voice_samples)}")
     identity = packet.get("identity_relations") or []
     if isinstance(identity, list) and identity:
         persona_bits.append(f"REL×{len(identity)}")
+    if not persona_bits:
+        for key in ("voice_rule", "core"):
+            val = persona.get(key) or packet.get(key)
+            if val:
+                persona_bits.append(str(val)[:40])
 
     mh = data.get("must_happen_progress") if isinstance(data.get("must_happen_progress"), dict) else {}
     completed = mh.get("completed") or data.get("completed") or []
@@ -144,22 +216,35 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
     sediment = data.get("physical_state") if isinstance(data.get("physical_state"), dict) else {}
     if sediment.get("sediment_S") is not None:
         state_bits.append(f"S={sediment.get('sediment_S')}")
+    bf = packet.get("body_frame_now") or self_state.get("body_frame_now") or {}
+    if isinstance(bf, dict) and bf.get("holding"):
+        state_bits.append(f"持物={bf.get('holding')}")
+
+    plan_concern = (
+        decide.get("top_concern")
+        or decide.get("intention")
+        or inner_state.get("want_now")
+        or inner_state.get("top_concern")
+        or ""
+    )
+    plan_band = str(decide.get("band") or "").strip()
+    plan_summary = f"[{plan_band}] {plan_concern}" if plan_band and plan_concern else (plan_concern or "—")
 
     slots = {
         "Planning": _slot(
-            bool(decide.get("top_concern") or decide.get("intention")),
-            _clip(decide.get("top_concern") or decide.get("intention") or "—"),
-            "cog_loop.decide",
+            bool(plan_concern),
+            _clip(plan_summary),
+            "cog_loop.decide / self_state.inner_state",
         ),
         "Memory": _slot(
             n_mem > 0,
-            f"激活 {n_mem} 条" if n_mem else "—",
-            "memory_activation / structured_memories",
+            _clip(mem_summary),
+            "self_memory / relevant_knowledge / structured_memories",
         ),
         "Tool Use": _slot(
-            bool(last_kind and last_kind != "quiet") or bool(traces),
+            bool(last_kind and last_kind != "quiet") or bool(traces) or bool(slot_mode),
             _clip(tool_summary),
-            "director_port_trace",
+            "conversation_contract / director_port_trace",
         ),
         "Action": _slot(
             bool(action_text),
@@ -169,12 +254,12 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
         "Reflection": _slot(
             bool(reflect_text),
             _clip(reflect_text) if reflect_text else "—",
-            "private_reflections",
+            "cog_loop.reflect / private_reflections",
         ),
         "Persona": _slot(
             bool(persona_bits),
-            _clip(" / ".join(persona_bits) if persona_bits else (cons or "—")),
-            "actor packet",
+            _clip(" · ".join(persona_bits) if persona_bits else (cons or "—")),
+            "self_core / actor packet",
         ),
         "State Tracking": _slot(
             True,

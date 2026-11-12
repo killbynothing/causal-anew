@@ -8991,16 +8991,25 @@ class FreeStageSession:
             normalized, speaker_plan, turn_no=turn_no,
         )
         shown: list[dict[str, Any]] = []
-        first, rest = ustream.split_for_stream(floor, turn_no=turn_no)
-        if first:
-            first["stream_lane"] = "floor"
-            self.history.append(first)
-            row = dict(first)
-            emitted.append(row)
-            shown.append(row)
-        if rest:
-            self.utterance_pending_queue.extend(rest)
-            self.stream_generation += 1
+        if floor:
+            first_spk = str(floor[0].get("cons") or floor[0].get("speaker") or "")
+            lead_turns: list[dict[str, Any]] = []
+            rest_turns: list[dict[str, Any]] = []
+            for item in floor:
+                spk = str(item.get("cons") or item.get("speaker") or "")
+                if spk == first_spk and not rest_turns:
+                    lead_turns.append(item)
+                else:
+                    rest_turns.append(item)
+            for item in lead_turns:
+                item["stream_lane"] = "floor"
+                self.history.append(item)
+                row = dict(item)
+                emitted.append(row)
+                shown.append(row)
+            if rest_turns:
+                self.utterance_pending_queue.extend(rest_turns)
+                self.stream_generation += 1
         for item in companion:
             item["stream_lane"] = "companion"
             self.history.append(item)

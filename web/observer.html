@@ -1161,6 +1161,7 @@ details[open] summary.group-title::before {
         </div>
         <div style="display: flex; flex-direction: column; gap: 6px; min-width: 100px; height: 126px; justify-content: space-between;">
           <button id="btnSend" disabled style="flex: 1; width: 100%; border-radius: 8px; background: rgba(0, 240, 255, 0.15); border: 1px solid var(--line); color: var(--cyan); font-family: var(--font-title); font-size: 13px; cursor: pointer; transition: all 0.3s; padding: 0;">发送这一拍</button>
+          <button id="btnAdvanceUtterance" style="display: none; height: 32px; width: 100%; font-size: 11.5px; border-radius: 6px; padding: 0; background: rgba(0, 240, 255, 0.25); border: 1px solid var(--cyan); color: #fff; cursor: pointer; font-weight: 600;">继续听 (1)</button>
           <button id="btnJumpLatest" style="height: 32px; width: 100%; font-size: 11px; border-radius: 6px; padding: 0; background: transparent; border: 1px solid var(--line); color: var(--paper); cursor: pointer;">跳到最新拍</button>
         </div>
       </div>
@@ -1216,14 +1217,18 @@ details[open] summary.group-title::before {
     </details>
 
     <details id="group-beat-3" open>
-      <summary class="group-title">③ 话轮 · 导演</summary>
+      <summary class="group-title">③ 导演台本 · 因果统摄与裁决 Dossier</summary>
       <div class="group-content">
         <div class="debug-card" style="border-color:#a8a8ff;">
-          <h3>谁开口（speaker_plan）</h3>
+          <h3>🎬 导演现场裁决 Dossier</h3>
+          <div class="human-view" id="directorVerdictRead" style="white-space: pre-wrap; font-size: 12.5px; line-height: 1.6; margin-bottom: 6px;">—</div>
+        </div>
+        <div class="debug-card" style="border-color:rgba(168,168,255,0.4);">
+          <h3>谁开口 · 发言权仲裁（speaker_plan / Floor Grant）</h3>
           <div class="human-view" id="debugSpeakerPlanRead">—</div>
         </div>
         <div class="debug-card">
-          <h3>Must-Happen / Stall</h3>
+          <h3>正典必须事件收敛（Must-Happen / Stall）</h3>
           <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;font-size:12px;">
             <div>已满足 <span id="completedMustHappen" class="badge green">-</span></div>
             <div>允许 <span id="allowedMustHappen" class="badge">-</span></div>
@@ -1232,7 +1237,7 @@ details[open] summary.group-title::before {
           <div class="human-view compact" id="directorSideRead">（导演指令摘要 / MH 环境余波；序幕不把 RP id 灌进角色包。）</div>
         </div>
         <div class="debug-card">
-          <h3>导演层本拍（玩家不见）</h3>
+          <h3>导演暗注与同拍真相（玩家不可见）</h3>
           <div class="human-view" id="debugNarrationRead">—</div>
           <div class="human-view" id="debugTruthTurnsRead" style="margin-top:6px;">—</div>
         </div>
@@ -2702,6 +2707,25 @@ function renderDebugDetails(payload) {
   const narrationEl = document.getElementById("debugNarrationRead");
   renderAgentModules(payload);
 
+  const verdictEl = document.getElementById("directorVerdictRead");
+  if (verdictEl) {
+    const sp = payload?.speaker_plan || {};
+    const primary = sp.primary_speaker || sp.speaker || (payload?.actor_context_packets ? Object.keys(payload.actor_context_packets)[0] : "无");
+    const primaryName = nameMap?.[primary] || primary;
+    const mode = sp.participation_mode || "speak";
+    const pacing = payload?.pacing || payload?.pacing_signal?.mode || "standard";
+    const stall = payload?.stall_count ?? 0;
+    const mhDone = (payload?.must_happen_progress?.completed || payload?.completed || []).join(", ") || "无";
+    const exitState = typeof payload?.exit_decision === "object" ? (payload?.exit_decision?.decision || payload?.exit_decision?.target || "open") : (payload?.exit_decision || (payload?.ended ? "已关局" : "保持开放 (open)"));
+    const sedimentS = payload?.physical_state?.sediment_S ?? payload?.sediment_S ?? "—";
+    
+    verdictEl.textContent = [
+      `【节拍与收束】当前节拍 Pacing: ${pacing} · Stall 滞留: ${stall} 次 · 因果软化阻力 S(node): ${sedimentS}`,
+      `【发言权授予】主响应: ${primaryName} (${mode}) · 话轮仲裁理由: 公开义务与话轮公平`,
+      `【正典收束压】已达成必须事件: [${mhDone}] · 离场闸: ${exitState}`,
+    ].join("\n");
+  }
+
   document.getElementById("debugClock").textContent = payload?.clock || "-";
   renderNpcChips(payload);
   renderPlayerRoster(payload);
@@ -3004,6 +3028,46 @@ function selectBeat(beatIndex) {
   updateStatus();
 }
 
+function updateStreamUI(stream) {
+  const btnAdv = document.getElementById("btnAdvanceUtterance");
+  if (!btnAdv) return;
+  const rem = stream?.queue_remaining ?? stream?.floor_queue_remaining ?? 0;
+  if (rem > 0 && !stream?.stream_hold) {
+    btnAdv.style.display = "block";
+    btnAdv.textContent = `继续听 (${rem})`;
+  } else {
+    btnAdv.style.display = "none";
+  }
+}
+
+async function advanceUtteranceQueue() {
+  if (!state.sessionId || state.busy || state.ended) return;
+  setBusy(true);
+  try {
+    const data = await fetchAPI("/api/free_stage", {
+      op: "advance_utterance",
+      session_id: ensureSessionId(),
+      debug: 1,
+    });
+    if (data.status !== "ok") {
+      throw new Error(data.error || "advance failed");
+    }
+    if (Array.isArray(data.turns)) {
+      data.turns.forEach((item) => {
+        const lane = item.stream_lane || "floor";
+        const role = lane === "companion" ? "companion" : "npc";
+        appendBubble(role, item.speaker || "在场者", item.text || "", item.stage || "");
+      });
+    }
+    updateStreamUI(data.stream);
+    showToast("已推进待播话轮", "success");
+  } catch (err) {
+    showToast("推进待播话轮失败: " + err.message);
+  } finally {
+    setBusy(false);
+  }
+}
+
 async function hydrateSession() {
   const sid = ensureSessionId();
   setBusy(true);
@@ -3022,6 +3086,7 @@ async function hydrateSession() {
     state.ended = Boolean(data.ended);
     state.pacing = data.pacing || "";
     state.surfaceScene = data.surface?.scene || "-";
+    updateStreamUI(data.stream);
     selectBeat(state.debugHistory.length);
   } finally {
     setBusy(false);
@@ -3090,6 +3155,7 @@ async function sendTurn() {
     state.ended = Boolean(data.ended);
     state.pacing = data.pacing || state.pacing;
     state.surfaceScene = data.surface?.scene || state.surfaceScene;
+    updateStreamUI(data.stream);
     selectBeat(state.debugHistory.length);
     if (data.transition?.consolidation_hint) {
       showToast(data.transition.consolidation_hint, "info");
@@ -3448,6 +3514,7 @@ btnSlots.addEventListener("click", openSlotsModal);
 btnBondArchive.addEventListener("click", showBondArchive);
 btnJumpLatest.addEventListener("click", () => selectBeat(state.debugHistory.length));
 btnSend.addEventListener("click", sendTurn);
+document.getElementById("btnAdvanceUtterance")?.addEventListener("click", advanceUtteranceQueue);
 beatSlider.addEventListener("input", (e) => selectBeat(parseInt(e.target.value, 10)));
 btnPrevBeat.addEventListener("click", () => selectBeat(state.currentBeat - 1));
 btnNextBeat.addEventListener("click", () => selectBeat(state.currentBeat + 1));

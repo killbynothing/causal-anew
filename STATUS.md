@@ -1,5 +1,16 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-11-12（观测台右栏闭环 × 复合话轮直出 × Agent七槽P5/P6对齐 × 导演Dossier）
+
+- **独立分支/基线**：从 P6 完成基线创建特性分支 `loop/observer-experience-2026-11-12`。
+- **复合话轮直出（解决单发言人多句被腰斩）**：在 `runtime/free_stage_prototype.py::_push_stream_turns` 中，修复此前将单角色连续吐出的多个 turns（如调侃 + 严肃托付）机械切片进待播队列、导致玩家接话时被 barge-in 意外抹杀的缺陷。对同发言人的连续复合台词一次性发射（`lead_turns` 进 `history`/`emitted`/`shown`），异角色（如秋人/修哉排队）才入 `utterance_pending_queue`。
+- **Agent 七槽现代上下文对齐**：`runtime/agent_module_slots.py` 全面升级适配 P5/P6 现代上下文包：Persona 正确投影 `self_core`（姓名/MANNER/BOUNDARY/VOICE/REL 计数）；Memory 完整汇总 `self_memory`（慢环/情景/关系/正典K）；Planning 结合 `decide` 与 `inner_state.want_now/top_concern`；Tool Use 显示响应槽与参与模式（`slot` / `mode` / `pace`）；State Tracking 联动 `body_frame_now`（持物态）与心智权威。7 个槽位不再因历史字段名失效而大面积呈现 `—`。
+- **导演现场裁决 Dossier**：观测台 Group ③ 升级为「③ 导演台本 · 因果统摄与裁决 Dossier」，顶部新增现场裁决总览（节拍 Pacing、滞留 Stall 次数、因果软化阻力 $S(node)$、发言权仲裁理由与正典 MH 收束判定），彻底解决导演侧信息零散、缺乏统摄存在感的问题。
+- **观测台待播队列推进按钮**：`web/observer.html` 接入 `btnAdvanceUtterance`，实时同步 `stream.queue_remaining`，支持在观测台单步推进待播话轮（`op: advance_utterance`），拉平与 `player.html` 的操作体验。
+- **反思证据截断优化**：`runtime/actor_cog_loop.py` 优化 `spoken[:120]` 截断为平滑截词加省略号，消除以逗号突兀结尾的显示错觉。
+- **验证**：`python scripts/verify.py --quick` **64 PASS / 0 FAIL / 161 SKIP**；`test_agent_module_slots.py` (4/4 PASS)、`test_utterance_stream.py` (7/7 PASS)；`data/world_truth.db` 校验通过，LFS SHA256 保持 `5af683f316ec04067338412934b8c8ece128109c70b41d4b37ff4b7052e02852`。
+- **报账**：未改动 run=0、正典、场卡、Seed/VOICE、★★★ 创意裁决或数据库；新增正典/人物/剧情 = 0。
+
 ### 2026-10-05（P6 完成：ScenePolicy 纯化 × TurnEngine 九段主循环 × FreeStage facade）
 
 - **独立分支/基线**：`loop/turn-engine-p6-2026-10-05` 从 P5 final 文档 HEAD `655c550e6ff9ea958817e23606e93ab14108fd9d` 创建，没有在 P5 分支继续写 P6；P6 代码验收基线为 `5c0b5ebadca58760105c81162c7095ff90b79ac2`。

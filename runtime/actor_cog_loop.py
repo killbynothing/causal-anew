@@ -89,7 +89,7 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "deepen",
-                "text": "把话题往『临走前有件事』挪一小步（心里更重的是张尘）",
+                "text": "把话题往『临走前有件事』挪一小步（心里更重的是张尘）；若闲聊已久则主动收敛，找缝隙把话锋切入托付正题",
                 "band": "deepen",
             },
             {
@@ -159,7 +159,10 @@ def build_reflect_thought(
     band = str(decide.get("band") or "")
     player = str(player_speech or "").strip()
     refused = any(k in player for k in ("不", "拒绝", "不要", "算了", "没空"))
-    spoken = " / ".join(t for t in spoken_texts if t)[:160]
+    spoken = " / ".join(t for t in spoken_texts if t).strip()
+    evidence_text = spoken[:200].rstrip("，,、；; ")
+    if len(spoken) > 200:
+        evidence_text += "…"
     marriage_cue = any(k in player for k in ("定情", "信物", "结婚", "老婆", "妻子", "婚"))
 
     thought = ""
@@ -184,7 +187,7 @@ def build_reflect_thought(
         "thought": thought,
         "band": band,
         "top_concern_id": decide.get("top_concern_id"),
-        "evidence": spoken[:120],
+        "evidence": evidence_text or spoken[:120],
     }
 
 

@@ -61,6 +61,60 @@ def test_filled_from_debug_shape():
     assert "pace=hold" in slots["State Tracking"]["summary"]
 
 
+def test_filled_from_modern_context_assembly_packet():
+    payload = {
+        "world_cursor": {"run": 1, "ch_anchor": 0},
+        "must_happen_progress": {"completed": ["RP1", "RP2"]},
+        "actor_context_packets": {
+            "C.ryuya.W1": {
+                "self_core": {
+                    "name": "折原龙也",
+                    "seed_manners": ["口语自然", "熟络抬杠"],
+                    "seed_boundaries": ["不得泄露后续因果"],
+                    "voice_samples": ["不是清单。碰巧遇见张尘……"],
+                },
+                "self_memory": {
+                    "slow_memory": [{"text": "初遇泼袖"}],
+                    "episodic_recent": [{"text": "雨中旧桌"}],
+                },
+                "relevant_knowledge_top_k": [{"prop_id": "P.TEST"}],
+                "identity_relations": [{"prop_id": "REL.IDENTITY.ryuya.to_player"}],
+                "self_state": {
+                    "inner_state": {"want_now": "说清托付", "top_concern": "托付与禁名"},
+                    "body_frame_now": {"holding": "挂坠"},
+                },
+                "conversation_contract": {
+                    "response_slot": "primary",
+                    "participation_mode": "speak",
+                },
+                "cog_loop": {
+                    "decide": {"top_concern": "托付与禁名", "band": "entrust"},
+                    "reflect": {"thought": "托付已说清"},
+                    "pacing_signal": {"mode": "normal"},
+                },
+                "spoken_this_turn": [{"text": "说正经的，帮我照应张尘。", "stage": "收回手"}],
+            }
+        },
+    }
+    slots = project_agent_modules(payload)
+    assert slots["Planning"]["filled"] is True
+    assert "托付" in slots["Planning"]["summary"]
+    assert slots["Memory"]["filled"] is True
+    assert "慢环" in slots["Memory"]["summary"]
+    assert "正典K" in slots["Memory"]["summary"]
+    assert slots["Tool Use"]["filled"] is True
+    assert "primary" in slots["Tool Use"]["summary"]
+    assert slots["Action"]["filled"] is True
+    assert "照应" in slots["Action"]["summary"]
+    assert slots["Reflection"]["filled"] is True
+    assert "说清" in slots["Reflection"]["summary"]
+    assert slots["Persona"]["filled"] is True
+    assert "折原龙也" in slots["Persona"]["summary"]
+    assert "MANNER" in slots["Persona"]["summary"]
+    assert slots["State Tracking"]["filled"] is True
+    assert "持物=挂坠" in slots["State Tracking"]["summary"]
+
+
 def test_actor_state_projection_has_one_authority():
     mind = build_actor_mind(
         "C.ryuya.W1",

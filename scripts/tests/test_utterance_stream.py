@@ -53,6 +53,32 @@ def test_ingest_player_thought_weighted_person():
     assert "xiuzai" in kinds or any("修哉" in str(x.get("fact_text", "")) for x in ledger)
 
 
+def test_session_emits_same_speaker_composite_turns(tmp_path):
+    sid = "same-speaker-stream-test"
+    state_dir = tmp_path / "sessions"
+    state_dir.mkdir()
+    session = FreeStageSession(
+        session_id=sid,
+        state_dir=str(state_dir),
+        autosave=False,
+        load_existing=False,
+    )
+    raw_turns = [
+        {"role": "npc", "speaker": "折原龙也", "cons": "C.ryuya.W1", "text": "不记得就算了。", "stage": "抹开雾"},
+        {"role": "npc", "speaker": "折原龙也", "cons": "C.ryuya.W1", "text": "说正经的，有件事拜托你。", "stage": "停在桌沿"},
+        {"role": "npc", "speaker": "川口秋人", "cons": "C.akito.WMAIN", "text": "我也在听。"},
+    ]
+    emitted = []
+    shown = session._push_stream_turns(raw_turns, turn_no=1, emitted=emitted)
+    # The same leading speaker's composite turns are emitted together
+    assert len(shown) == 2
+    assert shown[0]["text"] == "不记得就算了。"
+    assert shown[1]["text"] == "说正经的，有件事拜托你。"
+    # The second speaker is placed into the pending queue
+    assert len(session.utterance_pending_queue) == 1
+    assert session.utterance_pending_queue[0]["speaker"] == "川口秋人"
+
+
 def test_session_advance_utterance_drains_queue(tmp_path):
     sid = "stream-test"
     state_dir = tmp_path / "sessions"

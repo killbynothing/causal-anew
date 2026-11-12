@@ -2693,12 +2693,14 @@ function renderAgentModules(payload) {
   const slots = payload?.agent_modules || {};
   const order = ["Planning", "Memory", "Tool Use", "Action", "Reflection", "Persona", "State Tracking"];
   const labels = { Planning: "规划", Memory: "记忆", "Tool Use": "工具", Action: "行动", Reflection: "反思", Persona: "人格", "State Tracking": "状态" };
+  const quadrants = { Persona: "Profile", Memory: "Memory", Planning: "Planning", Reflection: "Planning", Action: "Action", "Tool Use": "Action", "State Tracking": "Action" };
   el.innerHTML = order.map((key) => {
     const row = slots[key] || {};
     const filled = row.filled ? "" : " empty";
     const sum = formatReceiptValue(row.summary || "—");
     const lab = row.label || labels[key] || key;
-    return `<div class="agent-slot${filled}"><div class="agent-slot-key">${escapeHtml(key)}</div><div class="agent-slot-label">${escapeHtml(lab)}</div><div class="agent-slot-sum">${escapeHtml(sum)}</div></div>`;
+    const quad = row.quadrant || quadrants[key] || "";
+    return `<div class="agent-slot${filled}"><div class="agent-slot-key">${escapeHtml(key)} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(${escapeHtml(quad)})</span></div><div class="agent-slot-label">${escapeHtml(lab)}</div><div class="agent-slot-sum">${escapeHtml(sum)}</div></div>`;
   }).join("");
 }
 

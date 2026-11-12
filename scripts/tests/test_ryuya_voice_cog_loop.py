@@ -765,6 +765,40 @@ def test_prologue_session_accept_and_auto_transition():
         assert sess.ended is True or out.get("transition") is not None
 
 
+def test_actor_grounded_pendant_acceptance():
+    """第一性原理测试：哪怕玩家输入是自然长句，只要龙也台词明确认可交割，系统尊崇角色认知直接落账 RP4。"""
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        sess = FreeStageSession(
+            session_id="test-actor-grounded-accept",
+            card_path=card,
+            state_dir=Path(tmp) / "s",
+            runtime_state_path=Path(tmp) / "r.db",
+            load_existing=False,
+            autosave=False,
+            caller=lambda **_: json.dumps(
+                {
+                    "turns": [
+                        {
+                            "speaker": "折原龙也",
+                            "text": "行，你要了，那我就放心了。哪天你翻出来，想起今天这场雨就够了。",
+                            "stage": "笑了一下，把古铜色挂坠轻轻搁到她手边的桌面上，然后收回手",
+                            "participation_mode": "speak",
+                        }
+                    ],
+                    "mh_progress": [],
+                    "director_note": "龙也确认交割",
+                }
+            ),
+        )
+        sess.completed = ["RP1", "RP2", "RP3"]
+        sess.branch_progress = ["prologue_pendant_offered"]
+        # 玩家输入一句带自然口吻的话
+        out = sess.step("那我先拿着吧，你哪天回来找我拿")
+        assert "RP4" in sess.completed, f"RP4 should be grounded by Ryuya's own acceptance, got {sess.completed}"
+        assert "prologue_receipt_accepted" in sess.branch_progress
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -799,4 +833,5 @@ if __name__ == "__main__":
     test_pendant_disposition_accept_extended()
     test_prologue_opening_host_guest_constraint()
     test_prologue_session_accept_and_auto_transition()
+    test_actor_grounded_pendant_acceptance()
     print("PASS")

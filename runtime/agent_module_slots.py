@@ -1,5 +1,13 @@
 """Project debug_payload onto the seven JD Agent module slots.
 
+【第一性原理：4 槽与 7 槽的关系】
+- 古典 4 槽（Profile / Memory / Planning / Action）是顶层概念聚合；
+- 现代 7 槽是数字人认知闭环的高保真展开，两者属于映射折叠关系，绝不冲突：
+    * Persona (人格) ── Profile
+    * Memory (记忆) ── Memory
+    * Planning (规划) + Reflection (反思) ── Planning (慢环双拍)
+    * Action (行动) + Tool Use (工具) + State Tracking (状态) ── Action (身心物理落实)
+
 Read-only. Does not change Decide / Enact / Reflect or the director contract.
 """
 from __future__ import annotations
@@ -26,6 +34,16 @@ SLOT_LABELS: dict[str, str] = {
     "State Tracking": "状态",
 }
 
+SLOT_QUADRANTS: dict[str, str] = {
+    "Persona": "Profile",
+    "Memory": "Memory",
+    "Planning": "Planning",
+    "Reflection": "Planning",
+    "Action": "Action",
+    "Tool Use": "Action",
+    "State Tracking": "Action",
+}
+
 
 def _first_packet(payload: Mapping[str, Any]) -> tuple[str, dict[str, Any]]:
     packets = payload.get("actor_context_packets") or {}
@@ -48,12 +66,13 @@ def re_sub_ws(s: str) -> str:
     return " ".join(s.split())
 
 
-def _slot(filled: bool, summary: str, source: str = "") -> dict[str, Any]:
+def _slot(filled: bool, summary: str, source: str = "", quadrant: str = "") -> dict[str, Any]:
     return {
         "label": "",
         "filled": bool(filled),
         "summary": summary or "—",
         "source": source,
+        "quadrant": quadrant,
     }
 
 
@@ -270,4 +289,5 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
     for key, row in slots.items():
         row["label"] = SLOT_LABELS[key]
         row["key"] = key
+        row["quadrant"] = SLOT_QUADRANTS[key]
     return slots

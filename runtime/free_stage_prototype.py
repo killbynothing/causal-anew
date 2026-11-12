@@ -8263,9 +8263,10 @@ class FreeStageSession:
             )
 
         contract["social_instruction"] = (
-            "开场首句即兴：【主客铁律】今晚是你特意发消息把对方叫到这家常去的咖啡馆见面的！你先到了，对方是冒着暴雨赶来赴约的。"
-            "先熟络招呼对方坐下喝口热的，可打趣这么大雨把对方折腾出来，或从雨势积水/窗上雾汽/初遇泼袖、对方开档身份切入；"
-            "【严禁】说『你挑的日子』、『你挑这日子』或把对方当不请自来！"
+            "【此刻现场与身体前情】外面是天津极罕见的倾盆大雨，天色阴沉如铁，你在咖啡馆靠窗的小桌已经坐了半个小时，杯里的热气快散了；"
+            "是你傍晚主动发消息把对方约到这家常去的街角咖啡馆见面的。你亲眼看着对方推门收伞、衣服还带着湿气朝你走来。"
+            "你心里很承对方冒这么大雨赴约的情，又有点过意不去把对方折腾出来；先熟络招呼对方快坐下喝口热的暖暖身子。"
+            "可即兴打趣雨天把人叫出来，或从雨势积水/窗上雾汽/初遇泼袖、对方开档身份切入；"
             f"{deja_prompt}\n"
             "禁止开场就宣读托付/挂坠/禁名任务；禁止编造未经确认的长共史。"
         )
@@ -8279,7 +8280,7 @@ class FreeStageSession:
         )
         packet["director_instruction"] = {
             "opening_first_line": True,
-            "note": "龙也先开口；是你主动约对方见面，对方冒大雨赶来；招呼坐下喝口热的，勿颠倒主客，勿念任务。",
+            "note": "龙也先开口；你在老地方等候已久，对方冒大雨赴约赶来；招呼坐下喝口热的，勿念任务。",
         }
         try:
             payload = call_actor_packet(
@@ -8302,9 +8303,9 @@ class FreeStageSession:
                 break
         if not text and not stage:
             return None
-        # Opening must not advance MH / dump entrust / invert host-guest relation.
-        if any(k in text for k in ("挂坠", "会死人", "折原修哉", "照顾一下", "你挑的日子", "你挑这日子", "挑的日子", "挑的这日子")):
-            # Soft reject checklist dump or host inversion; ask model failed — no authored rain fallback.
+        # Opening must not advance MH / dump entrust checklist.
+        if any(k in text for k in ("挂坠", "会死人", "折原修哉", "照顾一下")):
+            # Soft reject checklist dump; ask model failed — no authored rain fallback.
             return None
         return acv2.annotate_turn(
             {
@@ -10854,6 +10855,55 @@ class FreeStageSession:
                     scene_id=str(self.card.get("scene_id", "")),
                     fact_text="龙也明确口头说明挂坠是给玩家的，并把挂坠递到玩家这边；等待玩家回应",
                     kind="pendant_offer",
+                )
+        # 第一性原理：角色认知与现场共识（Actor-Grounded Acceptance）
+        # 挂坠已经递出，若角色龙也在本轮的演出中已经确认交付（例如“你要了我就放心了”、“从今天起是你的了”、“那我先走了”），
+        # 且玩家并未明确拒绝，则由角色的真实判断力促成世界物理落账，消除底层死板匹配器的漏判。
+        if (
+            self.card.get("prologue_active")
+            and "RP3" in self.completed
+            and "RP4" not in self.completed
+            and "prologue_pendant_offered" in self.branch_progress
+        ):
+            actor_text_blob = "".join(
+                str(t.get("text") or "") + str(t.get("stage") or "")
+                for t in turns
+                if isinstance(t, dict) and t.get("speaker") == "折原龙也"
+            )
+            actor_acknowledged_delivery = any(
+                k in actor_text_blob
+                for k in (
+                    "你要了", "收着吧", "收着", "收好", "收下", "放你这",
+                    "是你的了", "是送你", "给你了", "给你", "我就放心了", "放心了",
+                    "临别礼物", "这场雨", "那我先走", "我该走", "我先走", "慢点", "保重"
+                )
+            )
+            raw_player_text = _player_public_input_text(player_input)
+            player_declined = any(k in raw_player_text for k in ("不收", "不要", "还给你", "拿回去", "推回", "算了吧"))
+            if actor_acknowledged_delivery and not player_declined:
+                self._commit_player_pendant_response("accepted", turn_no=turn_no)
+                pendant_tx = self._world_transaction("ryuya_pendant_disposition") or {}
+                pendant_receipt = (
+                    pendant_tx.get("receipt")
+                    if isinstance(pendant_tx.get("receipt"), dict)
+                    else {}
+                )
+                self._beat_complete(
+                    "RP4",
+                    source_kind="world_commit",
+                    source_ref=str(pendant_receipt.get("receipt_id") or "actor_grounded_pendant_acceptance"),
+                    turn_no=turn_no,
+                )
+                self._branch_from_world_transaction(
+                    "prologue_receipt_accepted",
+                    "ryuya_pendant_disposition",
+                    turn_no=turn_no,
+                )
+                advance_ryuya_prologue_want_now(
+                    self.card,
+                    flash_beats=max(int(self.card.get("_ryuya_flash_beats") or 0), 6),
+                    completed=[*self.completed, "RP4"],
+                    pendant_offered=True,
                 )
         if str(resolved_card.get("scene_id", "")) == "OPENING_TIANANMEN_002":
             turns = repair_tiananmen_video_contradiction(

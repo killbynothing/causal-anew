@@ -66,13 +66,14 @@ def re_sub_ws(s: str) -> str:
     return " ".join(s.split())
 
 
-def _slot(filled: bool, summary: str, source: str = "", quadrant: str = "") -> dict[str, Any]:
+def _slot(filled: bool, summary: str, source: str = "", quadrant: str = "", details: dict[str, Any] | None = None) -> dict[str, Any]:
     return {
         "label": "",
         "filled": bool(filled),
         "summary": summary or "—",
         "source": source,
         "quadrant": quadrant,
+        "details": dict(details or {}),
     }
 
 
@@ -254,36 +255,83 @@ def project_agent_modules(payload: Mapping[str, Any] | None) -> dict[str, dict[s
             bool(plan_concern),
             _clip(plan_summary),
             "cog_loop.decide / self_state.inner_state",
+            SLOT_QUADRANTS["Planning"],
+            details={
+                "band": plan_band,
+                "want_now": str(inner_state.get("want_now") or ""),
+                "top_concern": str(decide.get("top_concern") or ""),
+                "intention": str(decide.get("intention") or ""),
+            },
         ),
         "Memory": _slot(
             n_mem > 0,
             _clip(mem_summary),
             "self_memory / relevant_knowledge / structured_memories",
+            SLOT_QUADRANTS["Memory"],
+            details={
+                "slow": [str(x) for x in (slow if isinstance(slow, list) else []) if str(x).strip()],
+                "episodic": [str(x) for x in (episodic if isinstance(episodic, list) else []) if str(x).strip()],
+                "relationship": [str(x) for x in (rel_mem if isinstance(rel_mem, list) else []) if str(x).strip()],
+                "knowledge": [str(x) for x in (knowledge if isinstance(knowledge, list) else []) if str(x).strip()],
+            },
         ),
         "Tool Use": _slot(
             bool(last_kind and last_kind != "quiet") or bool(traces) or bool(slot_mode),
             _clip(tool_summary),
             "conversation_contract / director_port_trace",
+            SLOT_QUADRANTS["Tool Use"],
+            details={
+                "slot_mode": slot_mode or "primary",
+                "participation_mode": part_mode or "speak",
+                "pacing": pacing_signal,
+                "last_kind": last_kind,
+            },
         ),
         "Action": _slot(
             bool(action_text),
             _clip(action_text) if action_text else "—",
             "spoken_this_turn",
+            SLOT_QUADRANTS["Action"],
+            details={
+                "spoken": list(spoken if isinstance(spoken, list) else []),
+                "action_text": action_text,
+            },
         ),
         "Reflection": _slot(
             bool(reflect_text),
             _clip(reflect_text) if reflect_text else "—",
             "cog_loop.reflect / private_reflections",
+            SLOT_QUADRANTS["Reflection"],
+            details={
+                "thought": reflect_text,
+                "rule": str(reflect.get("rule") or ""),
+            },
         ),
         "Persona": _slot(
             bool(persona_bits),
             _clip(" · ".join(persona_bits) if persona_bits else (cons or "—")),
             "self_core / actor packet",
+            SLOT_QUADRANTS["Persona"],
+            details={
+                "name": str(char_name or cons or ""),
+                "boundaries": [str(x) for x in (boundaries if isinstance(boundaries, list) else [])],
+                "manner": [str(x) for x in (manner if isinstance(manner, list) else [manner] if manner else [])],
+                "voice_samples": [str(x) for x in (voice_samples if isinstance(voice_samples, list) else [])],
+                "relations": [str(x) for x in (identity if isinstance(identity, list) else [])],
+            },
         ),
         "State Tracking": _slot(
             True,
             _clip(" · ".join(state_bits)),
             "actor_state / world_cursor / must_happen_progress",
+            SLOT_QUADRANTS["State Tracking"],
+            details={
+                "holding": str(bf.get("holding") or ""),
+                "body_pose": str(bf.get("pose") or ""),
+                "cursor": cursor,
+                "completed": list(completed),
+                "sediment_S": sediment.get("sediment_S"),
+            },
         ),
     }
     for key, row in slots.items():

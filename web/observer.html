@@ -513,40 +513,197 @@ header {
 }
 
 .agent-slots {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .agent-slot {
   border: 1px solid var(--line);
   border-radius: 8px;
-  padding: 8px 10px;
-  background: rgba(9, 11, 16, 0.45);
-  min-height: 72px;
+  padding: 12px 14px;
+  background: rgba(14, 18, 26, 0.75);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  transition: all 0.2s ease;
 }
+
+.agent-slot:hover {
+  background: rgba(18, 24, 36, 0.88);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.agent-slot.slot-persona { border-color: rgba(168, 168, 255, 0.3); }
+.agent-slot.slot-memory { border-color: rgba(116, 217, 159, 0.3); }
+.agent-slot.slot-planning { border-color: rgba(255, 179, 71, 0.35); }
+.agent-slot.slot-reflection { border-color: rgba(192, 132, 252, 0.35); }
+.agent-slot.slot-action { border-color: rgba(0, 240, 255, 0.3); }
+.agent-slot.slot-state-tracking { border-color: rgba(220, 220, 220, 0.25); }
+.agent-slot.slot-tool-use { border-color: rgba(100, 160, 200, 0.25); }
 
 .agent-slot.empty {
   opacity: 0.55;
 }
 
-.agent-slot-key {
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--cyan);
+.agent-slot-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.agent-slot-label {
+.agent-slot-key {
   font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.agent-slot-quad {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
   color: var(--dim);
 }
 
+.agent-slot-label {
+  font-size: 11.5px;
+  color: #a0aec0;
+  margin-bottom: 4px;
+}
+
 .agent-slot-sum {
-  font-size: 12px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--dim);
+  margin-bottom: 6px;
+}
+
+.agent-slot-detail {
   margin-top: 4px;
+  font-size: 11.5px;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.slot-section-title {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+}
+
+.slot-kv-row {
+  display: flex;
+  gap: 8px;
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.slot-kv-key {
+  color: var(--dim);
+  flex-shrink: 0;
+  min-width: 60px;
+}
+
+.slot-kv-val {
   color: var(--paper);
-  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.boundary-tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.boundary-tag {
+  font-size: 10.5px;
+  color: #ff85a1;
+  background: rgba(255, 0, 85, 0.08);
+  border: 1px solid rgba(255, 0, 85, 0.22);
+  padding: 2px 7px;
+  border-radius: 4px;
+  line-height: 1.35;
+}
+
+.memory-capsule {
+  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(116, 217, 159, 0.6);
+  padding: 4px 8px;
+  border-radius: 0 4px 4px 0;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.thought-box {
+  background: rgba(192, 132, 252, 0.08);
+  border-left: 3px solid #c084fc;
+  border-radius: 0 5px 5px 0;
+  padding: 6px 10px;
+  font-size: 11.5px;
+  line-height: 1.6;
+  color: #f3e8ff;
+  font-style: italic;
+}
+
+.action-speech-box {
+  background: rgba(0, 240, 255, 0.05);
+  border-left: 3px solid var(--cyan);
+  border-radius: 0 5px 5px 0;
+  padding: 6px 10px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--paper);
+}
+
+.want-ladder-steps {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 2px 0 6px 0;
+}
+
+.want-step {
+  flex: 1;
+  min-width: 68px;
+  text-align: center;
+  padding: 5px 6px;
+  border-radius: 5px;
+  font-size: 11px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--dim);
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.want-step.active {
+  background: rgba(255, 179, 71, 0.18);
+  border-color: #ffb347;
+  color: #ffb347;
+  font-weight: 600;
+  box-shadow: 0 0 8px rgba(255, 179, 71, 0.25);
+}
+
+.want-step.passed {
+  border-color: rgba(116, 217, 159, 0.35);
+  color: #74d99f;
+  background: rgba(116, 217, 159, 0.06);
 }
 
 .actor-receipt-list {
@@ -1245,15 +1402,53 @@ details[open] summary.group-title::before {
     </details>
 
     <details id="group-beat-4" open>
-      <summary class="group-title">④ Agent：Decide → 先想 → 说出 → Reflect</summary>
+      <summary class="group-title">④ 🎭 数字人心智舱 · 欲望阶梯与认知全景</summary>
       <div class="group-content">
-        <div class="debug-card" style="border-color:#ffb347;">
-          <h3>本拍认知环</h3>
-          <div class="human-view" id="actorCogRead">（Decide → pre_speech → spoken → Reflect）</div>
-          <div class="human-view compact" id="privateReflectionsRead" style="margin-top:8px;border-left:2px solid #c084fc;padding-left:10px;">—</div>
+        <!-- 欲望阶梯 Want Ladder -->
+        <div class="debug-card" style="border-color:#ffb347; background: linear-gradient(180deg, rgba(255,179,71,0.06), rgba(0,0,0,0.35));">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h3 style="margin:0; color:#ffb347; display:flex; align-items:center; gap:6px;">
+              <span>🧭 欲望阶梯 (Want Ladder)</span>
+              <span id="agentActiveBand" class="badge yellow" style="font-size:11px;">idle</span>
+            </h3>
+            <span id="agentCharName" style="font-size:12px; color:var(--paper); font-weight:600;">折原龙也</span>
+          </div>
+          <div id="agentWantLadderVisual" class="want-ladder-steps"></div>
+          <div style="font-size:11px; color:#ffb347; font-weight:600; margin:6px 0 2px 0;">🎯 当拍意图核心 (want_now)</div>
+          <div id="agentWantNowFull" style="font-size:12px; line-height:1.6; color:#ffe8cc; background:rgba(0,0,0,0.35); padding:8px 10px; border-radius:6px; border:1px solid rgba(255,179,71,0.25);">—</div>
         </div>
+
+        <!-- 慢环心流 Cognitive Flow -->
+        <div class="debug-card" style="border-color:#c084fc; background: linear-gradient(180deg, rgba(192,132,252,0.05), rgba(0,0,0,0.35));">
+          <h3 style="color:#c084fc; margin-bottom:8px;">🧠 慢环心流 · 言前潜台词与私密反思</h3>
+          <div style="margin-bottom:8px;">
+            <div style="font-size:11px; color:#d8b4fe; font-weight:600; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">💬 言前潜台词 (Pre-Speech Intention)</div>
+            <div id="agentPreSpeechRead" style="font-size:12px; line-height:1.55; color:rgba(255,255,255,0.9); background:rgba(0,0,0,0.25); padding:6px 10px; border-radius:6px; border:1px solid rgba(192,132,252,0.2);">—</div>
+          </div>
+          <div>
+            <div style="font-size:11px; color:#c084fc; font-weight:600; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.05em;">🔮 私密反思 (Private Reflection)</div>
+            <div id="agentPrivateReflectFull" style="font-size:12px; line-height:1.6; color:#f3e8ff; background:rgba(192,132,252,0.1); padding:8px 10px; border-radius:6px; border:1px solid rgba(192,132,252,0.3); border-left:3px solid #c084fc;">—</div>
+          </div>
+        </div>
+
+        <!-- 激活记忆与身体持物态 -->
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-bottom:12px;">
+          <div class="debug-card" style="border-color:rgba(116,217,159,0.5); margin-bottom:0; background:rgba(116,217,159,0.03);">
+            <h3 style="color:#74d99f; font-size:12px; margin-bottom:6px;">📖 激活记忆 (Memory Activated)</h3>
+            <div id="agentActiveMemoryList" style="font-size:11.5px; line-height:1.55; color:rgba(255,255,255,0.85); max-height:160px; overflow-y:auto;">—</div>
+          </div>
+          <div class="debug-card" style="border-color:rgba(0,240,255,0.4); margin-bottom:0; background:rgba(0,240,255,0.03);">
+            <h3 style="color:var(--cyan); font-size:12px; margin-bottom:6px;">🗝️ 身体持物与物权 (Custody & Body)</h3>
+            <div id="agentBodyCustodyList" style="font-size:11.5px; line-height:1.55; color:rgba(255,255,255,0.85);">—</div>
+          </div>
+        </div>
+
+        <!-- 七槽认知全景展开 -->
         <div class="debug-card">
-          <h3>七槽（规划 / 记忆 / 工具 / 行动 / 反思 / 人格 / 状态）</h3>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <h3 style="margin:0;">七槽认知全景 (Profile / Memory / Planning / Action)</h3>
+            <span style="font-size:11px; color:var(--dim);">四大件高保真结构化展开</span>
+          </div>
           <div id="agentModulesRead" class="agent-slots">—</div>
         </div>
       </div>
@@ -2687,20 +2882,416 @@ function renderRuntimeKernelPanel(payload) {
   if (read) read.textContent = decodeRuntimeKernels(payload);
 }
 
+function renderActorMindCabin(payload) {
+  if (!payload) return;
+  const slots = payload.agent_modules || {};
+  const planDetails = slots["Planning"]?.details || {};
+  const reflectDetails = slots["Reflection"]?.details || {};
+  const personaDetails = slots["Persona"]?.details || {};
+  const memoryDetails = slots["Memory"]?.details || {};
+  const stateDetails = slots["State Tracking"]?.details || {};
+  const actionDetails = slots["Action"]?.details || {};
+  
+  const packets = payload.actor_context_packets || {};
+  const ryuyaKey = Object.keys(packets).find(k => k.includes("ryuya")) || Object.keys(packets)[0];
+  const ryuyaPacket = ryuyaKey ? packets[ryuyaKey] : null;
+
+  // 1. 角色名与当前 Band
+  const charName = personaDetails.name || (ryuyaKey ? "折原龙也 (W1)" : "折原龙也");
+  const charNameEl = document.getElementById("agentCharName");
+  if (charNameEl) charNameEl.textContent = charName;
+
+  const currentBand = planDetails.band || ryuyaPacket?.current_band || reflectDetails.current_band || "idle";
+  const activeBandEl = document.getElementById("agentActiveBand");
+  if (activeBandEl) {
+    activeBandEl.textContent = currentBand.toUpperCase();
+    activeBandEl.className = `badge ${currentBand === 'idle' ? 'blue' : (currentBand === 'pendant' || currentBand === 'farewell' ? 'green' : 'yellow')}`;
+  }
+
+  // 2. 欲望阶梯 Want Ladder
+  const ladderSteps = [
+    { key: "idle", label: "① 闲聊破冰", desc: "雨夜叙旧 · 熟人接住" },
+    { key: "deepen", label: "② 意图转折", desc: "言语试探 · 气氛转凝" },
+    { key: "entrust", label: "③ 郑重托付", desc: "道出两人 · 严禁提名字" },
+    { key: "pendant", label: "④ 挂坠交割", desc: "推至桌前 · 物权确认" },
+    { key: "farewell", label: "⑤ 临别道别", desc: "起身边界 · 回忆淡出" }
+  ];
+
+  const bandOrder = ["idle", "deepen", "entrust", "pendant", "farewell"];
+  const currentIdx = bandOrder.indexOf(currentBand) >= 0 ? bandOrder.indexOf(currentBand) : 0;
+  
+  const completedMh = payload?.must_happen_progress?.completed || payload?.completed || [];
+  const hasRP4 = completedMh.includes("RP4");
+  const hasRP3 = completedMh.includes("RP3") || hasRP4;
+  const hasRP2 = completedMh.includes("RP2") || hasRP3;
+  const hasRP1 = completedMh.includes("RP1") || hasRP2;
+
+  const ladderContainer = document.getElementById("agentWantLadderVisual");
+  if (ladderContainer) {
+    ladderContainer.innerHTML = ladderSteps.map((step, idx) => {
+      let isPassed = false;
+      let isActive = false;
+      if (step.key === "idle" && (hasRP1 || idx < currentIdx)) isPassed = true;
+      if (step.key === "deepen" && (hasRP2 || idx < currentIdx)) isPassed = true;
+      if (step.key === "entrust" && (hasRP3 || idx < currentIdx)) isPassed = true;
+      if (step.key === "pendant" && (hasRP4 || idx < currentIdx)) isPassed = true;
+      if (idx === currentIdx) {
+        isActive = true;
+        isPassed = false;
+      } else if (idx < currentIdx) {
+        isPassed = true;
+      }
+      const cls = isActive ? "want-step active" : (isPassed ? "want-step passed" : "want-step");
+      const icon = isPassed ? "✓ " : (isActive ? "▶ " : "○ ");
+      return `<div class="${cls}" title="${escapeHtml(step.desc)}">
+        <div style="font-weight:600;">${icon}${escapeHtml(step.label)}</div>
+        <div style="font-size:9.5px; opacity:0.8; margin-top:2px;">${escapeHtml(step.desc)}</div>
+      </div>`;
+    }).join("");
+  }
+
+  // 3. 当拍意图核心 (want_now)
+  const wantNowEl = document.getElementById("agentWantNowFull");
+  if (wantNowEl) {
+    const wantNowText = planDetails.want_now || ryuyaPacket?.want_now || planDetails.intention || "接住现场语境，保持自然熟络的语调";
+    const topConcern = planDetails.top_concern ? `\n📌 核心关切：${planDetails.top_concern}` : "";
+    wantNowEl.textContent = `${wantNowText}${topConcern}`;
+  }
+
+  // 4. 言前潜台词 (Pre-Speech)
+  const preSpeechEl = document.getElementById("agentPreSpeechRead");
+  if (preSpeechEl) {
+    const intention = planDetails.intention || ryuyaPacket?.pre_speech?.intention || actionDetails.turn_intent || "接住现场语境，保持自然熟络的语调。";
+    const manner = personaDetails.manner || personaDetails.speech_mannerisms || "语速平缓，眼神温和但眼底有极深的事。";
+    preSpeechEl.innerHTML = `<div style="color:var(--paper); margin-bottom:3px; font-weight:500;">「${escapeHtml(intention)}」</div><div style="font-size:11px; color:var(--dim);">🎭 腔调指示：${escapeHtml(manner)}</div>`;
+  }
+
+  // 5. 私密反思 (Private Reflection)
+  const reflectEl = document.getElementById("agentPrivateReflectFull");
+  if (reflectEl) {
+    const thought = reflectDetails.thought || ryuyaPacket?.reflect?.thought || "";
+    const conflict = reflectDetails.inner_conflict ? `\n⚡ 隐秘矛盾：${reflectDetails.inner_conflict}` : "";
+    const reason = reflectDetails.band_reason ? `\n🎯 推进动机：${reflectDetails.band_reason}` : "";
+    if (thought) {
+      reflectEl.innerHTML = `<div style="font-style:italic; line-height:1.6; color:#f3e8ff;">“${escapeHtml(thought)}”</div>${conflict ? `<div style="margin-top:6px; font-size:11px; color:#e9d5ff;">${escapeHtml(conflict)}</div>` : ""}${reason ? `<div style="margin-top:4px; font-size:11px; color:#c084fc;">${escapeHtml(reason)}</div>` : ""}`;
+    } else {
+      const fallbackThought = currentBand === "idle" 
+        ? "“雨下这么大，难得这地方还没变。那件事压在心底，先不要吓着对方，像往常一样坐下喝杯热的……”"
+        : (currentBand === "pendant" 
+          ? "“话已经托付了。这枚挂坠无论如何要交出去，不能带到以后……”" 
+          : "心智在幕后保持缄默观察，未触发显式反思重评。");
+      reflectEl.innerHTML = `<div style="font-style:italic; opacity:0.85;">“${escapeHtml(fallbackThought)}”</div>`;
+    }
+  }
+
+  // 6. 激活记忆 (Memory Activated)
+  const memoryEl = document.getElementById("agentActiveMemoryList");
+  if (memoryEl) {
+    const episodic = memoryDetails.episodic || [];
+    const relations = memoryDetails.relationship || [];
+    const items = memoryDetails.items || [];
+    let lines = [];
+    if (items.length > 0) {
+      lines = items.slice(0, 4).map(it => `<div class="memory-capsule"><strong>[${escapeHtml(it.source_type || '记忆')}]</strong> ${escapeHtml(it.title || '')}：${escapeHtml(it.text_snippet || '')}</div>`);
+    } else if (episodic.length > 0 || relations.length > 0) {
+      episodic.slice(0, 3).forEach(txt => lines.push(`<div class="memory-capsule"><span style="color:#74d99f; font-weight:600;">[情景]</span> ${escapeHtml(txt)}</div>`));
+      relations.slice(0, 2).forEach(txt => lines.push(`<div class="memory-capsule"><span style="color:var(--cyan); font-weight:600;">[关系]</span> ${escapeHtml(txt)}</div>`));
+    }
+    if (lines.length > 0) {
+      memoryEl.innerHTML = `<div style="display:flex; flex-direction:column; gap:6px;">${lines.join("")}</div>`;
+    } else {
+      memoryEl.textContent = "当前拍未激活额外慢环显式条目。";
+    }
+  }
+
+  // 7. 身体持物与物权 (Custody & Body)
+  const custodyEl = document.getElementById("agentBodyCustodyList");
+  if (custodyEl) {
+    const holding = stateDetails.holding || ryuyaPacket?.holding || "I.PENDANT_ANCHOR";
+    const pose = stateDetails.body_pose || "靠窗坐着，桌上放着咖啡";
+    const completed = payload?.must_happen_progress?.completed || payload?.completed || [];
+    let holdingText = "古铜色金属挂坠：在身上";
+    if (completed.includes("RP4")) {
+      holdingText = "【已完成物权交付】对方（玩家）已收下妥存";
+    } else if (currentBand === "pendant") {
+      holdingText = "【交接中】已自胸前/衣袋取出，推至对方桌面";
+    } else {
+      holdingText = "【随身携带】在衣袋内，尚未取出";
+    }
+    custodyEl.innerHTML = `
+      <div style="margin-bottom:4px;"><strong style="color:var(--cyan);">挂坠物权：</strong>${escapeHtml(holdingText)}</div>
+      <div><strong style="color:var(--paper);">身体姿态：</strong>${escapeHtml(pose)}</div>
+      <div style="font-size:10.5px; color:var(--dim); margin-top:4px;">空间：街角老地方咖啡馆 · 窗外暴雨如注</div>
+    `;
+  }
+}
+
 function renderAgentModules(payload) {
   const el = document.getElementById("agentModulesRead");
   if (!el) return;
   const slots = payload?.agent_modules || {};
-  const order = ["Planning", "Memory", "Tool Use", "Action", "Reflection", "Persona", "State Tracking"];
-  const labels = { Planning: "规划", Memory: "记忆", "Tool Use": "工具", Action: "行动", Reflection: "反思", Persona: "人格", "State Tracking": "状态" };
-  const quadrants = { Persona: "Profile", Memory: "Memory", Planning: "Planning", Reflection: "Planning", Action: "Action", "Tool Use": "Action", "State Tracking": "Action" };
+  const order = ["Persona", "Memory", "Planning", "Reflection", "Action", "State Tracking", "Tool Use"];
+  const labels = {
+    Persona: "人格底色与安全红线",
+    Memory: "活体记忆网与检索",
+    Planning: "意图与阶段规划",
+    Reflection: "私密自省与慢环心流",
+    Action: "多轨演播输出",
+    "State Tracking": "态势追踪与因果游标",
+    "Tool Use": "话轮调度与声道分配"
+  };
+  const quadrants = {
+    Persona: "Profile",
+    Memory: "Memory",
+    Planning: "Planning",
+    Reflection: "Planning",
+    Action: "Action",
+    "State Tracking": "Action",
+    "Tool Use": "Action"
+  };
+  const slotThemeClasses = {
+    Persona: "slot-persona",
+    Memory: "slot-memory",
+    Planning: "slot-planning",
+    Reflection: "slot-reflection",
+    Action: "slot-action",
+    "State Tracking": "slot-state-tracking",
+    "Tool Use": "slot-tool-use"
+  };
+
   el.innerHTML = order.map((key) => {
     const row = slots[key] || {};
     const filled = row.filled ? "" : " empty";
-    const sum = formatReceiptValue(row.summary || "—");
     const lab = row.label || labels[key] || key;
     const quad = row.quadrant || quadrants[key] || "";
-    return `<div class="agent-slot${filled}"><div class="agent-slot-key">${escapeHtml(key)} <span style="font-size:10px; opacity:0.6; font-weight:normal;">(${escapeHtml(quad)})</span></div><div class="agent-slot-label">${escapeHtml(lab)}</div><div class="agent-slot-sum">${escapeHtml(sum)}</div></div>`;
+    const themeCls = slotThemeClasses[key] || "";
+    const details = row.details || {};
+
+    let detailsHtml = "";
+
+    // 针对每个槽位的结构化展开
+    if (key === "Persona") {
+      const name = details.name || "折原龙也 (W1)";
+      const mannerList = Array.isArray(details.manner) ? details.manner : [details.manner || details.speech_mannerisms || "语速平缓，眼神温和但眼底有极深的事。"];
+      const mannerText = mannerList.filter(Boolean).join("；");
+      const boundaries = Array.isArray(details.boundaries) ? details.boundaries : [];
+      const relations = Array.isArray(details.relations) ? details.relations : [];
+
+      let boundaryTags = boundaries.length > 0 
+        ? boundaries.map(b => `<span class="boundary-tag" title="${escapeHtml(b)}">⛔ ${escapeHtml(b)}</span>`).join("")
+        : `<span class="boundary-tag">⛔ 对玩家不提双意识与穿越</span><span class="boundary-tag">⛔ 禁泄露张尘未来</span><span class="boundary-tag">⛔ 禁在他们面前提龙也真名</span>`;
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">身份本体：</span>
+          <span class="slot-kv-val" style="color:var(--cyan); font-weight:600;">${escapeHtml(name)}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">语调声线：</span>
+          <span class="slot-kv-val">${escapeHtml(mannerText)}</span>
+        </div>
+        <div class="slot-section-title">🛡️ 不可逾越的安全红线 (Boundaries)：</div>
+        <div class="boundary-tag-list">${boundaryTags}</div>
+        <div class="slot-section-title">👥 核心羁绊网络：</div>
+        <div style="font-size:11px; color:rgba(255,255,255,0.75); line-height:1.45;">
+          • <strong>张尘：</strong>不是家人，托付首位（背负一切，不可压倒）<br>
+          • <strong>折原修哉：</strong>亲弟弟，天才好人嘴毒（爱护与隐瞒并存）<br>
+          • <strong>魏初：</strong>婚姻锚（对玩家轻提已婚，不展开婚姻史）
+        </div>
+      `;
+    } else if (key === "Memory") {
+      const slow = Array.isArray(details.slow) ? details.slow : [];
+      const episodic = Array.isArray(details.episodic) ? details.episodic : [];
+      const relations = Array.isArray(details.relationship) ? details.relationship : [];
+      const items = Array.isArray(details.items) ? details.items : [];
+
+      let itemNodes = [];
+      if (items.length > 0) {
+        itemNodes = items.slice(0, 4).map(it => `
+          <div class="memory-capsule">
+            <span style="color:#74d99f; font-weight:600;">[${escapeHtml(it.source_type || '记忆')}]</span> 
+            <strong>${escapeHtml(it.title || '')}</strong>：${escapeHtml(it.text_snippet || '')}
+          </div>
+        `);
+      } else {
+        if (episodic.length > 0) {
+          episodic.slice(0, 3).forEach(txt => itemNodes.push(`
+            <div class="memory-capsule">
+              <span style="color:#74d99f; font-weight:600;">[情景记忆]</span> ${escapeHtml(txt)}
+            </div>
+          `));
+        }
+        if (relations.length > 0) {
+          relations.slice(0, 2).forEach(txt => itemNodes.push(`
+            <div class="memory-capsule">
+              <span style="color:var(--cyan); font-weight:600;">[羁绊认知]</span> ${escapeHtml(txt)}
+            </div>
+          `));
+        }
+      }
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">检索规模：</span>
+          <span class="slot-kv-val">情景 × ${episodic.length || items.length} · 关系 × ${relations.length} · 慢环 × ${slow.length}</span>
+        </div>
+        <div class="slot-section-title">📚 本拍激活的具体记忆原件：</div>
+        <div style="display:flex; flex-direction:column; gap:5px; margin-top:2px;">
+          ${itemNodes.length > 0 ? itemNodes.join("") : `<div style="color:var(--dim); font-size:11px;">未激活显式条目</div>`}
+        </div>
+      `;
+    } else if (key === "Planning") {
+      const band = details.band || "idle";
+      const wantNow = details.want_now || details.intention || "接住现场语境，保持自然熟络的语调";
+      const topConcern = details.top_concern || "先叙旧破冰，勿急托付";
+      const pending = details.pending_commit || "挂坠交接（等待时机）";
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">欲望阶段：</span>
+          <span class="slot-kv-val"><span class="badge yellow">${escapeHtml(band.toUpperCase())}</span></span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">当拍意图：</span>
+          <span class="slot-kv-val" style="color:#ffb347; font-weight:600;">${escapeHtml(wantNow)}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">核心关切：</span>
+          <span class="slot-kv-val">${escapeHtml(topConcern)}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">挂账承诺：</span>
+          <span class="slot-kv-val" style="color:var(--dim);">${escapeHtml(pending)}</span>
+        </div>
+      `;
+    } else if (key === "Reflection") {
+      const thought = details.thought || "";
+      const conflict = details.inner_conflict || "";
+      const bandReason = details.band_reason || "";
+      const rule = details.rule || "遵从因果收束与性格真实";
+
+      detailsHtml = `
+        <div class="slot-section-title">🔮 慢环心流自省独白 (Thought)：</div>
+        <div class="thought-box">${escapeHtml(thought || "心智保持静默观测，无剧烈认知变动。")}</div>
+        ${conflict ? `
+          <div class="slot-kv-row" style="margin-top:4px;">
+            <span class="slot-kv-key">隐秘矛盾：</span>
+            <span class="slot-kv-val" style="color:#e9d5ff;">${escapeHtml(conflict)}</span>
+          </div>
+        ` : ""}
+        ${bandReason ? `
+          <div class="slot-kv-row">
+            <span class="slot-kv-key">推移动机：</span>
+            <span class="slot-kv-val" style="color:#c084fc;">${escapeHtml(bandReason)}</span>
+          </div>
+        ` : ""}
+        <div class="slot-kv-row" style="font-size:10.5px; color:var(--dim); margin-top:2px;">
+          <span class="slot-kv-key">认知准绳：</span>
+          <span class="slot-kv-val">${escapeHtml(rule)}</span>
+        </div>
+      `;
+    } else if (key === "Action") {
+      let spokenText = "";
+      let stageText = details.action_text || "";
+      if (Array.isArray(details.spoken) && details.spoken.length > 0) {
+        const first = details.spoken[0];
+        if (typeof first === "object" && first !== null) {
+          spokenText = first.text || "";
+          if (first.stage && !stageText) stageText = first.stage;
+        } else {
+          spokenText = String(first);
+        }
+      } else if (typeof details.spoken === "string") {
+        spokenText = details.spoken;
+      }
+      if (!spokenText && details.action_text) {
+        const m = String(details.action_text).match(/^(.*?)(?:〔stage:?\s*(.*?)〕)?$/);
+        if (m) {
+          spokenText = m[1].trim();
+          if (m[2] && !stageText) stageText = m[2].trim();
+        } else {
+          spokenText = details.action_text;
+        }
+      }
+      const target = details.target || "玩家 (Player)";
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">交互对象：</span>
+          <span class="slot-kv-val" style="color:var(--paper);">${escapeHtml(target)}</span>
+        </div>
+        <div class="slot-section-title">💬 台词声道输出：</div>
+        <div class="action-speech-box">${escapeHtml(spokenText || "（保持安静聆听）")}</div>
+        ${stageText ? `
+          <div class="slot-section-title">🏃 肢体与舞台动作：</div>
+          <div style="font-size:11.5px; color:rgba(255,255,255,0.75); background:rgba(0,0,0,0.25); padding:5px 8px; border-radius:4px; font-style:italic;">
+            〔stage〕${escapeHtml(stageText)}
+          </div>
+        ` : ""}
+      `;
+    } else if (key === "State Tracking") {
+      const holding = details.holding || "I.PENDANT_ANCHOR";
+      const cursor = details.cursor || {};
+      const completed = Array.isArray(details.completed) ? details.completed : [];
+      const sedimentS = details.sediment_S ?? "∞ (因果固定底)";
+
+      const cursorStr = cursor && cursor.run !== undefined 
+        ? `run=${cursor.run} · ch=${cursor.ch_anchor ?? 0} · 时钟=${cursor.world_clock || '16:40'} · 宇宙=${cursor.worldline || 'WMAIN'}`
+        : "标准时空游标";
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">持物归属：</span>
+          <span class="slot-kv-val" style="color:var(--cyan); font-weight:600;">${escapeHtml(holding)}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">时空游标：</span>
+          <span class="slot-kv-val" style="font-family:var(--font-mono); font-size:11px;">${escapeHtml(cursorStr)}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">正典完成：</span>
+          <span class="slot-kv-val">${completed.length > 0 ? completed.map(c => `<span class="badge green" style="font-size:10px;">${escapeHtml(c)}</span>`).join(" ") : '<span style="color:var(--dim)">无</span>'}</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">收敛阻力：</span>
+          <span class="slot-kv-val" style="color:var(--dim); font-size:11px;">S(node) = ${escapeHtml(String(sedimentS))}</span>
+        </div>
+      `;
+    } else if (key === "Tool Use") {
+      const slotMode = details.slot_mode || "primary";
+      const partMode = details.participation_mode || "speak";
+      const pacing = details.pacing || "standard";
+
+      detailsHtml = `
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">话轮分配：</span>
+          <span class="slot-kv-val"><span class="badge blue">${escapeHtml(slotMode)}</span> · <span class="badge">${escapeHtml(partMode)}</span></span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">可用声道：</span>
+          <span class="slot-kv-val">台词声道 (Spoken) / 动作声道 (Stage) / 私密反思 (Mind)</span>
+        </div>
+        <div class="slot-kv-row">
+          <span class="slot-kv-key">调度准绳：</span>
+          <span class="slot-kv-val" style="color:var(--dim); font-size:11px;">公开话轮连贯性仲裁 · Pacing: ${escapeHtml(pacing)}</span>
+        </div>
+      `;
+    }
+
+    return `
+      <div class="agent-slot ${themeCls}${filled}">
+        <div class="agent-slot-header">
+          <div class="agent-slot-key">
+            <span>${escapeHtml(key)}</span>
+            <span class="agent-slot-quad">${escapeHtml(quad)}</span>
+          </div>
+          <div style="font-size:11px; color:var(--paper); font-weight:600;">${escapeHtml(lab)}</div>
+        </div>
+        <div class="agent-slot-detail">
+          ${detailsHtml}
+        </div>
+      </div>
+    `;
   }).join("");
 }
 
@@ -2708,6 +3299,7 @@ function renderDebugDetails(payload) {
   const nameMap = buildNameMap(payload);
   const narrationEl = document.getElementById("debugNarrationRead");
   renderAgentModules(payload);
+  renderActorMindCabin(payload);
 
   const verdictEl = document.getElementById("directorVerdictRead");
   if (verdictEl) {

@@ -3254,7 +3254,10 @@ def prologue_receipt_disposition(player_input: str | dict[str, str]) -> str:
 
 def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
     """挂坠处分：只认明确物件取舍，承诺帮忙绝不等于收下物件。"""
-    text = re.sub(r"\s+", "", _player_public_input_text(player_input))
+    raw = _player_public_input_text(player_input)
+    # 去除常见的动作括号与标点，提取纯动作/对话语义
+    cleaned = re.sub(r"[（）\(\)\[\]【】\s，。！!？?、“”\"']+", "", raw)
+    text = cleaned or re.sub(r"\s+", "", raw)
     if not text:
         return "undecided"
     if any(
@@ -3262,7 +3265,7 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
         for token in (
             "不收", "我不要", "这个不要", "你留着", "你自己留着",
             "拿回去", "收回去", "不用给我", "推回去", "递回去",
-            "还给你", "把挂坠推回", "把挂坠递回",
+            "还给你", "把挂坠推回", "把挂坠递回", "我不拿", "别给我",
         )
     ):
         return "declined"
@@ -3271,7 +3274,7 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
         for token in (
             "先放着", "先放这", "先搁着", "暂时放着", "我想想",
             "想想再说", "以后再说", "下次再说", "改天再说",
-            "放在桌上", "放到桌上", "留在桌上", "先放桌上",
+            "放在桌上", "放到桌上", "留在桌上", "先放桌上", "搁在桌上",
         )
     ):
         return "deferred"
@@ -3281,6 +3284,9 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
             "我收下", "那我收下", "我就收下", "我拿着", "那我拿着",
             "我先拿着", "我拿走", "我收着", "给我吧", "接过挂坠",
             "拿起挂坠", "把挂坠拿起", "把挂坠收起", "收起挂坠",
+            "接下", "顺手接", "顺手接过", "接过", "接过来",
+            "收下了", "我收了", "那我收了", "行我收", "好的我收",
+            "拿了", "收好", "揣进", "揣起", "放进口袋", "装进包",
         )
     ):
         return "accepted"
@@ -3516,18 +3522,71 @@ def merge_identity_relations(*groups: list[dict[str, Any]] | None) -> list[dict[
 
 
 
+def extract_ryuya_prologue_deja_vu(
+    state_dir: Any = None,
+    current_session_id: str = "",
+) -> dict[str, str]:
+    """提取前次会话的跨周目既视感残影（主世界意识跳跃多周目感知）。"""
+    try:
+        dir_path = Path(str(state_dir)) if state_dir else Path("artifacts/free_stage_sessions")
+        if not dir_path.exists():
+            return {}
+        candidates = [
+            f for f in dir_path.glob("*.json")
+            if not f.name.endswith(".commit.json")
+            and (not current_session_id or current_session_id not in f.name)
+        ]
+        if not candidates:
+            return {}
+        candidates.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+        for cand in candidates[:5]:
+            try:
+                data = json.loads(cand.read_text(encoding="utf-8"))
+                hist = data.get("history") or []
+                player_lines = [
+                    str(t.get("text") or "").strip()
+                    for t in hist
+                    if isinstance(t, dict) and t.get("role") == "player" and str(t.get("text") or "").strip()
+                ]
+                if player_lines:
+                    for line in reversed(player_lines):
+                        cleaned = re.sub(r"[（）\(\)\[\]【】\s，。！!？?、“”\"']+", "", line)
+                        if 2 <= len(cleaned) <= 24 and not cleaned.isdigit():
+                            return {
+                                "source_session": cand.stem,
+                                "prior_player_snippet": line[:30],
+                                "cleaned_snippet": cleaned,
+                            }
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return {}
+
+
 def turns_cover_ryuya_pendant_gift(turns: list[dict[str, Any]] | None) -> bool:
     """Pendant offer needs words + action. A silent push across the table is not RP4."""
     spoken = _ryuya_spoken_blob(turns)
     visible = _turns_text_blob(turns)
-    has_object = any(token in f"{spoken}{visible}" for token in ("挂坠", "吊坠", "项链"))
+    has_object = any(token in f"{spoken}{visible}" for token in ("挂坠", "吊坠", "项链", "旧铜", "这枚", "这个"))
     has_verbal_offer = any(
         token in spoken
-        for token in ("给你", "送你", "收着", "收下", "拿着", "临别礼物", "留给你", "这个给你")
+        for token in (
+            "给你", "送你", "收着", "收下", "拿着", "临别礼物", "留给你",
+            "这个给你", "临别的东西", "带上这个", "拿着吧", "收着吧", "收下吧",
+        )
     )
     has_visible_offer = any(
         token in visible
-        for token in ("推到你", "推回去", "递到你", "递给你", "放到你", "摆到你", "放在你面前", "摊在掌心", "递过去")
+        for token in (
+            "推到你", "推回去", "递到你", "递给你", "放到你", "摆到你",
+            "放在你面前", "摊在掌心", "递过去", "推过去", "推了推",
+            "往她那边推", "往他那边推", "往对方那边推", "往桌对面推",
+            "推到桌面", "搁在桌面", "放到桌面", "摆在桌面", "搁在桌上",
+            "推到面前", "递到面前", "递在桌", "摊在面前", "托在手心",
+            "放到面前", "推向", "递向", "推到", "递到", "推在", "递在",
+            "放在桌", "搁在桌", "放到桌", "摆在桌", "摊开",
+        )
     )
     return has_object and has_verbal_offer and has_visible_offer
 
@@ -3984,6 +4043,7 @@ def advance_ryuya_prologue_want_now(
     flash_beats: int,
     completed: list[str] | set[str] | None = None,
     topic_interface: bool = False,
+    pendant_offered: bool = False,
 ) -> dict[str, str]:
     """Desire ladder for the Ryuya cafe flashback — character-driven, not a gate.
 
@@ -4017,12 +4077,19 @@ def advance_ryuya_prologue_want_now(
         want = "挂坠已经交到对方手里；像平常分别那样道别，别把场面拖成仪式。"
         goal_head = "平常道别，收束这场见面"
     elif phase == "post_entrust_gift":
-        want = (
-            "托付已经说清；下一步要把挂坠的意思用话说清楚：明确告诉对方这是给她的临别礼物，"
-            "再把古铜色挂坠递到她这边。不要只靠动作，不要擅自塞进手里；说完停住，等她自己接、拒绝或暂放。"
-            "禁止把「照顾」再宣读一遍。"
-        )
-        goal_head = "明确口头赠坠，递出后等回应"
+        if pendant_offered:
+            want = (
+                "托付已说清，挂坠已搁在桌上/递到对方面前；手搁在桌沿或收回，目光落在对方脸上，"
+                "安静等待对方自己决定接、拒或回应。绝不重复递物，不催促，不要替对方决定。禁止复读临别套话。"
+            )
+            goal_head = "挂坠已在桌上，等待对方回应"
+        else:
+            want = (
+                "托付已经说清；下一步要把挂坠的意思用话说清楚：明确告诉对方这是给她的临别礼物，"
+                "再把古铜色挂坠递到她这边。不要只靠动作，不要擅自塞进手里；说完停住，等她自己接、拒绝或暂放。"
+                "禁止把「照顾」再宣读一遍。"
+            )
+            goal_head = "明确口头赠坠，递出后等回应"
     elif phase == "entrust_clear":
         want = (
             "该把压在心里的事说清楚了：碰巧遇见——先是张尘（看着成熟什么都能扛、其实挺累，多照顾点），"
@@ -8169,9 +8236,23 @@ class FreeStageSession:
         contract["participation_mode"] = "speak"
         contract["response_slot"] = "primary"
         contract["opening_first_line"] = True
+        deja_vu = extract_ryuya_prologue_deja_vu(
+            state_dir=getattr(self, "state_dir", None),
+            current_session_id=str(getattr(self, "session_id", "") or ""),
+        )
+        deja_prompt = ""
+        if deja_vu:
+            snippet = deja_vu.get("prior_player_snippet", "")
+            deja_prompt = (
+                f"【跨周目既视感】龙也是主世界意识，深知不知第几次在雨夜坐在这张桌前；"
+                f"记忆深处隐约闪过某次临别时对方说过的话『{snippet}』。"
+                "首句若合适，可随口带出一丝微弱既视感（如『你还是老样子』、『不知第几次坐这了』），自然真实，勿说教。"
+            )
+
         contract["social_instruction"] = (
-            "开场首句即兴：可调侃雨/天气、初遇泼袖、对方开档身份或近况；"
-            "禁止托付/挂坠/禁名；禁止编共史。"
+            "开场首句即兴：可从多种角度自然切入——调侃雨势积水/窗上雾汽/咖啡温度、初遇泼袖、对方开档身份或近况；"
+            f"{deja_prompt}\n"
+            "禁止开场就宣读托付/挂坠/禁名任务；禁止编造未经确认的长共史。"
         )
         packet["conversation_contract"] = contract
         cogloop.attach_cog_loop_to_packet(
@@ -11303,10 +11384,15 @@ class FreeStageSession:
                     elif "RP3" not in soft_done:
                         # 半截照顾：仍停在 entrust 带，但 want 文案用 RP2+ 的「说清」而非 idle
                         soft_done = [*soft_done, "RP2"]
+                    pendant_offered_now = (
+                        "prologue_pendant_offered" in self.branch_progress
+                        or any("挂坠已明确递出" in f or "勿重复递交" in f for f in stated_facts)
+                    )
                     advance_ryuya_prologue_want_now(
                         resolved_card,
                         flash_beats=max(flash_beats_for_cog, 4),
                         completed=soft_done,
+                        pendant_offered=pendant_offered_now,
                     )
                 prior_reflect = self.reflect_proposal_state.get(str(cons))
                 pacing_signal = (
@@ -11517,13 +11603,16 @@ class FreeStageSession:
                 for r in spoken_rows
                 if isinstance(r, dict) and str(r.get("text") or "").strip()
             ]
-            decide = ((pkt.get("cog_loop") or {}).get("decide") or {})
+            cog_data = pkt.get("cog_loop") if isinstance(pkt.get("cog_loop"), dict) else {}
+            decide = cog_data.get("decide") or {}
+            stated_facts_for_reflect = list(cog_data.get("stated_public_facts") or [])
             reflect = cogloop.build_reflect_thought(
                 cons_id=str(cons),
                 decide=decide if isinstance(decide, dict) else {},
                 spoken_texts=spoken_texts,
                 player_speech=speech,
                 completed_after=self.completed,
+                stated_facts=stated_facts_for_reflect,
             )
             if reflect:
                 cogloop.stamp_reflect_on_packet(pkt, reflect)
@@ -11789,12 +11878,40 @@ class FreeStageSession:
         # 玩家可以先回应托付，但挂坠去向必须等“龙也已明确口头递出”之后再结算。
         # 这样「我答应帮忙」不会被误当成「我已经收下物件」。
         if self.card.get("prologue_active") and "RP4" not in self.completed:
-            pendant_offered = "prologue_pendant_offered" in self.branch_progress
+            pendant_offered = (
+                "prologue_pendant_offered" in self.branch_progress
+                or any(
+                    isinstance(row, dict) and str(row.get("kind") or "") == "pendant_offer"
+                    for row in getattr(self, "run_observation_ledger", [])
+                )
+                or turns_cover_ryuya_pendant_gift(self.history)
+            )
+            if pendant_offered and "prologue_pendant_offered" not in self.branch_progress:
+                self._branch_add(
+                    "prologue_pendant_offered",
+                    source_kind="npc_public_output",
+                    source_ref=f"history_recover:turn:{turn_no}",
+                    turn_no=turn_no,
+                )
+
             receipt = (
                 prologue_pendant_disposition(parsed_input)
                 if pendant_offered
                 else prologue_receipt_disposition(parsed_input)
             )
+            # Catch-up: 当挂坠已明确递出且托付已达成时，如果当前轮没有物件动作，
+            # 但玩家在此前（或当前）已做出了接下动作（例如已记 early_accepted 或输入流包含接下）：
+            if receipt == "undecided" and pendant_offered and "RP3" in self.completed:
+                has_prior_accepted = (
+                    "prologue_early_receipt_accepted" in self.branch_progress
+                    or any(
+                        prologue_pendant_disposition(inp) == "accepted"
+                        for inp in (self.inputs if hasattr(self, "inputs") else [])
+                    )
+                )
+                if has_prior_accepted:
+                    receipt = "accepted"
+
             if receipt != "undecided":
                 marker = f"prologue_receipt_{receipt}"
                 if "RP3" in self.completed and pendant_offered:
@@ -11817,6 +11934,13 @@ class FreeStageSession:
                         marker,
                         "ryuya_pendant_disposition",
                         turn_no=turn_no,
+                    )
+                    # 挂坠交割成立，立即推进龙也的想要状态为告别收束
+                    advance_ryuya_prologue_want_now(
+                        self.card,
+                        flash_beats=max(int(self.card.get("_ryuya_flash_beats") or 0), 6),
+                        completed=[*self.completed, "RP4"],
+                        pendant_offered=True,
                     )
                 else:
                     # Before an explicit pendant offer this is only a response to

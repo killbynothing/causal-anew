@@ -616,6 +616,94 @@ def test_reannounce_entrust_repaired():
     assert "天才" not in (out[0].get("text") or "") or "第二遍" in (out[0].get("text") or "")
 
 
+def test_pendant_offer_recognition_and_action_dedup():
+    from runtime.free_stage_prototype import turns_cover_ryuya_pendant_gift
+
+    # Natural dialogue + stage directions should be recognized as visible offer
+    turns1 = [
+        {
+            "speaker": "折原龙也",
+            "text": "去哪啊……你就当我出趟远门吧，别问那么细。倒是这个——你拿着。",
+            "stage": "他笑了一下，没接她那个「托孤」的话头，手从桌下抬上来，把一枚古铜色的挂坠搁在桌面上，往她那边推了推。",
+        }
+    ]
+    assert turns_cover_ryuya_pendant_gift(turns1), "往她那边推了推 should be recognized as visible offer"
+
+    turns2 = [
+        {
+            "speaker": "折原龙也",
+            "text": "给你的，临别的东西——收着吧。",
+            "stage": "把挂坠推到桌对面，目光落在对方脸上。",
+        }
+    ]
+    assert turns_cover_ryuya_pendant_gift(turns2), "推到桌对面 should be recognized as visible offer"
+
+    # History dedup check
+    history = [
+        {
+            "role": "npc",
+            "speaker": "折原龙也",
+            "speaker_cons": "C.ryuya.W1",
+            "text": "倒是这个——你拿着。",
+            "stage": "把一枚古铜色的挂坠搁在桌面上，往她那边推了推。",
+        }
+    ]
+    facts = cogloop.prologue_stated_public_facts(history)
+    assert any("挂坠已明确递出" in f or "勿重复递交" in f for f in facts), facts
+
+    concerns = cogloop.ryuya_prologue_concerns(
+        flash_beats=5,
+        completed=["RP1", "RP2", "RP3"],
+        pacing_signal={"mode": "neutral"},
+        stated_facts=facts,
+    )
+    assert concerns[0]["id"] == "await_pendant_response", "Should switch to await_pendant_response instead of repeating offer_pendant"
+
+
+def test_pendant_disposition_action_brackets():
+    from runtime.free_stage_prototype import prologue_pendant_disposition
+
+    assert prologue_pendant_disposition("（我顺手接下。）") == "accepted"
+    assert prologue_pendant_disposition("好的，我收下了") == "accepted"
+    assert prologue_pendant_disposition("我收下了") == "accepted"
+    assert prologue_pendant_disposition("（接过挂坠，收进口袋）") == "accepted"
+    assert prologue_pendant_disposition("你自己留着吧") == "declined"
+    assert prologue_pendant_disposition("先放桌上吧，我想想") == "deferred"
+
+
+def test_pendant_catchup_and_reflect_transition():
+    # 1. Reflect when RP4 done
+    reflect_rp4 = cogloop.build_reflect_thought(
+        cons_id="C.ryuya.W1",
+        decide={"band": "pendant", "top_concern": "道别离开"},
+        spoken_texts=["路上小心，拿把伞。"],
+        completed_after=["RP1", "RP2", "RP3", "RP4"],
+    )
+    assert reflect_rp4 and "交出去了" in reflect_rp4["thought"]
+    assert "准备起身道别" in reflect_rp4["thought"]
+
+    # 2. Reflect when pendant offered and waiting
+    reflect_wait = cogloop.build_reflect_thought(
+        cons_id="C.ryuya.W1",
+        decide={"band": "pendant", "top_concern": "等待对方接"},
+        spoken_texts=["给你的，临别的东西。"],
+        completed_after=["RP1", "RP2", "RP3"],
+        stated_facts=["账本已记：挂坠已明确递出，正在等待对方回应；勿重复递交。"],
+    )
+    assert reflect_wait and "等对方决定接或不接" in reflect_wait["thought"]
+    assert "不要重复递" in reflect_wait["thought"]
+
+
+def test_extract_ryuya_prologue_deja_vu():
+    from runtime.free_stage_prototype import extract_ryuya_prologue_deja_vu
+
+    # Should safely return dict even if no session matches
+    res = extract_ryuya_prologue_deja_vu(current_session_id="non_existent")
+    assert isinstance(res, dict)
+    if res:
+        assert "prior_player_snippet" in res
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -643,4 +731,8 @@ if __name__ == "__main__":
     test_solo_prologue_actor_intent_can_speak_but_helper_never_forces_floor()
     test_entrust_cover_accumulates_across_beats()
     test_reannounce_entrust_repaired()
+    test_pendant_offer_recognition_and_action_dedup()
+    test_pendant_disposition_action_brackets()
+    test_pendant_catchup_and_reflect_transition()
+    test_extract_ryuya_prologue_deja_vu()
     print("PASS")

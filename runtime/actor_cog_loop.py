@@ -76,7 +76,7 @@ def ryuya_prologue_concerns(
         return [
             {
                 "id": "entrust",
-                "text": "说清托付与禁名（先张尘、再折原修哉全名；勿传龙也之名）——若已点过名，本拍只补禁名，勿重念画像",
+                "text": "正典演法托付：托付照顾张尘与修哉（遇上照顾，不用刻意找）；修哉天才嘴毒可爱；提张尘时停顿、眼神寂寥与轻微痛楚，描摹清秀认死理倔如牛背负一切不可压倒；禁名警告说了有危险会死人——若已点过名，本拍只补禁名，勿重念画像",
                 "band": "entrust",
             },
             {
@@ -152,6 +152,7 @@ def build_reflect_thought(
     spoken_texts: list[str],
     player_speech: str = "",
     completed_after: list[str] | set[str] | None = None,
+    stated_facts: list[str] | None = None,
 ) -> dict[str, Any] | None:
     """Minimal reflection: one private conclusion when the beat moved."""
     done = {str(x) for x in (completed_after or [])}
@@ -167,9 +168,17 @@ def build_reflect_thought(
 
     thought = ""
     if "RP4" in done:
-        thought = "挂坠已经交出去了；分别要像平常一样，别拖成仪式。"
+        thought = "挂坠已经交出去了；托付交代完毕，分别要像平常一样，准备起身道别离开。"
     elif "RP3" in done:
-        thought = "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。"
+        facts_list = [str(x) for x in (stated_facts or []) if str(x).strip()]
+        if any(
+            k in f
+            for f in facts_list
+            for k in ("挂坠已明确递出", "等待对方回应", "勿重复递交", "递到对方面前")
+        ):
+            thought = "挂坠已经递到对方面前了；等对方决定接或不接，不要重复递、不要催促。"
+        else:
+            thought = "托付说清了；下一拍必须把挂坠交到对方手里——不要再把托付重宣一遍。"
     elif "RP2" in done:
         thought = "托付的口已经开了；还要看对方是否接住禁名与照顾的事。"
     elif marriage_cue:
@@ -243,17 +252,25 @@ def prologue_stated_public_facts(
     """
     facts: list[str] = []
     blob = ""
+    stage_blob = ""
     care_count = 0
+    pendant_offered_in_history = False
     for item in history or []:
-        if not isinstance(item, dict) or item.get("role") != "npc":
+        if not isinstance(item, dict):
             continue
+        role = str(item.get("role") or "")
         speaker = str(item.get("speaker") or "")
         cons = str(item.get("speaker_cons") or item.get("cons") or "")
-        if "龙也" not in speaker and "ryuya" not in cons:
-            continue
         text = str(item.get("text") or "")
-        blob += text
-        care_count += text.count("照顾")
+        stage = str(item.get("stage") or "")
+        if role == "npc" and ("龙也" in speaker or "ryuya" in cons):
+            blob += text
+            stage_blob += stage
+            care_count += text.count("照顾")
+            has_pendant_token = any(k in f"{text}{stage}" for k in ("挂坠", "吊坠", "项链", "旧铜", "这枚"))
+            has_move_token = any(k in stage for k in ("推", "递", "摊在掌心", "搁在桌面", "放到桌面", "摆在桌面"))
+            if has_pendant_token and has_move_token:
+                pendant_offered_in_history = True
     has_xiuzai = ("折原修哉" in blob) or ("修哉" in blob and "弟" in blob)
     has_zhang = "张尘" in blob
     if has_xiuzai and has_zhang:
@@ -266,6 +283,8 @@ def prologue_stated_public_facts(
         facts.append("已当面说过禁名：不要把龙也的名字告诉他们。")
     if any(k in blob for k in ("挂坠", "项链", "临别")):
         facts.append("挂坠话题已出口或在交涉中。")
+    if pendant_offered_in_history:
+        facts.append("账本已记：挂坠已明确递出，正在等待对方回应；勿重复递交。")
     if any(k in blob for k in ("结婚", "已婚", "老婆", "妻子", "好女孩")):
         facts.append("已婚一事已淡提过；勿反复卖惨。")
     for row in ledger or []:
@@ -278,7 +297,7 @@ def prologue_stated_public_facts(
             facts.append("账本已记：禁名警告已说出。")
         if kind == "pendant_offer" and not any("挂坠已明确递出" in f for f in facts):
             facts.append("账本已记：挂坠已明确递出，正在等待对方回应；勿重复递交。")
-        if kind == "pendant" and not any("挂坠" in f for f in facts):
+        if kind == "pendant" and not any("挂坠去向已结算" in f for f in facts):
             facts.append("账本已记：挂坠去向已结算。")
     return facts
 
@@ -330,7 +349,17 @@ def attach_cog_loop_to_packet(
                 for k in ("已当面提过", "已提起过照顾", "照顾」已出口", "账本已记：托付")
             )
             if care_stuck and "RP4" not in done_set:
-                if "已当面提过" in joined or "账本已记：托付" in joined:
+                pendant_already_offered = any(
+                    k in joined
+                    for k in ("挂坠已明确递出", "等待对方回应", "勿重复递交", "递到对方面前")
+                )
+                if pendant_already_offered:
+                    top = {
+                        "id": "no_reannounce",
+                        "text": "挂坠已递到对方面前；视线落在对方脸上等待回应，禁止重复推递，禁止复读临别套话",
+                        "band": "pendant",
+                    }
+                elif "已当面提过" in joined or "账本已记：托付" in joined:
                     top = {
                         "id": "no_reannounce",
                         "text": "托付已出口；禁止换皮重宣画像；只补禁名（若未说）或交挂坠",

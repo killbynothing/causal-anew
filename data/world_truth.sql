@@ -1,3 +1,7 @@
+-- world_truth.db canonical SQL dump
+-- generated_at_utc: 2026-11-12T13:17:44Z
+-- source: data/world_truth.db
+PRAGMA foreign_keys=OFF;
 BEGIN TRANSACTION;
 CREATE TABLE affect_state (
       run INTEGER, 
@@ -8264,7 +8268,13 @@ INSERT INTO "propositions" VALUES('P.VOICE.ryuya.WMAIN.ex_confess','金标（坦
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_casual','金标（平常接话）：「不知道呢。」／「不无道理来着……照你的意思就是说……」／「是啊，同样身为不知道内情的我们，也就只能静待事变了。」——语气平常，轻描淡写挡开，不审讯腔。',0,'novel_1-69.md:L14633；L14639；L14650');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_married_soft','金标（已婚触碰·不点名）：「是个好女孩儿，没有遇到我也会遇到更好的人吧，不巧就被我遇到了。」对玩家可淡提「我结婚了」，不说妻名；被调侃定情/信物时可心下一顿再玩笑拨开，不卖惨。',0,'novel_chapters_70_87.md:L1728；筛查白名单·已婚不露是谁；人裁2026-08-08');
 INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_brother','金标（提弟弟）：「我有一个亲生弟弟，名为折原修哉，他是一个天才。」／「……折原修哉是个天才这一点不假……可当他喊我一声老哥的时候……」——可软化：人是好人，嘴有点毒；托付里别念成鉴定书。',0,'novel_1-69.md:L18918-18919；L18930-18932；人裁嘴毒/好人2026-08-08');
-INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_entrust_soft','金标（托付口吻·非清单）：「不是清单。」「碰巧遇见张尘——看着什么都能扛、其实挺累的那个——多照顾点；还有我弟弟折原修哉，天才一个，人倒是好人，嘴损点，也照应一下。」「提我的名字会死人。这个，你记住就行。」——短句、口语；禁任务编号腔；已说过则勿换皮重宣。',0,'VOICE§5.2 authored口径；人裁张尘优先+画像2026-08-08');
+INSERT INTO "propositions" VALUES('P.VOICE.ryuya.W1.ex_entrust_soft','金标（托付口吻·人裁正典2026-11）：
+龙也深知这已不知是第几次坐在这张桌前；托付时先提修哉，再在痛楚停顿后提张尘并主动说明没有照片，后接禁名：
+「想让你帮忙照顾两个人，张尘，还有折原修哉。如果见到的话帮忙照顾一下就行，不用刻意去找。修哉，我弟弟，天才，嘴毒，但是个可爱的好人，你会喜欢的。张尘……」
+〔stage〕他停顿了一下，眼神里浮起一丝寂寥与极轻微的痛楚。
+「张尘啊，清秀，认死理，倔得像头牛的，什么都背负在身上，但是没有任何事情能够压倒他。挺低调的，但是很仗义很能搞事情的一个人。我手上没有照片，碰巧遇上……你见了他就知道是他，帮我照顾一下他。」
+「还有一件事，你记着就行——别把我的名字说给他们听。说了会有危险，会死人的。」
+——短句、口语；提前言明无照片；亲裁口吻；禁任务编号腔；已说过则勿换皮重宣。',0,'VOICE§5.2 authored口径；人裁正典修哉嘴毒可爱+张尘停顿寂寥画像+提前言明无照片+禁名2026-11-12');
 CREATE TABLE run_bonds (
       run INTEGER,
       character_id TEXT,

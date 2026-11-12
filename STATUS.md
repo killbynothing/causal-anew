@@ -1,5 +1,21 @@
 # STATUS —— 当前真相（新的在最上）
 
+### 2026-11-12（开场主客关系纠偏 × 挂坠口语与动作统一判定 × 确认收下自动告别收束转场）
+
+- **开场背景与主客关系纠偏（解决颠倒主客说“你挑的日子”）**：
+  - 更新卡片 `runtime/free_stage_card_ryuya_prologue.json`（`entry_hook` / `relationship_memory` / `want_now`）：明确交代“傍晚折原龙也主动发消息约玩家在常去的咖啡馆见面”，龙也提前等候，玩家冒暴雨赴约；龙也心里承这份冒雨前来的情，招呼对方赶紧坐下喝口热的，严禁说『你挑的日子』等颠倒主客的台词；
+  - 在 `free_stage_prototype.py::_llm_ryuya_opening_turn` 的 `social_instruction` 与 `director_instruction` 中注入【主客铁律】；并在输出拦截层硬核过滤“你挑的日子/你挑这日子/挑的日子”，杜绝开场主客颠倒幻觉。
+- **挂坠接收判定彻底打通（口语与动作统一判定）**：
+  - 排查用户反馈的“玩家说要了/动作拿了却卡着不判”：修复原词表缺失导致的漏判。在 `runtime/free_stage_prototype.py::prologue_pendant_disposition` 中：
+    1. 扩充明确口语词表：涵盖“我要了/要了/我要/我要这个/归我了/归我/给我吧/给我/拿来吧/拿来/我拿走/我拿了/我拿着/拿过来/收下了/我收了”等；
+    2. 扩充递物阶段单字与短语肯定承接：在排除 declined 与 deferred 后，承接玩家的“好的/行/行吧/行阿/行啊/好/成/可以/没问题/听你的/那就这个吧/我说了我要了”等均直接判定为 `accepted`；
+    3. 动作描写与口语核心动词统合：玩家动作或输入中只要包含受让动词（“接/拿/收/揣/戴/握”）且无否定词（“不/别/免/还/退”），统一结算为 `accepted`。
+- **确认收下后龙也道别并自动收束/转场（回忆圆满闭环）**：
+  - 序幕本质是一段回忆（Flashback）。当挂坠交付事实成立（RP1-RP4 完成且 `prologue_receipt_accepted` 入账），且龙也给出道别演出后，系统通过 `force_transition` 自动授权退出；
+  - 在正戏闪回上下文下，自动触发 `transition`（返回天安门夜雨正戏）；在独立启动序幕时，自动触发 `standalone_end`（打上 END_MARKER 标志回忆圆满落幕停止），绝不让玩家在收下挂坠后继续被困在咖啡馆干聊。
+- **验证**：`python scripts/verify.py --quick` **64 PASS / 0 FAIL / 161 SKIP** 全部绿灯；`test_ryuya_voice_cog_loop.py` 32 项全部通过；`test_cafe_world_projection_p2b.py`、`test_cafe_p2b_matrix.py`、`test_opening_two_scene_closeout.py` 全 PASS；`verify_db_rebuild_from_dump.py` 指纹一致。
+- **报账**：台词与演法紧密围绕用户明确指令落地，哪里是我编的 = 0。
+
 ### 2026-11-12（龙也正典托付重构 × 挂坠递物去重与Catch-up根治 × 跨周目既视感记忆）
 
 - **作者亲裁正典托付演法落地**：

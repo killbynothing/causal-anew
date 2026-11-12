@@ -3253,19 +3253,20 @@ def prologue_receipt_disposition(player_input: str | dict[str, str]) -> str:
 
 
 def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
-    """挂坠处分：只认明确物件取舍，承诺帮忙绝不等于收下物件。"""
+    """挂坠处分：只认明确物件取舍，承诺帮忙绝不等于收下物件。口语与动作统一判定。"""
     raw = _player_public_input_text(player_input)
     # 去除常见的动作括号与标点，提取纯动作/对话语义
-    cleaned = re.sub(r"[（）\(\)\[\]【】\s，。！!？?、“”\"']+", "", raw)
+    cleaned = re.sub(r"[（）\(\)\[\]【】\s，。！!？?、“”\"'…]+", "", raw)
     text = cleaned or re.sub(r"\s+", "", raw)
     if not text:
         return "undecided"
     if any(
         token in text
         for token in (
-            "不收", "我不要", "这个不要", "你留着", "你自己留着",
-            "拿回去", "收回去", "不用给我", "推回去", "递回去",
+            "不要", "不收", "我不要", "这个不要", "你留着", "你自己留着",
+            "拿回去", "收回去", "不用给我", "不用了", "推回去", "递回去",
             "还给你", "把挂坠推回", "把挂坠递回", "我不拿", "别给我",
+            "不要了", "不想拿", "算了吧", "算了",
         )
     ):
         return "declined"
@@ -3281,14 +3282,26 @@ def prologue_pendant_disposition(player_input: str | dict[str, str]) -> str:
     if any(
         token in text
         for token in (
-            "我收下", "那我收下", "我就收下", "我拿着", "那我拿着",
-            "我先拿着", "我拿走", "我收着", "给我吧", "接过挂坠",
+            # 明确收下/要了/接受动作与口语
+            "我要了", "要了", "我要", "我要这个", "归我了", "归我", "给我吧", "给我",
+            "拿来吧", "拿来", "我拿走", "我拿了", "我拿着", "那我拿着",
+            "我先拿着", "拿过来", "拿过来看看", "拿过来看", "拿过", "拿在手",
+            "我收下", "那我收下", "我就收下", "我收着", "接过挂坠",
             "拿起挂坠", "把挂坠拿起", "把挂坠收起", "收起挂坠",
             "接下", "顺手接", "顺手接过", "接过", "接过来",
             "收下了", "我收了", "那我收了", "行我收", "好的我收",
-            "拿了", "收好", "揣进", "揣起", "放进口袋", "装进包",
+            "拿了", "收好", "揣进", "揣起", "放进口袋", "装进包", "揣兜", "揣好",
+            "戴上", "握在手", "攥在手", "收进", "收下",
+            # 递物阶段肯定承接词（已排除 declined 与 deferred）
+            "好的", "行吧", "行阿", "行啊", "行", "好阿", "好啊", "好", "成", "可以",
+            "没问题", "听你的", "那就这个吧", "那行吧", "那好吧", "那就先收下",
+            "那就收下", "我就要这个", "就这个吧", "我说了我要了", "我要了阿", "我要了啊",
+            "嗯", "恩",
         )
     ):
+        return "accepted"
+    # 动作描写或口语中只要包含核心受让动词且无否定词
+    if any(k in text for k in ("接", "拿", "收", "揣", "戴", "握")) and not any(k in text for k in ("不", "别", "免", "还", "退")):
         return "accepted"
     return "undecided"
 
@@ -8250,7 +8263,9 @@ class FreeStageSession:
             )
 
         contract["social_instruction"] = (
-            "开场首句即兴：可从多种角度自然切入——调侃雨势积水/窗上雾汽/咖啡温度、初遇泼袖、对方开档身份或近况；"
+            "开场首句即兴：【主客铁律】今晚是你特意发消息把对方叫到这家常去的咖啡馆见面的！你先到了，对方是冒着暴雨赶来赴约的。"
+            "先熟络招呼对方坐下喝口热的，可打趣这么大雨把对方折腾出来，或从雨势积水/窗上雾汽/初遇泼袖、对方开档身份切入；"
+            "【严禁】说『你挑的日子』、『你挑这日子』或把对方当不请自来！"
             f"{deja_prompt}\n"
             "禁止开场就宣读托付/挂坠/禁名任务；禁止编造未经确认的长共史。"
         )
@@ -8264,7 +8279,7 @@ class FreeStageSession:
         )
         packet["director_instruction"] = {
             "opening_first_line": True,
-            "note": "龙也先开口；旁白已给雨景，你自己选怎么招呼，勿念任务。",
+            "note": "龙也先开口；是你主动约对方见面，对方冒大雨赶来；招呼坐下喝口热的，勿颠倒主客，勿念任务。",
         }
         try:
             payload = call_actor_packet(
@@ -8287,9 +8302,9 @@ class FreeStageSession:
                 break
         if not text and not stage:
             return None
-        # Opening must not advance MH / dump entrust.
-        if any(k in text for k in ("挂坠", "会死人", "折原修哉", "照顾一下")):
-            # Soft reject checklist dump; ask model failed — no authored rain fallback.
+        # Opening must not advance MH / dump entrust / invert host-guest relation.
+        if any(k in text for k in ("挂坠", "会死人", "折原修哉", "照顾一下", "你挑的日子", "你挑这日子", "挑的日子", "挑的这日子")):
+            # Soft reject checklist dump or host inversion; ask model failed — no authored rain fallback.
             return None
         return acv2.annotate_turn(
             {
@@ -13149,14 +13164,29 @@ class FreeStageSession:
                 pending_confirmation=pending_exit_confirmation,
                 confirmation_cancelled=confirmation_cancelled,
                 force_transition=bool(
-                    p2_inside_observer
-                    and all_must_happen_complete(self.card, self.completed)
+                    (p2_inside_observer and all_must_happen_complete(self.card, self.completed))
+                    or (
+                        self.card.get("prologue_active")
+                        and all_must_happen_complete(self.card, self.completed)
+                        and "prologue_receipt_accepted" in self.branch_progress
+                        and any(
+                            isinstance(t, dict)
+                            and t.get("speaker") == "折原龙也"
+                            and any(k in str(t.get("text") or "") + str(t.get("stage") or "") for k in ("走", "慢点", "保重", "伞", "行了", "放心", "收好", "收着", "今天这场雨", "咖啡"))
+                            for t in self.history[-4:]
+                        )
+                    )
                 ),
-                force_reason="c16_inside_observer_complete",
+                force_reason=(
+                    "prologue_farewell_completed"
+                    if self.card.get("prologue_active")
+                    else "c16_inside_observer_complete"
+                ),
                 standalone_end=bool(
                     self.card.get("prologue_active")
                     and not self.ryuya_flashback_return
                     and self.pending_entry is None
+                    and not any(spec.get("target_card") for spec in self.card.get("exits", []))
                 ),
                 exit_menu=bool(self.card.get("exit_menu") is True),
                 flashback_target_ref=flashback_target_ref,

@@ -704,6 +704,67 @@ def test_extract_ryuya_prologue_deja_vu():
         assert "prior_player_snippet" in res
 
 
+def test_pendant_disposition_accept_extended():
+    from runtime.free_stage_prototype import prologue_pendant_disposition
+
+    assert prologue_pendant_disposition("好的") == "accepted"
+    assert prologue_pendant_disposition("行") == "accepted"
+    assert prologue_pendant_disposition("行吧") == "accepted"
+    assert prologue_pendant_disposition("我说了我要了阿") == "accepted"
+    assert prologue_pendant_disposition("我要了") == "accepted"
+    assert prologue_pendant_disposition("（我拿过来看看，）") == "accepted"
+    assert prologue_pendant_disposition("拿过来") == "accepted"
+    assert prologue_pendant_disposition("给我吧") == "accepted"
+    assert prologue_pendant_disposition("不要") == "declined"
+    assert prologue_pendant_disposition("先放这") == "deferred"
+
+
+def test_prologue_opening_host_guest_constraint():
+    card = json.loads(
+        (ROOT / "runtime" / "free_stage_card_ryuya_prologue.json").read_text(encoding="utf-8")
+    )
+    hook = card.get("entry_hook", "")
+    assert "龙也发消息" in hook or "约你来" in hook, "entry_hook should establish Ryuya invited player"
+    rel_blob = "\n".join((card.get("memory_layers") or {}).get("relationship_memory") or [])
+    assert "主动发消息" in rel_blob or "赴约" in rel_blob, "relationship_memory should note Ryuya invited"
+    assert "你挑的日子" in rel_blob
+    want_now = ((card.get("persona_cards") or {}).get("C.ryuya.W1", {}).get("inner_state") or {}).get("want_now", "")
+    assert "喊出来" in want_now or "主动" in want_now
+
+
+def test_prologue_session_accept_and_auto_transition():
+    card = ROOT / "runtime" / "free_stage_card_ryuya_prologue.json"
+    with tempfile.TemporaryDirectory() as tmp:
+        sess = FreeStageSession(
+            session_id="test-pendant-accept-transition",
+            card_path=card,
+            state_dir=Path(tmp) / "s",
+            runtime_state_path=Path(tmp) / "r.db",
+            load_existing=False,
+            autosave=False,
+            caller=lambda **_: json.dumps(
+                {
+                    "turns": [
+                        {
+                            "speaker": "折原龙也",
+                            "text": "行，那我先走了。雨还没停，你路上慢点，把伞拿上。",
+                            "stage": "喝完最后一口咖啡，站起身，拉了拉衣领",
+                            "participation_mode": "speak",
+                        }
+                    ],
+                    "mh_progress": [],
+                    "director_note": "道别收束",
+                }
+            ),
+        )
+        sess.completed = ["RP1", "RP2", "RP3"]
+        sess.branch_progress = ["prologue_pendant_offered"]
+        out = sess.step("好的")
+        assert "RP4" in sess.completed, f"RP4 should complete on '好的', got {sess.completed}"
+        assert "prologue_receipt_accepted" in sess.branch_progress
+        assert sess.ended is True or out.get("transition") is not None
+
+
 if __name__ == "__main__":
     test_voice_props_in_db()
     test_resolve_persona_core_carries_voice_samples()
@@ -735,4 +796,7 @@ if __name__ == "__main__":
     test_pendant_disposition_action_brackets()
     test_pendant_catchup_and_reflect_transition()
     test_extract_ryuya_prologue_deja_vu()
+    test_pendant_disposition_accept_extended()
+    test_prologue_opening_host_guest_constraint()
+    test_prologue_session_accept_and_auto_transition()
     print("PASS")

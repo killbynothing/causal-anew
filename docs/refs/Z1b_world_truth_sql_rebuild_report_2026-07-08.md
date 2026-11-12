@@ -1,6 +1,6 @@
 # Z1b world_truth.sql 重建差异报告
 
-- 生成时间：2026-11-12 13:17:45Z
+- 生成时间：2026-11-12 13:54:29Z
 - 源库：`data/world_truth.db`
 - SQL dump：`data/world_truth.sql`
 - 表数量：原库 27 / 重建 27

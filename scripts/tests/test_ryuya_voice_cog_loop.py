@@ -727,9 +727,9 @@ def test_prologue_opening_host_guest_constraint():
     assert "龙也发消息" in hook or "约你来" in hook, "entry_hook should establish Ryuya invited player"
     rel_blob = "\n".join((card.get("memory_layers") or {}).get("relationship_memory") or [])
     assert "主动发消息" in rel_blob or "赴约" in rel_blob, "relationship_memory should note Ryuya invited"
-    assert "你挑的日子" in rel_blob
+    assert "自由" in rel_blob or "微光" in rel_blob or "松了一口气" in rel_blob, "relationship_memory should note glimmer of hope"
     want_now = ((card.get("persona_cards") or {}).get("C.ryuya.W1", {}).get("inner_state") or {}).get("want_now", "")
-    assert "喊出来" in want_now or "主动" in want_now
+    assert "主动" in want_now or "老地方" in want_now or "自由" in want_now
 
 
 def test_prologue_session_accept_and_auto_transition():

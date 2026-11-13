@@ -2976,9 +2976,9 @@ function renderActorMindCabin(payload) {
       reflectEl.innerHTML = `<div style="font-style:italic; line-height:1.6; color:#f3e8ff;">“${escapeHtml(thought)}”</div>${conflict ? `<div style="margin-top:6px; font-size:11px; color:#e9d5ff;">${escapeHtml(conflict)}</div>` : ""}${reason ? `<div style="margin-top:4px; font-size:11px; color:#c084fc;">${escapeHtml(reason)}</div>` : ""}`;
     } else {
       const fallbackThought = currentBand === "idle" 
-        ? "“雨下这么大，难得这地方还没变。那件事压在心底，先不要吓着对方，像往常一样坐下喝杯热的……”"
+        ? "“雨下这么大，难得这地方还没变。看到对方冒雨推门进来，心里难得松了一口气，能见到这样一个没陷进泥潭的自由朋友……不过一想到之后要把那副沉重的宿命托付给对方，心底又暗生愧疚。先不急着给压力，像往常一样坐下喝杯热的……”"
         : (currentBand === "pendant" 
-          ? "“话已经托付了。这枚挂坠无论如何要交出去，不能带到以后……”" 
+          ? "“话已经托付了。这枚挂坠是最后的希望实体化，无论如何要当面交出去，把生机留在对方手里……”" 
           : "心智在幕后保持缄默观察，未触发显式反思重评。");
       reflectEl.innerHTML = `<div style="font-style:italic; opacity:0.85;">“${escapeHtml(fallbackThought)}”</div>`;
     }
@@ -3142,9 +3142,9 @@ function renderAgentModules(payload) {
       `;
     } else if (key === "Planning") {
       const band = details.band || "idle";
-      const wantNow = details.want_now || details.intention || "接住现场语境，保持自然熟络的语调";
-      const topConcern = details.top_concern || "先叙旧破冰，勿急托付";
-      const pending = details.pending_commit || "挂坠交接（等待时机）";
+      const wantNow = details.want_now || details.intention || "见自由朋友冒雨赶来，心有微光亦有隐秘歉意；温和招呼坐下喝口热的";
+      const topConcern = details.top_concern || "温和熟络接住对方，建立人与人的真实联结";
+      const pending = details.pending_commit || "挂坠亲手交付（承载最后的希望）";
 
       detailsHtml = `
         <div class="slot-kv-row">
